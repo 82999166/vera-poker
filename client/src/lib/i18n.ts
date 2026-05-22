@@ -1,0 +1,293 @@
+// Vera Poker i18n System
+import { useState, useCallback } from "react";
+
+export type Locale = "en" | "zh-CN" | "zh-TW" | "ja" | "ko" | "es" | "pt" | "ru" | "ar" | "vi" | "th" | "id";
+
+const translations: Record<Locale, Record<string, string>> = {
+  "en": {
+    "app.title": "Vera Poker",
+    "app.slogan": "Where Truth Deals",
+    "nav.lobby": "Lobby",
+    "nav.wallet": "Wallet",
+    "nav.agent": "Agent",
+    "nav.profile": "Profile",
+    "nav.support": "Support",
+    "lobby.title": "Game Lobby",
+    "lobby.cash": "Cash",
+    "lobby.tourneys": "Tourneys",
+    "lobby.private": "Private",
+    "lobby.blinds": "Blinds",
+    "lobby.buyIn": "Buy-in",
+    "lobby.players": "Players",
+    "lobby.sit": "Sit",
+    "lobby.fast": "FAST",
+    "lobby.createRoom": "Create Room",
+    "lobby.filter.all": "All",
+    "lobby.filter.low": "Low",
+    "lobby.filter.mid": "Mid",
+    "lobby.filter.high": "High",
+    "lobby.filter.vip": "VIP",
+    "table.fold": "Fold",
+    "table.check": "Check",
+    "table.call": "Call",
+    "table.raise": "Raise",
+    "table.allIn": "All In",
+    "table.pot": "Pot",
+    "table.dealer": "D",
+    "table.yourTurn": "Your Turn",
+    "table.waiting": "Waiting for players...",
+    "wallet.balance": "Balance",
+    "wallet.deposit": "Deposit",
+    "wallet.withdraw": "Withdraw",
+    "wallet.history": "History",
+    "wallet.amount": "Amount",
+    "wallet.address": "Wallet Address",
+    "wallet.chain": "Network",
+    "wallet.confirm": "Confirm",
+    "wallet.pending": "Pending",
+    "wallet.confirmed": "Confirmed",
+    "wallet.failed": "Failed",
+    "agent.title": "Agent Dashboard",
+    "agent.inviteLink": "Your Invite Link",
+    "agent.copy": "Copy",
+    "agent.downlines": "Downlines",
+    "agent.earnings": "Total Earnings",
+    "agent.unlocked": "Unlocked",
+    "agent.pending": "Pending Unlock",
+    "agent.commission": "Commission Records",
+    "agent.level1": "Level 1 (30%)",
+    "agent.level2": "Level 2 (10%)",
+    "room.create": "Create Private Room",
+    "room.blinds": "Blinds",
+    "room.players": "Max Players",
+    "room.rounds": "Total Rounds",
+    "room.billing": "Billing Mode",
+    "room.standardRake": "Standard Rake",
+    "room.perRound": "Per Round Fee",
+    "room.invite": "Invite Players",
+    "room.manage": "Manage Room",
+    "room.kick": "Kick",
+    "room.pause": "Pause",
+    "room.resume": "Resume",
+    "room.close": "Close Room",
+    "cs.title": "Customer Support",
+    "cs.placeholder": "Type your question...",
+    "cs.send": "Send",
+    "verify.title": "Fairness Verification",
+    "verify.serverSeed": "Server Seed",
+    "verify.clientSeed": "Client Seed",
+    "verify.deckHash": "Deck Hash",
+    "verify.check": "Verify",
+    "verify.passed": "Verification Passed",
+    "verify.failed": "Verification Failed",
+    "common.loading": "Loading...",
+    "common.error": "Something went wrong",
+    "common.retry": "Retry",
+    "common.cancel": "Cancel",
+    "common.save": "Save",
+    "common.back": "Back",
+    "common.online": "Online",
+  },
+  "zh-CN": {
+    "app.title": "Vera Poker",
+    "app.slogan": "真相发牌",
+    "nav.lobby": "大厅",
+    "nav.wallet": "钱包",
+    "nav.agent": "代理",
+    "nav.profile": "我的",
+    "nav.support": "客服",
+    "lobby.title": "游戏大厅",
+    "lobby.cash": "现金桌",
+    "lobby.tourneys": "锦标赛",
+    "lobby.private": "私人房",
+    "lobby.blinds": "盲注",
+    "lobby.buyIn": "买入",
+    "lobby.players": "玩家",
+    "lobby.sit": "入座",
+    "lobby.fast": "极速",
+    "lobby.createRoom": "创建房间",
+    "lobby.filter.all": "全部",
+    "lobby.filter.low": "低额",
+    "lobby.filter.mid": "中额",
+    "lobby.filter.high": "高额",
+    "lobby.filter.vip": "VIP",
+    "table.fold": "弃牌",
+    "table.check": "过牌",
+    "table.call": "跟注",
+    "table.raise": "加注",
+    "table.allIn": "全押",
+    "table.pot": "底池",
+    "table.dealer": "D",
+    "table.yourTurn": "轮到你了",
+    "table.waiting": "等待玩家加入...",
+    "wallet.balance": "余额",
+    "wallet.deposit": "充值",
+    "wallet.withdraw": "提现",
+    "wallet.history": "记录",
+    "wallet.amount": "金额",
+    "wallet.address": "钱包地址",
+    "wallet.chain": "网络",
+    "wallet.confirm": "确认",
+    "wallet.pending": "处理中",
+    "wallet.confirmed": "已确认",
+    "wallet.failed": "失败",
+    "agent.title": "代理面板",
+    "agent.inviteLink": "你的邀请链接",
+    "agent.copy": "复制",
+    "agent.downlines": "下线人数",
+    "agent.earnings": "总收益",
+    "agent.unlocked": "已解锁",
+    "agent.pending": "待解锁",
+    "agent.commission": "佣金记录",
+    "agent.level1": "一级 (30%)",
+    "agent.level2": "二级 (10%)",
+    "room.create": "创建私人房间",
+    "room.blinds": "盲注",
+    "room.players": "最大人数",
+    "room.rounds": "总局数",
+    "room.billing": "计费模式",
+    "room.standardRake": "标准抽水",
+    "room.perRound": "按局计费",
+    "room.invite": "邀请玩家",
+    "room.manage": "管理房间",
+    "room.kick": "踢出",
+    "room.pause": "暂停",
+    "room.resume": "继续",
+    "room.close": "关闭房间",
+    "cs.title": "智能客服",
+    "cs.placeholder": "输入你的问题...",
+    "cs.send": "发送",
+    "verify.title": "公平验证",
+    "verify.serverSeed": "服务器种子",
+    "verify.clientSeed": "客户端种子",
+    "verify.deckHash": "牌组哈希",
+    "verify.check": "验证",
+    "verify.passed": "验证通过",
+    "verify.failed": "验证失败",
+    "common.loading": "加载中...",
+    "common.error": "出错了",
+    "common.retry": "重试",
+    "common.cancel": "取消",
+    "common.save": "保存",
+    "common.back": "返回",
+    "common.online": "在线",
+  },
+  "zh-TW": {
+    "app.title": "Vera Poker",
+    "app.slogan": "真相發牌",
+    "nav.lobby": "大廳",
+    "nav.wallet": "錢包",
+    "nav.agent": "代理",
+    "nav.profile": "我的",
+    "nav.support": "客服",
+    "lobby.title": "遊戲大廳",
+    "lobby.cash": "現金桌",
+    "lobby.tourneys": "錦標賽",
+    "lobby.private": "私人房",
+    "lobby.blinds": "盲注",
+    "lobby.buyIn": "買入",
+    "lobby.players": "玩家",
+    "lobby.sit": "入座",
+    "lobby.fast": "極速",
+    "lobby.createRoom": "創建房間",
+    "table.fold": "棄牌",
+    "table.check": "過牌",
+    "table.call": "跟注",
+    "table.raise": "加注",
+    "table.allIn": "全押",
+    "wallet.balance": "餘額",
+    "wallet.deposit": "充值",
+    "wallet.withdraw": "提現",
+    "common.loading": "載入中...",
+    "common.online": "在線",
+  },
+  "ja": {
+    "app.title": "Vera Poker",
+    "nav.lobby": "ロビー",
+    "nav.wallet": "ウォレット",
+    "nav.agent": "エージェント",
+    "lobby.title": "ゲームロビー",
+    "table.fold": "フォールド",
+    "table.check": "チェック",
+    "table.call": "コール",
+    "table.raise": "レイズ",
+    "table.allIn": "オールイン",
+    "wallet.balance": "残高",
+    "wallet.deposit": "入金",
+    "wallet.withdraw": "出金",
+    "common.loading": "読み込み中...",
+    "common.online": "オンライン",
+  },
+  "ko": {
+    "app.title": "Vera Poker",
+    "nav.lobby": "로비",
+    "nav.wallet": "지갑",
+    "nav.agent": "에이전트",
+    "lobby.title": "게임 로비",
+    "table.fold": "폴드",
+    "table.check": "체크",
+    "table.call": "콜",
+    "table.raise": "레이즈",
+    "table.allIn": "올인",
+    "wallet.balance": "잔액",
+    "wallet.deposit": "입금",
+    "wallet.withdraw": "출금",
+    "common.loading": "로딩 중...",
+    "common.online": "온라인",
+  },
+  "es": { "app.title": "Vera Poker", "nav.lobby": "Lobby", "wallet.balance": "Saldo", "common.loading": "Cargando...", "common.online": "En línea" },
+  "pt": { "app.title": "Vera Poker", "nav.lobby": "Lobby", "wallet.balance": "Saldo", "common.loading": "Carregando...", "common.online": "Online" },
+  "ru": { "app.title": "Vera Poker", "nav.lobby": "Лобби", "wallet.balance": "Баланс", "common.loading": "Загрузка...", "common.online": "Онлайн" },
+  "ar": { "app.title": "Vera Poker", "nav.lobby": "اللوبي", "wallet.balance": "الرصيد", "common.loading": "جار التحميل...", "common.online": "متصل" },
+  "vi": { "app.title": "Vera Poker", "nav.lobby": "Sảnh", "wallet.balance": "Số dư", "common.loading": "Đang tải...", "common.online": "Trực tuyến" },
+  "th": { "app.title": "Vera Poker", "nav.lobby": "ล็อบบี้", "wallet.balance": "ยอดเงิน", "common.loading": "กำลังโหลด...", "common.online": "ออนไลน์" },
+  "id": { "app.title": "Vera Poker", "nav.lobby": "Lobi", "wallet.balance": "Saldo", "common.loading": "Memuat...", "common.online": "Online" },
+};
+
+let currentLocale: Locale = "en";
+
+export function detectLocale(): Locale {
+  // Try to detect from TG WebApp or browser
+  const browserLang = navigator.language || "en";
+  const langMap: Record<string, Locale> = {
+    "en": "en", "zh": "zh-CN", "zh-CN": "zh-CN", "zh-TW": "zh-TW",
+    "ja": "ja", "ko": "ko", "es": "es", "pt": "pt", "ru": "ru",
+    "ar": "ar", "vi": "vi", "th": "th", "id": "id",
+  };
+  return langMap[browserLang] || langMap[browserLang.split("-")[0]] || "en";
+}
+
+export function setLocale(locale: Locale) {
+  currentLocale = locale;
+  document.documentElement.lang = locale;
+  if (locale === "ar") {
+    document.documentElement.dir = "rtl";
+  } else {
+    document.documentElement.dir = "ltr";
+  }
+}
+
+export function t(key: string, params?: Record<string, string | number>): string {
+  let text = translations[currentLocale]?.[key] || translations["en"]?.[key] || key;
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      text = text.replace(`{${k}}`, String(v));
+    });
+  }
+  return text;
+}
+
+export function useI18n() {
+  const [locale, setLocaleState] = useState<Locale>(currentLocale);
+  
+  const changeLocale = useCallback((newLocale: Locale) => {
+    setLocale(newLocale);
+    setLocaleState(newLocale);
+  }, []);
+
+  return { locale, t, changeLocale, setLocale: changeLocale };
+}
+
+// Initialize
+currentLocale = detectLocale();
+setLocale(currentLocale);
