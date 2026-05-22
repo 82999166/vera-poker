@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useI18n } from "@/lib/i18n";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -43,13 +44,16 @@ function MobileContainer({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  // Subscribe to locale changes to force re-render of entire app
+  const { locale } = useI18n();
+  
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster />
           <MobileContainer>
-            <Router />
+            <Router key={locale} />
           </MobileContainer>
         </TooltipProvider>
       </ThemeProvider>

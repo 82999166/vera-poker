@@ -120,6 +120,22 @@ export const appRouter = router({
       ]);
       return { rooms: data, total: countResult[0]?.count ?? 0 };
     }),
+    adminUpdate: adminProcedure.input(z.object({
+      id: z.number(),
+      status: z.enum(["waiting", "playing", "paused", "closed"]).optional(),
+    })).mutation(async ({ input }) => {
+      const { id, ...data } = input;
+      await db.updateRoom(id, data);
+      return { success: true };
+    }),
+    adminDelete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      await db.deleteRoom(input.id);
+      return { success: true };
+    }),
+    // User's own rooms
+    myRooms: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserRooms(ctx.user.id);
+    }),
   }),
 
   // ==================== WALLET / TRANSACTIONS ====================
@@ -257,6 +273,32 @@ export const appRouter = router({
       const { verifyFairness } = require("./gameEngine");
       return verifyFairness(input.serverSeed, input.clientSeed, input.serverSeedHash, input.deckHash);
     }),
+    lookupHand: publicProcedure.input(z.object({
+      handId: z.number().optional(),
+      txHash: z.string().optional(),
+    })).query(async ({ input }) => {
+      if (!input.handId && !input.txHash) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Provide handId or txHash" });
+      }
+      const hand = input.handId
+        ? await db.getGameHandById(input.handId)
+        : await db.getGameHandByTxHash(input.txHash!);
+      if (!hand) throw new TRPCError({ code: "NOT_FOUND", message: "Hand not found" });
+      return {
+        id: hand.id,
+        roomId: hand.roomId,
+        serverSeed: hand.serverSeed,
+        serverSeedHash: hand.serverSeedHash,
+        clientSeed: hand.clientSeed,
+        deckHash: hand.deckHash,
+        communityCards: hand.communityCards,
+        potSize: hand.potSize,
+        status: hand.status,
+        txHash: hand.txHash,
+        startedAt: hand.startedAt,
+        completedAt: hand.completedAt,
+      };
+    }),
   }),
 
   // ==================== AI CUSTOMER SERVICE ====================
@@ -375,6 +417,13 @@ Rules:
       const { eq } = await import("drizzle-orm");
       await dbInstance.delete(faqEntries).where(eq(faqEntries.id, input.id));
       return { success: true };
+    }),
+    // Agent management
+    agents: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
+      return db.getAllAgentRelationships(input.page, input.limit);
+    }),
+    commissions: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
+      return db.getAllCommissions(input.page, input.limit);
     }),
     // Stats
     stats: adminProcedure.query(async () => {

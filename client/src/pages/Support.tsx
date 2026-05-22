@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { t } from "@/lib/i18n";
+import { t, getLocale } from "@/lib/i18n";
 import { useLocation } from "wouter";
 import { ArrowLeft, Send, Bot, User, Loader2 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
@@ -20,7 +20,7 @@ export default function Support() {
     {
       id: "welcome",
       role: "assistant",
-      content: "Hello! I'm Vera's AI assistant. How can I help you today? I can answer questions about game rules, deposits, withdrawals, and more.",
+      content: t("cs.welcome"),
       timestamp: new Date(),
     },
   ]);
@@ -42,7 +42,7 @@ export default function Support() {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: "assistant",
-        content: "Sorry, I'm having trouble connecting. Please try again.",
+        content: t("cs.error"),
         timestamp: new Date(),
       }]);
       setIsTyping(false);
@@ -64,7 +64,7 @@ export default function Support() {
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setIsTyping(true);
-    chatMutation.mutate({ message: userMsg.content, language: "en" });
+    chatMutation.mutate({ message: userMsg.content, language: getLocale() });
   };
 
   return (

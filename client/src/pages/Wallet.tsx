@@ -24,7 +24,7 @@ export default function Wallet() {
 
   const depositMutation = trpc.wallet.deposit.useMutation({
     onSuccess: () => {
-      toast.success("Deposit submitted successfully");
+      toast.success(t("wallet.depositSuccess"));
       setAmount("");
       setTxHash("");
     },
@@ -33,7 +33,7 @@ export default function Wallet() {
 
   const withdrawMutation = trpc.wallet.withdraw.useMutation({
     onSuccess: () => {
-      toast.success("Withdrawal submitted for review");
+      toast.success(t("wallet.withdrawSuccess"));
       setAmount("");
       setAddress("");
     },
@@ -41,12 +41,12 @@ export default function Wallet() {
   });
 
   const handleDeposit = () => {
-    if (!amount || !txHash) return toast.error("Please fill all fields");
+    if (!amount || !txHash) return toast.error(t("wallet.fillAll"));
     depositMutation.mutate({ amount, chain, txHash });
   };
 
   const handleWithdraw = () => {
-    if (!amount || !address) return toast.error("Please fill all fields");
+    if (!amount || !address) return toast.error(t("wallet.fillAll"));
     withdrawMutation.mutate({ amount, chain, walletAddress: address });
   };
 
@@ -68,7 +68,7 @@ export default function Wallet() {
         <div className="gradient-border rounded-xl p-5 text-center">
           <p className="text-xs text-muted-foreground mb-1">{t("wallet.balance")}</p>
           <p className="text-3xl font-bold text-gold glow-text-gold">${walletData?.balance ?? "0.00"}</p>
-          <p className="text-xs text-muted-foreground mt-1">Frozen: ${walletData?.frozenBalance ?? "0.00"}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("wallet.frozen")}: ${walletData?.frozenBalance ?? "0.00"}</p>
         </div>
       </div>
 
@@ -120,7 +120,7 @@ export default function Wallet() {
 
             {/* Deposit address */}
             <div>
-              <label className="text-xs text-muted-foreground mb-2 block">Deposit Address</label>
+              <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.depositAddress")}</label>
               <div className="glass rounded-lg p-3 flex items-center justify-between">
                 <span className="text-xs text-foreground font-mono truncate flex-1">{depositAddress}</span>
                 <button
@@ -146,12 +146,12 @@ export default function Wallet() {
 
             {/* TX Hash */}
             <div>
-              <label className="text-xs text-muted-foreground mb-2 block">Transaction Hash</label>
+              <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.txHash")}</label>
               <input
                 type="text"
                 value={txHash}
                 onChange={(e) => setTxHash(e.target.value)}
-                placeholder="Enter your transaction hash"
+                placeholder={t("wallet.txHashPlaceholder")}
                 className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold font-mono text-xs"
               />
             </div>
@@ -205,7 +205,7 @@ export default function Wallet() {
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Enter your wallet address"
+                placeholder={t("wallet.addressPlaceholder")}
                 className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold font-mono text-xs"
               />
             </div>
@@ -225,7 +225,7 @@ export default function Wallet() {
             {(transactions.length === 0) ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No transactions yet</p>
+                <p className="text-sm">{t("wallet.noHistory")}</p>
               </div>
             ) : (
               transactions.map((tx: any, i: number) => (

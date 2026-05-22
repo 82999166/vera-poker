@@ -276,3 +276,54 @@ export async function getRiskEvents(page = 1, limit = 20) {
   ]);
   return { events: data, total: countResult[0]?.count ?? 0 };
 }
+
+// ==================== GAME HAND LOOKUP (for quick verify) ====================
+export async function getGameHandById(handId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(gameHands).where(eq(gameHands.id, handId)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function getGameHandByTxHash(txHash: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(gameHands).where(eq(gameHands.txHash, txHash)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+// ==================== ROOM MANAGEMENT ====================
+export async function deleteRoom(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(rooms).where(eq(rooms.id, id));
+}
+
+export async function getUserRooms(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(rooms).where(eq(rooms.ownerId, userId)).orderBy(desc(rooms.createdAt));
+}
+
+// ==================== AGENT ADMIN QUERIES ====================
+export async function getAllAgentRelationships(page = 1, limit = 20) {
+  const db = await getDb();
+  if (!db) return { relationships: [], total: 0 };
+  const offset = (page - 1) * limit;
+  const [data, countResult] = await Promise.all([
+    db.select().from(agentRelationships).orderBy(desc(agentRelationships.createdAt)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(agentRelationships),
+  ]);
+  return { relationships: data, total: countResult[0]?.count ?? 0 };
+}
+
+export async function getAllCommissions(page = 1, limit = 20) {
+  const db = await getDb();
+  if (!db) return { records: [], total: 0 };
+  const offset = (page - 1) * limit;
+  const [data, countResult] = await Promise.all([
+    db.select().from(commissionRecords).orderBy(desc(commissionRecords.createdAt)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(commissionRecords),
+  ]);
+  return { records: data, total: countResult[0]?.count ?? 0 };
+}
