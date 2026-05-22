@@ -7,6 +7,7 @@ import { TRPCError } from "@trpc/server";
 import * as db from "./db";
 import { invokeLLM } from "./_core/llm";
 import { nanoid } from "nanoid";
+import * as tableManager from "./tableManager";
 
 // Admin guard
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -144,6 +145,12 @@ export const appRouter = router({
       const user = await db.getUserById(ctx.user.id);
       return { balance: user?.balance ?? "0.00", frozenBalance: user?.frozenBalance ?? "0.00" };
     }),
+    depositAddress: protectedProcedure.input(z.object({
+      chain: z.enum(["TRC20", "TON"]),
+    })).query(({ ctx, input }) => {
+      const address = db.generateDepositAddress(ctx.user.id, input.chain);
+      return { address, chain: input.chain };
+    }),
     deposit: protectedProcedure.input(z.object({
       amount: z.string(),
       chain: z.enum(["TRC20", "TON"]),
@@ -261,6 +268,68 @@ export const appRouter = router({
 
   // ==================== GAME ====================
   game: router({
+    // Table state polling endpoint
+    tableState: protectedProcedure.input(z.object({ roomId: z.number() })).query(async ({ ctx, input }) => {
+      return tableManager.getPlayerView(input.roomId, ctx.user.id);
+    }),
+    // Join a table
+    join: protectedProcedure.input(z.object({
+      roomId: z.number(),
+      buyIn: z.number().min(0),
+    })).mutation(async ({ ctx, input }) => {
+      const room = await db.getRoomById(input.roomId);
+      if (!room) throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
+      const minBuyIn = parseFloat(room.minBuyIn);
+      const maxBuyIn = parseFloat(room.maxBuyIn);
+      if (input.buyIn < minBuyIn || input.buyIn > maxBuyIn) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Buy-in must be between ${minBuyIn} and ${maxBuyIn}` });
+      }
+      // Check user balance
+      const user = await db.getUserById(ctx.user.id);
+      if (!user || parseFloat(user.balance) < input.buyIn) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
+      }
+      // Deduct from balance
+      const newBalance = (parseFloat(user.balance) - input.buyIn).toFixed(2);
+      await db.updateUserBalance(ctx.user.id, newBalance);
+      const result = await tableManager.joinTable(input.roomId, ctx.user.id, input.buyIn);
+      if (!result.success) {
+        // Refund
+        await db.updateUserBalance(ctx.user.id, user.balance);
+        throw new TRPCError({ code: "BAD_REQUEST", message: result.message || "Cannot join table" });
+      }
+      return { seatIndex: result.seatIndex, newBalance };
+    }),
+    // Leave a table
+    leave: protectedProcedure.input(z.object({ roomId: z.number() })).mutation(async ({ ctx, input }) => {
+      const result = await tableManager.leaveTable(input.roomId, ctx.user.id);
+      // Return remaining chips to user balance
+      if (result.remainingChips > 0) {
+        const user = await db.getUserById(ctx.user.id);
+        if (user) {
+          const newBalance = (parseFloat(user.balance) + result.remainingChips).toFixed(2);
+          await db.updateUserBalance(ctx.user.id, newBalance);
+        }
+      }
+      return { success: result.success };
+    }),
+    // Player action (fold/check/call/raise/all_in)
+    action: protectedProcedure.input(z.object({
+      roomId: z.number(),
+      action: z.enum(["fold", "check", "call", "raise", "all_in"]),
+      amount: z.number().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const result = await tableManager.processPlayerAction(
+        input.roomId,
+        ctx.user.id,
+        input.action as any,
+        input.amount
+      );
+      if (!result.success) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: result.message || "Action failed" });
+      }
+      return { success: true };
+    }),
     handHistory: protectedProcedure.input(z.object({ roomId: z.number(), limit: z.number().default(50) })).query(async ({ input }) => {
       return db.getHandHistory(input.roomId, input.limit);
     }),

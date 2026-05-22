@@ -50,8 +50,12 @@ export default function Wallet() {
     withdrawMutation.mutate({ amount, chain, walletAddress: address });
   };
 
-  // Mock deposit address
-  const depositAddress = chain === "TRC20" ? "TXyz...abc123" : "EQDxyz...abc123";
+  // Dynamic deposit address from backend
+  const { data: addrData } = trpc.wallet.depositAddress.useQuery(
+    { chain },
+    { enabled: !!user }
+  );
+  const depositAddress = addrData?.address ?? (chain === "TRC20" ? "Loading..." : "Loading...");
 
   return (
     <div className="min-h-screen bg-background particle-bg flex flex-col pb-20">

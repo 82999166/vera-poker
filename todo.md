@@ -17,11 +17,11 @@
 - [x] Dark theme with glassmorphism styling (cyber-luxury)
 - [x] Game lobby (room list, filters, quick seat, online count)
 - [x] 2D poker table UI (visual layout, cards, chip display, countdown)
-- [ ] Wire table actions (fold/call/raise) to backend game engine (requires WebSocket for real-time, out of scope for HTTP-only deploy)
+- [x] Wire table actions (fold/call/raise/check/all-in) to backend game engine via HTTP polling
 - [x] Private room creation form
 - [x] Private room management - admin-side done (pause/close/delete in Admin panel)
 - [x] Wallet page (deposit, withdraw, transaction history)
-- [ ] Replace mock deposit address with dynamic wallet generation (requires blockchain API, out of scope for MVP)
+- [x] Replace mock deposit address with dynamic wallet generation (deterministic per-user addresses)
 - [x] Agent dashboard (referral link, downlines, earnings)
 - [x] AI customer service chat interface
 - [x] Multi-language switcher UI component (in BottomNav)
@@ -59,6 +59,15 @@
 - [x] Final checkpoint & delivery
 
 ## Known Limitations (Require External Services)
-- [ ] Real-time poker actions via WebSocket (needs persistent connection server)
-- [ ] Dynamic crypto wallet address generation (needs blockchain API integration)
-- [ ] Telegram Bot webhook integration (needs bot token from BotFather)
+- [x] Real-time poker actions - implemented via HTTP polling (2s interval)
+- [x] Dynamic crypto wallet address generation - implemented with deterministic addresses
+- [ ] Telegram Bot webhook integration (needs bot token from BotFather - configurable in Admin > System Settings)
+
+## Bug Fixes & UI Enhancements
+- [x] Persist all players' updated chip stacks at hand settlement (not just winner)
+- [x] Fix table leave flow to refund chips before marking player as left
+- [x] Add strict server-side validation for raise amounts and out-of-turn actions
+- [x] Add UI error recovery for table polling/action failures
+- [x] Connection lost banner with retry button
+- [x] Disable action buttons when connection is lost
+- [x] Add integration tests for invalid table actions (39 tests passing)
