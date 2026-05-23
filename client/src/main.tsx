@@ -26,6 +26,18 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
     return;
   }
 
+  // If user previously logged in via Telegram (stored flag), redirect to home
+  // so the TG login button is shown instead of Manus OAuth
+  const wasTgUser = localStorage.getItem("vera_auth_method") === "telegram";
+  if (wasTgUser) {
+    // Clear the flag to avoid infinite redirect loops
+    // Navigate to home page where TG login button is available
+    if (window.location.pathname !== "/") {
+      window.location.href = "/";
+    }
+    return;
+  }
+
   window.location.href = getLoginUrl();
 };
 

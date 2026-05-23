@@ -31,6 +31,7 @@ export default function Home() {
     autoAuthenticate().then((result) => {
       if (result?.success) {
         setTgLoginSuccess(true);
+        localStorage.setItem("vera_auth_method", "telegram");
         // Refresh auth state to pick up the new session
         refresh();
       }
@@ -65,6 +66,7 @@ export default function Home() {
     // If we got a success signal from widget-callback (server already set the cookie)
     if (widgetData.success === true) {
       setTgLoginSuccess(true);
+      localStorage.setItem("vera_auth_method", "telegram");
       refresh();
       return;
     }
@@ -73,6 +75,7 @@ export default function Home() {
       const result = await authenticateWithWidget(widgetData);
       if (result.success) {
         setTgLoginSuccess(true);
+        localStorage.setItem("vera_auth_method", "telegram");
         refresh();
       }
     }

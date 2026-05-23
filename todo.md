@@ -272,3 +272,9 @@
 - [x] Admin homepage: show data dashboard (stats overview) as default landing panel
 - [x] User list: show last login IP in user detail info tab
 - [x] Fix user detail page: clicking a user row does not navigate into detail view
+
+## Lobby UX Improvements (2026-05-23)
+- [x] Add "Quick Join" button in lobby - defaults to cash game low stakes room
+- [x] Add private room entrance in lobby - input room number (pure digits) to join directly
+- [x] Fix cash table display: show available table count instead of "0/6" seat format
+- [x] TG login persistence: save session after authorization, no re-auth needed on subsequent visits

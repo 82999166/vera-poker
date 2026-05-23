@@ -3,8 +3,9 @@ import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
 import { useLocation } from "wouter";
 import { useState } from "react";
-import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, TrendingUp, TrendingDown } from "lucide-react";
+import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, TrendingUp, TrendingDown, Hash, ArrowRight } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
+import { toast } from "sonner";
 
 type FilterLevel = "all" | "low" | "mid" | "high" | "vip";
 
@@ -13,6 +14,7 @@ export default function Lobby() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<"cash" | "tourneys" | "private">("cash");
   const [filterLevel, setFilterLevel] = useState<FilterLevel>("all");
+  const [privateRoomCode, setPrivateRoomCode] = useState("");
   const { data: rooms, isLoading } = trpc.rooms.list.useQuery();
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
 
@@ -31,6 +33,44 @@ export default function Lobby() {
   });
 
   const totalOnline = (rooms ?? []).reduce((sum, r) => sum + r.currentPlayers, 0);
+
+  // Count tables by level for cash tab
+  const cashRooms = (rooms ?? []).filter(r => r.type !== "private");
+  const tableCountByLevel = {
+    all: cashRooms.length,
+    low: cashRooms.filter(r => parseFloat(r.bigBlind) <= 0.10).length,
+    mid: cashRooms.filter(r => parseFloat(r.bigBlind) > 0.10 && parseFloat(r.bigBlind) <= 1).length,
+    high: cashRooms.filter(r => parseFloat(r.bigBlind) > 1 && parseFloat(r.bigBlind) <= 10).length,
+    vip: cashRooms.filter(r => parseFloat(r.bigBlind) > 10).length,
+  };
+
+  // Quick join: find a low-stakes room with available seats
+  const handleQuickJoin = () => {
+    const lowRooms = cashRooms
+      .filter(r => parseFloat(r.bigBlind) <= 0.10 && r.currentPlayers < r.maxPlayers && r.status !== "closed")
+      .sort((a, b) => b.currentPlayers - a.currentPlayers); // prefer rooms with more players
+    if (lowRooms.length > 0) {
+      navigate(`/table/${lowRooms[0].id}`);
+    } else {
+      // Fallback: any available room
+      const anyRoom = cashRooms.find(r => r.currentPlayers < r.maxPlayers && r.status !== "closed");
+      if (anyRoom) {
+        navigate(`/table/${anyRoom.id}`);
+      } else {
+        toast.info(t("lobby.noRooms"));
+      }
+    }
+  };
+
+  // Join private room by room number (ID)
+  const handleJoinPrivateRoom = () => {
+    const code = privateRoomCode.trim();
+    if (!code || !/^\d+$/.test(code)) {
+      toast.error(t("lobby.invalidRoomCode"));
+      return;
+    }
+    navigate(`/table/${code}`);
+  };
 
   return (
     <div className="min-h-screen bg-background particle-bg flex flex-col">
@@ -55,7 +95,7 @@ export default function Lobby() {
         </div>
       </header>
 
-      {/* Balance Card */}
+      {/* Quick Join Card */}
       <div className="px-4 pt-4">
         <div className="glass rounded-xl p-4 glow-gold">
           <div className="flex items-center justify-between">
@@ -65,14 +105,13 @@ export default function Lobby() {
                 ${walletData?.balance ?? "0.00"}
               </p>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => navigate("/wallet")} className="bg-gold text-background font-semibold px-4 py-2 rounded-lg text-sm hover:opacity-90 transition-opacity">
-                {t("wallet.deposit")}
-              </button>
-              <button onClick={() => navigate("/wallet")} className="glass text-foreground font-semibold px-4 py-2 rounded-lg text-sm hover:bg-secondary transition-colors">
-                {t("wallet.withdraw")}
-              </button>
-            </div>
+            <button
+              onClick={handleQuickJoin}
+              className="bg-gold text-background font-bold px-5 py-3 rounded-xl text-sm hover:opacity-90 transition-all active:scale-[0.97] flex items-center gap-2 shadow-lg"
+            >
+              <Zap className="w-4 h-4" />
+              {t("lobby.quickJoin")}
+            </button>
           </div>
         </div>
       </div>
@@ -106,26 +145,55 @@ export default function Lobby() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-gold hover:bg-gold/10 transition-colors"
         >
           <Trophy className="w-3.5 h-3.5" />
-          排行榜
+          {t("lobby.leaderboard")}
         </button>
       </div>
 
-      {/* Filter Pills */}
-      <div className="px-4 pt-3 flex gap-2 overflow-x-auto pb-1">
-        {(["all", "low", "mid", "high", "vip"] as FilterLevel[]).map(level => (
-          <button
-            key={level}
-            onClick={() => setFilterLevel(level)}
-            className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-              filterLevel === level
-                ? "bg-truth-blue text-white glow-blue"
-                : "glass text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t(`lobby.filter.${level}`)}
-          </button>
-        ))}
-      </div>
+      {/* Filter Pills - show table count */}
+      {activeTab === "cash" && (
+        <div className="px-4 pt-3 flex gap-2 overflow-x-auto pb-1">
+          {(["all", "low", "mid", "high", "vip"] as FilterLevel[]).map(level => (
+            <button
+              key={level}
+              onClick={() => setFilterLevel(level)}
+              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1 ${
+                filterLevel === level
+                  ? "bg-truth-blue text-white glow-blue"
+                  : "glass text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t(`lobby.filter.${level}`)}
+              <span className="opacity-70">({tableCountByLevel[level]})</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Private Room Join Input */}
+      {activeTab === "private" && (
+        <div className="px-4 pt-3">
+          <div className="glass rounded-xl p-3 flex items-center gap-2">
+            <Hash className="w-4 h-4 text-gold shrink-0" />
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder={t("lobby.enterRoomCode")}
+              value={privateRoomCode}
+              onChange={(e) => setPrivateRoomCode(e.target.value.replace(/\D/g, ""))}
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              onKeyDown={(e) => { if (e.key === "Enter") handleJoinPrivateRoom(); }}
+            />
+            <button
+              onClick={handleJoinPrivateRoom}
+              disabled={!privateRoomCode.trim()}
+              className="bg-gold text-background font-semibold px-4 py-1.5 rounded-lg text-xs hover:opacity-90 transition-opacity disabled:opacity-40"
+            >
+              {t("lobby.joinRoom")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* My Recent Hands */}
       {user && <RecentHandsPreview />}
@@ -149,17 +217,9 @@ export default function Lobby() {
             <span className="text-xs text-muted-foreground">{t("lobby.online", { count: totalOnline })}</span>
           </div>
           {activeTab === "cash" && filteredRooms.length > 0 && (
-            <button
-              onClick={() => {
-                const available = filteredRooms.filter(r => r.currentPlayers < r.maxPlayers && r.status === "waiting");
-                if (available.length > 0) navigate(`/table/${available[0].id}`);
-                else if (filteredRooms.length > 0) navigate(`/table/${filteredRooms[0].id}`);
-              }}
-              className="flex items-center gap-1 px-3 py-1 rounded-full bg-gold/20 text-gold text-xs font-medium hover:bg-gold/30 transition-all"
-            >
-              <Zap className="w-3 h-3" />
-              {t("lobby.fast")}
-            </button>
+            <span className="text-xs text-muted-foreground">
+              {filteredRooms.length} {t("lobby.tables")}
+            </span>
           )}
         </div>
 
@@ -207,10 +267,10 @@ export default function Lobby() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1">
-                      <div className={`w-2 h-2 rounded-full ${isPlaying ? "bg-success animate-pulse" : "bg-muted-foreground/50"}`} />
+                      <Users className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="text-sm font-semibold text-foreground">{room.currentPlayers}</span>
+                      <span className="text-xs text-muted-foreground">/{room.maxPlayers}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">/{room.maxPlayers}</span>
                     <button className={`font-semibold px-3 py-1.5 rounded-lg text-xs transition-opacity ${
                       isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"
                     }`} disabled={isFull}>
