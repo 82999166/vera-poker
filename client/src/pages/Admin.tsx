@@ -33,6 +33,24 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.faq": "FAQ知识库",
     "tab.settings": "系统设置",
     "tab.stats": "数据统计",
+    "tab.staff": "员工管理",
+    "staff.title": "员工管理",
+    "staff.create": "创建员工账户",
+    "staff.username": "登录用户名",
+    "staff.password": "登录密码",
+    "staff.role": "角色",
+    "staff.roleCsLabel": "客服",
+    "staff.roleFinanceLabel": "财务",
+    "staff.roleTechLabel": "技术",
+    "staff.createBtn": "创建",
+    "staff.list": "员工列表",
+    "staff.noStaff": "暂无员工账户",
+    "staff.resetPwd": "重置密码",
+    "staff.delete": "删除",
+    "staff.confirmDelete": "确认删除该员工？",
+    "staff.created": "创建成功",
+    "staff.deleted": "已删除",
+    "staff.pwdReset": "密码已重置",
     "config.title": "系统配置",
     "config.gameSettings": "游戏设置",
     "config.agentSystem": "代理系统",
@@ -149,6 +167,24 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.faq": "FAQ知識庫",
     "tab.settings": "系統設置",
     "tab.stats": "數據統計",
+    "tab.staff": "員工管理",
+    "staff.title": "員工管理",
+    "staff.create": "創建員工帳戶",
+    "staff.username": "登入用戶名",
+    "staff.password": "登入密碼",
+    "staff.role": "角色",
+    "staff.roleCsLabel": "客服",
+    "staff.roleFinanceLabel": "財務",
+    "staff.roleTechLabel": "技術",
+    "staff.createBtn": "創建",
+    "staff.list": "員工列表",
+    "staff.noStaff": "暫無員工帳戶",
+    "staff.resetPwd": "重置密碼",
+    "staff.delete": "刪除",
+    "staff.confirmDelete": "確認刪除該員工？",
+    "staff.created": "創建成功",
+    "staff.deleted": "已刪除",
+    "staff.pwdReset": "密碼已重置",
     "config.title": "系統配置",
     "config.gameSettings": "遊戲設置",
     "config.agentSystem": "代理系統",
@@ -265,6 +301,24 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.faq": "FAQ",
     "tab.settings": "System",
     "tab.stats": "Statistics",
+    "tab.staff": "Staff",
+    "staff.title": "Staff Management",
+    "staff.create": "Create Staff Account",
+    "staff.username": "Username",
+    "staff.password": "Password",
+    "staff.role": "Role",
+    "staff.roleCsLabel": "Customer Service",
+    "staff.roleFinanceLabel": "Finance",
+    "staff.roleTechLabel": "Tech",
+    "staff.createBtn": "Create",
+    "staff.list": "Staff List",
+    "staff.noStaff": "No staff accounts",
+    "staff.resetPwd": "Reset Password",
+    "staff.delete": "Delete",
+    "staff.confirmDelete": "Confirm delete this staff?",
+    "staff.created": "Created successfully",
+    "staff.deleted": "Deleted",
+    "staff.pwdReset": "Password reset",
     "config.title": "System Configuration",
     "config.gameSettings": "Game Settings",
     "config.agentSystem": "Agent System",
@@ -379,7 +433,7 @@ function useAdminLang() {
 }
 
 // ==================== ADMIN TABS ====================
-type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats";
+type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff";
 
 // ==================== MAIN ADMIN COMPONENT ====================
 export default function Admin() {
@@ -439,7 +493,7 @@ export default function Admin() {
 
   // Role-based tab permissions
   const roleTabMap: Record<string, AdminTab[]> = {
-    admin: ["config", "users", "rooms", "finance", "agents", "risk", "faq", "settings", "stats"],
+    admin: ["config", "users", "rooms", "finance", "agents", "risk", "faq", "settings", "stats", "staff"],
     cs: ["users", "rooms", "faq", "stats"],
     finance: ["finance", "agents", "stats"],
     tech: ["config", "rooms", "risk", "settings", "stats"],
@@ -456,6 +510,7 @@ export default function Admin() {
     { key: "faq", icon: MessageSquare, label: at("tab.faq") },
     { key: "settings", icon: Settings, label: at("tab.settings") },
     { key: "stats", icon: BarChart3, label: at("tab.stats") },
+    { key: "staff", icon: Shield, label: at("tab.staff") },
   ];
   const tabs = allTabs.filter(t => allowedTabs.includes(t.key));
 
@@ -617,6 +672,7 @@ function PanelContent({ tab, at }: { tab: AdminTab; at: (key: string) => string 
     case "faq": return <FaqPanel at={at} />;
     case "settings": return <SystemSettingsPanel at={at} />;
     case "stats": return <StatsPanel at={at} />;
+    case "staff": return <StaffPanel at={at} />;
     default: return null;
   }
 }
@@ -1297,6 +1353,153 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ==================== STAFF PANEL ====================
+function StaffPanel({ at }: { at: (k: string) => string }) {
+  const { data: staffList, isLoading, refetch } = trpc.admin.staffList.useQuery();
+  const createMutation = trpc.admin.staffCreate.useMutation({
+    onSuccess: () => { toast.success(at("staff.created")); refetch(); setNewUsername(""); setNewPassword(""); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteMutation = trpc.admin.staffDelete.useMutation({
+    onSuccess: () => { toast.success(at("staff.deleted")); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const resetPwdMutation = trpc.admin.staffResetPassword.useMutation({
+    onSuccess: () => { toast.success(at("staff.pwdReset")); setResetId(null); setResetPwd(""); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<"cs" | "finance" | "tech">("cs");
+  const [resetId, setResetId] = useState<number | null>(null);
+  const [resetPwd, setResetPwd] = useState("");
+
+  const roleLabels: Record<string, string> = {
+    cs: at("staff.roleCsLabel"),
+    finance: at("staff.roleFinanceLabel"),
+    tech: at("staff.roleTechLabel"),
+    admin: "Admin",
+  };
+
+  if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-bold">{at("staff.title")}</h2>
+
+      {/* Create Staff Form */}
+      <div className="glass rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-gold mb-3">{at("staff.create")}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("staff.username")}</label>
+            <input
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm"
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value)}
+              placeholder="staff_username"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("staff.password")}</label>
+            <input
+              type="password"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="••••••"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("staff.role")}</label>
+            <select
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value as any)}
+            >
+              <option value="cs">{at("staff.roleCsLabel")}</option>
+              <option value="finance">{at("staff.roleFinanceLabel")}</option>
+              <option value="tech">{at("staff.roleTechLabel")}</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => createMutation.mutate({ username: newUsername, password: newPassword, name: newUsername, role: newRole })}
+              disabled={!newUsername || !newPassword || createMutation.isPending}
+              className="w-full px-4 py-2 bg-gold text-background rounded-lg text-sm font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
+            >
+              {createMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : at("staff.createBtn")}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Staff List */}
+      <div className="glass rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-gold mb-3">{at("staff.list")}</h3>
+        {(!staffList || staffList.length === 0) ? (
+          <p className="text-sm text-muted-foreground text-center py-8">{at("staff.noStaff")}</p>
+        ) : (
+          <div className="space-y-2">
+            {staffList.map((s: any) => (
+              <div key={s.id} className="flex items-center justify-between bg-background/50 rounded-lg px-4 py-3 border border-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center">
+                    <Shield className="w-4 h-4 text-gold" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{s.staffUsername || s.name}</p>
+                    <p className="text-xs text-muted-foreground">{roleLabels[s.role] || s.role}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {resetId === s.id ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="password"
+                        className="w-28 bg-background border border-border rounded px-2 py-1 text-xs"
+                        value={resetPwd}
+                        onChange={(e) => setResetPwd(e.target.value)}
+                        placeholder="新密码"
+                      />
+                      <button
+                        onClick={() => resetPwdMutation.mutate({ id: s.id, newPassword: resetPwd })}
+                        disabled={!resetPwd || resetPwdMutation.isPending}
+                        className="px-2 py-1 bg-gold/20 text-gold rounded text-xs hover:bg-gold/30 disabled:opacity-50"
+                      >
+                        确认
+                      </button>
+                      <button onClick={() => { setResetId(null); setResetPwd(""); }} className="px-2 py-1 text-muted-foreground rounded text-xs hover:bg-secondary">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setResetId(s.id)}
+                        className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors"
+                      >
+                        {at("staff.resetPwd")}
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(at("staff.confirmDelete"))) deleteMutation.mutate({ id: s.id }); }}
+                        className="px-2 py-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
