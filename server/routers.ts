@@ -176,6 +176,62 @@ export const appRouter = router({
       await db.deleteRoom(input.id);
       return { success: true };
     }),
+    adminCreate: adminProcedure.input(z.object({
+      name: z.string().min(1).max(128),
+      type: z.enum(["public", "private"]).default("public"),
+      gameType: z.enum(["texas_holdem", "omaha"]).default("texas_holdem"),
+      smallBlind: z.string(),
+      bigBlind: z.string(),
+      minBuyIn: z.string(),
+      maxBuyIn: z.string(),
+      maxPlayers: z.number().min(2).max(9).default(6),
+      totalRounds: z.number().min(1).max(9999).nullable().optional(),
+      billingMode: z.enum(["standard_rake", "per_round_fee"]).default("standard_rake"),
+      roundFee: z.string().optional(),
+      rakePercent: z.string().nullable().optional(),
+      rakeCap: z.string().nullable().optional(),
+      fairnessLevel: z.enum(["basic", "medium", "high"]).default("basic"),
+    })).mutation(async ({ ctx, input }) => {
+      const inviteCode = nanoid(8);
+      const roomId = await db.createRoom({
+        ...input,
+        ownerId: ctx.user.id,
+        inviteCode,
+        smallBlind: input.smallBlind,
+        bigBlind: input.bigBlind,
+        minBuyIn: input.minBuyIn,
+        maxBuyIn: input.maxBuyIn,
+        roundFee: input.roundFee ?? "0.00",
+        rakePercent: input.rakePercent ?? null,
+        rakeCap: input.rakeCap ?? null,
+        totalRounds: input.totalRounds ?? null,
+      });
+      return { roomId, inviteCode };
+    }),
+    adminEdit: adminProcedure.input(z.object({
+      id: z.number(),
+      name: z.string().min(1).max(128).optional(),
+      type: z.enum(["public", "private"]).optional(),
+      status: z.enum(["waiting", "playing", "paused", "closed"]).optional(),
+      gameType: z.enum(["texas_holdem", "omaha"]).optional(),
+      smallBlind: z.string().optional(),
+      bigBlind: z.string().optional(),
+      minBuyIn: z.string().optional(),
+      maxBuyIn: z.string().optional(),
+      maxPlayers: z.number().min(2).max(9).optional(),
+      totalRounds: z.number().min(1).max(9999).nullable().optional(),
+      billingMode: z.enum(["standard_rake", "per_round_fee"]).optional(),
+      roundFee: z.string().optional(),
+      rakePercent: z.string().nullable().optional(),
+      rakeCap: z.string().nullable().optional(),
+      fairnessLevel: z.enum(["basic", "medium", "high"]).optional(),
+    })).mutation(async ({ input }) => {
+      const { id, ...data } = input;
+      const room = await db.getRoomById(id);
+      if (!room) throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
+      await db.updateRoom(id, data);
+      return { success: true };
+    }),
     // User's own rooms
     myRooms: protectedProcedure.query(async ({ ctx }) => {
       return db.getUserRooms(ctx.user.id);
@@ -255,6 +311,10 @@ export const appRouter = router({
       const { eq } = await import("drizzle-orm");
       await dbInstance.update(usersTable).set({ balance: newBalance, frozenBalance: newFrozen }).where(eq(usersTable.id, ctx.user.id));
       
+      // Check auto-approve threshold
+      const autoApproveLimit = parseFloat(await db.getConfigValue("auto_approve_limit") || "0");
+      const isAutoApproved = autoApproveLimit > 0 && withdrawAmount <= autoApproveLimit;
+
       await db.createTransaction({
         userId: ctx.user.id,
         type: "withdraw",
@@ -263,9 +323,17 @@ export const appRouter = router({
         balanceAfter: newBalance,
         chain: input.chain,
         walletAddress: input.walletAddress,
-        status: "pending",
+        status: isAutoApproved ? "confirmed" : "pending",
+        note: isAutoApproved ? "auto_approved" : undefined,
       });
-      return { success: true, newBalance };
+
+      // If auto-approved, release frozen balance immediately (amount was already frozen above)
+      if (isAutoApproved) {
+        const releasedFrozen = Math.max(0, parseFloat(newFrozen) - withdrawAmount).toFixed(2);
+        await dbInstance.update(usersTable).set({ frozenBalance: releasedFrozen }).where(eq(usersTable.id, ctx.user.id));
+      }
+
+      return { success: true, newBalance, autoApproved: isAutoApproved };
     }),
     transactions: protectedProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ ctx, input }) => {
       return db.getUserTransactions(ctx.user.id, input.page, input.limit);

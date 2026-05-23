@@ -216,11 +216,25 @@
 - [x] Frozen balance properly managed (deduct on request, release on confirm, refund on reject)
 - [x] Min withdrawal amount check from config
 - [x] Admin withdrawal review page with approve/reject actions
-- [ ] Small amount auto-approve threshold (configurable in admin)
-- [ ] On-chain payout integration (manual workflow: admin confirms after manual transfer, enters TX hash)
+- [x] Small amount auto-approve threshold (configurable in admin)
+- [x] On-chain payout integration (manual workflow: admin confirms after manual transfer, enters TX hash)
 
 ## UI Fix - Profile & Bottom Nav Adjustment
 - [x] Reorganize Profile page layout for cleaner, more structured appearance
 - [x] Move Support (客服) back to bottom navigation
 - [x] Move Agent (代理) back to bottom navigation
 - [x] Bottom nav: Lobby, Wallet, Agent, Support, Profile (5 tabs)
+
+## Admin Room Management Enhancement
+- [x] Add "Create Room" form in admin panel (name, blinds, buy-in range, max players, fairness level)
+- [x] Add "Edit Room" functionality (modify blinds, buy-in range, max players)
+- [x] Add batch create rooms (low/mid/high/VIP presets)
+- [x] Add room create backend procedure (rooms.adminCreate)
+
+## Withdrawal Auto-Approve
+- [x] Add auto-approve threshold config in admin settings
+- [x] Implement auto-approve logic for small withdrawals
+
+## On-Chain Payout Workflow
+- [x] Add TX hash input field when admin confirms withdrawal
+- [x] Store TX hash in transaction record

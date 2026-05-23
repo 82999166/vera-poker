@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import {
   Settings, Users, DollarSign, Shield, BarChart3, Save, RefreshCw,
   Plus, Trash2, ArrowLeft, UserCheck, Pause, Play, X, MessageSquare,
-  Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn
+  Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn, Pencil
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -77,6 +77,44 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "rooms.close": "关闭",
     "rooms.delete": "删除",
     "rooms.players": "玩家",
+    "rooms.create": "创建房间",
+    "rooms.edit": "编辑",
+    "rooms.created": "房间创建成功",
+    "rooms.createTitle": "创建新房间",
+    "rooms.editTitle": "编辑房间",
+    "rooms.name": "房间名称",
+    "rooms.type": "类型",
+    "rooms.gameType": "游戏类型",
+    "rooms.smallBlind": "小盲",
+    "rooms.bigBlind": "大盲",
+    "rooms.minBuyIn": "最小买入",
+    "rooms.maxBuyIn": "最大买入",
+    "rooms.maxPlayers": "最大玩家数",
+    "rooms.totalRounds": "总手数",
+    "rooms.billingMode": "计费模式",
+    "rooms.roundFee": "每手费用",
+    "rooms.rakePercent": "抽水比例(%)",
+    "rooms.rakeCap": "抽水上限",
+    "rooms.fairnessLevel": "公平等级",
+    "rooms.public": "公开",
+    "rooms.private": "私密",
+    "rooms.texasHoldem": "德州扑克",
+    "rooms.omaha": "奥马哈",
+    "rooms.standardRake": "标准抽水",
+    "rooms.perRoundFee": "每手固定费",
+    "rooms.basic": "基础",
+    "rooms.medium": "中等",
+    "rooms.high": "高级",
+    "rooms.unlimited": "无限制",
+    "rooms.presets": "快速预设",
+    "rooms.presetLow": "低级桌",
+    "rooms.presetMid": "中级桌",
+    "rooms.presetHigh": "高级桌",
+    "rooms.presetVip": "VIP桌",
+    "rooms.save": "保存",
+    "rooms.cancel": "取消",
+    "rooms.inviteCode": "邀请码",
+    "rooms.status": "状态",
     "finance.title": "财务概览",
     "finance.totalVolume": "总交易额",
     "finance.totalTx": "总交易数",
@@ -211,6 +249,44 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "rooms.close": "關閉",
     "rooms.delete": "刪除",
     "rooms.players": "玩家",
+    "rooms.create": "建立房間",
+    "rooms.edit": "編輯",
+    "rooms.created": "房間建立成功",
+    "rooms.createTitle": "建立新房間",
+    "rooms.editTitle": "編輯房間",
+    "rooms.name": "房間名稱",
+    "rooms.type": "類型",
+    "rooms.gameType": "遊戲類型",
+    "rooms.smallBlind": "小盲",
+    "rooms.bigBlind": "大盲",
+    "rooms.minBuyIn": "最小買入",
+    "rooms.maxBuyIn": "最大買入",
+    "rooms.maxPlayers": "最大玩家數",
+    "rooms.totalRounds": "總手數",
+    "rooms.billingMode": "計費模式",
+    "rooms.roundFee": "每手費用",
+    "rooms.rakePercent": "抽水比例(%)",
+    "rooms.rakeCap": "抽水上限",
+    "rooms.fairnessLevel": "公平等級",
+    "rooms.public": "公開",
+    "rooms.private": "私密",
+    "rooms.texasHoldem": "德州撲克",
+    "rooms.omaha": "奧馬哈",
+    "rooms.standardRake": "標準抽水",
+    "rooms.perRoundFee": "每手固定費",
+    "rooms.basic": "基礎",
+    "rooms.medium": "中等",
+    "rooms.high": "高級",
+    "rooms.unlimited": "無限制",
+    "rooms.presets": "快速預設",
+    "rooms.presetLow": "低級桌",
+    "rooms.presetMid": "中級桌",
+    "rooms.presetHigh": "高級桌",
+    "rooms.presetVip": "VIP桌",
+    "rooms.save": "儲存",
+    "rooms.cancel": "取消",
+    "rooms.inviteCode": "邀請碼",
+    "rooms.status": "狀態",
     "finance.title": "財務概覽",
     "finance.totalVolume": "總交易額",
     "finance.totalTx": "總交易數",
@@ -345,6 +421,44 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "rooms.close": "Close",
     "rooms.delete": "Delete",
     "rooms.players": "players",
+    "rooms.create": "Create Room",
+    "rooms.edit": "Edit",
+    "rooms.created": "Room created successfully",
+    "rooms.createTitle": "Create New Room",
+    "rooms.editTitle": "Edit Room",
+    "rooms.name": "Room Name",
+    "rooms.type": "Type",
+    "rooms.gameType": "Game Type",
+    "rooms.smallBlind": "Small Blind",
+    "rooms.bigBlind": "Big Blind",
+    "rooms.minBuyIn": "Min Buy-In",
+    "rooms.maxBuyIn": "Max Buy-In",
+    "rooms.maxPlayers": "Max Players",
+    "rooms.totalRounds": "Total Rounds",
+    "rooms.billingMode": "Billing Mode",
+    "rooms.roundFee": "Round Fee",
+    "rooms.rakePercent": "Rake %",
+    "rooms.rakeCap": "Rake Cap",
+    "rooms.fairnessLevel": "Fairness Level",
+    "rooms.public": "Public",
+    "rooms.private": "Private",
+    "rooms.texasHoldem": "Texas Hold'em",
+    "rooms.omaha": "Omaha",
+    "rooms.standardRake": "Standard Rake",
+    "rooms.perRoundFee": "Per Round Fee",
+    "rooms.basic": "Basic",
+    "rooms.medium": "Medium",
+    "rooms.high": "High",
+    "rooms.unlimited": "Unlimited",
+    "rooms.presets": "Quick Presets",
+    "rooms.presetLow": "Low Stakes",
+    "rooms.presetMid": "Mid Stakes",
+    "rooms.presetHigh": "High Stakes",
+    "rooms.presetVip": "VIP Table",
+    "rooms.save": "Save",
+    "rooms.cancel": "Cancel",
+    "rooms.inviteCode": "Invite Code",
+    "rooms.status": "Status",
     "finance.title": "Financial Overview",
     "finance.totalVolume": "Total Volume",
     "finance.totalTx": "Total Transactions",
@@ -783,6 +897,7 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
     max_daily_commission: "每日佣金上限",
     min_deposit: "最低充值金额",
     min_withdrawal: "最低提现金额",
+    auto_approve_limit: "自动审批限额",
     withdrawal_fee_rate: "提现手续费率 (%)",
     daily_withdrawal_limit: "每日提现限额",
     min_account_age_days: "最低账龄 (天)",
@@ -802,7 +917,7 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
   const configGroups: Record<string, string[]> = {
     [at("config.gameSettings")]: ["rake_percentage", "rake_cap", "min_players_to_start", "turn_timeout_seconds", "max_players_per_table"],
     [at("config.agentSystem")]: ["agent_level1_rate", "agent_level2_rate", "unlock_min_hands", "unlock_min_deposit", "unlock_min_rake", "max_daily_commission"],
-    [at("config.finance")]: ["min_deposit", "min_withdrawal", "withdrawal_fee_rate", "daily_withdrawal_limit"],
+    [at("config.finance")]: ["min_deposit", "min_withdrawal", "auto_approve_limit", "withdrawal_fee_rate", "daily_withdrawal_limit"],
     [at("config.riskControl")]: ["min_account_age_days", "observation_period_days", "max_same_table_ratio"],
     [at("config.privateRoom")]: ["room_fee_micro", "room_fee_low", "room_fee_mid", "room_fee_high", "room_fee_premium", "discount_5_rounds", "discount_10_rounds", "discount_20_rounds", "discount_50_rounds"],
   };
@@ -1188,8 +1303,252 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 // ==================== ROOMS PANEL ====================
+const defaultRoomForm = {
+  name: "",
+  type: "public" as "public" | "private",
+  gameType: "texas_holdem" as "texas_holdem" | "omaha",
+  smallBlind: "1",
+  bigBlind: "2",
+  minBuyIn: "40",
+  maxBuyIn: "200",
+  maxPlayers: 6,
+  totalRounds: null as number | null,
+  billingMode: "standard_rake" as "standard_rake" | "per_round_fee",
+  roundFee: "0",
+  rakePercent: "",
+  rakeCap: "",
+  fairnessLevel: "basic" as "basic" | "medium" | "high",
+};
+
+const roomPresets = {
+  low: { name: "Low Stakes", smallBlind: "1", bigBlind: "2", minBuyIn: "40", maxBuyIn: "200", maxPlayers: 6, type: "public" as const },
+  mid: { name: "Mid Stakes", smallBlind: "5", bigBlind: "10", minBuyIn: "200", maxBuyIn: "1000", maxPlayers: 6, type: "public" as const },
+  high: { name: "High Stakes", smallBlind: "25", bigBlind: "50", minBuyIn: "1000", maxBuyIn: "5000", maxPlayers: 6, type: "public" as const },
+  vip: { name: "VIP Table", smallBlind: "100", bigBlind: "200", minBuyIn: "5000", maxBuyIn: "20000", maxPlayers: 9, type: "private" as const },
+};
+
+function RoomFormModal({ at, open, onClose, editRoom, onSuccess }: {
+  at: (k: string) => string;
+  open: boolean;
+  onClose: () => void;
+  editRoom?: any;
+  onSuccess: () => void;
+}) {
+  const [form, setForm] = useState({ ...defaultRoomForm });
+  const isEdit = !!editRoom;
+
+  useEffect(() => {
+    if (editRoom) {
+      setForm({
+        name: editRoom.name || "",
+        type: editRoom.type || "public",
+        gameType: editRoom.gameType || "texas_holdem",
+        smallBlind: editRoom.smallBlind || "1",
+        bigBlind: editRoom.bigBlind || "2",
+        minBuyIn: editRoom.minBuyIn || "40",
+        maxBuyIn: editRoom.maxBuyIn || "200",
+        maxPlayers: editRoom.maxPlayers || 6,
+        totalRounds: editRoom.totalRounds || null,
+        billingMode: editRoom.billingMode || "standard_rake",
+        roundFee: editRoom.roundFee || "0",
+        rakePercent: editRoom.rakePercent || "",
+        rakeCap: editRoom.rakeCap || "",
+        fairnessLevel: editRoom.fairnessLevel || "basic",
+      });
+    } else {
+      setForm({ ...defaultRoomForm });
+    }
+  }, [editRoom, open]);
+
+  const createMutation = trpc.rooms.adminCreate.useMutation({
+    onSuccess: () => { toast.success(at("rooms.created")); onSuccess(); onClose(); },
+    onError: (err) => toast.error(err.message),
+  });
+  const editMutation = trpc.rooms.adminEdit.useMutation({
+    onSuccess: () => { toast.success(at("rooms.updated")); onSuccess(); onClose(); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleSubmit = () => {
+    if (!form.name.trim()) { toast.error(at("rooms.name") + " required"); return; }
+    if (isEdit) {
+      editMutation.mutate({
+        id: editRoom.id,
+        name: form.name,
+        type: form.type,
+        gameType: form.gameType,
+        smallBlind: form.smallBlind,
+        bigBlind: form.bigBlind,
+        minBuyIn: form.minBuyIn,
+        maxBuyIn: form.maxBuyIn,
+        maxPlayers: form.maxPlayers,
+        totalRounds: form.totalRounds,
+        billingMode: form.billingMode,
+        roundFee: form.roundFee,
+        rakePercent: form.rakePercent || null,
+        rakeCap: form.rakeCap || null,
+        fairnessLevel: form.fairnessLevel,
+      });
+    } else {
+      createMutation.mutate({
+        name: form.name,
+        type: form.type,
+        gameType: form.gameType,
+        smallBlind: form.smallBlind,
+        bigBlind: form.bigBlind,
+        minBuyIn: form.minBuyIn,
+        maxBuyIn: form.maxBuyIn,
+        maxPlayers: form.maxPlayers,
+        totalRounds: form.totalRounds,
+        billingMode: form.billingMode,
+        roundFee: form.roundFee,
+        rakePercent: form.rakePercent || null,
+        rakeCap: form.rakeCap || null,
+        fairnessLevel: form.fairnessLevel,
+      });
+    }
+  };
+
+  const applyPreset = (preset: keyof typeof roomPresets) => {
+    const p = roomPresets[preset];
+    setForm(prev => ({ ...prev, ...p }));
+  };
+
+  if (!open) return null;
+
+  const inputCls = "w-full px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-1 focus:ring-gold";
+  const labelCls = "text-xs font-medium text-muted-foreground mb-1 block";
+  const selectCls = "w-full px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-1 focus:ring-gold appearance-none";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">{isEdit ? at("rooms.editTitle") : at("rooms.createTitle")}</h3>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-secondary"><X className="w-5 h-5" /></button>
+        </div>
+
+        {/* Presets (only for create) */}
+        {!isEdit && (
+          <div className="mb-4">
+            <span className="text-xs font-medium text-muted-foreground">{at("rooms.presets")}:</span>
+            <div className="flex gap-2 mt-1 flex-wrap">
+              <button onClick={() => applyPreset("low")} className="px-3 py-1.5 rounded-lg bg-success/10 text-success text-xs font-medium hover:bg-success/20">{at("rooms.presetLow")}</button>
+              <button onClick={() => applyPreset("mid")} className="px-3 py-1.5 rounded-lg bg-warning/10 text-warning text-xs font-medium hover:bg-warning/20">{at("rooms.presetMid")}</button>
+              <button onClick={() => applyPreset("high")} className="px-3 py-1.5 rounded-lg bg-danger/10 text-danger text-xs font-medium hover:bg-danger/20">{at("rooms.presetHigh")}</button>
+              <button onClick={() => applyPreset("vip")} className="px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 text-xs font-medium hover:bg-purple-500/20">{at("rooms.presetVip")}</button>
+            </div>
+          </div>
+        )}
+
+        {/* Form grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Room Name */}
+          <div className="md:col-span-2">
+            <label className={labelCls}>{at("rooms.name")}</label>
+            <input className={inputCls} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. VIP Room #1" />
+          </div>
+          {/* Type */}
+          <div>
+            <label className={labelCls}>{at("rooms.type")}</label>
+            <select className={selectCls} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as any }))}>
+              <option value="public">{at("rooms.public")}</option>
+              <option value="private">{at("rooms.private")}</option>
+            </select>
+          </div>
+          {/* Game Type */}
+          <div>
+            <label className={labelCls}>{at("rooms.gameType")}</label>
+            <select className={selectCls} value={form.gameType} onChange={e => setForm(f => ({ ...f, gameType: e.target.value as any }))}>
+              <option value="texas_holdem">{at("rooms.texasHoldem")}</option>
+              <option value="omaha">{at("rooms.omaha")}</option>
+            </select>
+          </div>
+          {/* Small Blind */}
+          <div>
+            <label className={labelCls}>{at("rooms.smallBlind")}</label>
+            <input className={inputCls} type="number" min="0" step="0.01" value={form.smallBlind} onChange={e => setForm(f => ({ ...f, smallBlind: e.target.value }))} />
+          </div>
+          {/* Big Blind */}
+          <div>
+            <label className={labelCls}>{at("rooms.bigBlind")}</label>
+            <input className={inputCls} type="number" min="0" step="0.01" value={form.bigBlind} onChange={e => setForm(f => ({ ...f, bigBlind: e.target.value }))} />
+          </div>
+          {/* Min Buy-In */}
+          <div>
+            <label className={labelCls}>{at("rooms.minBuyIn")}</label>
+            <input className={inputCls} type="number" min="0" step="0.01" value={form.minBuyIn} onChange={e => setForm(f => ({ ...f, minBuyIn: e.target.value }))} />
+          </div>
+          {/* Max Buy-In */}
+          <div>
+            <label className={labelCls}>{at("rooms.maxBuyIn")}</label>
+            <input className={inputCls} type="number" min="0" step="0.01" value={form.maxBuyIn} onChange={e => setForm(f => ({ ...f, maxBuyIn: e.target.value }))} />
+          </div>
+          {/* Max Players */}
+          <div>
+            <label className={labelCls}>{at("rooms.maxPlayers")}</label>
+            <select className={selectCls} value={form.maxPlayers} onChange={e => setForm(f => ({ ...f, maxPlayers: Number(e.target.value) }))}>
+              {[2,3,4,5,6,7,8,9].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          {/* Total Rounds */}
+          <div>
+            <label className={labelCls}>{at("rooms.totalRounds")}</label>
+            <input className={inputCls} type="number" min="0" value={form.totalRounds ?? ""} onChange={e => setForm(f => ({ ...f, totalRounds: e.target.value ? Number(e.target.value) : null }))} placeholder={at("rooms.unlimited")} />
+          </div>
+          {/* Billing Mode */}
+          <div>
+            <label className={labelCls}>{at("rooms.billingMode")}</label>
+            <select className={selectCls} value={form.billingMode} onChange={e => setForm(f => ({ ...f, billingMode: e.target.value as any }))}>
+              <option value="standard_rake">{at("rooms.standardRake")}</option>
+              <option value="per_round_fee">{at("rooms.perRoundFee")}</option>
+            </select>
+          </div>
+          {/* Round Fee (shown when per_round_fee) */}
+          {form.billingMode === "per_round_fee" && (
+            <div>
+              <label className={labelCls}>{at("rooms.roundFee")}</label>
+              <input className={inputCls} type="number" min="0" step="0.01" value={form.roundFee} onChange={e => setForm(f => ({ ...f, roundFee: e.target.value }))} />
+            </div>
+          )}
+          {/* Rake Percent */}
+          <div>
+            <label className={labelCls}>{at("rooms.rakePercent")}</label>
+            <input className={inputCls} type="number" min="0" max="100" step="0.1" value={form.rakePercent} onChange={e => setForm(f => ({ ...f, rakePercent: e.target.value }))} placeholder="5.00" />
+          </div>
+          {/* Rake Cap */}
+          <div>
+            <label className={labelCls}>{at("rooms.rakeCap")}</label>
+            <input className={inputCls} type="number" min="0" step="0.01" value={form.rakeCap} onChange={e => setForm(f => ({ ...f, rakeCap: e.target.value }))} placeholder="10.00" />
+          </div>
+          {/* Fairness Level */}
+          <div>
+            <label className={labelCls}>{at("rooms.fairnessLevel")}</label>
+            <select className={selectCls} value={form.fairnessLevel} onChange={e => setForm(f => ({ ...f, fairnessLevel: e.target.value as any }))}>
+              <option value="basic">{at("rooms.basic")}</option>
+              <option value="medium">{at("rooms.medium")}</option>
+              <option value="high">{at("rooms.high")}</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80">{at("rooms.cancel")}</button>
+          <button onClick={handleSubmit} disabled={createMutation.isPending || editMutation.isPending} className="px-4 py-2 rounded-lg bg-gold text-black text-sm font-bold hover:bg-gold/90 disabled:opacity-50">
+            {(createMutation.isPending || editMutation.isPending) ? <RefreshCw className="w-4 h-4 animate-spin inline" /> : <Save className="w-4 h-4 inline mr-1" />}
+            {at("rooms.save")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RoomsPanel({ at }: { at: (k: string) => string }) {
   const { data, isLoading, refetch } = trpc.rooms.adminList.useQuery({ page: 1, limit: 50 });
+  const [showModal, setShowModal] = useState(false);
+  const [editRoom, setEditRoom] = useState<any>(null);
   const updateMutation = trpc.rooms.adminUpdate.useMutation({
     onSuccess: () => { toast.success(at("rooms.updated")); refetch(); },
     onError: (err) => toast.error(err.message),
@@ -1205,7 +1564,12 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">{at("rooms.title")}</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">{at("rooms.title")}</h2>
+        <button onClick={() => { setEditRoom(null); setShowModal(true); }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gold text-black text-sm font-bold hover:bg-gold/90">
+          <Plus className="w-4 h-4" /> {at("rooms.create")}
+        </button>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {rooms.map((r: any) => (
           <div key={r.id} className="glass rounded-xl p-4">
@@ -1218,14 +1582,21 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
                 "bg-secondary text-muted-foreground"
               }`}>{r.status}</span>
             </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1">
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                 r.type === "public" ? "bg-truth-blue/20 text-truth-blue" : "bg-purple-500/20 text-purple-400"
-              }`}>{r.type}</span>
+              }`}>{r.type === "public" ? at("rooms.public") : at("rooms.private")}</span>
               <span className="font-mono">${r.smallBlind}/${r.bigBlind}</span>
               <span>{r.currentPlayers}/{r.maxPlayers} {at("rooms.players")}</span>
             </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+              <span>{at("rooms.billingMode")}: {r.billingMode === "standard_rake" ? at("rooms.standardRake") : at("rooms.perRoundFee")}</span>
+              {r.inviteCode && <span>{at("rooms.inviteCode")}: <code className="font-mono text-gold">{r.inviteCode}</code></span>}
+            </div>
             <div className="flex gap-2 flex-wrap">
+              <button onClick={() => { setEditRoom(r); setShowModal(true); }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-truth-blue/10 text-truth-blue text-xs font-medium hover:bg-truth-blue/20">
+                <Pencil className="w-3 h-3" /> {at("rooms.edit")}
+              </button>
               {r.status !== "paused" && r.status !== "closed" && (
                 <button onClick={() => updateMutation.mutate({ id: r.id, status: "paused" })} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-warning/10 text-warning text-xs font-medium hover:bg-warning/20">
                   <Pause className="w-3 h-3" /> {at("rooms.pause")}
@@ -1251,6 +1622,7 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
       {rooms.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-8">{at("rooms.noRooms")}</p>
       )}
+      <RoomFormModal at={at} open={showModal} onClose={() => setShowModal(false)} editRoom={editRoom} onSuccess={refetch} />
     </div>
   );
 }
@@ -1258,6 +1630,8 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
 // ==================== FINANCE PANEL ====================
 function FinancePanel({ at }: { at: (k: string) => string }) {
   const [financeTab, setFinanceTab] = useState<"pending" | "deposits" | "withdrawals" | "all">("pending");
+  const [approveDialog, setApproveDialog] = useState<{ txId: number; amount: string; address: string; chain: string } | null>(null);
+  const [txHashInput, setTxHashInput] = useState("");
   const utils = trpc.useUtils();
   const { data: txData, isLoading } = trpc.wallet.allTransactions.useQuery({ page: 1, limit: 50, type: financeTab === "deposits" ? "deposit" : financeTab === "withdrawals" ? "withdraw" : undefined });
   const { data: stats } = trpc.admin.stats.useQuery();
@@ -1267,7 +1641,7 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
     onError: (err) => toast.error(err.message),
   });
   const confirmWithdrawMutation = trpc.wallet.confirmWithdrawal.useMutation({
-    onSuccess: () => { toast.success("提现已确认"); utils.wallet.allTransactions.invalidate(); },
+    onSuccess: () => { toast.success("提现已确认"); utils.wallet.allTransactions.invalidate(); setApproveDialog(null); setTxHashInput(""); },
     onError: (err) => toast.error(err.message),
   });
   const rejectMutation = trpc.wallet.rejectTransaction.useMutation({
@@ -1351,10 +1725,7 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
                   )}
                   {tx.type === "withdraw" && (
                     <button
-                      onClick={() => {
-                        const hash = prompt("请输入转账TX Hash（可留空）:");
-                        confirmWithdrawMutation.mutate({ transactionId: tx.id, txHash: hash || undefined });
-                      }}
+                      onClick={() => { setApproveDialog({ txId: tx.id, amount: tx.amount, address: tx.walletAddress || "", chain: tx.chain || "" }); setTxHashInput(""); }}
                       disabled={confirmWithdrawMutation.isPending}
                       className="flex-1 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
                     >确认转账</button>
@@ -1376,6 +1747,51 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
           <p className="text-sm text-muted-foreground text-center py-8">{financeTab === "pending" ? "暂无待审核交易" : at("finance.noTx")}</p>
         )}
       </div>
+
+      {/* Withdrawal Approve Dialog */}
+      {approveDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setApproveDialog(null)}>
+          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">确认提现转账</h3>
+              <button onClick={() => setApproveDialog(null)} className="p-1 rounded-lg hover:bg-secondary"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3 mb-4">
+              <div className="glass rounded-lg p-3">
+                <div className="text-xs text-muted-foreground mb-1">提现金额</div>
+                <div className="text-lg font-bold text-gold">${approveDialog.amount}</div>
+              </div>
+              <div className="glass rounded-lg p-3">
+                <div className="text-xs text-muted-foreground mb-1">链 / 地址</div>
+                <div className="text-sm font-mono">{approveDialog.chain} | {approveDialog.address || "-"}</div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">转账 TX Hash <span className="text-muted-foreground/60">(必填，请先完成链上转账)</span></label>
+                <input
+                  className="w-full px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm font-mono focus:outline-none focus:ring-1 focus:ring-gold"
+                  placeholder="输入链上转账的 Transaction Hash"
+                  value={txHashInput}
+                  onChange={e => setTxHashInput(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setApproveDialog(null)} className="flex-1 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80">取消</button>
+              <button
+                onClick={() => {
+                  if (!txHashInput.trim()) { toast.error("请输入转账 TX Hash"); return; }
+                  confirmWithdrawMutation.mutate({ transactionId: approveDialog.txId, txHash: txHashInput.trim() });
+                }}
+                disabled={confirmWithdrawMutation.isPending || !txHashInput.trim()}
+                className="flex-1 py-2 rounded-lg bg-gold text-black text-sm font-bold hover:bg-gold/90 disabled:opacity-50"
+              >
+                {confirmWithdrawMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin inline" /> : null}
+                确认已转账
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
