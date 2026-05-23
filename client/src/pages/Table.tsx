@@ -362,7 +362,7 @@ export default function Table() {
   const canCheck = myPlayer ? myPlayer.currentBet >= currentBet : false;
 
   return (
-    <div className="h-screen bg-deep-space flex flex-col overflow-hidden">
+    <div className="h-screen bg-gradient-to-b from-[#2d1810] via-[#3d2218] to-[#1a0e08] flex flex-col overflow-hidden">
       {/* Top Bar */}
       <div className="glass-strong px-3 py-2 flex items-center justify-between z-10 border-b border-border/30">
         <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground transition-colors active:scale-95">
@@ -479,11 +479,13 @@ export default function Table() {
         {/* Poker Table */}
         <div className="absolute inset-3">
           {/* Table felt - oval shape */}
-          <div className="absolute inset-0 rounded-[50%] bg-gradient-to-b from-emerald-800/90 to-emerald-950/95 border-[6px] border-amber-900/70 shadow-[inset_0_0_80px_rgba(0,0,0,0.6),0_0_40px_rgba(0,0,0,0.4)]">
-            {/* Table inner ring */}
-            <div className="absolute inset-3 rounded-[50%] border border-amber-800/25" />
-            {/* Table texture */}
-            <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.2)_100%)]" />
+          <div className="absolute inset-0 rounded-[50%] bg-gradient-to-b from-[#2d8a5e] via-[#247a52] to-[#1d6844] border-[8px] border-[#5c3a1e] shadow-[inset_0_0_40px_rgba(0,0,0,0.2),0_0_0_3px_#8b6914,0_0_30px_rgba(0,0,0,0.5)]">
+            {/* Table outer wood grain ring */}
+            <div className="absolute -inset-[8px] rounded-[50%] bg-gradient-to-b from-[#7a4a2a] via-[#5c3a1e] to-[#4a2e16] -z-10 shadow-[inset_0_2px_4px_rgba(255,255,255,0.1)]" />
+            {/* Table inner decorative ring */}
+            <div className="absolute inset-4 rounded-[50%] border border-[#3da06e]/40" />
+            {/* Table felt texture - bright center glow */}
+            <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.08)_0%,rgba(0,0,0,0.1)_70%)]" />
             
             {/* Pot display */}
             <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
@@ -503,7 +505,7 @@ export default function Table() {
               ))}
               {/* Placeholder for remaining cards */}
               {Array.from({ length: Math.max(0, 5 - displayCommunity.length) }).map((_, i) => (
-                <div key={`empty-${i}`} className="w-10 h-14 rounded-lg border border-dashed border-white/8" />
+                <div key={`empty-${i}`} className="w-10 h-14 rounded-lg border border-dashed border-white/15" />
               ))}
             </div>
           </div>

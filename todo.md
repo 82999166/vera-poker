@@ -283,3 +283,6 @@
 - [x] User list: show full date+time for last login (not just date)
 - [x] User list: show user online status (which table they're at, or "offline")
 - [x] Fix commission_records query error: commission_amount field does not exist in table
+
+## Game Table Visual Fix (2026-05-23)
+- [x] Redesign poker table: bright green felt + dark wood border + warm brown background (Poker Night style)
