@@ -35,7 +35,7 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   if (!card || faceDown) {
     // Card back: red diamond pattern with decorative border
     return (
-      <div className={`w-10 h-14 rounded-md overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.4),0_1px_2px_rgba(0,0,0,0.2)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`}>
+      <div className={`w-10 h-14 rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4),0_0_20px_rgba(0,0,0,0.2)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`}>
         <div className="w-full h-full bg-gradient-to-br from-[#c0392b] to-[#922b21] border-[1.5px] border-white/80 rounded-md relative">
           {/* Inner border */}
           <div className="absolute inset-[3px] border border-white/40 rounded-sm" />
@@ -61,8 +61,8 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const isRed = suit === 'h' || suit === 'd';
 
   return (
-    <div className={`w-12 h-[68px] rounded-md overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.4),0_1px_2px_rgba(0,0,0,0.2)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${className}`}>
-      <div className="w-full h-full bg-white border-[1px] border-gray-200 rounded-md relative flex flex-col items-center justify-between py-1 px-0.5">
+    <div className={`w-12 h-[68px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4),0_0_24px_rgba(0,0,0,0.15)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${className}`}>
+      <div className="w-full h-full bg-gradient-to-br from-white to-gray-50 border-[1px] border-gray-200/80 rounded-lg relative flex flex-col items-center justify-between py-1 px-0.5">
         {/* Top-left rank + suit */}
         <div className="absolute top-0.5 left-1 flex flex-col items-center leading-none">
           <span className={`text-[12px] font-extrabold ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
@@ -518,13 +518,13 @@ export default function Table() {
             </div>
 
             {/* Community Cards */}
-            <div className="absolute top-[46%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1">
+            <div className="absolute top-[46%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5">
               {displayCommunity.map((card, i) => (
                 <CardView key={`${card}-${i}`} card={card} animate={animateCards} delay={i * 150} />
               ))}
               {/* Placeholder for remaining cards */}
               {Array.from({ length: Math.max(0, 5 - displayCommunity.length) }).map((_, i) => (
-                <div key={`empty-${i}`} className="w-10 h-14 rounded-lg border border-dashed border-white/15" />
+                <div key={`empty-${i}`} className="w-10 h-14 rounded-lg border border-dashed border-white/20 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]" />
               ))}
             </div>
           {/* Player Seats */}
@@ -647,7 +647,7 @@ export default function Table() {
       {(isSeated || isDemoMode) && displayMyCards.length > 0 && (
         <div className="flex justify-center gap-1 -mt-2 mb-1 z-10">
           {displayMyCards.map((card, i) => (
-            <CardView key={i} card={card} className="!w-16 !h-[88px] !shadow-xl" animate delay={i * 300} />
+            <CardView key={i} card={card} className="!w-16 !h-[88px] !shadow-[0_8px_24px_rgba(0,0,0,0.7),0_4px_8px_rgba(0,0,0,0.5)]" animate delay={i * 300} />
           ))}
         </div>
       )}
