@@ -199,8 +199,63 @@ export function useSoundEffects() {
     };
   }, []);
 
+  // Voice announcement using Web Speech API
+  const speak = useCallback((text: string) => {
+    if (!enabledRef.current) return;
+    if (!window.speechSynthesis) return;
+    try {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.2; // Slightly faster for game pace
+      utterance.volume = volumeRef.current;
+      utterance.pitch = 1.0;
+      // Try to use a Chinese voice if available
+      const voices = window.speechSynthesis.getVoices();
+      const zhVoice = voices.find(v => v.lang.startsWith("zh")) || voices.find(v => v.lang.startsWith("en"));
+      if (zhVoice) utterance.voice = zhVoice;
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      // Silently fail
+    }
+  }, []);
+
+  // Announce a poker action with amount
+  const announceAction = useCallback((action: string, amount?: number, playerName?: string) => {
+    if (!enabledRef.current) return;
+    let text = "";
+    const amountStr = amount ? `$${amount}` : "";
+    const name = playerName || "";
+    
+    switch (action) {
+      case "bet":
+        text = name ? `${name} \u4E0B\u6CE8 ${amountStr}` : `\u4E0B\u6CE8 ${amountStr}`;
+        break;
+      case "call":
+        text = name ? `${name} \u8DDF\u6CE8 ${amountStr}` : `\u8DDF\u6CE8 ${amountStr}`;
+        break;
+      case "raise":
+        text = name ? `${name} \u52A0\u6CE8\u5230 ${amountStr}` : `\u52A0\u6CE8\u5230 ${amountStr}`;
+        break;
+      case "all_in":
+        text = name ? `${name} All In ${amountStr}` : `All In ${amountStr}`;
+        break;
+      case "fold":
+        text = name ? `${name} \u5F03\u724C` : "\u5F03\u724C";
+        break;
+      case "check":
+        text = name ? `${name} \u8FC7\u724C` : "\u8FC7\u724C";
+        break;
+      default:
+        return;
+    }
+    speak(text);
+  }, [speak]);
+
   return {
     play,
+    speak,
+    announceAction,
     toggle,
     setVolume,
     isEnabled: () => enabledRef.current,

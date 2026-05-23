@@ -968,6 +968,16 @@ const ja: Record<string, string> = {
   "verify.tier1Desc": "サーバーシードハッシュの事前コミットメント確認",
   "verify.tier2Desc": "シードから完全なデッキを再構築",
   "verify.tier3Desc": "TONブロックチェーン上の完全な監査証跡",
+  "lobby.enterRoomCode": "ルーム番号を入力してください",
+  "lobby.invalidRoomCode": "有効なルーム番号を入力してください（数字のみ）",
+  "lobby.joinRoom": "参加",
+  "lobby.quickJoin": "クイックプレイ",
+  "lobby.tables": "テーブル",
+  "table.bet": "ベット",
+  "verify.anyoneVerify": "誰でも結果を検証できます",
+  "verify.clientSeedRandom": "クライアントシードはランダムに生成されます",
+  "verify.deckDerived": "デッキは組み合わせたシードから導出されます",
+  "verify.serverSeedRevealed": "サーバーシードはハンド終了後に公開されます",
 };
 
 // Korean
@@ -1155,6 +1165,16 @@ const ko: Record<string, string> = {
   "verify.tier1Desc": "서버 시드 해시 사전 커밋 확인",
   "verify.tier2Desc": "시드에서 전체 덱 재구성",
   "verify.tier3Desc": "TON 블록체인의 전체 감사 추적",
+  "lobby.enterRoomCode": "방 번호를 입력하세요",
+  "lobby.invalidRoomCode": "유효한 방 번호를 입력하세요 (숫자만)",
+  "lobby.joinRoom": "참가",
+  "lobby.quickJoin": "빠른 플레이",
+  "lobby.tables": "테이블",
+  "table.bet": "베팅",
+  "verify.anyoneVerify": "누구나 결과를 검증할 수 있습니다",
+  "verify.clientSeedRandom": "클라이언트 시드는 무작위로 생성됩니다",
+  "verify.deckDerived": "덱은 결합된 시드에서 파생됩니다",
+  "verify.serverSeedRevealed": "서버 시드는 핸드 종료 후 공개됩니다",
 };
 
 // Other languages (key translations only, fallback to English for missing)

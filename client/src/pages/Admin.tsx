@@ -306,6 +306,15 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "finance.timeLabel": "时间",
     "finance.userLabel": "用户",
     "finance.noPendingReview": "暂无待审核交易",
+    "finance.tabRake": "抽水",
+    "finance.rakeTotal": "总抽水",
+    "finance.rakeToday": "今日抽水",
+    "finance.rakeTotalHands": "总局数",
+    "finance.rakeTodayHands": "今日局数",
+    "finance.rakeTrend": "抽水趋势（14天）",
+    "finance.rakeRecords": "抽水明细",
+    "finance.rakeAvg": "平均抽水",
+    "finance.noRakeRecords": "暂无抽水记录",
     "tg.oidcTitle": "Telegram Login (OIDC)",
     "tg.clientId": "Client ID",
     "tg.clientIdHint": "BotFather → Login Widget 中显示的 Client ID（数字）",
@@ -621,6 +630,15 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "finance.timeLabel": "時間",
     "finance.userLabel": "用戶",
     "finance.noPendingReview": "暫無待審核交易",
+    "finance.tabRake": "抽水",
+    "finance.rakeTotal": "總抽水",
+    "finance.rakeToday": "今日抽水",
+    "finance.rakeTotalHands": "總局數",
+    "finance.rakeTodayHands": "今日局數",
+    "finance.rakeTrend": "抽水趨勢（14天）",
+    "finance.rakeRecords": "抽水明細",
+    "finance.rakeAvg": "平均抽水",
+    "finance.noRakeRecords": "暫無抽水記錄",
     "tg.oidcTitle": "Telegram Login (OIDC)",
     "tg.clientId": "Client ID",
     "tg.clientIdHint": "BotFather → Login Widget 中顯示的 Client ID（數字）",
@@ -936,6 +954,15 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "finance.timeLabel": "Time",
     "finance.userLabel": "User",
     "finance.noPendingReview": "No pending transactions",
+    "finance.tabRake": "Rake",
+    "finance.rakeTotal": "Total Rake",
+    "finance.rakeToday": "Today Rake",
+    "finance.rakeTotalHands": "Total Hands",
+    "finance.rakeTodayHands": "Today Hands",
+    "finance.rakeTrend": "Rake Trend (14 days)",
+    "finance.rakeRecords": "Rake Records",
+    "finance.rakeAvg": "Avg Rake",
+    "finance.noRakeRecords": "No rake records",
     "tg.oidcTitle": "Telegram Login (OIDC)",
     "tg.clientId": "Client ID",
     "tg.clientIdHint": "Client ID shown in BotFather → Login Widget (numeric)",
@@ -2224,7 +2251,7 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
 
 // ==================== FINANCE PANEL ====================
 function FinancePanel({ at }: { at: (k: string) => string }) {
-  const [financeTab, setFinanceTab] = useState<"pending" | "deposits" | "withdrawals" | "all">("pending");
+  const [financeTab, setFinanceTab] = useState<"pending" | "deposits" | "withdrawals" | "all" | "rake">("pending");
   const [approveDialog, setApproveDialog] = useState<{ txId: number; amount: string; address: string; chain: string } | null>(null);
   const [txHashInput, setTxHashInput] = useState("");
   const utils = trpc.useUtils();
@@ -2272,7 +2299,7 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
 
       {/* Tabs */}
       <div className="flex gap-1 glass rounded-lg p-1">
-        {(["pending", "deposits", "withdrawals", "all"] as const).map(tab => (
+        {(["pending", "deposits", "withdrawals", "all", "rake"] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setFinanceTab(tab)}
@@ -2280,13 +2307,16 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
               financeTab === tab ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {tab === "pending" ? `${at("finance.tabPending")}(${pendingTx.length})` : tab === "deposits" ? at("finance.tabDeposits") : tab === "withdrawals" ? at("finance.tabWithdrawals") : at("finance.tabAll")}
+            {tab === "pending" ? `${at("finance.tabPending")}(${pendingTx.length})` : tab === "deposits" ? at("finance.tabDeposits") : tab === "withdrawals" ? at("finance.tabWithdrawals") : tab === "rake" ? at("finance.tabRake") : at("finance.tabAll")}
           </button>
         ))}
       </div>
 
+      {/* Rake Tab */}
+      {financeTab === "rake" && <RakePanel at={at} />}
+
       {/* Transaction List */}
-      <div className="space-y-2">
+      {financeTab !== "rake" && <div className="space-y-2">
         {displayTx.length > 0 ? (
           displayTx.map((tx: any) => (
             <div key={tx.id} className="glass rounded-xl p-3">
@@ -2341,7 +2371,7 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
         ) : (
           <p className="text-sm text-muted-foreground text-center py-8">{financeTab === "pending" ? at("finance.noPendingReview") : at("finance.noTx")}</p>
         )}
-      </div>
+      </div>}
 
       {/* Withdrawal Approve Dialog */}
       {approveDialog && (
@@ -2387,6 +2417,99 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ==================== RAKE PANEL ====================
+function RakePanel({ at }: { at: (k: string) => string }) {
+  const [rakePage, setRakePage] = useState(1);
+  const { data: rakeData, isLoading } = trpc.admin.rakeRecords.useQuery({ page: rakePage, pageSize: 20 });
+  const { data: stats } = trpc.admin.stats.useQuery();
+  const { data: trends } = trpc.admin.trends.useQuery({ days: 14 });
+
+  if (isLoading) return <div className="flex items-center justify-center h-32"><RefreshCw className="w-5 h-5 animate-spin text-gold" /></div>;
+
+  const records = rakeData?.records ?? [];
+  const summary = rakeData?.summary ?? { totalRake: "0.00", totalHands: 0, avgRake: "0.00" };
+  const dailyRake = (trends as any)?.dailyRake ?? [];
+
+  return (
+    <div className="space-y-4">
+      {/* Rake Stats Cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="glass rounded-xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.rakeTotal")}</p>
+          <p className="text-lg font-bold text-gold">${stats?.totalRake ?? "0.00"}</p>
+        </div>
+        <div className="glass rounded-xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.rakeToday")}</p>
+          <p className="text-lg font-bold text-emerald-400">${stats?.todayRake ?? "0.00"}</p>
+        </div>
+        <div className="glass rounded-xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.rakeTotalHands")}</p>
+          <p className="text-lg font-bold text-truth-blue">{stats?.totalHands ?? 0}</p>
+        </div>
+        <div className="glass rounded-xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.rakeTodayHands")}</p>
+          <p className="text-lg font-bold text-purple-400">{stats?.todayHands ?? 0}</p>
+        </div>
+      </div>
+
+      {/* Daily Rake Trend */}
+      {dailyRake.length > 0 && (
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-sm font-semibold mb-3">{at("finance.rakeTrend")}</h3>
+          <div className="flex items-end gap-1 h-24">
+            {dailyRake.map((d: any, i: number) => {
+              const maxVal = Math.max(...dailyRake.map((r: any) => parseFloat(r.total || "0")), 1);
+              const height = (parseFloat(d.total || "0") / maxVal) * 100;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                  <span className="text-[8px] text-muted-foreground">${parseFloat(d.total || "0").toFixed(0)}</span>
+                  <div className="w-full bg-gold/30 rounded-t" style={{ height: `${Math.max(height, 4)}%` }}>
+                    <div className="w-full h-full bg-gold/70 rounded-t" />
+                  </div>
+                  <span className="text-[7px] text-muted-foreground">{d.date?.slice(5)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Rake Records Table */}
+      <div className="glass rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold">{at("finance.rakeRecords")}</h3>
+          <span className="text-xs text-muted-foreground">{at("finance.rakeAvg")}: ${summary.avgRake}</span>
+        </div>
+        <div className="space-y-2">
+          {records.length > 0 ? records.map((r: any) => (
+            <div key={r.id} className="flex items-center justify-between py-2 border-b border-border/20 last:border-0">
+              <div>
+                <span className="text-xs font-medium">#{r.handNumber}</span>
+                <span className="text-[10px] text-muted-foreground ml-2">Room #{r.roomId}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-bold text-gold">${parseFloat(r.rakeAmount || "0").toFixed(2)}</span>
+                <span className="text-[10px] text-muted-foreground ml-2">/ ${parseFloat(r.potSize || "0").toFixed(2)}</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">{r.startedAt ? new Date(r.startedAt).toLocaleString() : "-"}</span>
+            </div>
+          )) : (
+            <p className="text-sm text-muted-foreground text-center py-4">{at("finance.noRakeRecords")}</p>
+          )}
+        </div>
+        {/* Pagination */}
+        {(rakeData?.total ?? 0) > 20 && (
+          <div className="flex justify-center gap-2 mt-3">
+            <button onClick={() => setRakePage(p => Math.max(1, p - 1))} disabled={rakePage === 1} className="px-3 py-1 rounded bg-secondary text-xs disabled:opacity-50">←</button>
+            <span className="text-xs text-muted-foreground self-center">{rakePage} / {Math.ceil((rakeData?.total ?? 0) / 20)}</span>
+            <button onClick={() => setRakePage(p => p + 1)} disabled={rakePage >= Math.ceil((rakeData?.total ?? 0) / 20)} className="px-3 py-1 rounded bg-secondary text-xs disabled:opacity-50">→</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -2840,6 +2963,11 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
 // ==================== STAFF PANEL ====================
 function StaffPanel({ at }: { at: (k: string) => string }) {
   const { data: staffList, isLoading, refetch } = trpc.admin.staffList.useQuery();
+  const { data: unmigratedData } = trpc.admin.unmigratedStaffCount.useQuery();
+  const migrateMutation = trpc.admin.migrateStaffUsers.useMutation({
+    onSuccess: (data) => { toast.success(data.message); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
   const createMutation = trpc.admin.staffCreate.useMutation({
     onSuccess: () => { toast.success(at("staff.created")); refetch(); setNewUsername(""); setNewPassword(""); },
     onError: (e) => toast.error(e.message),
@@ -2870,8 +2998,25 @@ function StaffPanel({ at }: { at: (k: string) => string }) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-bold">{at("staff.title")}</h2>
-
+            <h2 className="text-lg font-bold">{at("staff.title")}</h2>
+      {/* Migration Banner */}
+      {unmigratedData && unmigratedData.count > 0 && (
+        <div className="glass rounded-xl p-4 border border-yellow-500/30 bg-yellow-500/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-yellow-400">Staff Migration Available</p>
+              <p className="text-xs text-muted-foreground mt-1">{unmigratedData.count} user(s) with staff roles can be migrated to admin_users table</p>
+            </div>
+            <button
+              className="px-4 py-2 bg-yellow-500/20 border border-yellow-500/50 rounded-lg text-sm font-medium text-yellow-300 hover:bg-yellow-500/30 transition-colors"
+              onClick={() => migrateMutation.mutate()}
+              disabled={migrateMutation.isPending}
+            >
+              {migrateMutation.isPending ? "Migrating..." : "Migrate Now"}
+            </button>
+          </div>
+        </div>
+      )}
       {/* Create Staff Form */}
       <div className="glass rounded-xl p-4">
         <h3 className="text-sm font-semibold text-gold mb-3">{at("staff.create")}</h3>
@@ -3046,6 +3191,26 @@ function StatsPanel({ at, onNavigate }: { at: (k: string) => string; onNavigate?
         </div>
       </div>
 
+      {/* Rake Stats Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="glass rounded-xl p-3 text-center border border-gold/20 cursor-pointer hover:bg-secondary/30 transition-colors" onClick={() => onNavigate?.("finance")}>
+          <p className="text-xs text-muted-foreground mb-1">{at("finance.rakeTotal")}</p>
+          <p className="text-xl font-bold text-gold">${stats?.totalRake ?? "0.00"}</p>
+        </div>
+        <div className="glass rounded-xl p-3 text-center border border-emerald-400/20">
+          <p className="text-xs text-muted-foreground mb-1">{at("finance.rakeToday")}</p>
+          <p className="text-xl font-bold text-emerald-400">${stats?.todayRake ?? "0.00"}</p>
+        </div>
+        <div className="glass rounded-xl p-3 text-center">
+          <p className="text-xs text-muted-foreground mb-1">{at("finance.rakeTotalHands")}</p>
+          <p className="text-xl font-bold text-purple-400">{stats?.totalHands ?? 0}</p>
+        </div>
+        <div className="glass rounded-xl p-3 text-center">
+          <p className="text-xs text-muted-foreground mb-1">{at("finance.rakeTodayHands")}</p>
+          <p className="text-xl font-bold">{stats?.todayHands ?? 0}</p>
+        </div>
+      </div>
+
       {/* Trend Charts */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -3071,6 +3236,11 @@ function StatsPanel({ at, onNavigate }: { at: (k: string) => string; onNavigate?
             <div className="glass rounded-xl p-4">
               <p className="text-xs font-medium text-muted-foreground mb-3">{at("stats.dailyHands")}</p>
               <TrendChart data={trends?.dailyHands ?? []} dataKey="count" color="oklch(0.7 0.15 250)" label={at("stats.hands")} noDataText={at("common.noData")} />
+            </div>
+            {/* Daily Rake Chart */}
+            <div className="glass rounded-xl p-4 border border-gold/10">
+              <p className="text-xs font-medium text-gold mb-3">{at("finance.rakeTrend")}</p>
+              <TrendChart data={(trends as any)?.dailyRake ?? []} dataKey="total" color="oklch(0.82 0.15 85)" label={at("finance.rakeTotal")} isVolume noDataText={at("common.noData")} />
             </div>
           </div>
         )}

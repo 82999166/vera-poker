@@ -1134,6 +1134,15 @@ Rules:
         .where(and(eq(transactions.type, "withdraw"), eq(transactions.status, "pending")));
       const [pendingWithdrawAmount] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(amount), 0)` }).from(transactions)
         .where(and(eq(transactions.type, "withdraw"), eq(transactions.status, "pending")));
+      // Rake stats
+      const { gameHands } = await import("../drizzle/schema");
+      const [totalRake] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(rakeAmount), 0)` }).from(gameHands);
+      const [todayRake] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(rakeAmount), 0)` }).from(gameHands)
+        .where(sql`DATE(startedAt) = CURDATE()`);
+      const [totalHandsCount] = await dbInstance.select({ count: sql<number>`count(*)` }).from(gameHands)
+        .where(sql`status = 'completed'`);
+      const [todayHandsCount] = await dbInstance.select({ count: sql<number>`count(*)` }).from(gameHands)
+        .where(sql`DATE(startedAt) = CURDATE() AND status = 'completed'`);
       return {
         totalUsers: userCount?.count ?? 0,
         totalRooms: roomCount?.count ?? 0,
@@ -1144,6 +1153,10 @@ Rules:
         totalBalance: parseFloat(totalBal?.total ?? "0").toFixed(2),
         pendingWithdrawals: pendingWithdrawCount?.count ?? 0,
         pendingWithdrawAmount: parseFloat(pendingWithdrawAmount?.total ?? "0").toFixed(2),
+        totalRake: parseFloat(totalRake?.total ?? "0").toFixed(2),
+        todayRake: parseFloat(todayRake?.total ?? "0").toFixed(2),
+        totalHands: totalHandsCount?.count ?? 0,
+        todayHands: todayHandsCount?.count ?? 0,
       };
     }),
     // Trend data for charts
@@ -1181,7 +1194,64 @@ Rules:
         .groupBy(sql`DATE(startedAt)`)
         .orderBy(sql`DATE(startedAt)`);
       
-      return { dailyUsers, dailyVolume, dailyHands };
+      // Daily rake
+      const dailyRake = await dbInstance.select({
+        date: sql<string>`DATE(startedAt)`.as("date"),
+        total: sql<string>`COALESCE(SUM(rakeAmount), 0)`,
+        hands: sql<number>`count(*)`,
+      }).from(gameHands)
+        .where(sql`startedAt >= DATE_SUB(CURDATE(), INTERVAL ${input.days} DAY) AND status = 'completed'`)
+        .groupBy(sql`DATE(startedAt)`)
+        .orderBy(sql`DATE(startedAt)`);
+      
+      return { dailyUsers, dailyVolume, dailyHands, dailyRake };
+    }),
+    // Rake detail records
+    rakeRecords: staffProcedure.input(z.object({
+      page: z.number().default(1),
+      pageSize: z.number().default(20),
+      roomId: z.number().optional(),
+      dateFrom: z.string().optional(),
+      dateTo: z.string().optional(),
+    })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { records: [], total: 0, summary: { totalRake: "0.00", totalHands: 0, avgRake: "0.00" } };
+      const { gameHands, rooms } = await import("../drizzle/schema");
+      const { sql, eq, and, gte, lte } = await import("drizzle-orm");
+      
+      const conditions: any[] = [sql`${gameHands.status} = 'completed'`, sql`${gameHands.rakeAmount} > 0`];
+      if (input.roomId) conditions.push(eq(gameHands.roomId, input.roomId));
+      if (input.dateFrom) conditions.push(gte(gameHands.startedAt, new Date(input.dateFrom)));
+      if (input.dateTo) conditions.push(lte(gameHands.startedAt, new Date(input.dateTo)));
+      
+      const whereClause = and(...conditions);
+      
+      const [countResult] = await dbInstance.select({ count: sql<number>`count(*)` }).from(gameHands).where(whereClause);
+      const [sumResult] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(rakeAmount), 0)`, avg: sql<string>`COALESCE(AVG(rakeAmount), 0)` }).from(gameHands).where(whereClause);
+      
+      const records = await dbInstance.select({
+        id: gameHands.id,
+        roomId: gameHands.roomId,
+        handNumber: gameHands.handNumber,
+        potSize: gameHands.potSize,
+        rakeAmount: gameHands.rakeAmount,
+        startedAt: gameHands.startedAt,
+        completedAt: gameHands.completedAt,
+      }).from(gameHands)
+        .where(whereClause)
+        .orderBy(sql`${gameHands.startedAt} DESC`)
+        .limit(input.pageSize)
+        .offset((input.page - 1) * input.pageSize);
+      
+      return {
+        records,
+        total: countResult?.count ?? 0,
+        summary: {
+          totalRake: parseFloat(sumResult?.total ?? "0").toFixed(2),
+          totalHands: countResult?.count ?? 0,
+          avgRake: parseFloat(sumResult?.avg ?? "0").toFixed(4),
+        },
+      };
     }),
     // Send notification to user(s)
     sendNotification: adminProcedure.input(z.object({
@@ -1194,9 +1264,51 @@ Rules:
       const result = await sendBatchNotification(input.userIds, input.type, input.title, input.body);
       return result;
     }),
+    // Migrate staff users from users table to admin_users
+    migrateStaffUsers: adminProcedure.mutation(async () => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { migrated: 0, message: "DB not available" };
+      const { users, adminUsers } = await import("../drizzle/schema");
+      const { sql, inArray } = await import("drizzle-orm");
+      // Find users with staff roles that are not yet in admin_users
+      const staffUsers = await dbInstance.select().from(users)
+        .where(inArray(users.role, ["admin", "cs", "finance", "tech"]));
+      if (staffUsers.length === 0) return { migrated: 0, message: "No staff users to migrate" };
+      let migrated = 0;
+      for (const u of staffUsers) {
+        // Check if already exists in admin_users
+        const existing = await dbInstance.select().from(adminUsers)
+          .where(sql`${adminUsers.username} = ${u.tgId || u.openId || String(u.id)}`);
+        if (existing.length > 0) continue;
+        // Create admin_users entry with a simple hash placeholder
+        const crypto = await import("crypto");
+        const defaultPwd = crypto.createHash("sha256").update("changeme123").digest("hex");
+        await dbInstance.insert(adminUsers).values({
+          username: u.tgId || u.openId || String(u.id),
+          passwordHash: defaultPwd,
+          name: u.name || `Staff ${u.id}`,
+          role: u.role === "admin" ? "admin" : u.role as any,
+          permissions: [],
+          isActive: true,
+        });
+        // Reset user role to 'user'
+        await dbInstance.update(users).set({ role: "user" }).where(sql`${users.id} = ${u.id}`);
+        migrated++;
+      }
+      return { migrated, message: `Migrated ${migrated} staff users` };
+    }),
+    // Get count of unmigrated staff users
+    unmigratedStaffCount: staffProcedure.query(async () => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { count: 0 };
+      const { users } = await import("../drizzle/schema");
+      const { sql, inArray } = await import("drizzle-orm");
+      const [result] = await dbInstance.select({ count: sql<number>`count(*)` }).from(users)
+        .where(inArray(users.role, ["admin", "cs", "finance", "tech"]));
+      return { count: result?.count ?? 0 };
+    }),
   }),
 });
-
 export type AppRouter = typeof appRouter;
 
 // Achievement progress helpers

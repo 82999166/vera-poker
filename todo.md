@@ -252,12 +252,12 @@
 - [x] Fix Admin.tsx: all hardcoded Chinese strings in UserDetailPanel, UsersPanel, StaffPanel use at() or t()
 - [x] Fix Profile.tsx: game stats, achievements, TG binding section all use t()
 - [x] Add missing i18n keys to all 3 admin languages (zh-CN, zh-TW, en)
-- [ ] Add missing i18n keys to all 12 frontend languages
+- [x] Add missing i18n keys to all 12 frontend languages
 
 ## Staff Account Migration
-- [ ] Add admin.migrateStaffUsers procedure: copy admin/cs/finance/tech role users from users table to admin_users
-- [ ] Show migration button in Staff panel with count of unmigrated accounts
-- [ ] After migration, update migrated users' role in users table to 'user'
+- [x] Add admin.migrateStaffUsers procedure: copy admin/cs/finance/tech role users from users table to admin_users
+- [x] Show migration button in Staff panel with count of unmigrated accounts
+- [x] After migration, update migrated users' role in users table to 'user'
 
 ## User Stats Overview Cards
 - [x] Backend: admin.userStats query (total users, today new, today active, total balance)
@@ -337,3 +337,20 @@
 - [x] 超时未点击开始则自动退出牌场（30秒超时，退还筹码到余额）
 - [x] 审查 gameEngine 符合国际德州扑克规则（修复单挑盲注、BB option、最小加注、raise reopen）
 - [x] 修复审查中发现的逻辑问题（hasActedThisRound 跟踪、minRaise 计算、raise reopen）
+
+## Admin Finance - Rake Management (2026-05-24)
+- [x] 后端：rake_records 表（记录每局抽水金额、房间、时间）
+- [x] 后端：抽水统计查询接口（总抽水、日/周/月抽水、按房间统计）
+- [x] 后端：数据看板增加抽水统计数据
+- [x] 前端：Admin 财务面板增加"抽水管理"Tab（抽水明细列表、筛选、统计卡片）
+- [x] 前端：数据看板增加抽水收入趋势图
+
+## Voice Announcements (2026-05-24)
+- [x] Web Speech API 语音播报：下注金额、跟注金额、加注金额、全押、弃牌、过牌
+- [x] 语音播报支持中英文（根据当前语言设置）
+- [x] 语音播报开关（可在牌桌设置中关闭）
+
+## Complete Remaining Items
+- [x] i18n: 补全所有12种前端语言的缺失 key
+- [x] Staff 迁移: admin.migrateStaffUsers procedure
+- [x] Staff 迁移: Staff panel 显示迁移按钮

@@ -108,6 +108,8 @@ export async function getPlayerView(roomId: number, playerId: number) {
     readyPlayers: Array.from(table.readyPlayers),
     readyDeadline: table.readyDeadline || null,
     readyCountdown: table.readyDeadline ? Math.max(0, Math.ceil((table.readyDeadline - Date.now()) / 1000)) : null,
+    // Last action info for voice announcements
+    lastActionInfo: (table as any).lastActionInfo || null,
   };
 }
 
@@ -267,6 +269,14 @@ export async function processPlayerAction(
   // Process the action
   table.gameState = gameEngine.processAction(gs, userId, action, amount);
   table.lastActionAt = Date.now();
+  // Record last action for voice announcement on other clients
+  (table as any).lastActionInfo = {
+    playerId: userId,
+    playerName: `Player ${currentPlayer.seatIndex + 1}`,
+    action,
+    amount: amount || 0,
+    timestamp: Date.now(),
+  };
 
   // Check if betting round is complete and advance game
   await checkAndAdvanceGame(roomId);

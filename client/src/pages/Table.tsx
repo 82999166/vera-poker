@@ -148,7 +148,7 @@ export default function Table() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { t } = useI18n();
-  const { play: playSound, toggle: toggleSound, isEnabled: isSoundEnabled } = useSoundEffects();
+  const { play: playSound, toggle: toggleSound, isEnabled: isSoundEnabled, announceAction } = useSoundEffects();
   const [muted, setMuted] = useState(() => localStorage.getItem("vera-sound-enabled") === "false");
   const [raiseAmount, setRaiseAmount] = useState(4.00);
   const [isSeated, setIsSeated] = useState(false);
@@ -250,6 +250,19 @@ export default function Table() {
     }
   }, [tableState?.phase, tableState?.handNumber, tableState?.lastWinner, tableState?.settlementDetail, muted, playSound, user]);
 
+  // Detect other players' actions for voice announcement
+  const lastActionInfoRef = useRef<any>(null);
+  useEffect(() => {
+    const info = (tableState as any)?.lastActionInfo;
+    if (!info || muted) return;
+    // Only announce if it's a new action from another player
+    const infoKey = `${info.playerId}-${info.timestamp}`;
+    if (infoKey !== lastActionInfoRef.current && info.playerId !== user?.id) {
+      lastActionInfoRef.current = infoKey;
+      announceAction(info.action, info.amount, info.playerName);
+    }
+  }, [(tableState as any)?.lastActionInfo, muted, user?.id, announceAction]);
+
   // Mutations
   const joinMutation = trpc.game.join.useMutation({
     onSuccess: (data) => {
@@ -277,14 +290,15 @@ export default function Table() {
   const actionMutation = trpc.game.action.useMutation({
     onSuccess: (_, variables) => {
       utils.game.tableState.invalidate({ roomId });
-      // Play sound based on action type
+      // Play sound based on action type + voice announcement
       if (!muted) {
         const action = (variables as any)?.action;
-        if (action === "fold") playSound("fold");
-        else if (action === "check") playSound("check");
-        else if (action === "call") playSound("call");
-        else if (action === "raise" || action === "bet") playSound("bet");
-        else if (action === "all_in" || action === "allin") playSound("allIn");
+        const amount = (variables as any)?.amount;
+        if (action === "fold") { playSound("fold"); announceAction("fold"); }
+        else if (action === "check") { playSound("check"); announceAction("check"); }
+        else if (action === "call") { playSound("call"); announceAction("call", amount); }
+        else if (action === "raise" || action === "bet") { playSound("bet"); announceAction("raise", amount); }
+        else if (action === "all_in" || action === "allin") { playSound("allIn"); announceAction("all_in", amount); }
       }
       // Auto-switch table after fold
       if ((variables as any)?.action === "fold" && allRooms) {
