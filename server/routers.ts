@@ -9,18 +9,30 @@ import { invokeLLM } from "./_core/llm";
 import { nanoid } from "nanoid";
 import * as tableManager from "./tableManager";
 
-// Staff guard (admin + cs + finance + tech)
-const staffProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (!["admin", "cs", "finance", "tech"].includes(ctx.user.role)) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Staff access required" });
+// Staff guard - supports both admin_users session and legacy game user roles
+const staffProcedure = publicProcedure.use(({ ctx, next }) => {
+  // New: admin_users table session
+  if (ctx.adminUser) {
+    return next({ ctx: { ...ctx, user: ctx.user } });
   }
-  return next({ ctx });
+  // Legacy: game user with staff role
+  if (ctx.user && ["admin", "cs", "finance", "tech"].includes(ctx.user.role)) {
+    return next({ ctx });
+  }
+  throw new TRPCError({ code: "FORBIDDEN", message: "Staff access required" });
 });
 
-// Admin guard (admin only)
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
-  return next({ ctx });
+// Admin guard - super_admin or admin role only
+const adminProcedure = publicProcedure.use(({ ctx, next }) => {
+  // New: admin_users table session with admin/super_admin role
+  if (ctx.adminUser && ["super_admin", "admin"].includes(ctx.adminUser.role)) {
+    return next({ ctx: { ...ctx, user: ctx.user } });
+  }
+  // Legacy: game user with admin role
+  if (ctx.user && ctx.user.role === "admin") {
+    return next({ ctx });
+  }
+  throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
 });
 
 export const appRouter = router({
@@ -28,6 +40,12 @@ export const appRouter = router({
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    // Admin session check - returns adminUser info if logged in via admin_users table
+    adminMe: publicProcedure.query(opts => opts.ctx.adminUser),
+    adminLogout: publicProcedure.mutation(({ ctx }) => {
+      ctx.res.clearCookie("vera_admin_session", { path: "/" });
+      return { success: true } as const;
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -193,9 +211,10 @@ export const appRouter = router({
       fairnessLevel: z.enum(["basic", "medium", "high"]).default("basic"),
     })).mutation(async ({ ctx, input }) => {
       const inviteCode = nanoid(8);
+      const ownerId = ctx.adminUser?.adminId ?? ctx.user?.id ?? 0;
       const roomId = await db.createRoom({
         ...input,
-        ownerId: ctx.user.id,
+        ownerId,
         inviteCode,
         smallBlind: input.smallBlind,
         bigBlind: input.bigBlind,
@@ -1001,41 +1020,43 @@ Rules:
     commissions: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       return db.getAllCommissions(input.page, input.limit);
     }),
-    // Staff management
+    // Staff management (uses admin_users table - separate from game users)
     staffList: adminProcedure.query(async () => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return [];
-      const { users } = await import("../drizzle/schema");
-      const { sql } = await import("drizzle-orm");
-      const result = await dbInstance.select({
-        id: users.id,
-        name: users.name,
-        role: users.role,
-        staffUsername: users.staffUsername,
-        lastSignedIn: users.lastSignedIn,
-        riskLevel: users.riskLevel,
-        createdAt: users.createdAt,
-      }).from(users).where(sql`${users.role} IN ('admin', 'cs', 'finance', 'tech')`);
-      return result;
+      const { adminUsers } = await import("../drizzle/schema");
+      return dbInstance.select().from(adminUsers).orderBy(adminUsers.createdAt);
     }),
     staffCreate: adminProcedure.input(z.object({
       username: z.string().min(3).max(64),
       password: z.string().min(6).max(128),
       name: z.string().min(1).max(64),
-      role: z.enum(["admin", "cs", "finance", "tech"]),
+      role: z.enum(["super_admin", "admin", "cs", "finance", "tech"]),
+      permissions: z.array(z.string()).optional(),
     })).mutation(async ({ input }) => {
       const { createStaffAccount } = await import("./staffAuth");
       const result = await createStaffAccount(input);
       if (!result.success) throw new TRPCError({ code: "BAD_REQUEST", message: result.error });
       return { success: true, userId: result.userId };
     }),
-    staffDelete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
-      if (input.id === ctx.user.id) throw new TRPCError({ code: "BAD_REQUEST", message: "不能删除自己" });
+    staffToggleActive: adminProcedure.input(z.object({ id: z.number(), isActive: z.boolean() })).mutation(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      const { users } = await import("../drizzle/schema");
+      const { adminUsers } = await import("../drizzle/schema");
       const { eq } = await import("drizzle-orm");
-      await dbInstance.update(users).set({ role: "user", staffUsername: null, staffPasswordHash: null }).where(eq(users.id, input.id));
+      await dbInstance.update(adminUsers).set({ isActive: input.isActive }).where(eq(adminUsers.id, input.id));
+      return { success: true };
+    }),
+    staffDelete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+      // Prevent deleting the current admin session user
+      if (ctx.adminUser && ctx.adminUser.adminId === input.id) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "不能删除自己" });
+      }
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { adminUsers } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      await dbInstance.delete(adminUsers).where(eq(adminUsers.id, input.id));
       return { success: true };
     }),
     staffResetPassword: adminProcedure.input(z.object({
@@ -1046,6 +1067,35 @@ Rules:
       const success = await updateStaffPassword(input.id, input.newPassword);
       if (!success) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       return { success: true };
+    }),
+    // Manual top-up for game users
+    manualTopUp: adminProcedure.input(z.object({
+      userId: z.number(),
+      amount: z.number().positive(),
+      note: z.string().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { users, transactions } = await import("../drizzle/schema");
+      const { eq, sql } = await import("drizzle-orm");
+      const [user] = await dbInstance.select().from(users).where(eq(users.id, input.userId)).limit(1);
+      if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      const newBalance = (parseFloat(user.balance) + input.amount).toFixed(2);
+      await dbInstance.update(users).set({ balance: newBalance }).where(eq(users.id, input.userId));
+      const operatorName = ctx.adminUser?.name || ctx.user?.name || "Admin";
+      await dbInstance.insert(transactions).values({
+        userId: input.userId,
+        type: "deposit",
+        amount: input.amount.toFixed(2),
+        balanceBefore: user.balance,
+        balanceAfter: newBalance,
+        status: "confirmed",
+        chain: "manual",
+        txHash: `manual_${Date.now()}`,
+        note: input.note ? `[手动充值 by ${operatorName}] ${input.note}` : `[手动充值 by ${operatorName}]`,
+        createdAt: new Date(),
+      });
+      return { success: true, newBalance };
     }),
     // Stats
     stats: adminProcedure.query(async () => {

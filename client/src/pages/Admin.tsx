@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { useLocation } from "wouter";
 import { useIsMobile } from "@/hooks/useMobile";
 
 import {
@@ -653,14 +651,17 @@ type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "
 
 // ==================== MAIN ADMIN COMPONENT ====================
 export default function Admin() {
-  const { user, loading, logout } = useAuth();
-  const [, navigate] = useLocation();
+  // Admin_users session only (game users cannot access admin panel)
+  const { data: adminUser, isLoading: adminLoading } = trpc.auth.adminMe.useQuery();
+  const adminLogoutMutation = trpc.auth.adminLogout.useMutation({
+    onSuccess: () => { window.location.reload(); },
+  });
   const [activeTab, setActiveTab] = useState<AdminTab>("config");
   const isMobile = useIsMobile();
   const { lang, changeLang, at } = useAdminLang();
 
-  // Unauthenticated
-  if (loading) {
+  // Loading state
+  if (adminLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <RefreshCw className="w-8 h-8 animate-spin text-gold" />
@@ -668,31 +669,25 @@ export default function Admin() {
     );
   }
 
-  if (!user) {
+  // Not logged in as admin_user → show staff login
+  if (!adminUser) {
     return <InlineStaffLogin onSuccess={() => window.location.reload()} />;
   }
 
-  const staffRoles = ["admin", "cs", "finance", "tech"];
-  if (!staffRoles.includes(user.role)) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Shield className="w-12 h-12 text-danger mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">{at("admin.accessDenied")}</h2>
-          <p className="text-muted-foreground">{at("admin.accessDeniedDesc")}</p>
-        </div>
-      </div>
-    );
-  }
+  // Determine effective role and name from admin_users session
+  const effectiveRole = adminUser.role;
+  const effectiveName = adminUser.name;
+  const handleLogout = () => { adminLogoutMutation.mutate(); };
 
   // Role-based tab permissions
   const roleTabMap: Record<string, AdminTab[]> = {
+    super_admin: ["config", "users", "rooms", "finance", "agents", "risk", "faq", "settings", "stats", "staff"],
     admin: ["config", "users", "rooms", "finance", "agents", "risk", "faq", "settings", "stats", "staff"],
     cs: ["users", "rooms", "faq", "stats"],
     finance: ["finance", "agents", "stats"],
     tech: ["config", "rooms", "risk", "settings", "stats"],
   };
-  const allowedTabs = roleTabMap[user.role] || [];
+  const allowedTabs = roleTabMap[effectiveRole] || ["stats"];
 
   const allTabs: { key: AdminTab; icon: any; label: string }[] = [
     { key: "config", icon: Settings, label: at("tab.config") },
@@ -768,15 +763,18 @@ export default function Admin() {
             <div className="flex items-center justify-between px-2 py-2 rounded-lg bg-secondary/30">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full bg-gold/20 flex items-center justify-center">
-                  <span className="text-xs font-bold text-gold">{user.name?.charAt(0) || "A"}</span>
+                  <span className="text-xs font-bold text-gold">{effectiveName?.charAt(0) || "A"}</span>
                 </div>
-                <span className="text-xs font-medium truncate max-w-[100px]">{user.name}</span>
+                <div>
+                  <span className="text-xs font-medium truncate max-w-[100px] block">{effectiveName}</span>
+                  <span className="text-[9px] text-muted-foreground">{effectiveRole}</span>
+                </div>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => navigate("/lobby")} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground" title={at("admin.back")}>
+                <button onClick={() => window.location.href = "/lobby"} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground" title={at("admin.back")}>
                   <ArrowLeft className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={logout} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-danger" title="Logout">
+                <button onClick={handleLogout} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-danger" title="Logout">
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -824,7 +822,7 @@ export default function Admin() {
                 </button>
               ))}
             </div>
-            <button onClick={() => navigate("/lobby")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary">
+            <button onClick={() => window.location.href = "/lobby"} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary">
               <ArrowLeft className="w-3 h-3" />
             </button>
           </div>
@@ -996,9 +994,9 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const { data, isLoading } = trpc.admin.users.useQuery({ page, limit: 20 });
+  const { data, isLoading, refetch } = trpc.admin.users.useQuery({ page, limit: 20 });
   const updateMutation = trpc.admin.updateUser.useMutation({
-    onSuccess: () => toast.success(at("users.updated")),
+    onSuccess: () => { toast.success(at("users.updated")); refetch(); },
   });
 
   if (selectedUserId) {
@@ -1018,57 +1016,80 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
       )
     : users;
 
+  const riskColors: Record<string, string> = {
+    normal: "bg-success/20 text-success",
+    watch: "bg-warning/20 text-warning",
+    frozen: "bg-blue-500/20 text-blue-400",
+    banned: "bg-danger/20 text-danger",
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">{at("users.title")}</h2>
-        <span className="text-xs text-muted-foreground">共 {total} 用户</span>
+        <span className="text-xs text-muted-foreground">共 {total} 游戏用户</span>
       </div>
       <input
         type="text"
-        placeholder="搜索用户名/TG ID/用户ID..."
+        placeholder="搜索用户名 / TG ID / 用户ID..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="w-full glass rounded-lg px-3 py-2 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
       />
-      <div className="space-y-2">
+      {/* Column Header */}
+      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 text-[10px] text-muted-foreground font-medium">
+        <span>用户</span>
+        <span className="text-right w-20">最后登录</span>
+        <span className="text-right w-16">余额</span>
+        <span className="text-right w-14">状态</span>
+      </div>
+      <div className="space-y-1.5">
         {(filtered as any[])?.map((u: any) => (
-          <div key={u.id} className="glass rounded-xl p-3 cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => setSelectedUserId(u.id)}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gold/30 to-gold/10 flex items-center justify-center">
-                  <Users className="w-4 h-4 text-gold" />
+          <div
+            key={u.id}
+            className="glass rounded-xl px-3 py-2.5 cursor-pointer hover:bg-secondary/50 transition-colors"
+            onClick={() => setSelectedUserId(u.id)}
+          >
+            {/* Single row layout */}
+            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
+              {/* User info */}
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 shrink-0 rounded-full bg-gradient-to-br from-gold/30 to-gold/10 flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-gold">{(u.name || u.nickname || "?").charAt(0).toUpperCase()}</span>
                 </div>
-                <div>
-                  <span className="text-sm font-medium block">{u.name || u.nickname || "Anonymous"}</span>
-                  <span className="text-[10px] text-muted-foreground">ID: {u.id} {u.tgUsername ? `@${u.tgUsername}` : ""}</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium truncate">{u.name || u.nickname || "Anonymous"}</span>
+                    {u.role !== "user" && (
+                      <span className={`shrink-0 px-1 py-0.5 rounded text-[9px] font-medium ${
+                        u.role === "admin" ? "bg-gold/20 text-gold" : "bg-secondary text-muted-foreground"
+                      }`}>{u.role}</span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">#{u.id}{u.tgUsername ? ` @${u.tgUsername}` : ""}</span>
                 </div>
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-                  u.role === "admin" ? "bg-gold/20 text-gold" : "bg-secondary text-muted-foreground"
-                }`}>{u.role}</span>
               </div>
-              <span className="text-sm font-mono text-gold">${u.balance ?? "0.00"}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-                  u.riskLevel === "normal" ? "bg-success/20 text-success" :
-                  u.riskLevel === "watch" ? "bg-warning/20 text-warning" :
-                  "bg-danger/20 text-danger"
-                }`}>{u.riskLevel ?? "normal"}</span>
-                <span className="text-[10px] text-muted-foreground">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "-"}</span>
+              {/* Last login */}
+              <span className="text-[10px] text-muted-foreground text-right w-20 shrink-0">
+                {u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" }) : "-"}
+              </span>
+              {/* Balance */}
+              <span className="text-sm font-mono text-gold text-right w-16 shrink-0">${u.balance ?? "0.00"}</span>
+              {/* Risk status */}
+              <div className="w-14 shrink-0 flex justify-end" onClick={e => e.stopPropagation()}>
+                <select
+                  value={u.riskLevel ?? "normal"}
+                  onChange={(e) => { updateMutation.mutate({ id: u.id, riskLevel: e.target.value as any }); }}
+                  className={`rounded px-1.5 py-0.5 text-[9px] font-medium bg-transparent outline-none border-0 cursor-pointer ${
+                    riskColors[u.riskLevel ?? "normal"]
+                  }`}
+                >
+                  <option value="normal">正常</option>
+                  <option value="watch">观察</option>
+                  <option value="frozen">冻结</option>
+                  <option value="banned">封禁</option>
+                </select>
               </div>
-              <select
-                defaultValue={u.riskLevel ?? "normal"}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => { e.stopPropagation(); updateMutation.mutate({ id: u.id, riskLevel: e.target.value as any }); }}
-                className="glass rounded px-2 py-1 text-[10px] bg-transparent outline-none"
-              >
-                <option value="normal">正常</option>
-                <option value="watch">观察</option>
-                <option value="frozen">冻结</option>
-                <option value="banned">封禁</option>
-              </select>
             </div>
           </div>
         ))}
@@ -1090,17 +1111,36 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
 // ==================== USER DETAIL PANEL ====================
 function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () => void; at: (k: string) => string }) {
   const [activeTab, setActiveTab] = useState<"info" | "deposits" | "withdrawals" | "games">("info");
-  const { data: user, isLoading } = trpc.admin.userDetail.useQuery({ id: userId });
+  // Fix: stabilize query inputs to prevent infinite re-fetch loop
+  const [stableUserId] = useState(userId);
+  const { data: user, isLoading, refetch: refetchUser } = trpc.admin.userDetail.useQuery(
+    { id: stableUserId },
+    { staleTime: 30_000 }  // 30s cache to prevent rapid re-fetching
+  );
   const { data: txData } = trpc.admin.userTransactions.useQuery(
-    { userId, page: 1, limit: 50, type: activeTab === "deposits" ? "deposit" : activeTab === "withdrawals" ? "withdraw" : undefined },
-    { enabled: activeTab === "deposits" || activeTab === "withdrawals" }
+    { userId: stableUserId, page: 1, limit: 50, type: activeTab === "deposits" ? "deposit" : activeTab === "withdrawals" ? "withdraw" : undefined },
+    { enabled: activeTab === "deposits" || activeTab === "withdrawals", staleTime: 30_000 }
   );
   const { data: gameData } = trpc.admin.userGameHistory.useQuery(
-    { userId, page: 1, limit: 50 },
-    { enabled: activeTab === "games" }
+    { userId: stableUserId, page: 1, limit: 50 },
+    { enabled: activeTab === "games", staleTime: 30_000 }
   );
   const updateMutation = trpc.admin.updateUser.useMutation({
-    onSuccess: () => toast.success("用户已更新"),
+    onSuccess: () => { toast.success("用户已更新"); refetchUser(); },
+  });
+  // Manual top-up state
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [topUpNote, setTopUpNote] = useState("");
+  const topUpMutation = trpc.admin.manualTopUp.useMutation({
+    onSuccess: (data) => {
+      toast.success(`充值成功！新余额: $${data.newBalance}`);
+      setShowTopUp(false);
+      setTopUpAmount("");
+      setTopUpNote("");
+      refetchUser();
+    },
+    onError: (err) => toast.error(err.message),
   });
 
   if (isLoading || !user) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
@@ -1114,12 +1154,74 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
 
   return (
     <div className="space-y-4">
+      {/* Manual Top-Up Dialog */}
+      {showTopUp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowTopUp(false)}>
+          <div className="glass-strong rounded-2xl p-5 w-80 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-gold">手动充值</h3>
+              <button onClick={() => setShowTopUp(false)} className="p-1 rounded hover:bg-secondary"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">用户: {(user as any).name || (user as any).nickname} (ID: {(user as any).id})</p>
+              <p className="text-xs text-muted-foreground">当前余额: <span className="text-gold font-mono">${(user as any).balance}</span></p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">充值金额 (USDT)</label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={topUpAmount}
+                  onChange={e => setTopUpAmount(e.target.value)}
+                  className="w-full glass rounded-lg px-3 py-2 text-sm bg-transparent outline-none placeholder:text-muted-foreground border border-border focus:border-gold"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">备注 (可选)</label>
+                <input
+                  type="text"
+                  placeholder="充值原因..."
+                  value={topUpNote}
+                  onChange={e => setTopUpNote(e.target.value)}
+                  className="w-full glass rounded-lg px-3 py-2 text-sm bg-transparent outline-none placeholder:text-muted-foreground border border-border focus:border-gold"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowTopUp(false)} className="flex-1 px-3 py-2 text-sm glass rounded-lg hover:bg-secondary">取消</button>
+              <button
+                onClick={() => {
+                  const amount = parseFloat(topUpAmount);
+                  if (isNaN(amount) || amount <= 0) { toast.error("请输入有效金额"); return; }
+                  topUpMutation.mutate({ userId: stableUserId, amount, note: topUpNote || undefined });
+                }}
+                disabled={topUpMutation.isPending || !topUpAmount}
+                className="flex-1 px-3 py-2 text-sm bg-gold text-background rounded-lg font-medium hover:bg-gold/90 disabled:opacity-50 flex items-center justify-center gap-1"
+              >
+                {topUpMutation.isPending ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <DollarSign className="w-3.5 h-3.5" />}
+                确认充值
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="p-1.5 glass rounded-lg hover:bg-secondary/50"><ArrowLeft className="w-4 h-4" /></button>
-        <div>
+        <div className="flex-1">
           <h2 className="text-lg font-bold">{(user as any).name || (user as any).nickname || "Anonymous"}</h2>
           <span className="text-xs text-muted-foreground">ID: {(user as any).id} {(user as any).tgUsername ? `@${(user as any).tgUsername}` : ""}</span>
         </div>
+        <button
+          onClick={() => setShowTopUp(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-gold/20 text-gold rounded-lg text-xs font-medium hover:bg-gold/30 transition-colors"
+        >
+          <DollarSign className="w-3.5 h-3.5" />
+          手动充值
+        </button>
       </div>
 
       {/* Tabs */}

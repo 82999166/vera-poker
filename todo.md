@@ -238,3 +238,12 @@
 ## On-Chain Payout Workflow
 - [x] Add TX hash input field when admin confirms withdrawal
 - [x] Store TX hash in transaction record
+
+## Admin User Management Overhaul
+- [x] Create admin_users table (separate from game users) with username/password/role/permissions
+- [x] Migrate admin/cs/finance/tech role users to admin_users table
+- [x] Update admin login auth to use admin_users table (not game user table)
+- [x] Fix user detail page infinite refresh loop in Admin.tsx
+- [x] Rewrite user list as single-row per user (last login date + balance inline)
+- [x] Add manual top-up (deposit) procedure: admin.manualTopUp
+- [x] Add manual top-up dialog in Admin UsersPanel

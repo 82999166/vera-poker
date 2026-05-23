@@ -1,12 +1,8 @@
 import { Router, Request, Response } from "express";
 import { createHmac, randomBytes } from "crypto";
 import { getDb } from "./db";
-import { users } from "../drizzle/schema";
+import { adminUsers } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
-import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
-import { sdk } from "./_core/sdk";
-import { ENV } from "./_core/env";
 
 const staffRouter = Router();
 
@@ -24,46 +20,53 @@ function verifyPassword(password: string, stored: string): boolean {
   return computed === hash;
 }
 
-// Staff login endpoint
+// Staff login endpoint - uses admin_users table (separate from game users)
 staffRouter.post("/api/staff/login", async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
       return res.status(400).json({ error: "用户名和密码必填" });
     }
-
     const db = await getDb();
     if (!db) return res.status(500).json({ error: "Database unavailable" });
 
-    const [staff] = await db.select().from(users).where(eq(users.staffUsername, username)).limit(1);
-    if (!staff || !staff.staffPasswordHash) {
+    const [staff] = await db.select().from(adminUsers).where(eq(adminUsers.username, username)).limit(1);
+    if (!staff) {
       return res.status(401).json({ error: "用户名或密码错误" });
     }
-
-    if (!verifyPassword(password, staff.staffPasswordHash)) {
+    if (!verifyPassword(password, staff.passwordHash)) {
       return res.status(401).json({ error: "用户名或密码错误" });
     }
-
-    if (staff.riskLevel === "banned" || staff.riskLevel === "frozen") {
+    if (!staff.isActive) {
       return res.status(403).json({ error: "账户已被禁用" });
     }
 
-    // Check role is staff type
-    if (!["admin", "cs", "finance", "tech"].includes(staff.role)) {
-      return res.status(403).json({ error: "无管理权限" });
-    }
+    // Update last login
+    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket.remoteAddress || "";
+    await db.update(adminUsers).set({ lastLoginAt: new Date(), lastLoginIp: clientIp }).where(eq(adminUsers.id, staff.id));
 
-    // Update last signed in
-    await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, staff.id));
+    // Issue admin session cookie (separate from game user session)
+    const sessionData = {
+      adminId: staff.id,
+      username: staff.username,
+      name: staff.name,
+      role: staff.role,
+      permissions: staff.permissions || [],
+      exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    };
+    const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString("base64");
+    const sig = createHmac("sha256", process.env.JWT_SECRET || "vera-admin-secret")
+      .update(sessionToken)
+      .digest("hex");
+    const cookie = `${sessionToken}.${sig}`;
 
-    // Issue session cookie using the same SDK method as OAuth
-    const token = await sdk.signSession(
-      { openId: staff.openId, appId: ENV.appId, name: staff.name || staff.staffUsername || "Staff" },
-      { expiresInMs: 30 * 24 * 60 * 60 * 1000 }
-    );
-
-    const cookieOptions = getSessionCookieOptions(req);
-    res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.cookie("vera_admin_session", cookie, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      path: "/",
+    });
 
     return res.json({
       success: true,
@@ -71,7 +74,8 @@ staffRouter.post("/api/staff/login", async (req: Request, res: Response) => {
         id: staff.id,
         name: staff.name,
         role: staff.role,
-        staffUsername: staff.staffUsername,
+        username: staff.username,
+        permissions: staff.permissions || [],
       },
     });
   } catch (error) {
@@ -80,79 +84,92 @@ staffRouter.post("/api/staff/login", async (req: Request, res: Response) => {
   }
 });
 
-// Create staff account (admin only - called from tRPC admin procedure)
+// Staff logout
+staffRouter.post("/api/staff/logout", (_req: Request, res: Response) => {
+  res.clearCookie("vera_admin_session", { path: "/" });
+  return res.json({ success: true });
+});
+
+// Verify admin session from cookie
+export function verifyAdminSession(cookieValue: string): {
+  adminId: number;
+  username: string;
+  name: string;
+  role: string;
+  permissions: string[];
+} | null {
+  try {
+    const [token, sig] = cookieValue.split(".");
+    if (!token || !sig) return null;
+    const expectedSig = createHmac("sha256", process.env.JWT_SECRET || "vera-admin-secret")
+      .update(token)
+      .digest("hex");
+    if (expectedSig !== sig) return null;
+    const data = JSON.parse(Buffer.from(token, "base64").toString());
+    if (data.exp < Date.now()) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// Create staff account (admin only - uses admin_users table)
 export async function createStaffAccount(params: {
   username: string;
   password: string;
   name: string;
-  role: "admin" | "cs" | "finance" | "tech";
+  role: "super_admin" | "admin" | "cs" | "finance" | "tech";
+  permissions?: string[];
 }): Promise<{ success: boolean; error?: string; userId?: number }> {
   const db = await getDb();
   if (!db) return { success: false, error: "Database unavailable" };
 
-  // Check if username already exists
-  const [existing] = await db.select().from(users).where(eq(users.staffUsername, params.username)).limit(1);
+  const [existing] = await db.select().from(adminUsers).where(eq(adminUsers.username, params.username)).limit(1);
   if (existing) {
     return { success: false, error: "用户名已存在" };
   }
-
   const { hash } = hashPassword(params.password);
-  const openId = `staff_${randomBytes(8).toString("hex")}`;
-
-  await db.insert(users).values({
-    openId,
+  await db.insert(adminUsers).values({
+    username: params.username,
+    passwordHash: hash,
     name: params.name,
     role: params.role,
-    staffUsername: params.username,
-    staffPasswordHash: hash,
-    loginMethod: "staff",
+    permissions: params.permissions || [],
+    isActive: true,
   });
-
-  const [newUser] = await db.select().from(users).where(eq(users.staffUsername, params.username)).limit(1);
+  const [newUser] = await db.select().from(adminUsers).where(eq(adminUsers.username, params.username)).limit(1);
   return { success: true, userId: newUser?.id };
 }
 
 // Update staff password
-export async function updateStaffPassword(userId: number, newPassword: string): Promise<boolean> {
+export async function updateStaffPassword(adminUserId: number, newPassword: string): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
   const { hash } = hashPassword(newPassword);
-  await db.update(users).set({ staffPasswordHash: hash }).where(eq(users.id, userId));
+  await db.update(adminUsers).set({ passwordHash: hash }).where(eq(adminUsers.id, adminUserId));
   return true;
 }
 
-// Bootstrap default super admin account if none exists
+// Bootstrap default super admin account if none exists (uses admin_users table)
 export async function bootstrapSuperAdmin() {
   try {
     const db = await getDb();
     if (!db) return;
-
-    // Check if any admin account exists
-    const [existingAdmin] = await db
-      .select()
-      .from(users)
-      .where(eq(users.staffUsername, "admin"))
-      .limit(1);
-
+    const [existingAdmin] = await db.select().from(adminUsers).where(eq(adminUsers.username, "admin")).limit(1);
     if (existingAdmin) {
-      console.log("[StaffAuth] Super admin account already exists");
+      console.log("[StaffAuth] Super admin account already exists in admin_users table");
       return;
     }
-
-    // Create default super admin: admin / admin123
     const { hash } = hashPassword("admin123");
-    const openId = `staff_superadmin_${Date.now()}`;
-
-    await db.insert(users).values({
-      openId,
+    await db.insert(adminUsers).values({
+      username: "admin",
+      passwordHash: hash,
       name: "Super Admin",
-      role: "admin",
-      staffUsername: "admin",
-      staffPasswordHash: hash,
-      loginMethod: "staff",
+      role: "super_admin",
+      permissions: [],
+      isActive: true,
     });
-
-    console.log("[StaffAuth] Default super admin created (admin/admin123)");
+    console.log("[StaffAuth] Default super admin created in admin_users table (admin/admin123)");
   } catch (error) {
     console.error("[StaffAuth] Failed to bootstrap super admin:", error);
   }

@@ -31,15 +31,24 @@ export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
-    if (!ctx.user || ctx.user.role !== 'admin') {
-      throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
+    // Only allow admin_users session (separate from game users)
+    if (ctx.adminUser && ["super_admin", "admin"].includes(ctx.adminUser.role)) {
+      return next({ ctx: { ...ctx } });
     }
 
-    return next({
-      ctx: {
-        ...ctx,
-        user: ctx.user,
-      },
-    });
+    throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
+  }),
+);
+
+// Staff procedure: allows any admin_users session role (admin, cs, finance, tech)
+export const staffProcedure = t.procedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+
+    if (ctx.adminUser) {
+      return next({ ctx: { ...ctx } });
+    }
+
+    throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
   }),
 );

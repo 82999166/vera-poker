@@ -273,3 +273,23 @@ export const playerAchievements = mysqlTable("player_achievements", {
   achievementId: int("achievementId").notNull(),
   unlockedAt: timestamp("unlockedAt").defaultNow().notNull(),
 });
+
+
+// ==================== ADMIN USERS (Platform Staff - Separate from Game Users) ====================
+export const adminUsers = mysqlTable("admin_users", {
+  id: int("id").autoincrement().primaryKey(),
+  username: varchar("username", { length: 64 }).notNull().unique(),
+  passwordHash: varchar("passwordHash", { length: 256 }).notNull(),
+  name: varchar("name", { length: 128 }).notNull(),
+  role: mysqlEnum("role", ["super_admin", "admin", "cs", "finance", "tech"]).default("cs").notNull(),
+  // Permissions (JSON array of allowed sections)
+  permissions: json("permissions").$type<string[]>().default([]),
+  isActive: boolean("isActive").default(true).notNull(),
+  lastLoginAt: timestamp("lastLoginAt"),
+  lastLoginIp: varchar("lastLoginIp", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type InsertAdminUser = typeof adminUsers.$inferInsert;
