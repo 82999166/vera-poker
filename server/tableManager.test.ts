@@ -34,7 +34,7 @@ describe("Deposit Address Generation", () => {
 describe("Table Manager - getPlayerView", () => {
   it("should return waiting state for non-existent table", async () => {
     const { getPlayerView } = await import("./tableManager");
-    const view = getPlayerView(99999, 1);
+    const view = await getPlayerView(99999, 1);
     expect(view.phase).toBe("waiting");
     expect(view.players).toEqual([]);
     expect(view.communityCards).toEqual([]);

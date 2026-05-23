@@ -55,17 +55,60 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
 }
 
 // Chip stack visualization
-function ChipStack({ amount, size = "sm" }: { amount: number; size?: "sm" | "md" }) {
+function ChipStack({ amount, size = "sm", animate = false }: { amount: number; size?: "sm" | "md"; animate?: boolean }) {
   if (amount <= 0) return null;
   const chipCount = Math.min(5, Math.ceil(amount / 10));
+  const chipColors = [
+    "from-gold to-gold-dim border-gold/50",
+    "from-blue-400 to-blue-600 border-blue-400/50",
+    "from-red-400 to-red-600 border-red-400/50",
+    "from-green-400 to-green-600 border-green-400/50",
+    "from-purple-400 to-purple-600 border-purple-400/50",
+  ];
   return (
-    <div className="flex items-center gap-1">
+    <div className={`flex items-center gap-1 ${animate ? "animate-in slide-in-from-bottom-2 duration-300" : ""}`}>
       <div className="relative flex flex-col-reverse">
         {Array.from({ length: chipCount }).map((_, i) => (
-          <div key={i} className={`${size === "sm" ? "w-3 h-1" : "w-4 h-1.5"} rounded-full bg-gradient-to-r from-gold to-gold-dim border border-gold/50 -mt-0.5 first:mt-0`} />
+          <div
+            key={i}
+            className={`${size === "sm" ? "w-3 h-1" : "w-4 h-1.5"} rounded-full bg-gradient-to-r ${chipColors[i % chipColors.length]} -mt-0.5 first:mt-0 ${animate ? "animate-in zoom-in duration-200" : ""}`}
+            style={animate ? { animationDelay: `${i * 50}ms` } : undefined}
+          />
         ))}
       </div>
       <span className={`${size === "sm" ? "text-[10px]" : "text-xs"} text-gold font-bold`}>${amount.toFixed(2)}</span>
+    </div>
+  );
+}
+
+// Animated pot display with grow effect
+function AnimatedPot({ amount }: { amount: number }) {
+  const [displayAmount, setDisplayAmount] = useState(0);
+  const prevAmount = useRef(0);
+
+  useEffect(() => {
+    if (amount === prevAmount.current) return;
+    const start = prevAmount.current;
+    const diff = amount - start;
+    const duration = 500;
+    const startTime = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setDisplayAmount(start + diff * eased);
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    prevAmount.current = amount;
+  }, [amount]);
+
+  return (
+    <div className="glass rounded-full px-3 py-1 inline-flex items-center gap-1.5 border border-gold/20 transition-all duration-300">
+      <div className={`w-3 h-3 rounded-full bg-gradient-to-br from-gold to-gold-dim shadow-sm ${amount > 0 ? "animate-pulse" : ""}`} />
+      <span className={`text-xs font-bold text-gold transition-all duration-300 ${amount > prevAmount.current ? "scale-110" : ""}`}>
+        ${displayAmount.toFixed(2)}
+      </span>
     </div>
   );
 }
@@ -103,7 +146,8 @@ export default function Table() {
   const [showBuyIn, setShowBuyIn] = useState(false);
   const [lastPhase, setLastPhase] = useState("");
   const [animateCards, setAnimateCards] = useState(false);
-  const [showWinner, setShowWinner] = useState<{ name: string; amount: number } | null>(null);
+  const [showWinner, setShowWinner] = useState<{ name: string; amount: number; handDescription?: string } | null>(null);
+  const [showSettlement, setShowSettlement] = useState<any>(null);
   const prevHandRef = useRef<number>(0);
 
   const roomId = parseInt(id || "0");
@@ -154,7 +198,10 @@ export default function Table() {
     if (tableState?.handNumber && tableState.handNumber !== prevHandRef.current) {
       if (prevHandRef.current > 0 && tableState.lastWinner) {
         setShowWinner(tableState.lastWinner);
-        setTimeout(() => setShowWinner(null), 3000);
+        if (tableState.settlementDetail) {
+          setShowSettlement(tableState.settlementDetail);
+        }
+        setTimeout(() => { setShowWinner(null); setShowSettlement(null); }, 5000);
       }
       prevHandRef.current = tableState.handNumber;
     }
@@ -199,7 +246,7 @@ export default function Table() {
   const turnTimeout = tableState?.turnTimeout ?? 30;
   const lastActionAt = tableState?.lastActionAt ?? Date.now();
 
-  // Countdown timer
+  // Countdown timer with urgency feedback
   const [countdown, setCountdown] = useState(30);
   useEffect(() => {
     if (!isMyTurn) return;
@@ -207,10 +254,19 @@ export default function Table() {
     const remaining = Math.max(0, turnTimeout - elapsed);
     setCountdown(remaining);
     const timer = setInterval(() => {
-      setCountdown(prev => Math.max(0, prev - 1));
+      setCountdown(prev => {
+        const next = Math.max(0, prev - 1);
+        // Vibrate on last 5 seconds if supported
+        if (next <= 5 && next > 0 && navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+        return next;
+      });
     }, 1000);
     return () => clearInterval(timer);
   }, [isMyTurn, lastActionAt, turnTimeout]);
+
+  const isUrgent = isMyTurn && countdown <= 5 && countdown > 0;
 
   // Set raise amount based on current bet
   useEffect(() => {
@@ -312,6 +368,9 @@ export default function Table() {
               <LogOut className="w-4 h-4" />
             </button>
           )}
+          <button onClick={() => navigate(`/history/${id}`)} className="p-1.5 rounded-lg text-gold hover:text-gold/80 hover:bg-gold/10 transition-all active:scale-95" title={t("table.handHistory")}>
+            <Clock className="w-4 h-4" />
+          </button>
           <button onClick={() => navigate("/verify")} className="p-1.5 rounded-lg text-truth-blue hover:text-truth-blue-bright hover:bg-truth-blue/10 transition-all active:scale-95">
             <Shield className="w-4 h-4" />
           </button>
@@ -320,6 +379,32 @@ export default function Table() {
           </button>
         </div>
       </div>
+
+      {/* Phase Progress Indicator */}
+      {displayPhase !== "waiting" && (
+        <div className="px-3 py-1.5 glass border-b border-border/20">
+          <div className="flex items-center justify-center gap-1">
+            {["preflop", "flop", "turn", "river"].map((phase, i) => {
+              const phases = ["preflop", "flop", "turn", "river"];
+              const currentIdx = phases.indexOf(displayPhase);
+              const isActive = i === currentIdx;
+              const isPast = i < currentIdx;
+              return (
+                <div key={phase} className="flex items-center">
+                  <div className={`h-1 rounded-full transition-all duration-500 ${
+                    isActive ? "w-8 bg-gradient-to-r from-gold to-gold-dim" :
+                    isPast ? "w-5 bg-truth-blue/60" : "w-5 bg-secondary"
+                  }`} />
+                  {i < 3 && <div className="w-1" />}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[9px] text-center text-muted-foreground mt-0.5">
+            {getPhaseNames()[displayPhase]}
+          </p>
+        </div>
+      )}
 
       {/* Connection Lost Banner */}
       {connectionLost && (
@@ -340,10 +425,35 @@ export default function Table() {
       {/* Winner Announcement Overlay */}
       {showWinner && (
         <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
-          <div className="glass-strong rounded-2xl px-6 py-4 text-center animate-in fade-in zoom-in duration-300">
+          <div className="glass-strong rounded-2xl px-6 py-4 text-center animate-in fade-in zoom-in duration-300 max-w-[320px]">
             <Trophy className="w-8 h-8 text-gold mx-auto mb-2 animate-bounce" />
-            <p className="text-sm font-bold text-gold">{showWinner.name} 赢得</p>
+            <p className="text-sm font-bold text-gold">{showWinner.name} {t("table.won")}</p>
             <p className="text-xl font-black text-gold">${showWinner.amount.toFixed(2)}</p>
+            {showWinner.handDescription && showWinner.handDescription !== "Last Standing" && (
+              <p className="text-xs text-gold/70 mt-1">{showWinner.handDescription}</p>
+            )}
+            {/* Side pots info */}
+            {showSettlement?.sidePots?.length > 1 && (
+              <div className="mt-2 border-t border-gold/20 pt-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Side Pots</p>
+                {showSettlement.sidePots.map((sp: any, i: number) => (
+                  <p key={i} className="text-xs text-foreground/80">
+                    Pot {i + 1}: ${sp.amount.toFixed(2)} → {sp.winnerName}
+                  </p>
+                ))}
+              </div>
+            )}
+            {/* Showdown players */}
+            {showSettlement?.showdownPlayers?.length > 1 && (
+              <div className="mt-2 border-t border-gold/20 pt-2 space-y-1">
+                {showSettlement.showdownPlayers.map((sp: any) => (
+                  <div key={sp.playerId} className="flex items-center justify-between text-xs">
+                    <span className="text-foreground/70">{sp.name}</span>
+                    <span className="text-foreground/90 font-medium">{sp.handDescription}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -361,10 +471,7 @@ export default function Table() {
             
             {/* Pot display */}
             <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-              <div className="glass rounded-full px-3 py-1 inline-flex items-center gap-1.5 border border-gold/20">
-                <div className="w-3 h-3 rounded-full bg-gradient-to-br from-gold to-gold-dim shadow-sm" />
-                <span className="text-xs font-bold text-gold">${displayPot.toFixed(2)}</span>
-              </div>
+              <AnimatedPot amount={displayPot} />
               {displayPlayers.length > 0 && (
                 <div className="flex items-center justify-center gap-1 mt-1">
                   <Users className="w-3 h-3 text-muted-foreground" />
@@ -436,7 +543,7 @@ export default function Table() {
                     <p className={`text-[11px] font-bold leading-tight ${
                       player.isAllIn ? "text-red-400" : player.isFolded ? "text-muted-foreground" : "text-foreground"
                     }`}>
-                      {player.isAllIn ? "ALL IN" : player.isFolded ? "弃牌" : `$${player.chips.toFixed(1)}`}
+                      {player.isAllIn ? "ALL IN" : player.isFolded ? t("table.fold") : `$${player.chips.toFixed(1)}`}
                     </p>
                   </div>
 
@@ -516,18 +623,24 @@ export default function Table() {
         <div className="glass-strong border-t border-border/30 px-3 py-2.5 z-10">
           {/* Countdown Timer */}
           {displayIsMyTurn && (
-            <div className="mb-2">
-              <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+            <div className={`mb-2 ${isUrgent ? "animate-pulse" : ""}`}>
+              <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-1000 ease-linear ${
-                    countdown > 10 ? "bg-gradient-to-r from-truth-blue to-gold" : "bg-gradient-to-r from-red-500 to-orange-500"
+                    countdown > 10 
+                      ? "bg-gradient-to-r from-truth-blue to-gold" 
+                      : countdown > 5
+                        ? "bg-gradient-to-r from-orange-400 to-yellow-500"
+                        : "bg-gradient-to-r from-red-600 to-red-400 animate-pulse"
                   }`}
                   style={{ width: `${(countdown / turnTimeout) * 100}%` }}
                 />
               </div>
               <div className="flex items-center justify-center gap-1 mt-1">
-                <Clock className="w-3 h-3 text-gold" />
-                <p className="text-[10px] text-gold font-medium">
+                <Clock className={`w-3 h-3 ${isUrgent ? "text-red-400 animate-spin" : "text-gold"}`} />
+                <p className={`text-[10px] font-bold ${
+                  isUrgent ? "text-red-400 text-xs" : "text-gold"
+                }`}>
                   {t("table.yourTurn")} · {countdown}s
                 </p>
               </div>

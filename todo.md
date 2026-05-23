@@ -96,3 +96,16 @@
 - [x] Table.tsx: all hardcoded strings replaced with i18n (table.left, table.demoMode, table.reconnecting)
 - [x] Added missing i18n keys to all 5 major locales (en, zh-CN, zh-TW, ja, ko)
 - [x] 51 tests passing across 7 test files
+
+## Game Enhancements (Latest)
+- [x] Phase progress indicator in Table.tsx (preflop → flop → turn → river → showdown)
+- [x] AnimatedPot / ChipStack animation component
+- [x] Settlement detail overlay (side pots, hand type, showdown results)
+- [x] Countdown timer vibration + 3-stage color (green → yellow → red)
+- [x] HandHistory.tsx page at /history/:roomId with expandable player details
+- [x] RecentHandsPreview component in Lobby.tsx
+- [x] myRecentHands tRPC endpoint
+- [x] getPlayerRecentHands db function
+- [x] Side pot calculation in settleHand
+- [x] Async getPlayerView with real usernames from database
+- [x] Connection lost banner with auto-reconnect

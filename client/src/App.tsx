@@ -13,6 +13,7 @@ import Agent from "./pages/Agent";
 import Support from "./pages/Support";
 import CreateRoom from "./pages/CreateRoom";
 import Verify from "./pages/Verify";
+import HandHistory from "./pages/HandHistory";
 import Admin from "./pages/Admin";
 
 function MobileRouter() {
@@ -26,6 +27,7 @@ function MobileRouter() {
       <Route path="/support" component={Support} />
       <Route path="/create-room" component={CreateRoom} />
       <Route path="/verify" component={Verify} />
+      <Route path="/history/:id" component={HandHistory} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

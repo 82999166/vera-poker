@@ -6,6 +6,13 @@ import * as gameEngine from "./gameEngine";
 import * as db from "./db";
 import type { GameState, PlayerAction, Card } from "./gameEngine";
 
+interface SettlementDetail {
+  winners: { playerId: number; name: string; amount: number; handRank: string; handDescription: string }[];
+  sidePots: { amount: number; winnerId: number; winnerName: string }[];
+  rakeAmount: number;
+  showdownPlayers: { playerId: number; name: string; holeCards: string[]; handRank: string; handDescription: string }[];
+}
+
 interface ActiveTable {
   roomId: number;
   gameState: GameState;
@@ -15,7 +22,8 @@ interface ActiveTable {
   smallBlind: number;
   bigBlind: number;
   handNumber: number;
-  lastWinner?: { name: string; amount: number };
+  lastWinner?: { name: string; amount: number; handDescription?: string };
+  settlementDetail?: SettlementDetail;
 }
 
 // In-memory store of active tables
@@ -32,7 +40,7 @@ export function getTable(roomId: number): ActiveTable | undefined {
  * Get the current game state visible to a specific player
  * Hides other players' hole cards unless in showdown
  */
-export function getPlayerView(roomId: number, playerId: number) {
+export async function getPlayerView(roomId: number, playerId: number) {
   const table = activeTables.get(roomId);
   if (!table) {
     return { phase: "waiting", players: [], communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [] };
@@ -41,6 +49,13 @@ export function getPlayerView(roomId: number, playerId: number) {
   const gs = table.gameState;
   const myPlayer = gs.players.find(p => p.id === playerId);
   const myCards = myPlayer?.holeCards || [];
+
+  // Fetch player names from DB
+  const playerNames = new Map<number, string>();
+  for (const p of gs.players) {
+    const user = await db.getUserById(p.id);
+    playerNames.set(p.id, user?.name || `Player ${p.seatIndex + 1}`);
+  }
 
   const players = gs.players.map(p => ({
     id: p.id,
@@ -51,6 +66,7 @@ export function getPlayerView(roomId: number, playerId: number) {
     isFolded: p.isFolded,
     isAllIn: p.isAllIn,
     isActive: p.isActive,
+    name: playerNames.get(p.id) || `P${p.seatIndex + 1}`,
     // Only reveal cards in showdown or for the requesting player
     holeCards: (gs.phase === "showdown" || gs.phase === "completed" || p.id === playerId)
       ? p.holeCards
@@ -72,6 +88,7 @@ export function getPlayerView(roomId: number, playerId: number) {
     lastActionAt: table.lastActionAt,
     turnTimeout: table.turnTimeout,
     lastWinner: table.lastWinner || null,
+    settlementDetail: table.settlementDetail || null,
   };
 }
 
@@ -265,7 +282,42 @@ async function checkAndAdvanceGame(roomId: number) {
 }
 
 /**
- * Settle the hand - determine winner, distribute pot, record to DB
+ * Calculate side pots when players are all-in with different amounts
+ */
+function calculateSidePots(players: gameEngine.Player[]): { amount: number; eligiblePlayers: number[] }[] {
+  const activePlayers = players.filter(p => !p.isFolded && p.isActive);
+  if (activePlayers.length === 0) return [];
+
+  // Sort by totalBet ascending to identify side pot boundaries
+  const sorted = [...activePlayers].sort((a, b) => a.totalBet - b.totalBet);
+  const pots: { amount: number; eligiblePlayers: number[] }[] = [];
+  let prevBet = 0;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const currentBet = sorted[i].totalBet;
+    if (currentBet <= prevBet) continue;
+
+    const increment = currentBet - prevBet;
+    // All players who bet at least this much contribute to this pot
+    const eligible = activePlayers.filter(p => p.totalBet >= currentBet);
+    // Also count folded players' contributions up to this level
+    const allContributors = players.filter(p => p.totalBet > prevBet);
+    const potAmount = allContributors.reduce((sum, p) => {
+      const contribution = Math.min(p.totalBet - prevBet, increment);
+      return sum + Math.max(0, contribution);
+    }, 0);
+
+    if (potAmount > 0) {
+      pots.push({ amount: potAmount, eligiblePlayers: eligible.map(p => p.id) });
+    }
+    prevBet = currentBet;
+  }
+
+  return pots;
+}
+
+/**
+ * Settle the hand - determine winner, distribute pot with side pots, record to DB
  */
 async function settleHand(roomId: number) {
   const table = activeTables.get(roomId);
@@ -274,33 +326,166 @@ async function settleHand(roomId: number) {
   const gs = table.gameState;
   const activePlayers = gameEngine.getActivePlayers(gs);
 
-  let winnerId: number | undefined;
+  // Fetch all player names
+  const playerNames = new Map<number, string>();
+  for (const p of gs.players) {
+    const user = await db.getUserById(p.id);
+    playerNames.set(p.id, user?.name || `Player ${p.seatIndex + 1}`);
+  }
+
+  // Get system config for rake
+  const rakeConfig = await db.getConfig("rake_percent");
+  const rakeCapConfig = await db.getConfig("rake_cap");
+  const rakePercent = rakeConfig ? parseFloat(rakeConfig.value) : 5;
+  const rakeCap = rakeCapConfig ? parseFloat(rakeCapConfig.value) : 3;
+
+  let mainWinnerId: number | undefined;
   let winningHand = "";
+  let totalRake = 0;
+  const winnerDetails: SettlementDetail["winners"] = [];
+  const sidePotDetails: SettlementDetail["sidePots"] = [];
+  const showdownPlayers: SettlementDetail["showdownPlayers"] = [];
+  const playerWinAmounts = new Map<number, number>(); // track total win per player
 
   if (activePlayers.length === 1) {
-    // Last player standing wins
-    winnerId = activePlayers[0].id;
+    // Last player standing wins - no showdown
+    const winner = activePlayers[0];
+    mainWinnerId = winner.id;
     winningHand = "last_standing";
+    const rake = Math.min(gs.pot * rakePercent / 100, rakeCap);
+    totalRake = rake;
+    const winAmount = gs.pot - rake;
+    const winnerIdx = gs.players.findIndex(p => p.id === winner.id);
+    gs.players[winnerIdx].chips += winAmount;
+    playerWinAmounts.set(winner.id, winAmount);
+    winnerDetails.push({
+      playerId: winner.id,
+      name: playerNames.get(winner.id) || "Unknown",
+      amount: winAmount,
+      handRank: "last_standing",
+      handDescription: "Last Standing",
+    });
   } else {
-    // Showdown - evaluate hands
-    let bestEval: any = null;
+    // Showdown - calculate side pots and distribute
+    const hasAllIn = activePlayers.some(p => p.isAllIn);
+    
+    // Evaluate all active players' hands for showdown display
     for (const player of activePlayers) {
       const evaluation = gameEngine.evaluateHand(player.holeCards, gs.communityCards);
-      if (!bestEval || gameEngine.compareHands(evaluation, bestEval) > 0) {
-        bestEval = evaluation;
-        winnerId = player.id;
-        winningHand = evaluation.rank;
+      showdownPlayers.push({
+        playerId: player.id,
+        name: playerNames.get(player.id) || "Unknown",
+        holeCards: player.holeCards,
+        handRank: evaluation.rank,
+        handDescription: evaluation.description,
+      });
+    }
+
+    if (hasAllIn) {
+      // Side pot distribution
+      const pots = calculateSidePots(gs.players);
+      for (const pot of pots) {
+        const eligibleActive = activePlayers.filter(p => pot.eligiblePlayers.includes(p.id));
+        // Find best hand among eligible players
+        let bestEval: any = null;
+        let potWinners: typeof eligibleActive = [];
+        for (const player of eligibleActive) {
+          const evaluation = gameEngine.evaluateHand(player.holeCards, gs.communityCards);
+          if (!bestEval || gameEngine.compareHands(evaluation, bestEval) > 0) {
+            bestEval = evaluation;
+            potWinners = [player];
+          } else if (gameEngine.compareHands(evaluation, bestEval) === 0) {
+            potWinners.push(player);
+          }
+        }
+        const potRake = Math.min(pot.amount * rakePercent / 100, rakeCap / pots.length);
+        totalRake += potRake;
+        const distributable = pot.amount - potRake;
+        const share = distributable / potWinners.length;
+        for (const winner of potWinners) {
+          const idx = gs.players.findIndex(p => p.id === winner.id);
+          gs.players[idx].chips += share;
+          playerWinAmounts.set(winner.id, (playerWinAmounts.get(winner.id) || 0) + share);
+          if (!mainWinnerId) {
+            mainWinnerId = winner.id;
+            winningHand = bestEval.rank;
+          }
+        }
+        sidePotDetails.push({
+          amount: pot.amount,
+          winnerId: potWinners[0].id,
+          winnerName: playerNames.get(potWinners[0].id) || "Unknown",
+        });
       }
+    } else {
+      // Simple pot distribution (no all-in)
+      let bestEval: any = null;
+      let winners: typeof activePlayers = [];
+      for (const player of activePlayers) {
+        const evaluation = gameEngine.evaluateHand(player.holeCards, gs.communityCards);
+        if (!bestEval || gameEngine.compareHands(evaluation, bestEval) > 0) {
+          bestEval = evaluation;
+          winners = [player];
+        } else if (gameEngine.compareHands(evaluation, bestEval) === 0) {
+          winners.push(player);
+        }
+      }
+      const rake = Math.min(gs.pot * rakePercent / 100, rakeCap);
+      totalRake = rake;
+      const distributable = gs.pot - rake;
+      const share = distributable / winners.length;
+      for (const winner of winners) {
+        const idx = gs.players.findIndex(p => p.id === winner.id);
+        gs.players[idx].chips += share;
+        playerWinAmounts.set(winner.id, share);
+      }
+      mainWinnerId = winners[0].id;
+      winningHand = bestEval.rank;
+    }
+
+    // Build winner details
+    for (const [playerId, amount] of playerWinAmounts.entries()) {
+      const sp = showdownPlayers.find(s => s.playerId === playerId);
+      winnerDetails.push({
+        playerId,
+        name: playerNames.get(playerId) || "Unknown",
+        amount,
+        handRank: sp?.handRank || "unknown",
+        handDescription: sp?.handDescription || "Unknown",
+      });
     }
   }
 
-  // Award pot to winner
-  if (winnerId) {
-    const winnerIdx = gs.players.findIndex(p => p.id === winnerId);
-    if (winnerIdx !== -1) {
-      gs.players[winnerIdx].chips += gs.pot;
-      // Store last winner info for UI display
-      table.lastWinner = { name: `P${gs.players[winnerIdx].seatIndex + 1}`, amount: gs.pot };
+  // Set lastWinner for UI display (primary winner)
+  if (winnerDetails.length > 0) {
+    const primary = winnerDetails.sort((a, b) => b.amount - a.amount)[0];
+    table.lastWinner = { name: primary.name, amount: primary.amount, handDescription: primary.handDescription };
+  }
+
+  // Set settlement detail for rich UI
+  table.settlementDetail = {
+    winners: winnerDetails,
+    sidePots: sidePotDetails,
+    rakeAmount: totalRake,
+    showdownPlayers,
+  };
+
+  // Record hand_players data for history
+  if (table.handId) {
+    for (const player of gs.players) {
+      const evaluation = !player.isFolded && gs.communityCards.length >= 3
+        ? gameEngine.evaluateHand(player.holeCards, gs.communityCards)
+        : null;
+      await db.createHandPlayer({
+        handId: table.handId,
+        userId: player.id,
+        seatIndex: player.seatIndex,
+        holeCards: JSON.stringify(player.holeCards),
+        isWinner: playerWinAmounts.has(player.id),
+        betAmount: (player.totalBet || 0).toFixed(2),
+        winAmount: (playerWinAmounts.get(player.id) || 0).toFixed(2),
+        action: player.isFolded ? "fold" : player.isAllIn ? "all_in" : "none",
+      });
     }
   }
 
@@ -313,18 +498,18 @@ async function settleHand(roomId: number) {
       status: "completed",
       communityCards: JSON.stringify(gs.communityCards),
       potSize: gs.pot.toFixed(2),
-      winnerId,
+      winnerId: mainWinnerId,
       winningHand,
       completedAt: new Date(),
     });
   }
 
-  // Persist ALL players' updated chip stacks to DB (not just winner)
+  // Persist ALL players' updated chip stacks to DB
   for (const player of gs.players) {
     await db.updateRoomPlayerChips(roomId, player.id, player.chips.toFixed(2));
   }
 
-  // Schedule next hand after a delay (3 seconds)
+  // Schedule next hand after a delay (5 seconds for settlement viewing)
   setTimeout(async () => {
     const currentPlayers = await db.getRoomPlayers(roomId);
     if (currentPlayers.length >= 2) {
@@ -332,7 +517,7 @@ async function settleHand(roomId: number) {
     } else {
       activeTables.delete(roomId);
     }
-  }, 3000);
+  }, 5000);
 }
 
 /**

@@ -30,8 +30,8 @@ describe("Table Action Validation", () => {
     expect(result.success).toBe(false);
   });
 
-  it("should return waiting state for non-existent table view", () => {
-    const view = getPlayerView(55555, 1);
+  it("should return waiting state for non-existent table view", async () => {
+    const view = await getPlayerView(55555, 1);
     expect(view.phase).toBe("waiting");
     expect(view.players).toEqual([]);
     expect(view.pot).toBe(0);

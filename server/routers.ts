@@ -270,7 +270,7 @@ export const appRouter = router({
   game: router({
     // Table state polling endpoint
     tableState: protectedProcedure.input(z.object({ roomId: z.number() })).query(async ({ ctx, input }) => {
-      return tableManager.getPlayerView(input.roomId, ctx.user.id);
+      return await tableManager.getPlayerView(input.roomId, ctx.user.id);
     }),
     // Join a table
     join: protectedProcedure.input(z.object({
@@ -342,6 +342,18 @@ export const appRouter = router({
       const { verifyFairness } = require("./gameEngine");
       return verifyFairness(input.serverSeed, input.clientSeed, input.serverSeedHash, input.deckHash);
     }),
+    // Hand detail with player info
+    handDetail: protectedProcedure.input(z.object({ handId: z.number() })).query(async ({ input }) => {
+      const hand = await db.getGameHandById(input.handId);
+      if (!hand) throw new TRPCError({ code: "NOT_FOUND", message: "Hand not found" });
+      const players = await db.getHandPlayers(input.handId);
+      // Enrich with user names
+      const enrichedPlayers = await Promise.all(players.map(async (p) => {
+        const user = await db.getUserById(p.userId);
+        return { ...p, name: user?.name || `Player ${p.seatIndex + 1}` };
+      }));
+      return { ...hand, players: enrichedPlayers };
+    }),
     lookupHand: publicProcedure.input(z.object({
       handId: z.number().optional(),
       txHash: z.string().optional(),
@@ -367,6 +379,10 @@ export const appRouter = router({
         startedAt: hand.startedAt,
         completedAt: hand.completedAt,
       };
+    }),
+    myRecentHands: protectedProcedure.input(z.object({ limit: z.number().default(5) })).query(async ({ ctx, input }) => {
+      const hands = await db.getPlayerRecentHands(ctx.user.id, input.limit);
+      return hands;
     }),
   }),
 

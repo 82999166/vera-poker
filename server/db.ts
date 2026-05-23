@@ -370,3 +370,59 @@ export function generateDepositAddress(userId: number, chain: "TRC20" | "TON"): 
     return "EQ" + hash.substring(0, 46).replace(/[^a-zA-Z0-9]/g, "B");
   }
 }
+
+// ==================== HAND PLAYERS QUERIES ====================
+export async function createHandPlayer(data: typeof handPlayers.$inferInsert) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(handPlayers).values(data);
+  return result[0].insertId;
+}
+
+export async function getHandPlayers(handId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(handPlayers).where(eq(handPlayers.handId, handId));
+}
+
+export async function updateHandPlayer(handId: number, userId: number, data: Partial<typeof handPlayers.$inferInsert>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(handPlayers).set(data).where(
+    and(eq(handPlayers.handId, handId), eq(handPlayers.userId, userId))
+  );
+}
+
+export async function getPlayerRecentHands(userId: number, limit: number = 5) {
+  const db = await getDb();
+  if (!db) return [];
+  // Get recent hands this player participated in
+  const playerHands = await db.select({ handId: handPlayers.handId })
+    .from(handPlayers)
+    .where(eq(handPlayers.userId, userId))
+    .orderBy(desc(handPlayers.id))
+    .limit(limit);
+  if (playerHands.length === 0) return [];
+  const handIds = playerHands.map(h => h.handId);
+  const hands = await db.select().from(gameHands).where(inArray(gameHands.id, handIds)).orderBy(desc(gameHands.id));
+  // Get player's specific data for each hand
+  const results = await Promise.all(hands.map(async (hand) => {
+    const myData = await db.select().from(handPlayers).where(
+      and(eq(handPlayers.handId, hand.id), eq(handPlayers.userId, userId))
+    );
+    const playerData = myData[0];
+    return {
+      id: hand.id,
+      roomId: hand.roomId,
+      potSize: hand.potSize,
+      status: hand.status,
+      completedAt: hand.completedAt,
+      myResult: playerData ? {
+        winAmount: playerData.winAmount,
+        holeCards: playerData.holeCards,
+        isWinner: playerData.isWinner,
+      } : null,
+    };
+  }));
+  return results;
+}
