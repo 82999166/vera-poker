@@ -218,3 +218,9 @@
 - [x] Admin withdrawal review page with approve/reject actions
 - [ ] Small amount auto-approve threshold (configurable in admin)
 - [ ] On-chain payout integration (manual workflow: admin confirms after manual transfer, enters TX hash)
+
+## UI Fix - Profile & Bottom Nav Adjustment
+- [x] Reorganize Profile page layout for cleaner, more structured appearance
+- [x] Move Support (客服) back to bottom navigation
+- [x] Move Agent (代理) back to bottom navigation
+- [x] Bottom nav: Lobby, Wallet, Agent, Support, Profile (5 tabs)

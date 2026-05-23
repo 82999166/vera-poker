@@ -7,8 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 import {
   User, Trophy, TrendingUp, Gamepad2, Edit2, Check, X,
-  Link2, Unlink, ArrowLeft, Shield, Clock, Coins, Award, Globe, ChevronRight,
-  Users, MessageCircle
+  Link2, Unlink, ArrowLeft, Shield, Clock, Coins, Award, Globe, ChevronRight
 } from "lucide-react";
 
 export default function Profile() {
@@ -143,8 +142,25 @@ export default function Profile() {
         </div>
       </div>
 
+      {/* Account Info */}
+      <div className="px-4 pb-3">
+        <div className="glass rounded-2xl p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Shield className="w-4 h-4 text-purple-400" />
+            账户信息
+          </h3>
+          <div className="space-y-2.5">
+            <InfoRow label="用户ID" value={`#${profile.id}`} />
+            <InfoRow label="邀请码" value={profile.inviteCode || "未生成"} />
+            <InfoRow label="代理等级" value={profile.agentLevel === "agent" ? "代理" : "普通用户"} />
+            <InfoRow label="注册时间" value={profile.createdAt ? new Date(profile.createdAt).toLocaleDateString("zh-CN") : "-"} />
+            <InfoRow label="最后登录" value={profile.lastSignedIn ? new Date(profile.lastSignedIn).toLocaleDateString("zh-CN") : "-"} />
+          </div>
+        </div>
+      </div>
+
       {/* Game Stats */}
-      <div className="px-4 pb-4">
+      <div className="px-4 pb-3">
         <div className="glass rounded-2xl p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Trophy className="w-4 h-4 text-gold" />
@@ -159,8 +175,53 @@ export default function Profile() {
         </div>
       </div>
 
+      {/* Achievements */}
+      <div className="px-4 pb-3">
+        <div className="glass rounded-2xl p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Award className="w-4 h-4 text-gold" />
+            成就徽章
+            {achievementsData && (
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                {achievementsData.unlocked.length}/{achievementsData.all.length}
+              </span>
+            )}
+          </h3>
+          {achievementsData && achievementsData.all.length > 0 ? (
+            <div className="grid grid-cols-4 gap-2">
+              {achievementsData.all.map((a: any) => (
+                <div
+                  key={a.id}
+                  className={`relative rounded-xl p-2 text-center transition-all ${
+                    a.isUnlocked
+                      ? "glass border border-gold/30 shadow-[0_0_8px_rgba(212,175,55,0.15)]"
+                      : "glass opacity-50 grayscale"
+                  }`}
+                  title={a.nameZh + (a.isUnlocked ? " ✓" : ` (${a.progress}%)`)}
+                >
+                  <span className="text-xl">{a.icon}</span>
+                  <p className="text-[9px] mt-0.5 truncate font-medium">{a.nameZh}</p>
+                  {!a.isUnlocked && (
+                    <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full bg-gold/60 rounded-full transition-all" style={{ width: `${a.progress}%` }} />
+                    </div>
+                  )}
+                  {a.isUnlocked && (
+                    <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gold flex items-center justify-center">
+                      <Check className="w-2 h-2 text-black" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-4">暂无成就数据</p>
+          )}
+        </div>
+      </div>
+
       {/* Telegram Binding */}
-      <div className="px-4 pb-4">
+      <div className="px-4 pb-3">
         <div className="glass rounded-2xl p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <TelegramIcon className="w-4 h-4 text-[#54a9eb]" />
@@ -214,82 +275,6 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Achievements */}
-      <div className="px-4 pb-4">
-        <div className="glass rounded-2xl p-4">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Award className="w-4 h-4 text-gold" />
-            成就徽章
-            {achievementsData && (
-              <span className="text-[10px] text-muted-foreground ml-auto">
-                {achievementsData.unlocked.length}/{achievementsData.all.length}
-              </span>
-            )}
-          </h3>
-          {achievementsData && achievementsData.all.length > 0 ? (
-            <div className="grid grid-cols-4 gap-2">
-              {achievementsData.all.map((a: any) => (
-                <div
-                  key={a.id}
-                  className={`relative rounded-xl p-2 text-center transition-all ${
-                    a.isUnlocked
-                      ? "glass border border-gold/30 shadow-[0_0_8px_rgba(212,175,55,0.15)]"
-                      : "glass opacity-50 grayscale"
-                  }`}
-                  title={a.nameZh + (a.isUnlocked ? " ✓" : ` (${a.progress}%)`)}
-                >
-                  <span className="text-xl">{a.icon}</span>
-                  <p className="text-[9px] mt-0.5 truncate font-medium">{a.nameZh}</p>
-                  {!a.isUnlocked && (
-                    <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-gold/60 rounded-full transition-all" style={{ width: `${a.progress}%` }} />
-                    </div>
-                  )}
-                  {a.isUnlocked && (
-                    <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gold flex items-center justify-center">
-                      <Check className="w-2 h-2 text-black" />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground text-center py-4">暂无成就数据</p>
-          )}
-        </div>
-      </div>
-
-      {/* Quick Links */}
-      <div className="px-4 pb-4">
-        <div className="glass rounded-2xl p-4">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <ChevronRight className="w-4 h-4 text-gold" />
-            快捷入口
-          </h3>
-          <div className="space-y-1">
-            <QuickLink icon={Users} label="代理中心" color="text-emerald-400" onClick={() => navigate("/agent")} />
-            <QuickLink icon={MessageCircle} label="在线客服" color="text-blue-400" onClick={() => navigate("/support")} />
-          </div>
-        </div>
-      </div>
-
-      {/* Account Info */}
-      <div className="px-4 pb-4">
-        <div className="glass rounded-2xl p-4">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Shield className="w-4 h-4 text-purple-400" />
-            账户信息
-          </h3>
-          <div className="space-y-2.5">
-            <InfoRow label="用户ID" value={`#${profile.id}`} />
-            <InfoRow label="邀请码" value={profile.inviteCode || "未生成"} />
-            <InfoRow label="代理等级" value={profile.agentLevel === "agent" ? "代理" : "普通用户"} />
-            <InfoRow label="注册时间" value={profile.createdAt ? new Date(profile.createdAt).toLocaleDateString("zh-CN") : "-"} />
-            <InfoRow label="最后登录" value={profile.lastSignedIn ? new Date(profile.lastSignedIn).toLocaleDateString("zh-CN") : "-"} />
-          </div>
-        </div>
-      </div>
-
       {/* Language Switcher */}
       <div className="px-4 pb-24">
         <LanguageSwitcherSection />
@@ -324,21 +309,6 @@ function TelegramIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
     </svg>
-  );
-}
-
-function QuickLink({ icon: Icon, label, color, onClick }: { icon: any; label: string; color: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-secondary/50 transition-colors"
-    >
-      <div className="flex items-center gap-3">
-        <Icon className={`w-4 h-4 ${color}`} />
-        <span className="text-sm">{label}</span>
-      </div>
-      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-    </button>
   );
 }
 
