@@ -13,6 +13,7 @@ export type SoundEffect =
   | "call"        // 跟注
   | "allIn"       // 全下
   | "win"         // 赢牌
+  | "lose"        // 输牌
   | "timer"       // 倒计时警告
   | "turnAlert"   // 轮到操作
   | "chipMove"    // 筹码移动
@@ -102,6 +103,13 @@ const soundGenerators: Record<SoundEffect, (ctx: AudioContext) => void> = {
     const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
     notes.forEach((freq, i) => {
       setTimeout(() => createOscillatorSound(ctx, freq, 0.2, "sine", 0.2), i * 100);
+    });
+  },
+  lose: (ctx) => {
+    // Sad descending notes
+    const notes = [523, 440, 349, 262]; // C5, A4, F4, C4
+    notes.forEach((freq, i) => {
+      setTimeout(() => createOscillatorSound(ctx, freq, 0.25, "sine", 0.15), i * 120);
     });
   },
   timer: (ctx) => {

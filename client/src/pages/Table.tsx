@@ -208,24 +208,37 @@ export default function Table() {
     }
   }, [tableState?.phase, lastPhase, muted, playSound]);
 
-  // Detect new hand for winner display
+  // Detect winner - trigger when phase becomes 'completed' and lastWinner is available
+  const prevPhaseRef = useRef<string>("");
   useEffect(() => {
-    if (tableState?.handNumber && tableState.handNumber !== prevHandRef.current) {
-      if (prevHandRef.current > 0 && tableState.lastWinner) {
-        setShowWinner(tableState.lastWinner);
-        if (tableState.settlementDetail) {
-          setShowSettlement(tableState.settlementDetail);
-          // Extract winner player IDs for seat animations
-          const wIds = tableState.settlementDetail.winners?.map((w: any) => w.playerId) || [];
-          setWinnerPlayerIds(wIds);
-        }
-        // Play win sound
-        if (!muted) playSound("win");
-        setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); }, 5000);
+    const currentPhase = tableState?.phase || "";
+    // Trigger winner display when phase transitions to completed
+    if (currentPhase === "completed" && prevPhaseRef.current !== "completed" && tableState?.lastWinner && !showWinner) {
+      setShowWinner(tableState.lastWinner);
+      if (tableState.settlementDetail) {
+        setShowSettlement(tableState.settlementDetail);
+        const wIds = tableState.settlementDetail.winners?.map((w: any) => w.playerId) || [];
+        setWinnerPlayerIds(wIds);
       }
+      // Play win/lose sound based on whether current user won
+      if (!muted) {
+        const wIds = tableState.settlementDetail?.winners?.map((w: any) => w.playerId) || [];
+        if (user && wIds.includes(user.id)) {
+          playSound("win");
+        } else if (user && wIds.length > 0) {
+          playSound("lose");
+        } else {
+          playSound("win");
+        }
+      }
+      setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); }, 7000);
+    }
+    prevPhaseRef.current = currentPhase;
+    // Also track handNumber for reference
+    if (tableState?.handNumber && tableState.handNumber !== prevHandRef.current) {
       prevHandRef.current = tableState.handNumber;
     }
-  }, [tableState?.handNumber, muted, playSound]);
+  }, [tableState?.phase, tableState?.handNumber, tableState?.lastWinner, muted, playSound, user]);
 
   // Mutations
   const joinMutation = trpc.game.join.useMutation({
@@ -277,7 +290,8 @@ export default function Table() {
           // Pick the one with most players (more action)
           const target = candidates.sort((a: any, b: any) => b.currentPlayers - a.currentPlayers)[0];
           toast.info(t("table.switchingTable"));
-          setTimeout(() => navigate(`/table/${target.id}`), 1500);
+          // Pass autoJoin flag so the new table auto-seats without buy-in dialog
+          setTimeout(() => navigate(`/table/${target.id}?autoJoin=true`), 1500);
         }
       }
     },
@@ -331,16 +345,32 @@ export default function Table() {
     { enabled: isValidRoom && !!user }
   );
 
+  // Check URL for autoJoin flag (same-stakes table switch)
+  const autoJoinRef = useRef(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("autoJoin") === "true") {
+      autoJoinRef.current = true;
+      // Clean up URL without reload
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   useEffect(() => {
     if (roomPlayers && user) {
       const seated = roomPlayers.some((p: any) => p.userId === user.id);
       setIsSeated(seated);
-      // Auto-show buy-in dialog when entering table and not seated
-      if (!seated && isValidRoom) {
+      // If autoJoin (same-stakes switch), auto-join with min buy-in
+      if (!seated && isValidRoom && autoJoinRef.current && room) {
+        autoJoinRef.current = false;
+        const minBuyIn = parseFloat(room.minBuyIn);
+        joinMutation.mutate({ roomId, buyIn: minBuyIn });
+      } else if (!seated && isValidRoom && !autoJoinRef.current) {
+        // Normal entry - show buy-in dialog
         setShowBuyIn(true);
       }
     }
-  }, [roomPlayers, user, isValidRoom]);
+  }, [roomPlayers, user, isValidRoom, room]);
 
   // Demo mode for test room
   const isDemoMode = !isValidRoom || id === "test";
@@ -368,6 +398,7 @@ export default function Table() {
     turn: t("table.phaseTurn"),
     river: t("table.phaseRiver"),
     showdown: t("table.phaseShowdown"),
+    completed: t("table.phaseShowdown"),
   };
 
   const handleFold = () => {
@@ -643,13 +674,25 @@ export default function Table() {
                     <ChipStack amount={player.currentBet} />
                   )}
 
-                  {/* Winner amount pop-up */}
+                  {/* Winner gold coins flying in + amount pop-up */}
                   {isWinner && showWinner && (
-                    <div className="animate-amount-pop flex items-center gap-1 mt-1">
-                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border border-yellow-600 flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.6)]">
-                        <span className="text-[8px] font-black text-yellow-900">$</span>
+                    <div className="relative mt-1">
+                      {/* Flying gold coins */}
+                      <div className="flex justify-center gap-0.5 mb-1">
+                        {[0, 1, 2, 3, 4].map((i) => (
+                          <div
+                            key={i}
+                            className="animate-chips-fly w-4 h-4 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border border-yellow-600 shadow-[0_0_6px_rgba(234,179,8,0.5)] flex items-center justify-center"
+                            style={{ animationDelay: `${i * 150}ms` }}
+                          >
+                            <span className="text-[6px] font-black text-yellow-900">$</span>
+                          </div>
+                        ))}
                       </div>
-                      <span className="text-sm font-black text-yellow-300 drop-shadow-[0_0_6px_rgba(234,179,8,0.5)]">+{showWinner.amount.toFixed(2)}</span>
+                      {/* Win amount */}
+                      <div className="animate-amount-pop flex items-center justify-center gap-1 bg-black/70 rounded-full px-3 py-1 border border-gold/50 shadow-[0_0_12px_rgba(234,179,8,0.4)]">
+                        <span className="text-base font-black text-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]">+${showWinner.amount.toFixed(2)}</span>
+                      </div>
                     </div>
                   )}
                 </div>

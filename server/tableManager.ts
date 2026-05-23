@@ -522,7 +522,7 @@ async function settleHand(roomId: number) {
     await db.updateRoomPlayerChips(roomId, player.id, player.chips.toFixed(2));
   }
 
-  // Schedule next hand after a delay (5 seconds for settlement viewing)
+  // Schedule next hand after a delay (8 seconds for settlement viewing + winner animation)
   setTimeout(async () => {
     const currentPlayers = await db.getRoomPlayers(roomId);
     if (currentPlayers.length >= 2) {
@@ -530,7 +530,7 @@ async function settleHand(roomId: number) {
     } else {
       activeTables.delete(roomId);
     }
-  }, 5000);
+  }, 8000);
 }
 
 /**
