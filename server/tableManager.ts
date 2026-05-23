@@ -42,9 +42,17 @@ export function getTable(roomId: number): ActiveTable | undefined {
  * Hides other players' hole cards unless in showdown
  */
 export async function getPlayerView(roomId: number, playerId: number) {
-  const table = activeTables.get(roomId);
+  let table = activeTables.get(roomId);
   if (!table) {
-    return { phase: "waiting", players: [], communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [] };
+    // Auto-recover: if 2+ active players exist but no game running, start one
+    const activePlayers = await db.getRoomPlayers(roomId);
+    if (activePlayers.length >= 2) {
+      await startNewHand(roomId);
+      table = activeTables.get(roomId);
+    }
+    if (!table) {
+      return { phase: "waiting", players: [], communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [] };
+    }
   }
 
   const gs = table.gameState;

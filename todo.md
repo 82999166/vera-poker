@@ -292,3 +292,7 @@
 - [x] Redesign CardView back: diamond/grid pattern (red/blue), decorative border
 - [x] Redesign poker table: Poker Night style - metallic rail, deep green felt, warm ambient lighting, 3D perspective
 - [x] Replace CSS-drawn poker table with AI-generated background image (poker-table-style-b.png)
+
+## Bug Fixes (2026-05-23 Latest)
+- [x] Bug: 进入牌桌后没有坐下弹窗 - 原因：两个账号都已是 active 状态不需要坐下弹窗；添加了服务器重启后自动恢复游戏的逻辑
+- [x] Bug: 每次进入都要重新 Telegram 授权登录 - 原因：index.html 缺少 Telegram WebApp JS SDK，Mini App 内无法自动登录
