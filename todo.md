@@ -291,3 +291,4 @@
 - [x] Redesign CardView front: white background, large clear suit/rank, rounded corners, subtle shadow
 - [x] Redesign CardView back: diamond/grid pattern (red/blue), decorative border
 - [x] Redesign poker table: Poker Night style - metallic rail, deep green felt, warm ambient lighting, 3D perspective
+- [x] Replace CSS-drawn poker table with AI-generated background image (poker-table-style-b.png)

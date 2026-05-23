@@ -503,40 +503,14 @@ export default function Table() {
 
       {/* Table Area */}
       <div className="flex-1 relative overflow-hidden">
-        {/* Warm ambient lighting from top */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[40%] bg-[radial-gradient(ellipse_at_top,rgba(255,180,60,0.12)_0%,transparent_70%)] pointer-events-none" />
-        
-        {/* Poker Table */}
-        <div className="absolute inset-2 sm:inset-4" style={{ perspective: '900px' }}>
-          <div className="absolute inset-0" style={{ transform: 'rotateX(5deg)', transformOrigin: 'center 55%' }}>
-          {/* Outer rail - thick metallic border with seat bumps */}
-          <div className="absolute inset-0 rounded-[50%]">
-            {/* Table shadow on floor */}
-            <div className="absolute -inset-2 rounded-[50%] bg-black/30 blur-xl -z-10" />
-            {/* Outer metal rail */}
-            <div className="absolute inset-0 rounded-[50%] bg-gradient-to-b from-[#7a7a7a] via-[#5a5a5a] to-[#3a3a3a] shadow-[0_6px_24px_rgba(0,0,0,0.6),inset_0_1px_2px_rgba(255,255,255,0.2)]" />
-            {/* Rail highlight */}
-            <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_50%_20%,rgba(255,255,255,0.08)_0%,transparent_50%)]" />
-            {/* Inner rail edge */}
-            <div className="absolute inset-[6px] rounded-[50%] bg-gradient-to-b from-[#4a4a4a] to-[#2a2a2a] shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]" />
-            {/* Gold trim ring */}
-            <div className="absolute inset-[9px] rounded-[50%] border border-[#c9a227]/40" />
-          </div>
-          
-          {/* Table felt - the green playing surface */}
-          <div className="absolute inset-[12px] rounded-[50%] bg-gradient-to-b from-[#2a7a4a] via-[#236b40] to-[#1c5c36] shadow-[inset_0_0_40px_rgba(0,0,0,0.25),inset_0_4px_12px_rgba(0,0,0,0.15)]">
-            {/* Felt texture */}
-            <div className="absolute inset-0 rounded-[50%] opacity-50" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4h1v1H2V4zm3-3h1v1H5V1z' fill='%23000' fill-opacity='0.02'/%3E%3C/svg%3E")`,
-            }} />
-            {/* Overhead light spot */}
-            <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_50%_35%,rgba(255,255,255,0.08)_0%,transparent_45%)]" />
-            {/* Inner decorative oval line */}
-            <div className="absolute inset-[10%] rounded-[50%] border border-[#3da06e]/20" />
-            {/* Center logo area */}
-            <div className="absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border border-[#3da06e]/15 flex items-center justify-center opacity-40">
-              <span className="text-[8px] font-bold text-[#4dc88a]/60 tracking-wider">VP</span>
-            </div>
+        {/* Poker Table Background Image */}
+        <img 
+          src="/manus-storage/poker-table-style-b_de85f03e.png" 
+          alt="" 
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+        />
+        {/* Game content overlay */}
+        <div className="absolute inset-0">
             
             {/* Pot display */}
             <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
@@ -559,8 +533,6 @@ export default function Table() {
                 <div key={`empty-${i}`} className="w-10 h-14 rounded-lg border border-dashed border-white/15" />
               ))}
             </div>
-          </div>
-
           {/* Player Seats */}
           {displayPlayers.map(player => {
             const pos = SEAT_POSITIONS[player.seatIndex];
@@ -675,7 +647,6 @@ export default function Table() {
               </div>
             </div>
           )}
-          </div>
         </div>
       </div>
       {/* My Cards Display (Hero cards at bottom, larger) */}
