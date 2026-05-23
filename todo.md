@@ -61,7 +61,11 @@
 ## Optional Features (Require External Services)
 - [x] Real-time poker actions - implemented via HTTP polling (2s interval)
 - [x] Dynamic crypto wallet address generation - implemented with deterministic addresses
-- [ ] Telegram Bot webhook integration (optional - needs bot token from BotFather, configurable in Admin > System Settings)
+- [x] Telegram Bot webhook integration (complete)
+  - [x] Webhook endpoint for Telegram updates (/api/telegram/webhook)
+  - [x] Bot message handler and reply logic (/start, /help, /balance, /rooms)
+  - [x] Telegram API integration for sending messages
+  - [x] Tests for webhook handling (12 tests passing - unit + e2e)
 
 ## Bug Fixes & UI Enhancements
 - [x] Persist all players' updated chip stacks at hand settlement (not just winner)
