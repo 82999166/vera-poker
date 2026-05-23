@@ -589,6 +589,37 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [newConfig, setNewConfig] = useState({ key: "", value: "", category: "game", label: "", valueType: "string" as const, isPublic: false });
 
+  // Chinese labels for config keys
+  const configLabels: Record<string, string> = {
+    rake_percentage: "抽水比例 (%)",
+    rake_cap: "抽水上限",
+    min_players_to_start: "最少开局人数",
+    turn_timeout_seconds: "回合超时 (秒)",
+    max_players_per_table: "每桌最大人数",
+    agent_level1_rate: "一级代理佣金率 (%)",
+    agent_level2_rate: "二级代理佣金率 (%)",
+    unlock_min_hands: "解锁最低手数",
+    unlock_min_deposit: "解锁最低充值",
+    unlock_min_rake: "解锁最低贡献抽水",
+    max_daily_commission: "每日佣金上限",
+    min_deposit: "最低充值金额",
+    min_withdrawal: "最低提现金额",
+    withdrawal_fee_rate: "提现手续费率 (%)",
+    daily_withdrawal_limit: "每日提现限额",
+    min_account_age_days: "最低账龄 (天)",
+    observation_period_days: "观察期 (天)",
+    max_same_table_ratio: "同桌比例上限",
+    room_fee_micro: "私人房费用 - 微注",
+    room_fee_low: "私人房费用 - 低注",
+    room_fee_mid: "私人房费用 - 中注",
+    room_fee_high: "私人房费用 - 高注",
+    room_fee_premium: "私人房费用 - 豪华",
+    discount_5_rounds: "5局折扣",
+    discount_10_rounds: "10局折扣",
+    discount_20_rounds: "20局折扣",
+    discount_50_rounds: "50局折扣",
+  };
+
   const configGroups: Record<string, string[]> = {
     [at("config.gameSettings")]: ["rake_percentage", "rake_cap", "min_players_to_start", "turn_timeout_seconds", "max_players_per_table"],
     [at("config.agentSystem")]: ["agent_level1_rate", "agent_level2_rate", "unlock_min_hands", "unlock_min_deposit", "unlock_min_rake", "max_daily_commission"],
@@ -614,7 +645,7 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
               const currentValue = editValues[key] ?? config?.value ?? "";
               return (
                 <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-                  <label className="text-xs text-muted-foreground sm:w-48 shrink-0">{config?.label || key}</label>
+                  <label className="text-xs text-muted-foreground sm:w-48 shrink-0">{configLabels[key] || config?.label || key}</label>
                   <div className="flex items-center gap-2 flex-1">
                     <input
                       type="text"
@@ -644,11 +675,11 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
           <input placeholder={at("config.value")} value={newConfig.value} onChange={e => setNewConfig(p => ({ ...p, value: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue" />
           <input placeholder={at("config.label")} value={newConfig.label} onChange={e => setNewConfig(p => ({ ...p, label: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue" />
           <select value={newConfig.category} onChange={e => setNewConfig(p => ({ ...p, category: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue bg-transparent">
-            <option value="game">Game</option>
-            <option value="agent">Agent</option>
-            <option value="finance">Finance</option>
-            <option value="risk">Risk</option>
-            <option value="room">Room</option>
+            <option value="game">游戏设置</option>
+            <option value="agent">代理系统</option>
+            <option value="finance">财务设置</option>
+            <option value="risk">风控设置</option>
+            <option value="room">私人房设置</option>
           </select>
         </div>
         <button

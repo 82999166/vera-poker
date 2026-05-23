@@ -121,3 +121,6 @@
 - [x] Frontend: Telegram Login Widget on Home page for non-TG browsers
 - [x] Frontend: Skip Manus OAuth redirect when in TG environment
 - [x] Tests: Telegram auth verification unit tests (12 tests passing)
+
+## Admin Panel Fixes
+- [x] System config page: show Chinese labels instead of raw config keys
