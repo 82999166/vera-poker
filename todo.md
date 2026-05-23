@@ -183,3 +183,12 @@
 - [x] Super admin account: admin / admin123
 - [x] Admin page directly shows StaffLogin form if not authenticated as staff
 - [x] Remove Manus OAuth dependency from admin panel access
+
+## Telegram Login Widget Fix
+- [x] Fix "Bot domain invalid" error - migrated from legacy OAuth to OIDC flow
+- [x] Ensure origin parameter matches the deployed domain
+- [x] Add admin guidance for BotFather /setdomain configuration
+- [x] Add Telegram OIDC Client ID / Client Secret to admin panel (editable)
+- [x] Add OIDC start endpoint (/api/telegram/oidc-start)
+- [x] Add OIDC callback endpoint (/api/telegram/oidc-callback)
+- [x] Frontend uses new OIDC popup flow instead of legacy widget URL

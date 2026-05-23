@@ -1,6 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getLoginUrl } from "@/const";
 import { useTelegramAuth, isTelegramMiniApp, getTelegramStartParam } from "@/hooks/useTelegramAuth";
 import { trpc } from "@/lib/trpc";
@@ -173,7 +173,6 @@ export default function Home() {
 function TelegramLoginButton({ onLogin }: { onLogin: (data: Record<string, unknown>) => void }) {
   const [isLoading, setIsLoading] = useState(false);
   const { t } = useI18n();
-  const botConfigRef = useRef<{ botId: string; botUsername: string } | null>(null);
 
   // In TG Mini App, we don't need the widget button (auto-login handles it)
   if (isTelegramMiniApp()) {
@@ -183,28 +182,8 @@ function TelegramLoginButton({ onLogin }: { onLogin: (data: Record<string, unkno
   const handleClick = async () => {
     setIsLoading(true);
     try {
-      // Get bot config from server
-      if (!botConfigRef.current) {
-        const res = await fetch("/api/telegram/bot-info", {
-          credentials: "include",
-        });
-        const json = await res.json();
-        const botId = json?.botId || "";
-        const botUsername = json?.botUsername || "";
-        if (botId || botUsername) {
-          botConfigRef.current = { botId, botUsername };
-        }
-      }
-
-      if (botConfigRef.current?.botId || botConfigRef.current?.botUsername) {
-        openTelegramLogin(
-          botConfigRef.current.botId || botConfigRef.current.botUsername,
-          onLogin
-        );
-      } else {
-        // Bot not configured, fallback to Manus OAuth
-        window.location.href = getLoginUrl();
-      }
+      // Use OIDC flow directly
+      await openTelegramLogin("", onLogin);
     } catch {
       window.location.href = getLoginUrl();
     } finally {
@@ -233,58 +212,66 @@ function TelegramIcon({ className }: { className?: string }) {
 }
 
 /**
- * Open Telegram Login using the official Login Widget redirect approach.
- * The popup opens Telegram's OAuth page, which after user authorization
- * redirects to our widget-callback endpoint. The callback sets the session
- * cookie and posts a success message back to the opener window.
+ * Open Telegram Login using the new OIDC flow.
+ * 1. Fetch auth URL from /api/telegram/oidc-start
+ * 2. Open popup to Telegram's OIDC authorization page
+ * 3. After user authorizes, Telegram redirects to our oidc-callback
+ * 4. Callback sets session cookie and posts success message back
  */
-function openTelegramLogin(botUsername: string, onLogin: (data: Record<string, unknown>) => void) {
-  // Clean the username (remove @ if present)
-  const cleanUsername = botUsername.replace(/^@/, "");
-  
-  // Telegram Login Widget uses the bot username in the URL
-  // The origin parameter must match our domain for the widget to work
-  const callbackUrl = `${window.location.origin}/api/telegram/widget-callback`;
-  const authUrl = `https://oauth.telegram.org/auth?bot_id=${cleanUsername}&origin=${encodeURIComponent(window.location.origin)}&embed=1&request_access=write&return_to=${encodeURIComponent(callbackUrl)}`;
+async function openTelegramLogin(_botIdOrUsername: string, onLogin: (data: Record<string, unknown>) => void) {
+  try {
+    // Get the OIDC authorization URL from our server
+    const res = await fetch(`/api/telegram/oidc-start?origin=${encodeURIComponent(window.location.origin)}`, {
+      credentials: "include",
+    });
+    const json = await res.json();
 
-  const width = 550;
-  const height = 470;
-  const left = (window.innerWidth - width) / 2 + window.screenX;
-  const top = (window.innerHeight - height) / 2 + window.screenY;
+    if (!res.ok || !json.authUrl) {
+      // Fallback: try legacy widget approach
+      console.error("[TG Login] OIDC start failed:", json.error);
+      window.location.href = getLoginUrl();
+      return;
+    }
 
-  const popup = window.open(
-    authUrl,
-    "telegram_login",
-    `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=no,resizable=no`
-  );
+    const authUrl = json.authUrl;
 
-  // Listen for postMessage from our callback page or Telegram's OAuth page
-  const handleMessage = (event: MessageEvent) => {
-    // Accept messages from Telegram OAuth or our own origin (widget-callback page)
-    const trustedOrigins = ["https://oauth.telegram.org", window.location.origin];
-    if (!trustedOrigins.includes(event.origin)) return;
-    
-    if (event.data && typeof event.data === "object") {
-      // Our widget-callback sends { id, success: true } after setting the cookie
-      if (event.data.success || event.data.id || event.data.hash) {
+    const width = 550;
+    const height = 600;
+    const left = (window.innerWidth - width) / 2 + window.screenX;
+    const top = (window.innerHeight - height) / 2 + window.screenY;
+
+    const popup = window.open(
+      authUrl,
+      "telegram_login",
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=no,resizable=no`
+    );
+
+    // Listen for postMessage from our oidc-callback page
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      
+      if (event.data && typeof event.data === "object" && event.data.success) {
         window.removeEventListener("message", handleMessage);
         if (popup) popup.close();
         onLogin(event.data);
       }
-    }
-  };
+    };
 
-  window.addEventListener("message", handleMessage);
+    window.addEventListener("message", handleMessage);
 
-  // Poll for popup closure - if user closes without completing auth
-  const checkClosed = setInterval(() => {
-    if (popup && popup.closed) {
-      clearInterval(checkClosed);
-      window.removeEventListener("message", handleMessage);
-      // After popup closes, try refreshing auth in case cookie was set
-      setTimeout(() => {
-        onLogin({ success: true, fromPopupClose: true });
-      }, 500);
-    }
-  }, 500);
+    // Poll for popup closure
+    const checkClosed = setInterval(() => {
+      if (popup && popup.closed) {
+        clearInterval(checkClosed);
+        window.removeEventListener("message", handleMessage);
+        // After popup closes, try refreshing auth in case cookie was set
+        setTimeout(() => {
+          onLogin({ success: true, fromPopupClose: true });
+        }, 500);
+      }
+    }, 500);
+  } catch (error) {
+    console.error("[TG Login] Error:", error);
+    window.location.href = getLoginUrl();
+  }
 }

@@ -1289,6 +1289,8 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
   const [defaultLanguage, setDefaultLanguage] = useState("en");
   const [tgBotToken, setTgBotToken] = useState("");
   const [tgBotUsername, setTgBotUsername] = useState("");
+  const [tgClientId, setTgClientId] = useState("");
+  const [tgClientSecret, setTgClientSecret] = useState("");
 
   useEffect(() => {
     if (configs) {
@@ -1297,6 +1299,8 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
       setDefaultLanguage(configMap.get("default_language") ?? "en");
       setTgBotToken(configMap.get("tg_bot_token") ?? "");
       setTgBotUsername(configMap.get("tg_bot_username") ?? "");
+      setTgClientId(configMap.get("tg_client_id") ?? "");
+      setTgClientSecret(configMap.get("tg_client_secret") ?? "");
     }
   }, [configs]);
 
@@ -1392,6 +1396,55 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
             {tgBotToken && tgBotToken.includes(":") && (
               <p className="text-[10px] text-gold/70 mt-1">Bot ID: {tgBotToken.split(":")[0]}</p>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Telegram OIDC Login Config */}
+      <div className="glass rounded-xl p-4">
+        <h3 className="text-sm font-semibold mb-3">Telegram Login (OIDC)</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Client ID</label>
+            <p className="text-[10px] text-muted-foreground/60 mb-1">BotFather → Login Widget 中显示的 Client ID（数字）</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tgClientId}
+                onChange={(e) => setTgClientId(e.target.value)}
+                placeholder="8820502908"
+                className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+              />
+              <button onClick={() => saveSystemSetting("tg_client_id", tgClientId)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
+                <Save className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Client Secret</label>
+            <p className="text-[10px] text-muted-foreground/60 mb-1">BotFather → Login Widget 中显示的 Client Secret</p>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={tgClientSecret}
+                onChange={(e) => setTgClientSecret(e.target.value)}
+                placeholder="opYaGUKBo_jW_feZ..."
+                className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+              />
+              <button onClick={() => saveSystemSetting("tg_client_secret", tgClientSecret)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
+                <Save className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Redirect URI</label>
+            <CopyableUrl value={`${window.location.origin}/api/telegram/oidc-callback`} />
+            <p className="text-[10px] text-muted-foreground mt-1">在 BotFather → Login Widget → Redirect URIs 中添加此地址</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Trusted Origin</label>
+            <CopyableUrl value={window.location.origin} />
+            <p className="text-[10px] text-muted-foreground mt-1">在 BotFather → Login Widget → Trusted Origins 中添加此地址</p>
           </div>
         </div>
       </div>
