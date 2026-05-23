@@ -15,6 +15,7 @@ interface ActiveTable {
   smallBlind: number;
   bigBlind: number;
   handNumber: number;
+  lastWinner?: { name: string; amount: number };
 }
 
 // In-memory store of active tables
@@ -70,6 +71,7 @@ export function getPlayerView(roomId: number, playerId: number) {
     serverSeedHash: gs.serverSeedHash,
     lastActionAt: table.lastActionAt,
     turnTimeout: table.turnTimeout,
+    lastWinner: table.lastWinner || null,
   };
 }
 
@@ -297,6 +299,8 @@ async function settleHand(roomId: number) {
     const winnerIdx = gs.players.findIndex(p => p.id === winnerId);
     if (winnerIdx !== -1) {
       gs.players[winnerIdx].chips += gs.pot;
+      // Store last winner info for UI display
+      table.lastWinner = { name: `P${gs.players[winnerIdx].seatIndex + 1}`, amount: gs.pot };
     }
   }
 

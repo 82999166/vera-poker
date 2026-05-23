@@ -75,3 +75,24 @@
 - [x] Connection lost banner with retry button
 - [x] Disable action buttons when connection is lost
 - [x] Add integration tests for invalid table actions (39 tests passing)
+
+## New Requirements
+- [x] Admin panel: PC desktop layout with sidebar navigation (responsive)
+- [x] Admin panel: Default language Chinese (中文界面)
+- [x] Admin panel: Support Chinese, Traditional Chinese, English
+- [x] Game: Complete poker table real-time gameplay experience
+- [x] Game: Card dealing animation and game flow
+- [x] Game: Multi-player interaction and state display
+- [x] Table UI: card dealing animations with staggered delays
+- [x] Table UI: chip stack visualization
+- [x] Table UI: winner announcement overlay
+- [x] Table UI: phase change detection and card animations
+- [x] Table UI: Chinese text throughout
+- [x] Table UI: larger hero cards at bottom
+- [x] Table UI: turn indicator ring with pulse animation
+- [x] Table UI: improved countdown timer with color change at <10s
+- [x] Backend: lastWinner field in table state for winner display
+- [x] Admin i18n: all panel strings localized (users risk levels, agents status, risk layers, FAQ categories)
+- [x] Table.tsx: all hardcoded strings replaced with i18n (table.left, table.demoMode, table.reconnecting)
+- [x] Added missing i18n keys to all 5 major locales (en, zh-CN, zh-TW, ja, ko)
+- [x] 51 tests passing across 7 test files

@@ -15,7 +15,7 @@ import CreateRoom from "./pages/CreateRoom";
 import Verify from "./pages/Verify";
 import Admin from "./pages/Admin";
 
-function Router() {
+function MobileRouter() {
   return (
     <Switch>
       <Route path="/" component={Home} />
@@ -26,7 +26,6 @@ function Router() {
       <Route path="/support" component={Support} />
       <Route path="/create-room" component={CreateRoom} />
       <Route path="/verify" component={Verify} />
-      <Route path="/admin" component={Admin} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -43,18 +42,29 @@ function MobileContainer({ children }: { children: React.ReactNode }) {
   );
 }
 
-function App() {
-  // Subscribe to locale changes to force re-render of entire app
+function AppContent() {
   const { locale } = useI18n();
+  // Admin uses full-screen layout, other pages use mobile container
+  const isAdmin = window.location.pathname.startsWith("/admin");
   
+  if (isAdmin) {
+    return <Admin key={locale} />;
+  }
+  
+  return (
+    <MobileContainer>
+      <MobileRouter key={locale} />
+    </MobileContainer>
+  );
+}
+
+function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster />
-          <MobileContainer>
-            <Router key={locale} />
-          </MobileContainer>
+          <AppContent />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

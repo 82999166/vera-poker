@@ -2,52 +2,540 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { Settings, Users, DollarSign, Shield, BarChart3, Save, RefreshCw, Plus, Trash2, ArrowLeft, UserCheck, Pause, Play, X } from "lucide-react";
+import { useIsMobile } from "@/hooks/useMobile";
+import { getLoginUrl } from "@/const";
+import {
+  Settings, Users, DollarSign, Shield, BarChart3, Save, RefreshCw,
+  Plus, Trash2, ArrowLeft, UserCheck, Pause, Play, X, MessageSquare,
+  Globe, LogOut, PanelLeft, Layers
+} from "lucide-react";
 import { toast } from "sonner";
 
+// ==================== ADMIN I18N ====================
+type AdminLang = "zh-CN" | "zh-TW" | "en";
+
+const adminI18n: Record<AdminLang, Record<string, string>> = {
+  "zh-CN": {
+    "admin.title": "Vera 管理后台",
+    "admin.subtitle": "管理控制台",
+    "admin.back": "返回",
+    "admin.signIn": "登录以继续",
+    "admin.signInDesc": "访问管理后台需要管理员权限",
+    "admin.signInBtn": "登录",
+    "admin.accessDenied": "访问被拒绝",
+    "admin.accessDeniedDesc": "需要管理员权限",
+    "tab.config": "系统配置",
+    "tab.users": "用户管理",
+    "tab.rooms": "房间管理",
+    "tab.finance": "财务管理",
+    "tab.agents": "代理管理",
+    "tab.risk": "风控中心",
+    "tab.faq": "FAQ知识库",
+    "tab.settings": "系统设置",
+    "tab.stats": "数据统计",
+    "config.title": "系统配置",
+    "config.gameSettings": "游戏设置",
+    "config.agentSystem": "代理系统",
+    "config.finance": "财务设置",
+    "config.riskControl": "风控设置",
+    "config.privateRoom": "私人房设置",
+    "config.addNew": "新增配置",
+    "config.key": "键名",
+    "config.value": "值",
+    "config.label": "标签",
+    "config.category": "分类",
+    "config.saved": "配置已保存！",
+    "config.keyValueRequired": "键名和值为必填项",
+    "users.title": "用户管理",
+    "users.noUsers": "暂无用户",
+    "users.updated": "用户已更新",
+    "rooms.title": "房间管理",
+    "rooms.noRooms": "暂无房间",
+    "rooms.updated": "房间已更新",
+    "rooms.deleted": "房间已删除",
+    "rooms.deleteConfirm": "确定永久删除此房间？",
+    "rooms.pause": "暂停",
+    "rooms.resume": "恢复",
+    "rooms.close": "关闭",
+    "rooms.delete": "删除",
+    "rooms.players": "玩家",
+    "finance.title": "财务概览",
+    "finance.totalVolume": "总交易额",
+    "finance.totalTx": "总交易数",
+    "finance.recentTx": "最近交易",
+    "finance.noTx": "暂无交易记录",
+    "agents.title": "代理管理",
+    "agents.totalRel": "代理关系数",
+    "agents.totalComm": "佣金记录数",
+    "agents.relationships": "代理关系",
+    "agents.noRel": "暂无代理关系",
+    "agents.recentComm": "最近佣金",
+    "agents.noComm": "暂无佣金记录",
+    "risk.title": "风控中心",
+    "risk.flagged": "标记事件",
+    "risk.antiAbuse": "反作弊",
+    "risk.rules": "反作弊规则",
+    "risk.regGate": "注册门槛",
+    "risk.deviceFp": "设备指纹",
+    "risk.behavior": "行为分析",
+    "risk.sameTable": "同桌比例检测",
+    "risk.active": "已启用",
+    "risk.configHint": "在 系统配置 → 风控设置 中调整阈值",
+    "risk.log": "检测日志",
+    "risk.noEvents": "暂无可疑活动",
+    "faq.title": "FAQ管理（AI知识库）",
+    "faq.addEntry": "新增FAQ",
+    "faq.question": "问题",
+    "faq.answer": "回答",
+    "faq.saved": "FAQ已保存！",
+    "faq.deleted": "FAQ已删除",
+    "faq.qaRequired": "问题和回答为必填项",
+    "faq.existing": "已有FAQ",
+    "faq.noEntries": "暂无FAQ。添加一些来驱动AI客服。",
+    "settings.title": "系统设置",
+    "settings.maintenance": "维护模式",
+    "settings.maintenanceDesc": "启用后玩家无法进入游戏",
+    "settings.defaultLang": "默认语言",
+    "settings.tgBot": "Telegram Bot 配置",
+    "settings.botUsername": "Bot 用户名",
+    "settings.botToken": "Bot Token（隐藏）",
+    "settings.supportedLangs": "支持语言列表",
+    "settings.saved": "设置已保存！",
+    "stats.title": "平台统计",
+    "stats.totalUsers": "总用户数",
+    "stats.totalRooms": "总房间数",
+    "stats.totalTx": "总交易数",
+    "stats.totalVolume": "总交易额",
+    "common.user": "用户",
+    "common.agent": "代理",
+    "common.level": "等级",
+    "users.normal": "正常",
+    "users.watch": "观察",
+    "users.frozen": "冻结",
+    "users.banned": "封禁",
+    "agents.unlocked": "已解锁",
+    "agents.pending": "待解锁",
+    "risk.layers": "4层防御",
+    "faq.catGeneral": "综合",
+    "faq.catDeposit": "充值",
+    "faq.catWithdraw": "提现",
+    "faq.catGame": "游戏规则",
+    "faq.catAgent": "代理",
+    "faq.catSecurity": "安全",
+  },
+  "zh-TW": {
+    "admin.title": "Vera 管理後台",
+    "admin.subtitle": "管理控制台",
+    "admin.back": "返回",
+    "admin.signIn": "登入以繼續",
+    "admin.signInDesc": "訪問管理後台需要管理員權限",
+    "admin.signInBtn": "登入",
+    "admin.accessDenied": "訪問被拒絕",
+    "admin.accessDeniedDesc": "需要管理員權限",
+    "tab.config": "系統配置",
+    "tab.users": "用戶管理",
+    "tab.rooms": "房間管理",
+    "tab.finance": "財務管理",
+    "tab.agents": "代理管理",
+    "tab.risk": "風控中心",
+    "tab.faq": "FAQ知識庫",
+    "tab.settings": "系統設置",
+    "tab.stats": "數據統計",
+    "config.title": "系統配置",
+    "config.gameSettings": "遊戲設置",
+    "config.agentSystem": "代理系統",
+    "config.finance": "財務設置",
+    "config.riskControl": "風控設置",
+    "config.privateRoom": "私人房設置",
+    "config.addNew": "新增配置",
+    "config.key": "鍵名",
+    "config.value": "值",
+    "config.label": "標籤",
+    "config.category": "分類",
+    "config.saved": "配置已保存！",
+    "config.keyValueRequired": "鍵名和值為必填項",
+    "users.title": "用戶管理",
+    "users.noUsers": "暫無用戶",
+    "users.updated": "用戶已更新",
+    "rooms.title": "房間管理",
+    "rooms.noRooms": "暫無房間",
+    "rooms.updated": "房間已更新",
+    "rooms.deleted": "房間已刪除",
+    "rooms.deleteConfirm": "確定永久刪除此房間？",
+    "rooms.pause": "暫停",
+    "rooms.resume": "恢復",
+    "rooms.close": "關閉",
+    "rooms.delete": "刪除",
+    "rooms.players": "玩家",
+    "finance.title": "財務概覽",
+    "finance.totalVolume": "總交易額",
+    "finance.totalTx": "總交易數",
+    "finance.recentTx": "最近交易",
+    "finance.noTx": "暫無交易記錄",
+    "agents.title": "代理管理",
+    "agents.totalRel": "代理關係數",
+    "agents.totalComm": "佣金記錄數",
+    "agents.relationships": "代理關係",
+    "agents.noRel": "暫無代理關係",
+    "agents.recentComm": "最近佣金",
+    "agents.noComm": "暫無佣金記錄",
+    "risk.title": "風控中心",
+    "risk.flagged": "標記事件",
+    "risk.antiAbuse": "反作弊",
+    "risk.rules": "反作弊規則",
+    "risk.regGate": "註冊門檻",
+    "risk.deviceFp": "設備指紋",
+    "risk.behavior": "行為分析",
+    "risk.sameTable": "同桌比例檢測",
+    "risk.active": "已啟用",
+    "risk.configHint": "在 系統配置 → 風控設置 中調整閾值",
+    "risk.log": "檢測日誌",
+    "risk.noEvents": "暫無可疑活動",
+    "faq.title": "FAQ管理（AI知識庫）",
+    "faq.addEntry": "新增FAQ",
+    "faq.question": "問題",
+    "faq.answer": "回答",
+    "faq.saved": "FAQ已保存！",
+    "faq.deleted": "FAQ已刪除",
+    "faq.qaRequired": "問題和回答為必填項",
+    "faq.existing": "已有FAQ",
+    "faq.noEntries": "暫無FAQ。添加一些來驅動AI客服。",
+    "settings.title": "系統設置",
+    "settings.maintenance": "維護模式",
+    "settings.maintenanceDesc": "啟用後玩家無法進入遊戲",
+    "settings.defaultLang": "默認語言",
+    "settings.tgBot": "Telegram Bot 配置",
+    "settings.botUsername": "Bot 用戶名",
+    "settings.botToken": "Bot Token（隱藏）",
+    "settings.supportedLangs": "支持語言列表",
+    "settings.saved": "設置已保存！",
+    "stats.title": "平台統計",
+    "stats.totalUsers": "總用戶數",
+    "stats.totalRooms": "總房間數",
+    "stats.totalTx": "總交易數",
+    "stats.totalVolume": "總交易額",
+    "common.user": "用戶",
+    "common.agent": "代理",
+    "common.level": "等級",
+    "users.normal": "正常",
+    "users.watch": "觀察",
+    "users.frozen": "凍結",
+    "users.banned": "封禁",
+    "agents.unlocked": "已解鎖",
+    "agents.pending": "待解鎖",
+    "risk.layers": "4層防禦",
+    "faq.catGeneral": "綜合",
+    "faq.catDeposit": "充值",
+    "faq.catWithdraw": "提現",
+    "faq.catGame": "遊戲規則",
+    "faq.catAgent": "代理",
+    "faq.catSecurity": "安全",
+  },
+  "en": {
+    "admin.title": "Vera Admin",
+    "admin.subtitle": "Management Console",
+    "admin.back": "Back",
+    "admin.signIn": "Sign in to continue",
+    "admin.signInDesc": "Admin privileges required to access this panel",
+    "admin.signInBtn": "Sign In",
+    "admin.accessDenied": "Access Denied",
+    "admin.accessDeniedDesc": "Admin privileges required",
+    "tab.config": "Configuration",
+    "tab.users": "Users",
+    "tab.rooms": "Rooms",
+    "tab.finance": "Finance",
+    "tab.agents": "Agents",
+    "tab.risk": "Risk Control",
+    "tab.faq": "FAQ",
+    "tab.settings": "System",
+    "tab.stats": "Statistics",
+    "config.title": "System Configuration",
+    "config.gameSettings": "Game Settings",
+    "config.agentSystem": "Agent System",
+    "config.finance": "Finance",
+    "config.riskControl": "Risk Control",
+    "config.privateRoom": "Private Room",
+    "config.addNew": "Add New Configuration",
+    "config.key": "Key",
+    "config.value": "Value",
+    "config.label": "Label",
+    "config.category": "Category",
+    "config.saved": "Configuration saved!",
+    "config.keyValueRequired": "Key and value required",
+    "users.title": "User Management",
+    "users.noUsers": "No users yet",
+    "users.updated": "User updated",
+    "rooms.title": "Room Management",
+    "rooms.noRooms": "No rooms created yet",
+    "rooms.updated": "Room updated",
+    "rooms.deleted": "Room deleted",
+    "rooms.deleteConfirm": "Delete this room permanently?",
+    "rooms.pause": "Pause",
+    "rooms.resume": "Resume",
+    "rooms.close": "Close",
+    "rooms.delete": "Delete",
+    "rooms.players": "players",
+    "finance.title": "Financial Overview",
+    "finance.totalVolume": "Total Volume",
+    "finance.totalTx": "Total Transactions",
+    "finance.recentTx": "Recent Transactions",
+    "finance.noTx": "No transactions yet",
+    "agents.title": "Agent Management",
+    "agents.totalRel": "Total Relationships",
+    "agents.totalComm": "Total Commissions",
+    "agents.relationships": "Agent Relationships",
+    "agents.noRel": "No agent relationships yet",
+    "agents.recentComm": "Recent Commissions",
+    "agents.noComm": "No commission records yet",
+    "risk.title": "Risk Control",
+    "risk.flagged": "Flagged Events",
+    "risk.antiAbuse": "Anti-Abuse",
+    "risk.rules": "Anti-Abuse Rules",
+    "risk.regGate": "Registration Gate",
+    "risk.deviceFp": "Device Fingerprint",
+    "risk.behavior": "Behavior Analysis",
+    "risk.sameTable": "Same-table Ratio Check",
+    "risk.active": "Active",
+    "risk.configHint": "Configure thresholds in Config → Risk Control section",
+    "risk.log": "Detection Log",
+    "risk.noEvents": "No suspicious activity detected",
+    "faq.title": "FAQ Management (AI Knowledge Base)",
+    "faq.addEntry": "Add FAQ Entry",
+    "faq.question": "Question",
+    "faq.answer": "Answer",
+    "faq.saved": "FAQ saved!",
+    "faq.deleted": "FAQ deleted",
+    "faq.qaRequired": "Question and answer required",
+    "faq.existing": "Existing FAQs",
+    "faq.noEntries": "No FAQ entries. Add some to power the AI customer service.",
+    "settings.title": "System Settings",
+    "settings.maintenance": "Maintenance Mode",
+    "settings.maintenanceDesc": "When enabled, players cannot access the game",
+    "settings.defaultLang": "Default Language",
+    "settings.tgBot": "Telegram Bot Configuration",
+    "settings.botUsername": "Bot Username",
+    "settings.botToken": "Bot Token (hidden)",
+    "settings.supportedLangs": "Supported Languages",
+    "settings.saved": "Setting saved!",
+    "stats.title": "Platform Statistics",
+    "stats.totalUsers": "Total Users",
+    "stats.totalRooms": "Total Rooms",
+    "stats.totalTx": "Total Transactions",
+    "stats.totalVolume": "Total Volume",
+    "common.user": "User",
+    "common.agent": "Agent",
+    "common.level": "Level",
+    "users.normal": "Normal",
+    "users.watch": "Watch",
+    "users.frozen": "Frozen",
+    "users.banned": "Banned",
+    "agents.unlocked": "Unlocked",
+    "agents.pending": "Pending",
+    "risk.layers": "4-Layer Defense",
+    "faq.catGeneral": "General",
+    "faq.catDeposit": "Deposit",
+    "faq.catWithdraw": "Withdraw",
+    "faq.catGame": "Game Rules",
+    "faq.catAgent": "Agent",
+    "faq.catSecurity": "Security",
+  },
+};
+
+function useAdminLang() {
+  const [lang, setLang] = useState<AdminLang>(() => {
+    const saved = localStorage.getItem("vera-admin-lang") as AdminLang | null;
+    return saved || "zh-CN";
+  });
+  const changeLang = (newLang: AdminLang) => {
+    setLang(newLang);
+    localStorage.setItem("vera-admin-lang", newLang);
+  };
+  const at = (key: string): string => adminI18n[lang]?.[key] || adminI18n["en"]?.[key] || key;
+  return { lang, changeLang, at };
+}
+
+// ==================== ADMIN TABS ====================
 type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats";
 
+// ==================== MAIN ADMIN COMPONENT ====================
 export default function Admin() {
-  const { user } = useAuth();
+  const { user, loading, logout } = useAuth();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<AdminTab>("config");
+  const isMobile = useIsMobile();
+  const { lang, changeLang, at } = useAdminLang();
 
-  if (user && user.role !== "admin") {
+  // Unauthenticated
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <RefreshCw className="w-8 h-8 animate-spin text-gold" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center max-w-sm p-8">
+          <Shield className="w-12 h-12 text-gold mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">{at("admin.signIn")}</h2>
+          <p className="text-muted-foreground mb-6">{at("admin.signInDesc")}</p>
+          <button
+            onClick={() => { window.location.href = getLoginUrl(); }}
+            className="px-6 py-3 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold"
+          >
+            {at("admin.signInBtn")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (user.role !== "admin") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-12 h-12 text-danger mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">Admin privileges required</p>
+          <h2 className="text-xl font-bold mb-2">{at("admin.accessDenied")}</h2>
+          <p className="text-muted-foreground">{at("admin.accessDeniedDesc")}</p>
         </div>
       </div>
     );
   }
 
   const tabs: { key: AdminTab; icon: any; label: string }[] = [
-    { key: "config", icon: Settings, label: "Config" },
-    { key: "users", icon: Users, label: "Users" },
-    { key: "rooms", icon: Settings, label: "Rooms" },
-    { key: "finance", icon: DollarSign, label: "Finance" },
-    { key: "agents", icon: UserCheck, label: "Agents" },
-    { key: "risk", icon: Shield, label: "Risk" },
-    { key: "faq", icon: Settings, label: "FAQ" },
-    { key: "settings", icon: Settings, label: "System" },
-    { key: "stats", icon: BarChart3, label: "Stats" },
+    { key: "config", icon: Settings, label: at("tab.config") },
+    { key: "users", icon: Users, label: at("tab.users") },
+    { key: "rooms", icon: Layers, label: at("tab.rooms") },
+    { key: "finance", icon: DollarSign, label: at("tab.finance") },
+    { key: "agents", icon: UserCheck, label: at("tab.agents") },
+    { key: "risk", icon: Shield, label: at("tab.risk") },
+    { key: "faq", icon: MessageSquare, label: at("tab.faq") },
+    { key: "settings", icon: Settings, label: at("tab.settings") },
+    { key: "stats", icon: BarChart3, label: at("tab.stats") },
   ];
 
+  // ==================== PC LAYOUT (>= 768px) ====================
+  if (!isMobile) {
+    return (
+      <div className="min-h-screen bg-background flex">
+        {/* Sidebar */}
+        <aside className="w-64 min-h-screen bg-card border-r border-border flex flex-col sticky top-0 h-screen">
+          {/* Logo */}
+          <div className="px-5 py-5 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center">
+                <span className="text-sm font-bold text-background">V</span>
+              </div>
+              <div>
+                <h1 className="text-sm font-bold text-foreground">{at("admin.title")}</h1>
+                <p className="text-[10px] text-muted-foreground">{at("admin.subtitle")}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Nav Items */}
+          <nav className="flex-1 overflow-y-auto py-3 px-3">
+            <div className="space-y-1">
+              {tabs.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    activeTab === tab.key
+                      ? "bg-gold/10 text-gold"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4 shrink-0" />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          {/* Footer */}
+          <div className="p-3 border-t border-border space-y-2">
+            {/* Language Switcher */}
+            <div className="flex items-center gap-1 px-2">
+              <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+              {(["zh-CN", "zh-TW", "en"] as AdminLang[]).map(l => (
+                <button
+                  key={l}
+                  onClick={() => changeLang(l)}
+                  className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+                    lang === l ? "bg-gold/10 text-gold" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {l === "zh-CN" ? "简" : l === "zh-TW" ? "繁" : "EN"}
+                </button>
+              ))}
+            </div>
+            {/* User Info */}
+            <div className="flex items-center justify-between px-2 py-2 rounded-lg bg-secondary/30">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-gold/20 flex items-center justify-center">
+                  <span className="text-xs font-bold text-gold">{user.name?.charAt(0) || "A"}</span>
+                </div>
+                <span className="text-xs font-medium truncate max-w-[100px]">{user.name}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => navigate("/lobby")} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground" title={at("admin.back")}>
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={logout} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-danger" title="Logout">
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 min-h-screen overflow-y-auto">
+          <div className="max-w-5xl mx-auto p-6">
+            <PanelContent tab={activeTab} at={at} />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ==================== MOBILE LAYOUT (< 768px) ====================
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-30 glass-strong border-b border-border">
         <div className="flex items-center justify-between px-4 py-3">
-          <div>
-            <h1 className="text-base font-bold text-gold">Vera Admin</h1>
-            <p className="text-[10px] text-muted-foreground">Management Console</p>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center">
+              <span className="text-[10px] font-bold text-background">V</span>
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-gold">{at("admin.title")}</h1>
+              <p className="text-[10px] text-muted-foreground">{at("admin.subtitle")}</p>
+            </div>
           </div>
-          <button onClick={() => navigate("/lobby")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary">
-            <ArrowLeft className="w-3 h-3" /> Back
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Language Switcher */}
+            <div className="flex items-center gap-0.5">
+              {(["zh-CN", "zh-TW", "en"] as AdminLang[]).map(l => (
+                <button
+                  key={l}
+                  onClick={() => changeLang(l)}
+                  className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                    lang === l ? "bg-gold/10 text-gold" : "text-muted-foreground"
+                  }`}
+                >
+                  {l === "zh-CN" ? "简" : l === "zh-TW" ? "繁" : "EN"}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => navigate("/lobby")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary">
+              <ArrowLeft className="w-3 h-3" />
+            </button>
+          </div>
         </div>
         {/* Scrollable Tab Bar */}
         <div className="flex overflow-x-auto px-2 pb-2 gap-1 no-scrollbar">
@@ -68,25 +556,33 @@ export default function Admin() {
 
       {/* Main Content */}
       <main className="flex-1 p-4 overflow-y-auto">
-        {activeTab === "config" && <ConfigPanel />}
-        {activeTab === "users" && <UsersPanel />}
-        {activeTab === "rooms" && <RoomsPanel />}
-        {activeTab === "finance" && <FinancePanel />}
-        {activeTab === "agents" && <AgentsPanel />}
-        {activeTab === "risk" && <RiskPanel />}
-        {activeTab === "faq" && <FaqPanel />}
-        {activeTab === "settings" && <SystemSettingsPanel />}
-        {activeTab === "stats" && <StatsPanel />}
+        <PanelContent tab={activeTab} at={at} />
       </main>
     </div>
   );
 }
 
+// ==================== PANEL CONTENT ROUTER ====================
+function PanelContent({ tab, at }: { tab: AdminTab; at: (key: string) => string }) {
+  switch (tab) {
+    case "config": return <ConfigPanel at={at} />;
+    case "users": return <UsersPanel at={at} />;
+    case "rooms": return <RoomsPanel at={at} />;
+    case "finance": return <FinancePanel at={at} />;
+    case "agents": return <AgentsPanel at={at} />;
+    case "risk": return <RiskPanel at={at} />;
+    case "faq": return <FaqPanel at={at} />;
+    case "settings": return <SystemSettingsPanel at={at} />;
+    case "stats": return <StatsPanel at={at} />;
+    default: return null;
+  }
+}
+
 // ==================== CONFIG PANEL ====================
-function ConfigPanel() {
+function ConfigPanel({ at }: { at: (k: string) => string }) {
   const { data: configs, isLoading, refetch } = trpc.config.getAll.useQuery();
   const upsertMutation = trpc.config.upsert.useMutation({
-    onSuccess: () => { toast.success("Configuration saved!"); refetch(); },
+    onSuccess: () => { toast.success(at("config.saved")); refetch(); },
     onError: (err) => toast.error(err.message),
   });
 
@@ -94,11 +590,11 @@ function ConfigPanel() {
   const [newConfig, setNewConfig] = useState({ key: "", value: "", category: "game", label: "", valueType: "string" as const, isPublic: false });
 
   const configGroups: Record<string, string[]> = {
-    "Game Settings": ["rake_percentage", "rake_cap", "min_players_to_start", "turn_timeout_seconds", "max_players_per_table"],
-    "Agent System": ["agent_level1_rate", "agent_level2_rate", "unlock_min_hands", "unlock_min_deposit", "unlock_min_rake", "max_daily_commission"],
-    "Finance": ["min_deposit", "min_withdrawal", "withdrawal_fee_rate", "daily_withdrawal_limit"],
-    "Risk Control": ["min_account_age_days", "observation_period_days", "max_same_table_ratio"],
-    "Private Room": ["room_fee_micro", "room_fee_low", "room_fee_mid", "room_fee_high", "room_fee_premium", "discount_5_rounds", "discount_10_rounds", "discount_20_rounds", "discount_50_rounds"],
+    [at("config.gameSettings")]: ["rake_percentage", "rake_cap", "min_players_to_start", "turn_timeout_seconds", "max_players_per_table"],
+    [at("config.agentSystem")]: ["agent_level1_rate", "agent_level2_rate", "unlock_min_hands", "unlock_min_deposit", "unlock_min_rake", "max_daily_commission"],
+    [at("config.finance")]: ["min_deposit", "min_withdrawal", "withdrawal_fee_rate", "daily_withdrawal_limit"],
+    [at("config.riskControl")]: ["min_account_age_days", "observation_period_days", "max_same_table_ratio"],
+    [at("config.privateRoom")]: ["room_fee_micro", "room_fee_low", "room_fee_mid", "room_fee_high", "room_fee_premium", "discount_5_rounds", "discount_10_rounds", "discount_20_rounds", "discount_50_rounds"],
   };
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
@@ -107,9 +603,7 @@ function ConfigPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">System Configuration</h2>
-      </div>
+      <h2 className="text-lg font-bold">{at("config.title")}</h2>
 
       {Object.entries(configGroups).map(([group, keys]) => (
         <div key={group} className="glass rounded-xl p-4">
@@ -119,9 +613,9 @@ function ConfigPanel() {
               const config = configMap.get(key) as any;
               const currentValue = editValues[key] ?? config?.value ?? "";
               return (
-                <div key={key} className="flex flex-col gap-1.5">
-                  <label className="text-xs text-muted-foreground">{config?.label || key}</label>
-                  <div className="flex items-center gap-2">
+                <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+                  <label className="text-xs text-muted-foreground sm:w-48 shrink-0">{config?.label || key}</label>
+                  <div className="flex items-center gap-2 flex-1">
                     <input
                       type="text"
                       value={currentValue}
@@ -144,11 +638,11 @@ function ConfigPanel() {
 
       {/* Add New Config */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-truth-blue mb-3">Add New Configuration</h3>
-        <div className="grid grid-cols-1 gap-3">
-          <input placeholder="Key" value={newConfig.key} onChange={e => setNewConfig(p => ({ ...p, key: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue" />
-          <input placeholder="Value" value={newConfig.value} onChange={e => setNewConfig(p => ({ ...p, value: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue" />
-          <input placeholder="Label" value={newConfig.label} onChange={e => setNewConfig(p => ({ ...p, label: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue" />
+        <h3 className="text-sm font-semibold text-truth-blue mb-3">{at("config.addNew")}</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <input placeholder={at("config.key")} value={newConfig.key} onChange={e => setNewConfig(p => ({ ...p, key: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue" />
+          <input placeholder={at("config.value")} value={newConfig.value} onChange={e => setNewConfig(p => ({ ...p, value: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue" />
+          <input placeholder={at("config.label")} value={newConfig.label} onChange={e => setNewConfig(p => ({ ...p, label: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue" />
           <select value={newConfig.category} onChange={e => setNewConfig(p => ({ ...p, category: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue bg-transparent">
             <option value="game">Game</option>
             <option value="agent">Agent</option>
@@ -159,13 +653,13 @@ function ConfigPanel() {
         </div>
         <button
           onClick={() => {
-            if (!newConfig.key || !newConfig.value) return toast.error("Key and value required");
+            if (!newConfig.key || !newConfig.value) return toast.error(at("config.keyValueRequired"));
             upsertMutation.mutate({ ...newConfig, description: "" });
             setNewConfig({ key: "", value: "", category: "game", label: "", valueType: "string", isPublic: false });
           }}
           className="mt-3 px-4 py-2 rounded-lg bg-truth-blue text-white text-sm font-medium hover:opacity-90 flex items-center gap-1"
         >
-          <Plus className="w-3.5 h-3.5" /> Add Config
+          <Plus className="w-3.5 h-3.5" /> {at("config.addNew")}
         </button>
       </div>
     </div>
@@ -173,10 +667,10 @@ function ConfigPanel() {
 }
 
 // ==================== USERS PANEL ====================
-function UsersPanel() {
+function UsersPanel({ at }: { at: (k: string) => string }) {
   const { data, isLoading } = trpc.admin.users.useQuery({ page: 1, limit: 50 });
   const updateMutation = trpc.admin.updateUser.useMutation({
-    onSuccess: () => toast.success("User updated"),
+    onSuccess: () => toast.success(at("users.updated")),
   });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
@@ -185,7 +679,7 @@ function UsersPanel() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">User Management</h2>
+      <h2 className="text-lg font-bold">{at("users.title")}</h2>
       <div className="space-y-2">
         {(users as any[])?.map((u: any) => (
           <div key={u.id} className="glass rounded-xl p-3">
@@ -212,31 +706,31 @@ function UsersPanel() {
                 onChange={(e) => updateMutation.mutate({ id: u.id, riskLevel: e.target.value as any })}
                 className="glass rounded px-2 py-1 text-[10px] bg-transparent outline-none"
               >
-                <option value="normal">Normal</option>
-                <option value="watch">Watch</option>
-                <option value="frozen">Frozen</option>
-                <option value="banned">Banned</option>
+                <option value="normal">{at("users.normal")}</option>
+                <option value="watch">{at("users.watch")}</option>
+                <option value="frozen">{at("users.frozen")}</option>
+                <option value="banned">{at("users.banned")}</option>
               </select>
             </div>
           </div>
         ))}
         {((users as any[])?.length ?? 0) === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-8">No users yet</p>
+          <p className="text-sm text-muted-foreground text-center py-8">{at("users.noUsers")}</p>
         )}
       </div>
     </div>
   );
 }
 
-// ==================== ROOMS PANEL (with admin actions) ====================
-function RoomsPanel() {
+// ==================== ROOMS PANEL ====================
+function RoomsPanel({ at }: { at: (k: string) => string }) {
   const { data, isLoading, refetch } = trpc.rooms.adminList.useQuery({ page: 1, limit: 50 });
   const updateMutation = trpc.rooms.adminUpdate.useMutation({
-    onSuccess: () => { toast.success("Room updated"); refetch(); },
+    onSuccess: () => { toast.success(at("rooms.updated")); refetch(); },
     onError: (err) => toast.error(err.message),
   });
   const deleteMutation = trpc.rooms.adminDelete.useMutation({
-    onSuccess: () => { toast.success("Room deleted"); refetch(); },
+    onSuccess: () => { toast.success(at("rooms.deleted")); refetch(); },
     onError: (err) => toast.error(err.message),
   });
 
@@ -246,10 +740,10 @@ function RoomsPanel() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">Room Management</h2>
-      <div className="space-y-2">
+      <h2 className="text-lg font-bold">{at("rooms.title")}</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {rooms.map((r: any) => (
-          <div key={r.id} className="glass rounded-xl p-3">
+          <div key={r.id} className="glass rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">{r.name}</span>
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
@@ -259,58 +753,45 @@ function RoomsPanel() {
                 "bg-secondary text-muted-foreground"
               }`}>{r.status}</span>
             </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                 r.type === "public" ? "bg-truth-blue/20 text-truth-blue" : "bg-purple-500/20 text-purple-400"
               }`}>{r.type}</span>
               <span className="font-mono">${r.smallBlind}/${r.bigBlind}</span>
-              <span>{r.currentPlayers}/{r.maxPlayers} players</span>
+              <span>{r.currentPlayers}/{r.maxPlayers} {at("rooms.players")}</span>
             </div>
-            {/* Admin Actions */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {r.status !== "paused" && r.status !== "closed" && (
-                <button
-                  onClick={() => updateMutation.mutate({ id: r.id, status: "paused" })}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-warning/10 text-warning text-[10px] font-medium hover:bg-warning/20"
-                >
-                  <Pause className="w-3 h-3" /> Pause
+                <button onClick={() => updateMutation.mutate({ id: r.id, status: "paused" })} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-warning/10 text-warning text-xs font-medium hover:bg-warning/20">
+                  <Pause className="w-3 h-3" /> {at("rooms.pause")}
                 </button>
               )}
               {r.status === "paused" && (
-                <button
-                  onClick={() => updateMutation.mutate({ id: r.id, status: "waiting" })}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-success/10 text-success text-[10px] font-medium hover:bg-success/20"
-                >
-                  <Play className="w-3 h-3" /> Resume
+                <button onClick={() => updateMutation.mutate({ id: r.id, status: "waiting" })} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-success/10 text-success text-xs font-medium hover:bg-success/20">
+                  <Play className="w-3 h-3" /> {at("rooms.resume")}
                 </button>
               )}
               {r.status !== "closed" && (
-                <button
-                  onClick={() => updateMutation.mutate({ id: r.id, status: "closed" })}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-danger/10 text-danger text-[10px] font-medium hover:bg-danger/20"
-                >
-                  <X className="w-3 h-3" /> Close
+                <button onClick={() => updateMutation.mutate({ id: r.id, status: "closed" })} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-danger/10 text-danger text-xs font-medium hover:bg-danger/20">
+                  <X className="w-3 h-3" /> {at("rooms.close")}
                 </button>
               )}
-              <button
-                onClick={() => { if (confirm("Delete this room permanently?")) deleteMutation.mutate({ id: r.id }); }}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-danger/10 text-danger text-[10px] font-medium hover:bg-danger/20"
-              >
-                <Trash2 className="w-3 h-3" /> Delete
+              <button onClick={() => { if (confirm(at("rooms.deleteConfirm"))) deleteMutation.mutate({ id: r.id }); }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-danger/10 text-danger text-xs font-medium hover:bg-danger/20">
+                <Trash2 className="w-3 h-3" /> {at("rooms.delete")}
               </button>
             </div>
           </div>
         ))}
-        {rooms.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-8">No rooms created yet</p>
-        )}
       </div>
+      {rooms.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-8">{at("rooms.noRooms")}</p>
+      )}
     </div>
   );
 }
 
 // ==================== FINANCE PANEL ====================
-function FinancePanel() {
+function FinancePanel({ at }: { at: (k: string) => string }) {
   const { data: txData, isLoading } = trpc.wallet.allTransactions.useQuery({ page: 1, limit: 20 });
   const { data: stats } = trpc.admin.stats.useQuery();
 
@@ -320,27 +801,27 @@ function FinancePanel() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">Financial Overview</h2>
-      <div className="grid grid-cols-2 gap-3">
+      <h2 className="text-lg font-bold">{at("finance.title")}</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="glass rounded-xl p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Total Volume</p>
+          <p className="text-xs text-muted-foreground mb-1">{at("finance.totalVolume")}</p>
           <p className="text-xl font-bold text-gold">${stats?.totalVolume ?? "0.00"}</p>
         </div>
         <div className="glass rounded-xl p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Total Transactions</p>
+          <p className="text-xs text-muted-foreground mb-1">{at("finance.totalTx")}</p>
           <p className="text-xl font-bold text-truth-blue">{stats?.totalTransactions ?? 0}</p>
         </div>
       </div>
 
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Recent Transactions</h3>
+        <h3 className="text-sm font-semibold mb-3">{at("finance.recentTx")}</h3>
         {transactions.length > 0 ? (
           <div className="space-y-2">
             {transactions.map((tx: any) => (
               <div key={tx.id} className="flex items-center justify-between py-2 border-b border-border/30">
                 <div>
                   <span className={`text-xs font-medium ${tx.type === "deposit" ? "text-success" : "text-danger"}`}>{tx.type}</span>
-                  <span className="text-xs text-muted-foreground ml-2">User #{tx.userId}</span>
+                  <span className="text-xs text-muted-foreground ml-2">{at("common.user")} #{tx.userId}</span>
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-mono">${tx.amount}</span>
@@ -354,7 +835,7 @@ function FinancePanel() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No transactions yet</p>
+          <p className="text-sm text-muted-foreground">{at("finance.noTx")}</p>
         )}
       </div>
     </div>
@@ -362,7 +843,7 @@ function FinancePanel() {
 }
 
 // ==================== AGENTS PANEL ====================
-function AgentsPanel() {
+function AgentsPanel({ at }: { at: (k: string) => string }) {
   const { data: agentData, isLoading } = trpc.admin.agents.useQuery({ page: 1, limit: 50 });
   const { data: commissionData } = trpc.admin.commissions.useQuery({ page: 1, limit: 20 });
 
@@ -373,30 +854,28 @@ function AgentsPanel() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">Agent Management</h2>
+      <h2 className="text-lg font-bold">{at("agents.title")}</h2>
       
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="glass rounded-xl p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Total Relationships</p>
+          <p className="text-xs text-muted-foreground mb-1">{at("agents.totalRel")}</p>
           <p className="text-xl font-bold text-gold">{(agentData as any)?.total ?? 0}</p>
         </div>
         <div className="glass rounded-xl p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Total Commissions</p>
+          <p className="text-xs text-muted-foreground mb-1">{at("agents.totalComm")}</p>
           <p className="text-xl font-bold text-truth-blue">{(commissionData as any)?.total ?? 0}</p>
         </div>
       </div>
 
-      {/* Agent Relationships */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Agent Relationships</h3>
+        <h3 className="text-sm font-semibold mb-3">{at("agents.relationships")}</h3>
         {relationships.length > 0 ? (
           <div className="space-y-2">
             {relationships.map((rel: any) => (
               <div key={rel.id} className="flex items-center justify-between py-2 border-b border-border/30">
                 <div>
-                  <span className="text-xs font-medium">Agent #{rel.agentId}</span>
-                  <span className="text-xs text-muted-foreground ml-2">→ Downline #{rel.downlineId}</span>
+                  <span className="text-xs font-medium">{at("common.agent")} #{rel.agentId}</span>
+                  <span className="text-xs text-muted-foreground ml-2">→ #{rel.downlineId}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
@@ -404,26 +883,25 @@ function AgentsPanel() {
                   }`}>L{rel.level}</span>
                   <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                     rel.isUnlocked ? "bg-success/20 text-success" : "bg-warning/20 text-warning"
-                  }`}>{rel.isUnlocked ? "Unlocked" : "Pending"}</span>
+                  }`}>{rel.isUnlocked ? at("agents.unlocked") : at("agents.pending")}</span>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No agent relationships yet</p>
+          <p className="text-sm text-muted-foreground">{at("agents.noRel")}</p>
         )}
       </div>
 
-      {/* Recent Commissions */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Recent Commissions</h3>
+        <h3 className="text-sm font-semibold mb-3">{at("agents.recentComm")}</h3>
         {commissions.length > 0 ? (
           <div className="space-y-2">
             {commissions.map((c: any) => (
               <div key={c.id} className="flex items-center justify-between py-2 border-b border-border/30">
                 <div>
-                  <span className="text-xs font-medium">Agent #{c.agentId}</span>
-                  <span className="text-xs text-muted-foreground ml-2">from #{c.sourceUserId}</span>
+                  <span className="text-xs font-medium">{at("common.agent")} #{c.agentId}</span>
+                  <span className="text-xs text-muted-foreground ml-2">← #{c.sourceUserId}</span>
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-mono text-gold">${c.amount}</span>
@@ -433,7 +911,7 @@ function AgentsPanel() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No commission records yet</p>
+          <p className="text-sm text-muted-foreground">{at("agents.noComm")}</p>
         )}
       </div>
     </div>
@@ -441,7 +919,7 @@ function AgentsPanel() {
 }
 
 // ==================== RISK PANEL ====================
-function RiskPanel() {
+function RiskPanel({ at }: { at: (k: string) => string }) {
   const { data: events, isLoading } = trpc.admin.riskEvents.useQuery({ page: 1, limit: 20 });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
@@ -450,60 +928,59 @@ function RiskPanel() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">Risk Control</h2>
-      <div className="grid grid-cols-2 gap-3">
+      <h2 className="text-lg font-bold">{at("risk.title")}</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="glass rounded-xl p-4">
           <Shield className="w-5 h-5 text-danger mb-2" />
-          <p className="text-xs font-semibold">Flagged Events</p>
+          <p className="text-xs font-semibold">{at("risk.flagged")}</p>
           <p className="text-xl font-bold text-danger mt-1">{riskEvents.length}</p>
         </div>
         <div className="glass rounded-xl p-4">
           <Shield className="w-5 h-5 text-warning mb-2" />
-          <p className="text-xs font-semibold">Anti-Abuse</p>
-          <p className="text-[10px] text-muted-foreground mt-1">4-Layer Defense</p>
+          <p className="text-xs font-semibold">{at("risk.antiAbuse")}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">{at("risk.layers")}</p>
         </div>
       </div>
 
-      {/* Anti-abuse rules info */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Anti-Abuse Rules</h3>
+        <h3 className="text-sm font-semibold mb-3">{at("risk.rules")}</h3>
         <div className="space-y-2 text-xs text-muted-foreground">
           <div className="flex items-center justify-between py-1.5 border-b border-border/30">
-            <span>Registration Gate</span>
-            <span className="text-success font-medium">Active</span>
+            <span>{at("risk.regGate")}</span>
+            <span className="text-success font-medium">{at("risk.active")}</span>
           </div>
           <div className="flex items-center justify-between py-1.5 border-b border-border/30">
-            <span>Device Fingerprint</span>
-            <span className="text-success font-medium">Active</span>
+            <span>{at("risk.deviceFp")}</span>
+            <span className="text-success font-medium">{at("risk.active")}</span>
           </div>
           <div className="flex items-center justify-between py-1.5 border-b border-border/30">
-            <span>Behavior Analysis</span>
-            <span className="text-success font-medium">Active</span>
+            <span>{at("risk.behavior")}</span>
+            <span className="text-success font-medium">{at("risk.active")}</span>
           </div>
           <div className="flex items-center justify-between py-1.5">
-            <span>Same-table Ratio Check</span>
-            <span className="text-success font-medium">Active</span>
+            <span>{at("risk.sameTable")}</span>
+            <span className="text-success font-medium">{at("risk.active")}</span>
           </div>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-3">Configure thresholds in Config → Risk Control section</p>
+        <p className="text-[10px] text-muted-foreground mt-3">{at("risk.configHint")}</p>
       </div>
 
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Detection Log</h3>
+        <h3 className="text-sm font-semibold mb-3">{at("risk.log")}</h3>
         {riskEvents.length > 0 ? (
           <div className="space-y-2">
             {riskEvents.map((e: any) => (
               <div key={e.id} className="flex items-center justify-between py-2 border-b border-border/30">
                 <div>
                   <span className="text-xs font-medium text-danger">{e.eventType}</span>
-                  <span className="text-xs text-muted-foreground ml-2">User #{e.userId}</span>
+                  <span className="text-xs text-muted-foreground ml-2">{at("common.user")} #{e.userId}</span>
                 </div>
                 <span className="text-[10px] text-muted-foreground">{e.createdAt ? new Date(e.createdAt).toLocaleString() : "-"}</span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No suspicious activity detected</p>
+          <p className="text-sm text-muted-foreground">{at("risk.noEvents")}</p>
         )}
       </div>
     </div>
@@ -511,13 +988,13 @@ function RiskPanel() {
 }
 
 // ==================== FAQ PANEL ====================
-function FaqPanel() {
+function FaqPanel({ at }: { at: (k: string) => string }) {
   const { data: faqs, isLoading, refetch } = trpc.admin.faqList.useQuery();
   const upsertMutation = trpc.admin.faqUpsert.useMutation({
-    onSuccess: () => { toast.success("FAQ saved!"); refetch(); },
+    onSuccess: () => { toast.success(at("faq.saved")); refetch(); },
   });
   const deleteMutation = trpc.admin.faqDelete.useMutation({
-    onSuccess: () => { toast.success("FAQ deleted"); refetch(); },
+    onSuccess: () => { toast.success(at("faq.deleted")); refetch(); },
   });
 
   const [newFaq, setNewFaq] = useState({ category: "general", question: "", answer: "", language: "en" });
@@ -526,46 +1003,45 @@ function FaqPanel() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">FAQ Management (AI Knowledge Base)</h2>
+      <h2 className="text-lg font-bold">{at("faq.title")}</h2>
       
-      {/* Add FAQ */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-truth-blue mb-3">Add FAQ Entry</h3>
+        <h3 className="text-sm font-semibold text-truth-blue mb-3">{at("faq.addEntry")}</h3>
         <div className="space-y-2">
           <div className="flex gap-2">
             <select value={newFaq.category} onChange={e => setNewFaq(p => ({ ...p, category: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm bg-transparent outline-none flex-1">
-              <option value="general">General</option>
-              <option value="deposit">Deposit</option>
-              <option value="withdraw">Withdraw</option>
-              <option value="game">Game Rules</option>
-              <option value="agent">Agent</option>
-              <option value="security">Security</option>
+              <option value="general">{at("faq.catGeneral")}</option>
+              <option value="deposit">{at("faq.catDeposit")}</option>
+              <option value="withdraw">{at("faq.catWithdraw")}</option>
+              <option value="game">{at("faq.catGame")}</option>
+              <option value="agent">{at("faq.catAgent")}</option>
+              <option value="security">{at("faq.catSecurity")}</option>
             </select>
             <select value={newFaq.language} onChange={e => setNewFaq(p => ({ ...p, language: e.target.value }))} className="glass rounded-lg px-3 py-2 text-sm bg-transparent outline-none flex-1">
               <option value="en">English</option>
               <option value="zh-CN">中文</option>
+              <option value="zh-TW">繁體中文</option>
               <option value="ja">日本語</option>
               <option value="ko">한국어</option>
             </select>
           </div>
-          <input placeholder="Question" value={newFaq.question} onChange={e => setNewFaq(p => ({ ...p, question: e.target.value }))} className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue" />
-          <textarea placeholder="Answer" value={newFaq.answer} onChange={e => setNewFaq(p => ({ ...p, answer: e.target.value }))} className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue h-20 resize-none" />
+          <input placeholder={at("faq.question")} value={newFaq.question} onChange={e => setNewFaq(p => ({ ...p, question: e.target.value }))} className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue" />
+          <textarea placeholder={at("faq.answer")} value={newFaq.answer} onChange={e => setNewFaq(p => ({ ...p, answer: e.target.value }))} className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue h-20 resize-none" />
           <button
             onClick={() => {
-              if (!newFaq.question || !newFaq.answer) return toast.error("Question and answer required");
+              if (!newFaq.question || !newFaq.answer) return toast.error(at("faq.qaRequired"));
               upsertMutation.mutate(newFaq);
               setNewFaq({ category: "general", question: "", answer: "", language: "en" });
             }}
             className="px-4 py-2 rounded-lg bg-truth-blue text-white text-sm font-medium hover:opacity-90 flex items-center gap-1"
           >
-            <Plus className="w-3.5 h-3.5" /> Add FAQ
+            <Plus className="w-3.5 h-3.5" /> {at("faq.addEntry")}
           </button>
         </div>
       </div>
 
-      {/* FAQ List */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Existing FAQs ({(faqs as any[])?.length ?? 0})</h3>
+        <h3 className="text-sm font-semibold mb-3">{at("faq.existing")} ({(faqs as any[])?.length ?? 0})</h3>
         <div className="space-y-2">
           {(faqs as any[])?.map((faq: any) => (
             <div key={faq.id} className="flex items-start justify-between py-2 border-b border-border/30">
@@ -577,13 +1053,13 @@ function FaqPanel() {
                 <p className="text-xs font-medium">{faq.question}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{faq.answer}</p>
               </div>
-              <button onClick={() => deleteMutation.mutate({ id: faq.id })} className="p-1 text-danger/60 hover:text-danger">
+              <button onClick={() => deleteMutation.mutate({ id: faq.id })} className="p-1 text-danger/60 hover:text-danger ml-2">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
           ))}
           {((faqs as any[])?.length ?? 0) === 0 && (
-            <p className="text-sm text-muted-foreground">No FAQ entries. Add some to power the AI customer service.</p>
+            <p className="text-sm text-muted-foreground">{at("faq.noEntries")}</p>
           )}
         </div>
       </div>
@@ -592,10 +1068,10 @@ function FaqPanel() {
 }
 
 // ==================== SYSTEM SETTINGS PANEL ====================
-function SystemSettingsPanel() {
+function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
   const { data: configs, refetch } = trpc.config.getAll.useQuery();
   const upsertMutation = trpc.config.upsert.useMutation({
-    onSuccess: () => { toast.success("Setting saved!"); refetch(); },
+    onSuccess: () => { toast.success(at("settings.saved")); refetch(); },
     onError: (err) => toast.error(err.message),
   });
 
@@ -604,7 +1080,6 @@ function SystemSettingsPanel() {
   const [tgBotToken, setTgBotToken] = useState("");
   const [tgBotUsername, setTgBotUsername] = useState("");
 
-  // Load existing values when configs are fetched
   useEffect(() => {
     if (configs) {
       const configMap = new Map((configs as any[])?.map((c: any) => [c.key, c.value]) ?? []);
@@ -621,15 +1096,13 @@ function SystemSettingsPanel() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">System Settings</h2>
+      <h2 className="text-lg font-bold">{at("settings.title")}</h2>
       
       {/* Maintenance Mode */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Maintenance Mode</h3>
+        <h3 className="text-sm font-semibold mb-3">{at("settings.maintenance")}</h3>
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">When enabled, players cannot access the game</p>
-          </div>
+          <p className="text-xs text-muted-foreground">{at("settings.maintenanceDesc")}</p>
           <button
             onClick={() => {
               const newVal = !maintenanceMode;
@@ -645,7 +1118,7 @@ function SystemSettingsPanel() {
 
       {/* Default Language */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Default Language</h3>
+        <h3 className="text-sm font-semibold mb-3">{at("settings.defaultLang")}</h3>
         <select
           value={defaultLanguage}
           onChange={(e) => {
@@ -671,10 +1144,10 @@ function SystemSettingsPanel() {
 
       {/* Telegram Bot Config */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Telegram Bot Configuration</h3>
+        <h3 className="text-sm font-semibold mb-3">{at("settings.tgBot")}</h3>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Bot Username</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.botUsername")}</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -683,16 +1156,13 @@ function SystemSettingsPanel() {
                 placeholder="@VeraPokerBot"
                 className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
               />
-              <button
-                onClick={() => saveSystemSetting("tg_bot_username", tgBotUsername)}
-                className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"
-              >
+              <button onClick={() => saveSystemSetting("tg_bot_username", tgBotUsername)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
                 <Save className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Bot Token (hidden)</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.botToken")}</label>
             <div className="flex gap-2">
               <input
                 type="password"
@@ -701,10 +1171,7 @@ function SystemSettingsPanel() {
                 placeholder="Enter bot token"
                 className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
               />
-              <button
-                onClick={() => saveSystemSetting("tg_bot_token", tgBotToken)}
-                className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"
-              >
+              <button onClick={() => saveSystemSetting("tg_bot_token", tgBotToken)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
                 <Save className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -714,24 +1181,23 @@ function SystemSettingsPanel() {
 
       {/* Supported Languages */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Supported Languages</h3>
-        <div className="grid grid-cols-2 gap-2">
+        <h3 className="text-sm font-semibold mb-3">{at("settings.supportedLangs")}</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           {[
-            { code: "en", name: "English", flag: "🇺🇸" },
-            { code: "zh-CN", name: "简体中文", flag: "🇨🇳" },
-            { code: "zh-TW", name: "繁體中文", flag: "🇹🇼" },
-            { code: "ja", name: "日本語", flag: "🇯🇵" },
-            { code: "ko", name: "한국어", flag: "🇰🇷" },
-            { code: "es", name: "Español", flag: "🇪🇸" },
-            { code: "pt", name: "Português", flag: "🇧🇷" },
-            { code: "ru", name: "Русский", flag: "🇷🇺" },
-            { code: "ar", name: "العربية", flag: "🇸🇦" },
-            { code: "vi", name: "Tiếng Việt", flag: "🇻🇳" },
-            { code: "th", name: "ไทย", flag: "🇹🇭" },
-            { code: "id", name: "Indonesia", flag: "🇮🇩" },
+            { code: "en", name: "English" },
+            { code: "zh-CN", name: "简体中文" },
+            { code: "zh-TW", name: "繁體中文" },
+            { code: "ja", name: "日本語" },
+            { code: "ko", name: "한국어" },
+            { code: "es", name: "Español" },
+            { code: "pt", name: "Português" },
+            { code: "ru", name: "Русский" },
+            { code: "ar", name: "العربية" },
+            { code: "vi", name: "Tiếng Việt" },
+            { code: "th", name: "ไทย" },
+            { code: "id", name: "Indonesia" },
           ].map(lang => (
             <div key={lang.code} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-secondary/30">
-              <span className="text-sm">{lang.flag}</span>
               <span className="text-xs">{lang.name}</span>
             </div>
           ))}
@@ -742,29 +1208,29 @@ function SystemSettingsPanel() {
 }
 
 // ==================== STATS PANEL ====================
-function StatsPanel() {
+function StatsPanel({ at }: { at: (k: string) => string }) {
   const { data: stats, isLoading } = trpc.admin.stats.useQuery();
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">Platform Statistics</h2>
-      <div className="grid grid-cols-2 gap-3">
+      <h2 className="text-lg font-bold">{at("stats.title")}</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="glass rounded-xl p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Total Users</p>
+          <p className="text-xs text-muted-foreground mb-1">{at("stats.totalUsers")}</p>
           <p className="text-2xl font-bold">{stats?.totalUsers ?? 0}</p>
         </div>
         <div className="glass rounded-xl p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Total Rooms</p>
+          <p className="text-xs text-muted-foreground mb-1">{at("stats.totalRooms")}</p>
           <p className="text-2xl font-bold text-truth-blue">{stats?.totalRooms ?? 0}</p>
         </div>
         <div className="glass rounded-xl p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Total Transactions</p>
+          <p className="text-xs text-muted-foreground mb-1">{at("stats.totalTx")}</p>
           <p className="text-2xl font-bold text-gold">{stats?.totalTransactions ?? 0}</p>
         </div>
         <div className="glass rounded-xl p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Total Volume</p>
+          <p className="text-xs text-muted-foreground mb-1">{at("stats.totalVolume")}</p>
           <p className="text-2xl font-bold text-success">${stats?.totalVolume ?? "0.00"}</p>
         </div>
       </div>
