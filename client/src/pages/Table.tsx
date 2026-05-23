@@ -323,8 +323,12 @@ export default function Table() {
     if (roomPlayers && user) {
       const seated = roomPlayers.some((p: any) => p.userId === user.id);
       setIsSeated(seated);
+      // Auto-show buy-in dialog when entering table and not seated
+      if (!seated && isValidRoom) {
+        setShowBuyIn(true);
+      }
     }
-  }, [roomPlayers, user]);
+  }, [roomPlayers, user, isValidRoom]);
 
   // Demo mode for test room
   const isDemoMode = !isValidRoom || id === "test";
