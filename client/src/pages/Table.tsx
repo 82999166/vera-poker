@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { t } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
@@ -124,22 +124,13 @@ const SEAT_POSITIONS = [
   { top: "58%", left: "97%", transform: "translate(-100%, -50%)" },// Right bottom
 ];
 
-// Phase display names (i18n keys)
-function getPhaseNames(): Record<string, string> {
-  return {
-    waiting: t("table.waiting").split("...")[0] || "Waiting",
-    preflop: "Pre-flop",
-    flop: "Flop",
-    turn: "Turn",
-    river: "River",
-    showdown: "Showdown",
-  };
-}
+// Phase display names - resolved inside component via t()
 
 export default function Table() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const { t } = useI18n();
   const { play: playSound, toggle: toggleSound, isEnabled: isSoundEnabled } = useSoundEffects();
   const [muted, setMuted] = useState(() => localStorage.getItem("vera-sound-enabled") === "false");
   const [raiseAmount, setRaiseAmount] = useState(4.00);
@@ -323,6 +314,15 @@ export default function Table() {
   const displayPhase = isDemoMode ? "flop" : phase;
   const displayIsMyTurn = isDemoMode ? true : isMyTurn;
 
+  const phaseNames: Record<string, string> = {
+    waiting: t("table.waiting"),
+    preflop: t("table.phasePreflop"),
+    flop: t("table.phaseFlop"),
+    turn: t("table.phaseTurn"),
+    river: t("table.phaseRiver"),
+    showdown: t("table.phaseShowdown"),
+  };
+
   const handleFold = () => {
     if (isDemoMode) return toast.info(t("table.demoMode"));
     actionMutation.mutate({ roomId, action: "fold" });
@@ -374,7 +374,7 @@ export default function Table() {
           </span>
           {displayPhase !== "waiting" && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-truth-blue/20 text-truth-blue font-medium">
-              {getPhaseNames()[displayPhase] || displayPhase}
+              {phaseNames[displayPhase] || displayPhase}
             </span>
           )}
         </div>
@@ -417,7 +417,7 @@ export default function Table() {
             })}
           </div>
           <p className="text-[9px] text-center text-muted-foreground mt-0.5">
-            {getPhaseNames()[displayPhase]}
+            {phaseNames[displayPhase]}
           </p>
         </div>
       )}
@@ -554,7 +554,7 @@ export default function Table() {
                   } ${player.isAllIn ? "border border-red-500/60 shadow-[0_0_8px_rgba(239,68,68,0.3)]" : ""
                   } ${isHero ? "border border-truth-blue/40" : ""}`}>
                     <p className="text-[9px] text-muted-foreground truncate max-w-[56px] leading-tight">
-                      {isHero ? "你" : (player as any).name || `P${player.seatIndex + 1}`}
+                      {isHero ? t("table.you") : (player as any).name || `P${player.seatIndex + 1}`}
                     </p>
                     <p className={`text-[11px] font-bold leading-tight ${
                       player.isAllIn ? "text-red-400" : player.isFolded ? "text-muted-foreground" : "text-foreground"

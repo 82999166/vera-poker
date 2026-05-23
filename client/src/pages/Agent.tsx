@@ -1,6 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { t } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { useLocation } from "wouter";
 import { ArrowLeft, Copy, Users, TrendingUp, Unlock, Lock, Share2 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
@@ -9,13 +9,14 @@ import { toast } from "sonner";
 export default function Agent() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const { t } = useI18n();
   const { data: dashboard, isLoading } = trpc.agent.dashboard.useQuery(undefined, { enabled: !!user });
   const { data: downlines } = trpc.agent.downlines.useQuery(undefined, { enabled: !!user });
 
   const copyLink = () => {
     if (dashboard?.inviteLink) {
       navigator.clipboard.writeText(dashboard.inviteLink);
-      toast.success("Invite link copied!");
+      toast.success(t("agent.inviteLinkCopied"));
     }
   };
 
@@ -84,7 +85,7 @@ export default function Agent() {
       {/* Commission Rates */}
       <div className="px-4 pt-4">
         <div className="glass rounded-xl p-4">
-          <h3 className="text-sm font-semibold mb-3">Commission Rates</h3>
+          <h3 className="text-sm font-semibold mb-3">{t("agent.commissionRates")}</h3>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">{t("agent.level1")}</span>
@@ -101,23 +102,23 @@ export default function Agent() {
       {/* Unlock Requirements */}
       <div className="px-4 pt-4">
         <div className="glass rounded-xl p-4">
-          <h3 className="text-sm font-semibold mb-3">Unlock Requirements</h3>
+          <h3 className="text-sm font-semibold mb-3">{t("agent.unlockRequirements")}</h3>
           <div className="space-y-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-gold" />
-              <span>Downline plays ≥ 20 valid hands</span>
+              <span>{t("agent.unlockReq1")}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-gold" />
-              <span>Downline deposits ≥ $10</span>
+              <span>{t("agent.unlockReq2")}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-gold" />
-              <span>Downline rake generated ≥ $1</span>
+              <span>{t("agent.unlockReq3")}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-gold" />
-              <span>Not all hands played at same table as agent</span>
+              <span>{t("agent.unlockReq4")}</span>
             </div>
           </div>
         </div>
@@ -130,7 +131,7 @@ export default function Agent() {
           {(!downlines || downlines.length === 0) ? (
             <div className="glass rounded-xl p-6 text-center">
               <Users className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
-              <p className="text-sm text-muted-foreground">No downlines yet. Share your invite link!</p>
+              <p className="text-sm text-muted-foreground">{t("agent.noDownlines")}</p>
             </div>
           ) : (
             (downlines as any[]).map((dl: any, i: number) => {
@@ -143,15 +144,17 @@ export default function Agent() {
                       {dl.isUnlocked ? <Unlock className="w-4 h-4 text-success" /> : <Lock className="w-4 h-4 text-warning" />}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Level {dl.level} Downline</p>
+                      <p className="text-sm font-medium">
+                        {t("agent.levelDownline").replace("{level}", String(dl.level))}
+                      </p>
                       <p className="text-[10px] text-muted-foreground">
-                        {dl.isUnlocked ? "Active" : `${gamesPlayed}/20 hands`}
+                        {dl.isUnlocked ? t("agent.unlocked") : `${gamesPlayed}/20 hands`}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-gold">${dl.totalCommissionEarned ?? "0.00"}</p>
-                    <p className="text-[10px] text-muted-foreground">earned</p>
+                    <p className="text-[10px] text-muted-foreground">{t("agent.earned")}</p>
                   </div>
                 </div>
               );

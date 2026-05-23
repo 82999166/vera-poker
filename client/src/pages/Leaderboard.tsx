@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useI18n } from "@/lib/i18n";
 import BottomNav from "@/components/BottomNav";
 import { ArrowLeft, Trophy, TrendingUp, Gamepad2, Crown, Medal } from "lucide-react";
 
@@ -10,6 +11,7 @@ type TabKey = "profit" | "winRate" | "hands";
 export default function Leaderboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TabKey>("profit");
 
   const { data: profitData, isLoading: profitLoading } = trpc.leaderboard.profit.useQuery({ limit: 20 });
@@ -17,9 +19,9 @@ export default function Leaderboard() {
   const { data: handsData, isLoading: handsLoading } = trpc.leaderboard.handsPlayed.useQuery({ limit: 20 });
 
   const tabs = [
-    { key: "profit" as const, label: "盈利榜", icon: TrendingUp },
-    { key: "winRate" as const, label: "胜率榜", icon: Trophy },
-    { key: "hands" as const, label: "场次榜", icon: Gamepad2 },
+    { key: "profit" as const, label: t("leaderboard.profit"), icon: TrendingUp },
+    { key: "winRate" as const, label: t("leaderboard.winRate"), icon: Trophy },
+    { key: "hands" as const, label: t("leaderboard.hands"), icon: Gamepad2 },
   ];
 
   const isLoading = activeTab === "profit" ? profitLoading : activeTab === "winRate" ? winRateLoading : handsLoading;
@@ -32,7 +34,7 @@ export default function Leaderboard() {
         <button onClick={() => navigate("/lobby")} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-base font-bold">排行榜</h1>
+        <h1 className="text-base font-bold">{t("leaderboard.title")}</h1>
       </div>
 
       {/* Tabs */}
@@ -64,8 +66,10 @@ export default function Leaderboard() {
         ) : !data || data.length === 0 ? (
           <div className="glass rounded-xl p-8 text-center">
             <Trophy className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">暂无数据</p>
-            <p className="text-xs text-muted-foreground mt-1">需要至少10手牌才能上榜</p>
+            <p className="text-sm text-muted-foreground">{t("common.error")}</p>
+            {activeTab === "winRate" && (
+              <p className="text-xs text-muted-foreground mt-1">{t("leaderboard.minHandsHint")}</p>
+            )}
           </div>
         ) : (
           data.map((entry: any, index: number) => (
@@ -75,8 +79,9 @@ export default function Leaderboard() {
               name={entry.nickname || entry.name || `Player ${entry.userId}`}
               avatar={entry.avatar}
               value={getDisplayValue(activeTab, entry)}
-              subValue={getSubValue(activeTab, entry)}
+              subValue={getSubValue(activeTab, entry, t("leaderboard.handsUnit"))}
               isMe={entry.userId === user?.id}
+              youLabel={t("leaderboard.you")}
             />
           ))
         )}
@@ -95,21 +100,22 @@ function getDisplayValue(tab: TabKey, entry: any): string {
   }
 }
 
-function getSubValue(tab: TabKey, entry: any): string {
+function getSubValue(tab: TabKey, entry: any, handsUnit: string): string {
   switch (tab) {
-    case "profit": return `${entry.totalHands} 手`;
-    case "winRate": return `${entry.totalHands} 手`;
+    case "profit": return `${entry.totalHands} ${handsUnit}`;
+    case "winRate": return `${entry.totalHands} ${handsUnit}`;
     case "hands": return "";
   }
 }
 
-function LeaderboardRow({ rank, name, avatar, value, subValue, isMe }: {
+function LeaderboardRow({ rank, name, avatar, value, subValue, isMe, youLabel }: {
   rank: number;
   name: string;
   avatar: string | null;
   value: string;
   subValue: string;
   isMe: boolean;
+  youLabel: string;
 }) {
   const getRankIcon = () => {
     if (rank === 1) return <Crown className="w-5 h-5 text-gold" />;
@@ -133,7 +139,7 @@ function LeaderboardRow({ rank, name, avatar, value, subValue, isMe }: {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">
           {name}
-          {isMe && <span className="text-[10px] text-gold ml-1">(我)</span>}
+          {isMe && <span className="text-[10px] text-gold ml-1">{youLabel}</span>}
         </p>
         {subValue && <p className="text-[10px] text-muted-foreground">{subValue}</p>}
       </div>
