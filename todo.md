@@ -177,3 +177,9 @@
 - [x] BotFather configuration guide in admin panel
 - [x] Verify auto-login flow: code complete, requires real bot token in production to test
 - [x] Add /start command deep link to specific room (room_xxx, ref_xxx params)
+
+## Admin Independent Login
+- [x] Admin panel uses independent login (not Manus OAuth)
+- [x] Super admin account: admin / admin123
+- [x] Admin page directly shows StaffLogin form if not authenticated as staff
+- [x] Remove Manus OAuth dependency from admin panel access

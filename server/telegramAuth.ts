@@ -142,7 +142,7 @@ export function registerTelegramAuthRoutes(app: Express) {
       }
 
       // Get bot token from system config
-      const botToken = await db.getConfigValue("telegram_bot_token");
+      const botToken = await db.getConfigValue("tg_bot_token");
       if (!botToken) {
         res.status(500).json({ error: "Telegram bot not configured" });
         return;
@@ -223,7 +223,7 @@ export function registerTelegramAuthRoutes(app: Express) {
       }
 
       // Get bot token from system config
-      const botToken = await db.getConfigValue("telegram_bot_token");
+      const botToken = await db.getConfigValue("tg_bot_token");
       if (!botToken) {
         res.status(500).json({ error: "Telegram bot not configured" });
         return;
@@ -280,6 +280,123 @@ export function registerTelegramAuthRoutes(app: Express) {
     } catch (error) {
       console.error("[TG Auth] Widget auth error:", error);
       res.status(500).json({ error: "Authentication failed" });
+    }
+  });
+
+  /**
+   * GET /api/telegram/widget-callback
+   * Handle Telegram Login Widget redirect callback.
+   * Telegram redirects here with auth data in query params.
+   * We validate, create session, then redirect to the app.
+   */
+  app.get("/api/telegram/widget-callback", async (req: Request, res: Response) => {
+    try {
+      const { id, first_name, last_name, username, photo_url, auth_date, hash } = req.query as Record<string, string>;
+
+      if (!id || !hash || !auth_date) {
+        // If no query params, it might be a postMessage flow - serve a page that posts to opener
+        res.send(`<!DOCTYPE html><html><body><script>
+          const params = new URLSearchParams(window.location.hash.slice(1) || window.location.search);
+          const data = Object.fromEntries(params.entries());
+          if (data.id && window.opener) {
+            window.opener.postMessage(data, '*');
+            window.close();
+          } else {
+            window.location.href = '/';
+          }
+        </script></body></html>`);
+        return;
+      }
+
+      // Get bot token from system config
+      const botToken = await db.getConfigValue("tg_bot_token");
+      if (!botToken) {
+        res.status(500).send("Bot not configured");
+        return;
+      }
+
+      const widgetData: TelegramLoginWidgetData = {
+        id: Number(id),
+        first_name: first_name || "",
+        last_name: last_name || undefined,
+        username: username || undefined,
+        photo_url: photo_url || undefined,
+        auth_date: Number(auth_date),
+        hash,
+      };
+
+      // Validate
+      if (!validateLoginWidget(widgetData, botToken)) {
+        res.status(401).send("Invalid signature");
+        return;
+      }
+
+      // Find or create user
+      const user = await db.findOrCreateTelegramUser({
+        tgId: String(widgetData.id),
+        tgUsername: widgetData.username || null,
+        firstName: widgetData.first_name,
+        lastName: widgetData.last_name || null,
+        photoUrl: widgetData.photo_url || null,
+        languageCode: "en",
+        isPremium: false,
+      });
+
+      if (!user) {
+        res.status(500).send("Failed to create user");
+        return;
+      }
+
+      // Create session
+      const displayName = widgetData.username
+        ? `@${widgetData.username}`
+        : `${widgetData.first_name}${widgetData.last_name ? " " + widgetData.last_name : ""}`;
+
+      const sessionToken = await sdk.createSessionToken(user.openId, {
+        name: displayName,
+        expiresInMs: ONE_YEAR_MS,
+      });
+
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: ONE_YEAR_MS,
+      });
+
+      // Serve a page that notifies the opener and redirects
+      res.send(`<!DOCTYPE html><html><body><script>
+        if (window.opener) {
+          window.opener.postMessage({ id: ${widgetData.id}, success: true }, '*');
+          window.close();
+        } else {
+          window.location.href = '/lobby';
+        }
+      </script></body></html>`);
+    } catch (error) {
+      console.error("[TG Auth] Widget callback error:", error);
+      res.status(500).send("Authentication failed");
+    }
+  });
+
+  /**
+   * GET /api/telegram/bot-info
+   * Public endpoint to get bot_id and bot_username for Login Widget
+   * Extracts bot_id from the token (digits before the colon)
+   */
+  app.get("/api/telegram/bot-info", async (_req: Request, res: Response) => {
+    try {
+      const botToken = await db.getConfigValue("tg_bot_token");
+      const botUsername = await db.getConfigValue("tg_bot_username");
+      
+      // Extract bot ID from token (format: 123456789:ABCxxx)
+      let botId = "";
+      if (botToken && botToken.includes(":")) {
+        botId = botToken.split(":")[0];
+      }
+      
+      res.json({ botId, botUsername });
+    } catch {
+      res.json({ botId: "", botUsername: "" });
     }
   });
 

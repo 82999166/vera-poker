@@ -121,4 +121,41 @@ export async function updateStaffPassword(userId: number, newPassword: string): 
   return true;
 }
 
+// Bootstrap default super admin account if none exists
+export async function bootstrapSuperAdmin() {
+  try {
+    const db = await getDb();
+    if (!db) return;
+
+    // Check if any admin account exists
+    const [existingAdmin] = await db
+      .select()
+      .from(users)
+      .where(eq(users.staffUsername, "admin"))
+      .limit(1);
+
+    if (existingAdmin) {
+      console.log("[StaffAuth] Super admin account already exists");
+      return;
+    }
+
+    // Create default super admin: admin / admin123
+    const { hash } = hashPassword("admin123");
+    const openId = `staff_superadmin_${Date.now()}`;
+
+    await db.insert(users).values({
+      openId,
+      name: "Super Admin",
+      role: "admin",
+      staffUsername: "admin",
+      staffPasswordHash: hash,
+      loginMethod: "staff",
+    });
+
+    console.log("[StaffAuth] Default super admin created (admin/admin123)");
+  } catch (error) {
+    console.error("[StaffAuth] Failed to bootstrap super admin:", error);
+  }
+}
+
 export { staffRouter, hashPassword, verifyPassword };

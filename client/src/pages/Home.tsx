@@ -62,10 +62,19 @@ export default function Home() {
 
   // Handle Telegram Login Widget callback
   const handleTelegramLogin = useCallback(async (widgetData: Record<string, unknown>) => {
-    const result = await authenticateWithWidget(widgetData);
-    if (result.success) {
+    // If we got a success signal from widget-callback (server already set the cookie)
+    if (widgetData.success === true) {
       setTgLoginSuccess(true);
       refresh();
+      return;
+    }
+    // Otherwise, try to authenticate with full widget data (has hash, auth_date, etc.)
+    if (widgetData.hash && widgetData.auth_date) {
+      const result = await authenticateWithWidget(widgetData);
+      if (result.success) {
+        setTgLoginSuccess(true);
+        refresh();
+      }
     }
   }, [authenticateWithWidget, refresh]);
 
@@ -176,15 +185,14 @@ function TelegramLoginButton({ onLogin }: { onLogin: (data: Record<string, unkno
     try {
       // Get bot config from server
       if (!botConfigRef.current) {
-        const res = await fetch("/api/trpc/config.getPublic?input={}", {
+        const res = await fetch("/api/telegram/bot-info", {
           credentials: "include",
         });
         const json = await res.json();
-        const configs = json?.result?.data;
-        const botId = configs?.telegram_bot_id;
-        const botUsername = configs?.telegram_bot_username;
+        const botId = json?.botId || "";
+        const botUsername = json?.botUsername || "";
         if (botId || botUsername) {
-          botConfigRef.current = { botId: botId || "", botUsername: botUsername || "" };
+          botConfigRef.current = { botId, botUsername };
         }
       }
 
@@ -225,11 +233,19 @@ function TelegramIcon({ className }: { className?: string }) {
 }
 
 /**
- * Open Telegram Login popup using the Telegram Login Widget JS API
+ * Open Telegram Login using the official Login Widget redirect approach.
+ * The popup opens Telegram's OAuth page, which after user authorization
+ * redirects to our widget-callback endpoint. The callback sets the session
+ * cookie and posts a success message back to the opener window.
  */
 function openTelegramLogin(botUsername: string, onLogin: (data: Record<string, unknown>) => void) {
-  // Use Telegram's login URL directly
-  const authUrl = `https://oauth.telegram.org/auth?bot_id=${botUsername}&origin=${encodeURIComponent(window.location.origin)}&request_access=write`;
+  // Clean the username (remove @ if present)
+  const cleanUsername = botUsername.replace(/^@/, "");
+  
+  // Telegram Login Widget uses the bot username in the URL
+  // The origin parameter must match our domain for the widget to work
+  const callbackUrl = `${window.location.origin}/api/telegram/widget-callback`;
+  const authUrl = `https://oauth.telegram.org/auth?bot_id=${cleanUsername}&origin=${encodeURIComponent(window.location.origin)}&embed=1&request_access=write&return_to=${encodeURIComponent(callbackUrl)}`;
 
   const width = 550;
   const height = 470;
@@ -242,12 +258,17 @@ function openTelegramLogin(botUsername: string, onLogin: (data: Record<string, u
     `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=no,resizable=no`
   );
 
-  // Listen for message from popup
+  // Listen for postMessage from our callback page or Telegram's OAuth page
   const handleMessage = (event: MessageEvent) => {
-    if (event.origin === "https://oauth.telegram.org") {
-      window.removeEventListener("message", handleMessage);
-      if (popup) popup.close();
-      if (event.data && typeof event.data === "object") {
+    // Accept messages from Telegram OAuth or our own origin (widget-callback page)
+    const trustedOrigins = ["https://oauth.telegram.org", window.location.origin];
+    if (!trustedOrigins.includes(event.origin)) return;
+    
+    if (event.data && typeof event.data === "object") {
+      // Our widget-callback sends { id, success: true } after setting the cookie
+      if (event.data.success || event.data.id || event.data.hash) {
+        window.removeEventListener("message", handleMessage);
+        if (popup) popup.close();
         onLogin(event.data);
       }
     }
@@ -255,11 +276,15 @@ function openTelegramLogin(botUsername: string, onLogin: (data: Record<string, u
 
   window.addEventListener("message", handleMessage);
 
-  // Fallback: check if popup was closed without auth
+  // Poll for popup closure - if user closes without completing auth
   const checkClosed = setInterval(() => {
     if (popup && popup.closed) {
       clearInterval(checkClosed);
       window.removeEventListener("message", handleMessage);
+      // After popup closes, try refreshing auth in case cookie was set
+      setTimeout(() => {
+        onLogin({ success: true, fromPopupClose: true });
+      }, 500);
     }
   }, 500);
 }

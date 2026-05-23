@@ -3,11 +3,11 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { useIsMobile } from "@/hooks/useMobile";
-import { getLoginUrl } from "@/const";
+
 import {
   Settings, Users, DollarSign, Shield, BarChart3, Save, RefreshCw,
   Plus, Trash2, ArrowLeft, UserCheck, Pause, Play, X, MessageSquare,
-  Globe, LogOut, PanelLeft, Layers, Copy, Check
+  Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -432,6 +432,108 @@ function useAdminLang() {
   return { lang, changeLang, at };
 }
 
+// ==================== INLINE STAFF LOGIN ====================
+function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !password.trim()) {
+      toast.error("请输入用户名和密码");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/staff/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "登录失败");
+        return;
+      }
+      toast.success(`欢迎回来，${data.user.name}`);
+      onSuccess();
+    } catch (err) {
+      toast.error("网络错误，请重试");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center mx-auto mb-4 shadow-lg shadow-gold/20">
+            <Shield className="w-8 h-8 text-background" />
+          </div>
+          <h1 className="text-xl font-bold text-foreground">Vera 管理后台</h1>
+          <p className="text-sm text-muted-foreground mt-1">员工登录</p>
+        </div>
+
+        {/* Login Form */}
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">用户名</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="请输入员工账号"
+              className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold/30 focus:border-gold/50 transition-all"
+              autoComplete="username"
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">密码</label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="请输入密码"
+                className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold/30 focus:border-gold/50 transition-all pr-12"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 active:scale-[0.97]"
+          >
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-background/30 border-t-background rounded-full animate-spin" />
+            ) : (
+              <>
+                <LogIn className="w-4 h-4" />
+                <span>登录</span>
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ==================== ADMIN TABS ====================
 type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff";
 
@@ -453,29 +555,7 @@ export default function Admin() {
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center max-w-sm p-8">
-          <Shield className="w-12 h-12 text-gold mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">{at("admin.signIn")}</h2>
-          <p className="text-muted-foreground mb-6">{at("admin.signInDesc")}</p>
-          <div className="space-y-3">
-            <button
-              onClick={() => { navigate("/staff-login"); }}
-              className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold"
-            >
-              员工登录
-            </button>
-            <button
-              onClick={() => { window.location.href = getLoginUrl(); }}
-              className="w-full px-6 py-3 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:border-gold/50 transition-all"
-            >
-              {at("admin.signInBtn")} (OAuth)
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <InlineStaffLogin onSuccess={() => window.location.reload()} />;
   }
 
   const staffRoles = ["admin", "cs", "finance", "tech"];
@@ -1221,7 +1301,9 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
   }, [configs]);
 
   const saveSystemSetting = (key: string, value: string) => {
-    upsertMutation.mutate({ key, value, category: "system", label: key, valueType: "string", isPublic: false });
+    // tg_bot_username needs to be public for frontend Login Widget
+    const isPublic = key === "tg_bot_username";
+    upsertMutation.mutate({ key, value, category: "system", label: key, valueType: "string", isPublic });
   };
 
   return (
@@ -1278,12 +1360,13 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
         <div className="space-y-3">
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">{at("settings.botUsername")}</label>
+            <p className="text-[10px] text-muted-foreground/60 mb-1">填写 Bot 的用户名（如 VeraPokerBot），不含 @</p>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={tgBotUsername}
                 onChange={(e) => setTgBotUsername(e.target.value)}
-                placeholder="@VeraPokerBot"
+                placeholder="VeraPokerBot"
                 className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
               />
               <button onClick={() => saveSystemSetting("tg_bot_username", tgBotUsername)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
@@ -1293,18 +1376,22 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">{at("settings.botToken")}</label>
+            <p className="text-[10px] text-muted-foreground/60 mb-1">完整 Token（如 123456789:ABCxxx），Bot ID 会自动提取</p>
             <div className="flex gap-2">
               <input
                 type="password"
                 value={tgBotToken}
                 onChange={(e) => setTgBotToken(e.target.value)}
-                placeholder="Enter bot token"
+                placeholder="123456789:ABCdefGHIjklMNO"
                 className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
               />
               <button onClick={() => saveSystemSetting("tg_bot_token", tgBotToken)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
                 <Save className="w-3.5 h-3.5" />
               </button>
             </div>
+            {tgBotToken && tgBotToken.includes(":") && (
+              <p className="text-[10px] text-gold/70 mt-1">Bot ID: {tgBotToken.split(":")[0]}</p>
+            )}
           </div>
         </div>
       </div>
