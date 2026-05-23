@@ -502,13 +502,7 @@ export default function Table() {
       )}
 
       {/* Table Area */}
-      <div className="flex-1 relative overflow-hidden">
-        {/* Poker Table Background Image */}
-        <img 
-          src="/manus-storage/poker-table-blue-opt_a0932ba9.jpg" 
-          alt="" 
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-        />
+      <div className="flex-1 relative overflow-hidden" style={{ backgroundImage: `url('/manus-storage/poker-table-blue-opt_a0932ba9.jpg')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
         {/* Game content overlay */}
         <div className="absolute inset-0">
             
