@@ -101,11 +101,19 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "settings.botToken": "Bot Token（隐藏）",
     "settings.supportedLangs": "支持语言列表",
     "settings.saved": "设置已保存！",
-    "stats.title": "平台统计",
+    "stats.title": "数据看板",
     "stats.totalUsers": "总用户数",
     "stats.totalRooms": "总房间数",
     "stats.totalTx": "总交易数",
     "stats.totalVolume": "总交易额",
+    "stats.dau": "日活跃用户",
+    "stats.dailyVolume": "每日交易量",
+    "stats.dailyHands": "每日牌局数",
+    "stats.trend": "趋势图表",
+    "stats.last14days": "近14天",
+    "stats.users": "用户数",
+    "stats.volume": "交易额",
+    "stats.hands": "牌局数",
     "common.user": "用户",
     "common.agent": "代理",
     "common.level": "等级",
@@ -209,11 +217,19 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "settings.botToken": "Bot Token（隱藏）",
     "settings.supportedLangs": "支持語言列表",
     "settings.saved": "設置已保存！",
-    "stats.title": "平台統計",
+    "stats.title": "數據看板",
     "stats.totalUsers": "總用戶數",
     "stats.totalRooms": "總房間數",
     "stats.totalTx": "總交易數",
     "stats.totalVolume": "總交易額",
+    "stats.dau": "日活躍用戶",
+    "stats.dailyVolume": "每日交易量",
+    "stats.dailyHands": "每日牌局數",
+    "stats.trend": "趨勢圖表",
+    "stats.last14days": "近14天",
+    "stats.users": "用戶數",
+    "stats.volume": "交易額",
+    "stats.hands": "牌局數",
     "common.user": "用戶",
     "common.agent": "代理",
     "common.level": "等級",
@@ -317,11 +333,19 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "settings.botToken": "Bot Token (hidden)",
     "settings.supportedLangs": "Supported Languages",
     "settings.saved": "Setting saved!",
-    "stats.title": "Platform Statistics",
+    "stats.title": "Analytics Dashboard",
     "stats.totalUsers": "Total Users",
     "stats.totalRooms": "Total Rooms",
     "stats.totalTx": "Total Transactions",
     "stats.totalVolume": "Total Volume",
+    "stats.dau": "Daily Active Users",
+    "stats.dailyVolume": "Daily Volume",
+    "stats.dailyHands": "Daily Hands",
+    "stats.trend": "Trend Charts",
+    "stats.last14days": "Last 14 Days",
+    "stats.users": "Users",
+    "stats.volume": "Volume",
+    "stats.hands": "Hands",
     "common.user": "User",
     "common.agent": "Agent",
     "common.level": "Level",
@@ -381,18 +405,27 @@ export default function Admin() {
           <Shield className="w-12 h-12 text-gold mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2">{at("admin.signIn")}</h2>
           <p className="text-muted-foreground mb-6">{at("admin.signInDesc")}</p>
-          <button
-            onClick={() => { window.location.href = getLoginUrl(); }}
-            className="px-6 py-3 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold"
-          >
-            {at("admin.signInBtn")}
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={() => { navigate("/staff-login"); }}
+              className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold"
+            >
+              员工登录
+            </button>
+            <button
+              onClick={() => { window.location.href = getLoginUrl(); }}
+              className="w-full px-6 py-3 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:border-gold/50 transition-all"
+            >
+              {at("admin.signInBtn")} (OAuth)
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (user.role !== "admin") {
+  const staffRoles = ["admin", "cs", "finance", "tech"];
+  if (!staffRoles.includes(user.role)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -404,7 +437,16 @@ export default function Admin() {
     );
   }
 
-  const tabs: { key: AdminTab; icon: any; label: string }[] = [
+  // Role-based tab permissions
+  const roleTabMap: Record<string, AdminTab[]> = {
+    admin: ["config", "users", "rooms", "finance", "agents", "risk", "faq", "settings", "stats"],
+    cs: ["users", "rooms", "faq", "stats"],
+    finance: ["finance", "agents", "stats"],
+    tech: ["config", "rooms", "risk", "settings", "stats"],
+  };
+  const allowedTabs = roleTabMap[user.role] || [];
+
+  const allTabs: { key: AdminTab; icon: any; label: string }[] = [
     { key: "config", icon: Settings, label: at("tab.config") },
     { key: "users", icon: Users, label: at("tab.users") },
     { key: "rooms", icon: Layers, label: at("tab.rooms") },
@@ -415,6 +457,7 @@ export default function Admin() {
     { key: "settings", icon: Settings, label: at("tab.settings") },
     { key: "stats", icon: BarChart3, label: at("tab.stats") },
   ];
+  const tabs = allTabs.filter(t => allowedTabs.includes(t.key));
 
   // ==================== PC LAYOUT (>= 768px) ====================
   if (!isMobile) {
@@ -1210,6 +1253,33 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
         </div>
       </div>
 
+      {/* Mini App & Webhook */}
+      <div className="glass rounded-xl p-4">
+        <h3 className="text-sm font-semibold mb-3">Mini App 配置</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Mini App URL</label>
+            <div className="glass rounded-lg px-3 py-2 text-xs font-mono text-foreground/80 break-all">
+              {window.location.origin}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">在 BotFather 中设置 Web App URL 为此地址</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Webhook URL</label>
+            <div className="glass rounded-lg px-3 py-2 text-xs font-mono text-foreground/80 break-all">
+              {window.location.origin}/api/telegram/webhook
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">在 BotFather 或 API 中设置 Webhook 为此地址</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">设置 Webhook 命令</label>
+            <div className="glass rounded-lg px-3 py-2 text-[10px] font-mono text-foreground/60 break-all">
+              https://api.telegram.org/bot[TOKEN]/setWebhook?url={window.location.origin}/api/telegram/webhook
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Supported Languages */}
       <div className="glass rounded-xl p-4">
         <h3 className="text-sm font-semibold mb-3">{at("settings.supportedLangs")}</h3>
@@ -1241,12 +1311,15 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
 // ==================== STATS PANEL ====================
 function StatsPanel({ at }: { at: (k: string) => string }) {
   const { data: stats, isLoading } = trpc.admin.stats.useQuery();
+  const { data: trends, isLoading: trendsLoading } = trpc.admin.trends.useQuery({ days: 14 });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h2 className="text-lg font-bold">{at("stats.title")}</h2>
+      
+      {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="glass rounded-xl p-4 text-center">
           <p className="text-xs text-muted-foreground mb-1">{at("stats.totalUsers")}</p>
@@ -1264,6 +1337,102 @@ function StatsPanel({ at }: { at: (k: string) => string }) {
           <p className="text-xs text-muted-foreground mb-1">{at("stats.totalVolume")}</p>
           <p className="text-2xl font-bold text-success">${stats?.totalVolume ?? "0.00"}</p>
         </div>
+      </div>
+
+      {/* Trend Charts */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">{at("stats.trend")}</h3>
+          <span className="text-xs text-muted-foreground">{at("stats.last14days")}</span>
+        </div>
+
+        {trendsLoading ? (
+          <div className="flex items-center justify-center h-40"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* DAU Chart */}
+            <div className="glass rounded-xl p-4">
+              <p className="text-xs font-medium text-muted-foreground mb-3">{at("stats.dau")}</p>
+              <TrendChart data={trends?.dailyUsers ?? []} dataKey="count" color="oklch(0.82 0.15 85)" label={at("stats.users")} />
+            </div>
+            {/* Daily Volume Chart */}
+            <div className="glass rounded-xl p-4">
+              <p className="text-xs font-medium text-muted-foreground mb-3">{at("stats.dailyVolume")}</p>
+              <TrendChart data={trends?.dailyVolume ?? []} dataKey="volume" color="oklch(0.72 0.15 155)" label={at("stats.volume")} isVolume />
+            </div>
+            {/* Daily Hands Chart */}
+            <div className="glass rounded-xl p-4">
+              <p className="text-xs font-medium text-muted-foreground mb-3">{at("stats.dailyHands")}</p>
+              <TrendChart data={trends?.dailyHands ?? []} dataKey="count" color="oklch(0.7 0.15 250)" label={at("stats.hands")} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Simple trend chart using SVG (no external chart lib needed for this minimal display)
+function TrendChart({ data, dataKey, color, label, isVolume }: { data: any[]; dataKey: string; color: string; label: string; isVolume?: boolean }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">
+        暂无数据
+      </div>
+    );
+  }
+
+  const values = data.map(d => parseFloat(d[dataKey] ?? d.count ?? 0));
+  const maxVal = Math.max(...values, 1);
+  const minVal = Math.min(...values, 0);
+  const range = maxVal - minVal || 1;
+
+  const width = 280;
+  const height = 100;
+  const padding = 4;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+
+  const points = values.map((v, i) => {
+    const x = padding + (i / (values.length - 1 || 1)) * chartWidth;
+    const y = padding + chartHeight - ((v - minVal) / range) * chartHeight;
+    return `${x},${y}`;
+  });
+
+  const areaPoints = [...points, `${padding + chartWidth},${padding + chartHeight}`, `${padding},${padding + chartHeight}`];
+
+  const latestVal = values[values.length - 1] ?? 0;
+  const prevVal = values.length > 1 ? values[values.length - 2] : latestVal;
+  const changePercent = prevVal > 0 ? (((latestVal - prevVal) / prevVal) * 100).toFixed(0) : "0";
+  const isPositive = latestVal >= prevVal;
+
+  return (
+    <div>
+      <div className="flex items-baseline gap-2 mb-2">
+        <span className="text-lg font-bold" style={{ color }}>
+          {isVolume ? `$${latestVal.toFixed(2)}` : latestVal}
+        </span>
+        <span className={`text-[10px] font-medium ${isPositive ? "text-success" : "text-red-400"}`}>
+          {isPositive ? "↑" : "↓"}{Math.abs(parseInt(changePercent))}%
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-24" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id={`grad-${label}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polygon points={areaPoints.join(" ")} fill={`url(#grad-${label})`} />
+        <polyline points={points.join(" ")} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Last point dot */}
+        {points.length > 0 && (
+          <circle cx={points[points.length - 1].split(",")[0]} cy={points[points.length - 1].split(",")[1]} r="3" fill={color} />
+        )}
+      </svg>
+      <div className="flex justify-between mt-1">
+        <span className="text-[9px] text-muted-foreground">{data[0]?.date?.slice(5) ?? ""}</span>
+        <span className="text-[9px] text-muted-foreground">{data[data.length - 1]?.date?.slice(5) ?? ""}</span>
       </div>
     </div>
   );

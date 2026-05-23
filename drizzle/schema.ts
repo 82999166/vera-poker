@@ -7,7 +7,10 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "admin", "cs", "finance", "tech"]).default("user").notNull(),
+  // Staff login credentials (for admin/cs/finance/tech)
+  staffUsername: varchar("staffUsername", { length: 64 }).unique(),
+  staffPasswordHash: varchar("staffPasswordHash", { length: 256 }),
   // Telegram specific
   tgId: varchar("tgId", { length: 64 }).unique(),
   tgUsername: varchar("tgUsername", { length: 128 }),

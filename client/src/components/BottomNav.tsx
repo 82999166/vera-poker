@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
 import { t } from "@/lib/i18n";
-import { Gamepad2, Wallet, Users, MessageCircle, Globe } from "lucide-react";
+import { Gamepad2, Wallet, Users, MessageCircle, Globe, User } from "lucide-react";
 import { useState } from "react";
 import { useI18n, LOCALE_NAMES, LOCALE_FLAGS, type Locale } from "@/lib/i18n";
 
@@ -18,6 +18,7 @@ export default function BottomNav({ active }: BottomNavProps) {
     { key: "wallet" as const, icon: Wallet, label: t("nav.wallet"), path: "/wallet" },
     { key: "agent" as const, icon: Users, label: t("nav.agent"), path: "/agent" },
     { key: "support" as const, icon: MessageCircle, label: t("nav.support"), path: "/support" },
+    { key: "profile" as const, icon: User, label: "我的", path: "/profile" },
   ];
 
   return (

@@ -14,7 +14,10 @@ import Support from "./pages/Support";
 import CreateRoom from "./pages/CreateRoom";
 import Verify from "./pages/Verify";
 import HandHistory from "./pages/HandHistory";
+import Profile from "./pages/Profile";
+import Leaderboard from "./pages/Leaderboard";
 import Admin from "./pages/Admin";
+import StaffLogin from "./pages/StaffLogin";
 
 function MobileRouter() {
   return (
@@ -28,6 +31,8 @@ function MobileRouter() {
       <Route path="/create-room" component={CreateRoom} />
       <Route path="/verify" component={Verify} />
       <Route path="/history/:id" component={HandHistory} />
+      <Route path="/profile" component={Profile} />
+      <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -46,8 +51,13 @@ function MobileContainer({ children }: { children: React.ReactNode }) {
 
 function AppContent() {
   const { locale } = useI18n();
-  // Admin uses full-screen layout, other pages use mobile container
+  // Staff login and Admin use full-screen layout
+  const isStaffLogin = window.location.pathname === "/staff-login";
   const isAdmin = window.location.pathname.startsWith("/admin");
+  
+  if (isStaffLogin) {
+    return <StaffLogin key={locale} />;
+  }
   
   if (isAdmin) {
     return <Admin key={locale} />;

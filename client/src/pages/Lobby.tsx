@@ -99,6 +99,17 @@ export default function Lobby() {
         </div>
       </div>
 
+      {/* Quick Actions */}
+      <div className="px-4 pt-3 flex gap-2">
+        <button
+          onClick={() => navigate("/leaderboard")}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-gold hover:bg-gold/10 transition-colors"
+        >
+          <Trophy className="w-3.5 h-3.5" />
+          排行榜
+        </button>
+      </div>
+
       {/* Filter Pills */}
       <div className="px-4 pt-3 flex gap-2 overflow-x-auto pb-1">
         {(["all", "low", "mid", "high", "vip"] as FilterLevel[]).map(level => (

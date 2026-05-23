@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { registerTelegramRoutes } from "./telegram";
 import { registerTelegramAuthRoutes } from "../telegramAuth";
+import { staffRouter } from "../staffAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -40,6 +41,7 @@ async function startServer() {
   registerOAuthRoutes(app);
   registerTelegramRoutes(app);
   registerTelegramAuthRoutes(app);
+  app.use(staffRouter);
   // tRPC API
   app.use(
     "/api/trpc",

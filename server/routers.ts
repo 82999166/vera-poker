@@ -9,7 +9,15 @@ import { invokeLLM } from "./_core/llm";
 import { nanoid } from "nanoid";
 import * as tableManager from "./tableManager";
 
-// Admin guard
+// Staff guard (admin + cs + finance + tech)
+const staffProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (!["admin", "cs", "finance", "tech"].includes(ctx.user.role)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Staff access required" });
+  }
+  return next({ ctx });
+});
+
+// Admin guard (admin only)
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
   return next({ ctx });
@@ -156,8 +164,8 @@ export const appRouter = router({
     }),
     depositAddress: protectedProcedure.input(z.object({
       chain: z.enum(["TRC20", "TON"]),
-    })).query(({ ctx, input }) => {
-      const address = db.generateDepositAddress(ctx.user.id, input.chain);
+    })).query(async ({ ctx, input }) => {
+      const address = await db.generateDepositAddress(ctx.user.id, input.chain);
       return { address, chain: input.chain };
     }),
     deposit: protectedProcedure.input(z.object({
@@ -167,22 +175,27 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const user = await db.getUserById(ctx.user.id);
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
-      const currentBalance = parseFloat(user.balance);
       const depositAmount = parseFloat(input.amount);
-      const newBalance = (currentBalance + depositAmount).toFixed(2);
-      
-      await db.updateUserBalance(ctx.user.id, newBalance);
+      if (isNaN(depositAmount) || depositAmount <= 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid amount" });
+      }
+      // Check min deposit from config
+      const minDeposit = parseFloat(await db.getConfigValue("min_deposit") || "10");
+      if (depositAmount < minDeposit) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Minimum deposit is $${minDeposit}` });
+      }
+      // Create pending transaction (balance NOT updated until admin confirms)
       await db.createTransaction({
         userId: ctx.user.id,
         type: "deposit",
         amount: input.amount,
         balanceBefore: user.balance,
-        balanceAfter: newBalance,
+        balanceAfter: user.balance, // unchanged until confirmed
         chain: input.chain,
         txHash: input.txHash,
         status: "pending",
       });
-      return { success: true, newBalance };
+      return { success: true, message: "Deposit submitted, awaiting confirmation" };
     }),
     withdraw: protectedProcedure.input(z.object({
       amount: z.string(),
@@ -218,6 +231,66 @@ export const appRouter = router({
     // Admin
     allTransactions: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), type: z.string().optional() })).query(async ({ input }) => {
       return db.getAllTransactions(input.page, input.limit, input.type);
+    }),
+    // Admin confirm deposit
+    confirmDeposit: adminProcedure.input(z.object({
+      transactionId: z.number(),
+    })).mutation(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { transactions, users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const [tx] = await dbInstance.select().from(transactions).where(eq(transactions.id, input.transactionId)).limit(1);
+      if (!tx) throw new TRPCError({ code: "NOT_FOUND", message: "Transaction not found" });
+      if (tx.status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "Transaction already processed" });
+      if (tx.type !== "deposit") throw new TRPCError({ code: "BAD_REQUEST", message: "Not a deposit transaction" });
+      // Update user balance
+      const [user] = await dbInstance.select().from(users).where(eq(users.id, tx.userId)).limit(1);
+      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      const newBalance = (parseFloat(user.balance) + parseFloat(tx.amount)).toFixed(2);
+      await dbInstance.update(users).set({ balance: newBalance }).where(eq(users.id, tx.userId));
+      // Update transaction status
+      await dbInstance.update(transactions).set({ status: "confirmed", balanceAfter: newBalance }).where(eq(transactions.id, input.transactionId));
+      return { success: true, newBalance };
+    }),
+    // Admin reject deposit/withdrawal
+    rejectTransaction: adminProcedure.input(z.object({
+      transactionId: z.number(),
+      reason: z.string().optional(),
+    })).mutation(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { transactions, users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const [tx] = await dbInstance.select().from(transactions).where(eq(transactions.id, input.transactionId)).limit(1);
+      if (!tx) throw new TRPCError({ code: "NOT_FOUND" });
+      if (tx.status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "Transaction already processed" });
+      // If withdrawal was rejected, refund the frozen amount
+      if (tx.type === "withdraw") {
+        const [user] = await dbInstance.select().from(users).where(eq(users.id, tx.userId)).limit(1);
+        if (user) {
+          const refundBalance = (parseFloat(user.balance) + parseFloat(tx.amount)).toFixed(2);
+          await dbInstance.update(users).set({ balance: refundBalance }).where(eq(users.id, tx.userId));
+        }
+      }
+      await dbInstance.update(transactions).set({ status: "failed" }).where(eq(transactions.id, input.transactionId));
+      return { success: true };
+    }),
+    // Admin confirm withdrawal
+    confirmWithdrawal: adminProcedure.input(z.object({
+      transactionId: z.number(),
+      txHash: z.string().optional(),
+    })).mutation(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { transactions } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const [tx] = await dbInstance.select().from(transactions).where(eq(transactions.id, input.transactionId)).limit(1);
+      if (!tx) throw new TRPCError({ code: "NOT_FOUND" });
+      if (tx.status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "Transaction already processed" });
+      if (tx.type !== "withdraw") throw new TRPCError({ code: "BAD_REQUEST", message: "Not a withdrawal" });
+      await dbInstance.update(transactions).set({ status: "confirmed", txHash: input.txHash ?? tx.txHash }).where(eq(transactions.id, input.transactionId));
+      return { success: true };
     }),
   }),
 
@@ -436,6 +509,137 @@ Rules:
     }),
   }),
 
+  // ==================== PROFILE ====================
+  profile: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      const user = await db.getUserById(ctx.user.id);
+      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      return {
+        id: user.id,
+        name: user.name,
+        nickname: user.nickname,
+        avatar: user.avatar,
+        email: user.email,
+        language: user.language,
+        tgId: user.tgId,
+        tgUsername: user.tgUsername,
+        balance: user.balance,
+        frozenBalance: user.frozenBalance,
+        totalGamesPlayed: user.totalGamesPlayed,
+        totalRakeGenerated: user.totalRakeGenerated,
+        totalDeposited: user.totalDeposited,
+        inviteCode: user.inviteCode,
+        agentLevel: user.agentLevel,
+        createdAt: user.createdAt,
+        lastSignedIn: user.lastSignedIn,
+      };
+    }),
+    update: protectedProcedure.input(z.object({
+      nickname: z.string().min(1).max(64).optional(),
+      avatar: z.string().optional(),
+      language: z.string().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const updateData: Record<string, unknown> = {};
+      if (input.nickname !== undefined) updateData.nickname = input.nickname;
+      if (input.avatar !== undefined) updateData.avatar = input.avatar;
+      if (input.language !== undefined) updateData.language = input.language;
+      await dbInstance.update(users).set(updateData).where(eq(users.id, ctx.user.id));
+      return { success: true };
+    }),
+    unbindTelegram: protectedProcedure.mutation(async ({ ctx }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      await dbInstance.update(users).set({ tgId: null, tgUsername: null }).where(eq(users.id, ctx.user.id));
+      return { success: true };
+    }),
+    gameStats: protectedProcedure.query(async ({ ctx }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { totalHands: 0, wins: 0, winRate: 0, totalProfit: "0.00" };
+      const { handPlayers } = await import("../drizzle/schema");
+      const { eq, sql } = await import("drizzle-orm");
+      const [stats] = await dbInstance.select({
+        totalHands: sql<number>`count(*)`,
+        wins: sql<number>`SUM(CASE WHEN isWinner = 1 THEN 1 ELSE 0 END)`,
+        totalProfit: sql<string>`COALESCE(SUM(CAST(winAmount AS DECIMAL(18,2)) - CAST(betAmount AS DECIMAL(18,2))), 0)`,
+      }).from(handPlayers).where(eq(handPlayers.userId, ctx.user.id));
+      const totalHands = stats?.totalHands ?? 0;
+      const wins = stats?.wins ?? 0;
+      return {
+        totalHands,
+        wins,
+        winRate: totalHands > 0 ? Math.round((wins / totalHands) * 100) : 0,
+        totalProfit: parseFloat(stats?.totalProfit ?? "0").toFixed(2),
+      };
+    }),
+  }),
+
+  // ==================== LEADERBOARD ====================
+  leaderboard: router({
+    profit: publicProcedure.input(z.object({ limit: z.number().default(20) })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return [];
+      const { handPlayers, users } = await import("../drizzle/schema");
+      const { sql, eq, desc } = await import("drizzle-orm");
+      const result = await dbInstance.select({
+        userId: handPlayers.userId,
+        name: users.name,
+        nickname: users.nickname,
+        avatar: users.avatar,
+        totalProfit: sql<string>`CAST(SUM(CAST(${handPlayers.winAmount} AS DECIMAL(18,2)) - CAST(${handPlayers.betAmount} AS DECIMAL(18,2))) AS CHAR)`,
+        totalHands: sql<number>`count(*)`,
+      }).from(handPlayers)
+        .innerJoin(users, eq(handPlayers.userId, users.id))
+        .groupBy(handPlayers.userId, users.name, users.nickname, users.avatar)
+        .orderBy(desc(sql`SUM(CAST(${handPlayers.winAmount} AS DECIMAL(18,2)) - CAST(${handPlayers.betAmount} AS DECIMAL(18,2)))`))
+        .limit(input.limit);
+      return result;
+    }),
+    winRate: publicProcedure.input(z.object({ limit: z.number().default(20), minHands: z.number().default(10) })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return [];
+      const { handPlayers, users } = await import("../drizzle/schema");
+      const { sql, eq, desc } = await import("drizzle-orm");
+      const result = await dbInstance.select({
+        userId: handPlayers.userId,
+        name: users.name,
+        nickname: users.nickname,
+        avatar: users.avatar,
+        winRate: sql<number>`ROUND(SUM(CASE WHEN ${handPlayers.isWinner} = 1 THEN 1 ELSE 0 END) * 100.0 / count(*), 1)`,
+        totalHands: sql<number>`count(*)`,
+      }).from(handPlayers)
+        .innerJoin(users, eq(handPlayers.userId, users.id))
+        .groupBy(handPlayers.userId, users.name, users.nickname, users.avatar)
+        .having(sql`count(*) >= ${input.minHands}`)
+        .orderBy(desc(sql`SUM(CASE WHEN ${handPlayers.isWinner} = 1 THEN 1 ELSE 0 END) * 100.0 / count(*)`))
+        .limit(input.limit);
+      return result;
+    }),
+    handsPlayed: publicProcedure.input(z.object({ limit: z.number().default(20) })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return [];
+      const { handPlayers, users } = await import("../drizzle/schema");
+      const { sql, eq, desc } = await import("drizzle-orm");
+      const result = await dbInstance.select({
+        userId: handPlayers.userId,
+        name: users.name,
+        nickname: users.nickname,
+        avatar: users.avatar,
+        totalHands: sql<number>`count(*)`,
+      }).from(handPlayers)
+        .innerJoin(users, eq(handPlayers.userId, users.id))
+        .groupBy(handPlayers.userId, users.name, users.nickname, users.avatar)
+        .orderBy(desc(sql`count(*)`))
+        .limit(input.limit);
+      return result;
+    }),
+  }),
+
   // ==================== NOTIFICATIONS ====================
   notifications: router({
     list: protectedProcedure.query(async ({ ctx }) => {
@@ -519,6 +723,52 @@ Rules:
     commissions: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       return db.getAllCommissions(input.page, input.limit);
     }),
+    // Staff management
+    staffList: adminProcedure.query(async () => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return [];
+      const { users } = await import("../drizzle/schema");
+      const { sql } = await import("drizzle-orm");
+      const result = await dbInstance.select({
+        id: users.id,
+        name: users.name,
+        role: users.role,
+        staffUsername: users.staffUsername,
+        lastSignedIn: users.lastSignedIn,
+        riskLevel: users.riskLevel,
+        createdAt: users.createdAt,
+      }).from(users).where(sql`${users.role} IN ('admin', 'cs', 'finance', 'tech')`);
+      return result;
+    }),
+    staffCreate: adminProcedure.input(z.object({
+      username: z.string().min(3).max(64),
+      password: z.string().min(6).max(128),
+      name: z.string().min(1).max(64),
+      role: z.enum(["admin", "cs", "finance", "tech"]),
+    })).mutation(async ({ input }) => {
+      const { createStaffAccount } = await import("./staffAuth");
+      const result = await createStaffAccount(input);
+      if (!result.success) throw new TRPCError({ code: "BAD_REQUEST", message: result.error });
+      return { success: true, userId: result.userId };
+    }),
+    staffDelete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+      if (input.id === ctx.user.id) throw new TRPCError({ code: "BAD_REQUEST", message: "不能删除自己" });
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      await dbInstance.update(users).set({ role: "user", staffUsername: null, staffPasswordHash: null }).where(eq(users.id, input.id));
+      return { success: true };
+    }),
+    staffResetPassword: adminProcedure.input(z.object({
+      id: z.number(),
+      newPassword: z.string().min(6).max(128),
+    })).mutation(async ({ input }) => {
+      const { updateStaffPassword } = await import("./staffAuth");
+      const success = await updateStaffPassword(input.id, input.newPassword);
+      if (!success) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      return { success: true };
+    }),
     // Stats
     stats: adminProcedure.query(async () => {
       const dbInstance = await db.getDb();
@@ -537,6 +787,54 @@ Rules:
         totalTransactions: txCount?.count ?? 0,
         totalVolume: volume?.total ?? "0.00",
       };
+    }),
+    // Trend data for charts
+    trends: adminProcedure.input(z.object({ days: z.number().default(14) })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { dailyUsers: [], dailyVolume: [], dailyHands: [] };
+      const { users, transactions, gameHands } = await import("../drizzle/schema");
+      const { sql } = await import("drizzle-orm");
+      
+      // Daily active users (users who signed in on each day)
+      const dailyUsers = await dbInstance.select({
+        date: sql<string>`DATE(lastSignedIn)`.as("date"),
+        count: sql<number>`count(*)`,
+      }).from(users)
+        .where(sql`lastSignedIn >= DATE_SUB(CURDATE(), INTERVAL ${input.days} DAY)`)
+        .groupBy(sql`DATE(lastSignedIn)`)
+        .orderBy(sql`DATE(lastSignedIn)`);
+      
+      // Daily transaction volume
+      const dailyVolume = await dbInstance.select({
+        date: sql<string>`DATE(createdAt)`.as("date"),
+        volume: sql<string>`COALESCE(SUM(amount), 0)`,
+        count: sql<number>`count(*)`,
+      }).from(transactions)
+        .where(sql`createdAt >= DATE_SUB(CURDATE(), INTERVAL ${input.days} DAY)`)
+        .groupBy(sql`DATE(createdAt)`)
+        .orderBy(sql`DATE(createdAt)`);
+      
+      // Daily hands played (room usage)
+      const dailyHands = await dbInstance.select({
+        date: sql<string>`DATE(startedAt)`.as("date"),
+        count: sql<number>`count(*)`,
+      }).from(gameHands)
+        .where(sql`startedAt >= DATE_SUB(CURDATE(), INTERVAL ${input.days} DAY)`)
+        .groupBy(sql`DATE(startedAt)`)
+        .orderBy(sql`DATE(startedAt)`);
+      
+      return { dailyUsers, dailyVolume, dailyHands };
+    }),
+    // Send notification to user(s)
+    sendNotification: adminProcedure.input(z.object({
+      userIds: z.array(z.number()),
+      title: z.string().min(1),
+      body: z.string().min(1),
+      type: z.enum(["private_room_invite", "turn_action", "game_starting", "balance_change", "system_announcement"]).default("system_announcement"),
+    })).mutation(async ({ input }) => {
+      const { sendBatchNotification } = await import("./notifications");
+      const result = await sendBatchNotification(input.userIds, input.type, input.title, input.body);
+      return result;
     }),
   }),
 });

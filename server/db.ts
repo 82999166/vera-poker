@@ -358,15 +358,19 @@ import crypto from "crypto";
  * Generate a deterministic deposit address for a user based on their ID and chain
  * In production, this would integrate with a real blockchain wallet service
  */
-export function generateDepositAddress(userId: number, chain: "TRC20" | "TON"): string {
+export async function generateDepositAddress(userId: number, chain: "TRC20" | "TON"): Promise<string> {
+  // Try to get configured wallet address from system config
+  const configKey = chain === "TRC20" ? "deposit_wallet_trc20" : "deposit_wallet_ton";
+  const configuredAddress = await getConfigValue(configKey);
+  if (configuredAddress) return configuredAddress;
+  
+  // Fallback: generate deterministic placeholder (should be replaced via admin config)
   const seed = `vera-poker-deposit-${userId}-${chain}`;
   const hash = crypto.createHash("sha256").update(seed).digest("hex");
   
   if (chain === "TRC20") {
-    // TRC20 addresses start with T and are 34 chars
     return "T" + hash.substring(0, 33).replace(/[^a-zA-Z0-9]/g, "A");
   } else {
-    // TON addresses start with EQ and are 48 chars
     return "EQ" + hash.substring(0, 46).replace(/[^a-zA-Z0-9]/g, "B");
   }
 }

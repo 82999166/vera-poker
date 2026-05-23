@@ -45,8 +45,8 @@ describe("Deposit Address Generation", () => {
     const { generateDepositAddress } = await import("./db");
     
     // Same user, same chain = same address (deterministic)
-    const addr1 = generateDepositAddress(42, "TRC20");
-    const addr2 = generateDepositAddress(42, "TRC20");
+    const addr1 = await generateDepositAddress(42, "TRC20");
+    const addr2 = await generateDepositAddress(42, "TRC20");
     expect(addr1).toBe(addr2);
     
     // TRC20 format
@@ -54,12 +54,12 @@ describe("Deposit Address Generation", () => {
     expect(addr1.length).toBe(34);
     
     // TON format
-    const tonAddr = generateDepositAddress(42, "TON");
+    const tonAddr = await generateDepositAddress(42, "TON");
     expect(tonAddr.startsWith("EQ")).toBe(true);
     expect(tonAddr.length).toBe(48);
     
     // Different users get different addresses
-    const addr3 = generateDepositAddress(43, "TRC20");
+    const addr3 = await generateDepositAddress(43, "TRC20");
     expect(addr3).not.toBe(addr1);
     
     // Different chains get different addresses

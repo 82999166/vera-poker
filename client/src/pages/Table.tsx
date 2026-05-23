@@ -5,6 +5,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { t } from "@/lib/i18n";
 import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 // Card rendering with animation support
 const SUITS: Record<string, { symbol: string; color: string }> = {
@@ -139,7 +140,8 @@ export default function Table() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { user } = useAuth();
-  const [muted, setMuted] = useState(false);
+  const { play: playSound, toggle: toggleSound, isEnabled: isSoundEnabled } = useSoundEffects();
+  const [muted, setMuted] = useState(() => localStorage.getItem("vera-sound-enabled") === "false");
   const [raiseAmount, setRaiseAmount] = useState(4.00);
   const [isSeated, setIsSeated] = useState(false);
   const [buyInAmount, setBuyInAmount] = useState("");
@@ -182,16 +184,20 @@ export default function Table() {
     }
   }, [tableError, tableState]);
 
-  // Detect phase changes for card animations
+  // Detect phase changes for card animations + sound effects
   useEffect(() => {
     if (tableState?.phase && tableState.phase !== lastPhase) {
       if (["flop", "turn", "river"].includes(tableState.phase) && lastPhase !== "") {
         setAnimateCards(true);
         setTimeout(() => setAnimateCards(false), 1000);
+        if (!muted) playSound("cardFlip");
+      }
+      if (tableState.phase === "preflop" && lastPhase !== "" && lastPhase !== "preflop") {
+        if (!muted) playSound("deal");
       }
       setLastPhase(tableState.phase);
     }
-  }, [tableState?.phase, lastPhase]);
+  }, [tableState?.phase, lastPhase, muted, playSound]);
 
   // Detect new hand for winner display
   useEffect(() => {
@@ -229,8 +235,17 @@ export default function Table() {
   });
 
   const actionMutation = trpc.game.action.useMutation({
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       utils.game.tableState.invalidate({ roomId });
+      // Play sound based on action type
+      if (!muted) {
+        const action = (variables as any)?.action;
+        if (action === "fold") playSound("fold");
+        else if (action === "check") playSound("check");
+        else if (action === "call") playSound("call");
+        else if (action === "raise" || action === "bet") playSound("bet");
+        else if (action === "allin") playSound("allIn");
+      }
     },
     onError: (err) => toast.error(err.message),
   });
@@ -256,9 +271,10 @@ export default function Table() {
     const timer = setInterval(() => {
       setCountdown(prev => {
         const next = Math.max(0, prev - 1);
-        // Vibrate on last 5 seconds if supported
-        if (next <= 5 && next > 0 && navigator.vibrate) {
-          navigator.vibrate(50);
+        // Vibrate + sound on last 5 seconds
+        if (next <= 5 && next > 0) {
+          if (navigator.vibrate) navigator.vibrate(50);
+          if (!muted) playSound("timer");
         }
         return next;
       });
@@ -374,7 +390,7 @@ export default function Table() {
           <button onClick={() => navigate("/verify")} className="p-1.5 rounded-lg text-truth-blue hover:text-truth-blue-bright hover:bg-truth-blue/10 transition-all active:scale-95">
             <Shield className="w-4 h-4" />
           </button>
-          <button onClick={() => setMuted(!muted)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-95">
+          <button onClick={() => { setMuted(!muted); toggleSound(); }} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-95">
             {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
         </div>

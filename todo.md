@@ -124,3 +124,56 @@
 
 ## Admin Panel Fixes
 - [x] System config page: show Chinese labels instead of raw config keys
+
+## User Profile Page
+- [x] Profile page with avatar, nickname, balance, TG binding status
+- [x] Bind/unbind Telegram account from profile
+- [x] Display game stats (total hands, win rate, total profit)
+- [x] Route /profile added to App.tsx
+
+## Leaderboard & Achievement System
+- [x] Backend: leaderboard queries (profit, win rate, hands played)
+- [ ] Backend: achievement definitions and unlock logic (deferred)
+- [x] Frontend: Leaderboard page in lobby with tabs (profit/winRate/hands)
+- [ ] Frontend: Achievement badges display on profile (deferred)
+- [ ] DB: achievements table and player_achievements table (deferred)
+
+## Admin Stats Dashboard
+- [x] Daily active users chart (line chart, 30 days)
+- [x] Daily transaction volume chart (bar chart)
+- [x] Room usage rate chart (pie/bar chart)
+- [x] Backend: stats aggregation queries
+
+## Admin Permission System
+- [x] DB: extend user role enum (admin/cs/finance/tech/user)
+- [x] Backend: role-based access control for admin routes
+- [x] Independent staff login page (/staff-login) with account/password
+- [x] Admin sidebar shows only permitted sections per role
+- [x] Staff account CRUD (create/delete/reset password)
+
+## Push Notification System
+- [x] Backend: TG notification service module with convenience helpers
+- [ ] Wire notifyPrivateRoomInvite into room invite flow (requires game flow integration)
+- [ ] Wire notifyTurnAction into game turn logic (requires game flow integration)
+- [x] Admin batch notification sending
+- [ ] Notification preferences in user profile (deferred)
+
+## Table Sound Effects
+- [x] Web Audio API synthesized sound effects (deal, bet, fold, win, timer)
+- [x] Sound toggle on table (mute/unmute)
+- [x] Play sounds on game state transitions
+- [x] Respect user mute preference
+
+## Payment Gateway Integration
+- [x] Crypto deposit with admin confirmation flow (pending until approved)
+- [x] Configurable wallet addresses from admin system config
+- [x] Admin confirm/reject deposit and withdrawal mutations
+- [x] Min deposit validation from config
+- [ ] Payment callback webhook handler (requires external blockchain API)
+
+## Mini App Link Configuration
+- [x] Mini App URL display in admin settings panel
+- [x] Webhook URL display and setup instructions
+- [x] BotFather configuration guide in admin panel
+- [ ] Verify auto-login flow end-to-end in TG client (requires real bot token)
+- [ ] Add /start command deep link to specific room (deferred)
