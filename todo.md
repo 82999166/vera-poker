@@ -286,3 +286,8 @@
 
 ## Game Table Visual Fix (2026-05-23)
 - [x] Redesign poker table: bright green felt + dark wood border + warm brown background (Poker Night style)
+
+## Card & Table Visual Redesign (2026-05-23)
+- [x] Redesign CardView front: white background, large clear suit/rank, rounded corners, subtle shadow
+- [x] Redesign CardView back: diamond/grid pattern (red/blue), decorative border
+- [x] Redesign poker table: add 3D perspective, multi-layer border, lighting effects (Poker Night reference)

@@ -10,9 +10,9 @@ import { useSoundEffects } from "@/hooks/useSoundEffects";
 // Card rendering with animation support
 const SUITS: Record<string, { symbol: string; color: string }> = {
   s: { symbol: "\u2660", color: "text-gray-900" },
-  h: { symbol: "\u2665", color: "text-red-600" },
-  d: { symbol: "\u2666", color: "text-blue-500" },
-  c: { symbol: "\u2663", color: "text-green-600" },
+  h: { symbol: "\u2665", color: "text-red-500" },
+  d: { symbol: "\u2666", color: "text-red-500" },
+  c: { symbol: "\u2663", color: "text-gray-900" },
 };
 
 const RANK_DISPLAY: Record<string, string> = {
@@ -33,10 +33,22 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   }, [animate, delay]);
 
   if (!card || faceDown) {
+    // Card back: red diamond pattern with decorative border
     return (
-      <div className={`w-10 h-14 rounded-lg bg-gradient-to-br from-truth-blue to-truth-blue/60 border border-truth-blue/40 flex items-center justify-center shadow-lg transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`}>
-        <div className="w-6 h-8 rounded border border-truth-blue-bright/30 flex items-center justify-center bg-gradient-to-br from-truth-blue/20 to-transparent">
-          <span className="text-[8px] font-bold text-truth-blue-bright">VP</span>
+      <div className={`w-10 h-14 rounded-md overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.4),0_1px_2px_rgba(0,0,0,0.2)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`}>
+        <div className="w-full h-full bg-gradient-to-br from-[#c0392b] to-[#922b21] border-[1.5px] border-white/80 rounded-md relative">
+          {/* Inner border */}
+          <div className="absolute inset-[3px] border border-white/40 rounded-sm" />
+          {/* Diamond grid pattern */}
+          <div className="absolute inset-[5px] rounded-sm overflow-hidden" style={{
+            backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.12) 3px, rgba(255,255,255,0.12) 4px), repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(255,255,255,0.12) 3px, rgba(255,255,255,0.12) 4px)`,
+          }} />
+          {/* Center logo */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
+              <span className="text-[6px] font-bold text-white/80">VP</span>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -46,11 +58,26 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const suit = card[1];
   const suitInfo = SUITS[suit] || SUITS.s;
   const displayRank = RANK_DISPLAY[rank] || rank;
+  const isRed = suit === 'h' || suit === 'd';
 
   return (
-    <div className={`w-10 h-14 rounded-lg bg-gradient-to-b from-white to-gray-50 border border-gray-200 flex flex-col items-center justify-center shadow-lg transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${className}`}>
-      <span className={`text-[11px] font-black leading-none ${suitInfo.color}`}>{displayRank}</span>
-      <span className={`text-base leading-none -mt-0.5 ${suitInfo.color}`}>{suitInfo.symbol}</span>
+    <div className={`w-10 h-14 rounded-md overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.4),0_1px_2px_rgba(0,0,0,0.2)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${className}`}>
+      <div className="w-full h-full bg-white border-[1px] border-gray-200 rounded-md relative flex flex-col items-center justify-between py-1 px-0.5">
+        {/* Top-left rank + suit */}
+        <div className="absolute top-0.5 left-1 flex flex-col items-center leading-none">
+          <span className={`text-[9px] font-bold ${isRed ? 'text-red-500' : 'text-gray-900'}`}>{displayRank}</span>
+          <span className={`text-[8px] -mt-0.5 ${isRed ? 'text-red-500' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+        </div>
+        {/* Center large suit */}
+        <div className="flex-1 flex items-center justify-center">
+          <span className={`text-xl ${isRed ? 'text-red-500' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+        </div>
+        {/* Bottom-right rank + suit (inverted) */}
+        <div className="absolute bottom-0.5 right-1 flex flex-col items-center leading-none rotate-180">
+          <span className={`text-[9px] font-bold ${isRed ? 'text-red-500' : 'text-gray-900'}`}>{displayRank}</span>
+          <span className={`text-[8px] -mt-0.5 ${isRed ? 'text-red-500' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -475,17 +502,29 @@ export default function Table() {
       )}
 
       {/* Table Area */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" style={{ perspective: '800px' }}>
         {/* Poker Table */}
-        <div className="absolute inset-3">
-          {/* Table felt - oval shape */}
-          <div className="absolute inset-0 rounded-[50%] bg-gradient-to-b from-[#2d8a5e] via-[#247a52] to-[#1d6844] border-[8px] border-[#5c3a1e] shadow-[inset_0_0_40px_rgba(0,0,0,0.2),0_0_0_3px_#8b6914,0_0_30px_rgba(0,0,0,0.5)]">
-            {/* Table outer wood grain ring */}
-            <div className="absolute -inset-[8px] rounded-[50%] bg-gradient-to-b from-[#7a4a2a] via-[#5c3a1e] to-[#4a2e16] -z-10 shadow-[inset_0_2px_4px_rgba(255,255,255,0.1)]" />
-            {/* Table inner decorative ring */}
-            <div className="absolute inset-4 rounded-[50%] border border-[#3da06e]/40" />
-            {/* Table felt texture - bright center glow */}
-            <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.08)_0%,rgba(0,0,0,0.1)_70%)]" />
+        <div className="absolute inset-3" style={{ transform: 'rotateX(8deg)', transformOrigin: 'center 60%' }}>
+          {/* Outer rail - thick wood border with 3D depth */}
+          <div className="absolute inset-0 rounded-[50%] shadow-[0_8px_32px_rgba(0,0,0,0.6),0_4px_16px_rgba(0,0,0,0.4)]">
+            {/* Wood rail layer - outer */}
+            <div className="absolute inset-0 rounded-[50%] bg-gradient-to-b from-[#6b3a1f] via-[#4a2810] to-[#3d2008] shadow-[inset_0_2px_4px_rgba(255,200,100,0.15),inset_0_-2px_6px_rgba(0,0,0,0.4)]" />
+            {/* Metal/gold trim on rail */}
+            <div className="absolute inset-[4px] rounded-[50%] border-[2px] border-[#c9a227]/60 shadow-[inset_0_1px_2px_rgba(201,162,39,0.3)]" />
+            {/* Inner wood rail */}
+            <div className="absolute inset-[7px] rounded-[50%] bg-gradient-to-b from-[#5c3218] via-[#4a2810] to-[#3a1e08] shadow-[inset_0_2px_8px_rgba(0,0,0,0.5)]" />
+          </div>
+          
+          {/* Table felt - the green playing surface */}
+          <div className="absolute inset-[14px] rounded-[50%] bg-gradient-to-b from-[#35a06a] via-[#2d8f5c] to-[#247a4e] shadow-[inset_0_0_30px_rgba(0,0,0,0.15),inset_0_-4px_12px_rgba(0,0,0,0.1)]">
+            {/* Felt texture overlay */}
+            <div className="absolute inset-0 rounded-[50%] opacity-30" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='4' height='4' viewBox='0 0 4 4' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3h1v1H1V3zm2-2h1v1H3V1z' fill='%23000' fill-opacity='0.03'/%3E%3C/svg%3E")`,
+            }} />
+            {/* Center light spot (table lamp effect) */}
+            <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_50%_40%,rgba(255,255,255,0.1)_0%,transparent_50%)]" />
+            {/* Inner decorative line */}
+            <div className="absolute inset-[12px] rounded-[50%] border border-[#4dc88a]/25" />
             
             {/* Pot display */}
             <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
