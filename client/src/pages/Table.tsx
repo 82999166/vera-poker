@@ -81,26 +81,13 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
 // Chip stack visualization
 function ChipStack({ amount, size = "sm", animate = false }: { amount: number; size?: "sm" | "md"; animate?: boolean }) {
   if (amount <= 0) return null;
-  const chipCount = Math.min(5, Math.ceil(amount / 10));
-  const chipColors = [
-    "from-gold to-gold-dim border-gold/50",
-    "from-blue-400 to-blue-600 border-blue-400/50",
-    "from-red-400 to-red-600 border-red-400/50",
-    "from-green-400 to-green-600 border-green-400/50",
-    "from-purple-400 to-purple-600 border-purple-400/50",
-  ];
   return (
-    <div className={`flex items-center gap-1 ${animate ? "animate-in slide-in-from-bottom-2 duration-300" : ""}`}>
-      <div className="relative flex flex-col-reverse">
-        {Array.from({ length: chipCount }).map((_, i) => (
-          <div
-            key={i}
-            className={`${size === "sm" ? "w-3 h-1" : "w-4 h-1.5"} rounded-full bg-gradient-to-r ${chipColors[i % chipColors.length]} -mt-0.5 first:mt-0 ${animate ? "animate-in zoom-in duration-200" : ""}`}
-            style={animate ? { animationDelay: `${i * 50}ms` } : undefined}
-          />
-        ))}
+    <div className={`flex items-center gap-1 bg-black/60 rounded-full px-2 py-0.5 border border-gold/30 ${animate ? "animate-in slide-in-from-bottom-2 duration-300" : ""}`}>
+      {/* Gold coin icon */}
+      <div className={`${size === "sm" ? "w-4 h-4" : "w-5 h-5"} rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border border-yellow-600/80 flex items-center justify-center shadow-[0_0_4px_rgba(234,179,8,0.5)]`}>
+        <span className={`${size === "sm" ? "text-[7px]" : "text-[8px]"} font-black text-yellow-900`}>$</span>
       </div>
-      <span className={`${size === "sm" ? "text-[10px]" : "text-xs"} text-gold font-bold`}>${amount.toFixed(2)}</span>
+      <span className={`${size === "sm" ? "text-[11px]" : "text-sm"} text-yellow-300 font-bold drop-shadow-[0_0_3px_rgba(234,179,8,0.4)]`}>{amount.toFixed(2)}</span>
     </div>
   );
 }
@@ -128,9 +115,12 @@ function AnimatedPot({ amount }: { amount: number }) {
   }, [amount]);
 
   return (
-    <div className="glass rounded-full px-3 py-1 inline-flex items-center gap-1.5 border border-gold/20 transition-all duration-300">
-      <div className={`w-3 h-3 rounded-full bg-gradient-to-br from-gold to-gold-dim shadow-sm ${amount > 0 ? "animate-pulse" : ""}`} />
-      <span className={`text-xs font-bold text-gold transition-all duration-300 ${amount > prevAmount.current ? "scale-110" : ""}`}>
+    <div className="bg-black/70 rounded-full px-4 py-1.5 inline-flex items-center gap-2 border border-gold/40 shadow-[0_0_12px_rgba(234,179,8,0.3)] transition-all duration-300">
+      {/* Large gold coin icon */}
+      <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border-2 border-yellow-600/80 flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.6)] ${amount > 0 ? "animate-pulse" : ""}`}>
+        <span className="text-[10px] font-black text-yellow-900">$</span>
+      </div>
+      <span className={`text-base font-black text-yellow-300 drop-shadow-[0_0_6px_rgba(234,179,8,0.5)] transition-all duration-300 ${amount > prevAmount.current ? "scale-110" : ""}`}>
         ${displayAmount.toFixed(2)}
       </span>
     </div>
