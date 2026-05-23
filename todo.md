@@ -290,4 +290,4 @@
 ## Card & Table Visual Redesign (2026-05-23)
 - [x] Redesign CardView front: white background, large clear suit/rank, rounded corners, subtle shadow
 - [x] Redesign CardView back: diamond/grid pattern (red/blue), decorative border
-- [x] Redesign poker table: add 3D perspective, multi-layer border, lighting effects (Poker Night reference)
+- [x] Redesign poker table: Poker Night style - metallic rail, deep green felt, warm ambient lighting, 3D perspective

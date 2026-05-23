@@ -389,7 +389,7 @@ export default function Table() {
   const canCheck = myPlayer ? myPlayer.currentBet >= currentBet : false;
 
   return (
-    <div className="h-screen bg-gradient-to-b from-[#2d1810] via-[#3d2218] to-[#1a0e08] flex flex-col overflow-hidden">
+    <div className="h-screen bg-gradient-to-b from-[#4a2c17] via-[#3a1f0e] to-[#1a0e06] flex flex-col overflow-hidden">
       {/* Top Bar */}
       <div className="glass-strong px-3 py-2 flex items-center justify-between z-10 border-b border-border/30">
         <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground transition-colors active:scale-95">
@@ -502,29 +502,41 @@ export default function Table() {
       )}
 
       {/* Table Area */}
-      <div className="flex-1 relative" style={{ perspective: '800px' }}>
+      <div className="flex-1 relative overflow-hidden">
+        {/* Warm ambient lighting from top */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[40%] bg-[radial-gradient(ellipse_at_top,rgba(255,180,60,0.12)_0%,transparent_70%)] pointer-events-none" />
+        
         {/* Poker Table */}
-        <div className="absolute inset-3" style={{ transform: 'rotateX(8deg)', transformOrigin: 'center 60%' }}>
-          {/* Outer rail - thick wood border with 3D depth */}
-          <div className="absolute inset-0 rounded-[50%] shadow-[0_8px_32px_rgba(0,0,0,0.6),0_4px_16px_rgba(0,0,0,0.4)]">
-            {/* Wood rail layer - outer */}
-            <div className="absolute inset-0 rounded-[50%] bg-gradient-to-b from-[#6b3a1f] via-[#4a2810] to-[#3d2008] shadow-[inset_0_2px_4px_rgba(255,200,100,0.15),inset_0_-2px_6px_rgba(0,0,0,0.4)]" />
-            {/* Metal/gold trim on rail */}
-            <div className="absolute inset-[4px] rounded-[50%] border-[2px] border-[#c9a227]/60 shadow-[inset_0_1px_2px_rgba(201,162,39,0.3)]" />
-            {/* Inner wood rail */}
-            <div className="absolute inset-[7px] rounded-[50%] bg-gradient-to-b from-[#5c3218] via-[#4a2810] to-[#3a1e08] shadow-[inset_0_2px_8px_rgba(0,0,0,0.5)]" />
+        <div className="absolute inset-2 sm:inset-4" style={{ perspective: '900px' }}>
+          <div className="absolute inset-0" style={{ transform: 'rotateX(5deg)', transformOrigin: 'center 55%' }}>
+          {/* Outer rail - thick metallic border with seat bumps */}
+          <div className="absolute inset-0 rounded-[50%]">
+            {/* Table shadow on floor */}
+            <div className="absolute -inset-2 rounded-[50%] bg-black/30 blur-xl -z-10" />
+            {/* Outer metal rail */}
+            <div className="absolute inset-0 rounded-[50%] bg-gradient-to-b from-[#7a7a7a] via-[#5a5a5a] to-[#3a3a3a] shadow-[0_6px_24px_rgba(0,0,0,0.6),inset_0_1px_2px_rgba(255,255,255,0.2)]" />
+            {/* Rail highlight */}
+            <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_50%_20%,rgba(255,255,255,0.08)_0%,transparent_50%)]" />
+            {/* Inner rail edge */}
+            <div className="absolute inset-[6px] rounded-[50%] bg-gradient-to-b from-[#4a4a4a] to-[#2a2a2a] shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]" />
+            {/* Gold trim ring */}
+            <div className="absolute inset-[9px] rounded-[50%] border border-[#c9a227]/40" />
           </div>
           
           {/* Table felt - the green playing surface */}
-          <div className="absolute inset-[14px] rounded-[50%] bg-gradient-to-b from-[#35a06a] via-[#2d8f5c] to-[#247a4e] shadow-[inset_0_0_30px_rgba(0,0,0,0.15),inset_0_-4px_12px_rgba(0,0,0,0.1)]">
-            {/* Felt texture overlay */}
-            <div className="absolute inset-0 rounded-[50%] opacity-30" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='4' height='4' viewBox='0 0 4 4' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3h1v1H1V3zm2-2h1v1H3V1z' fill='%23000' fill-opacity='0.03'/%3E%3C/svg%3E")`,
+          <div className="absolute inset-[12px] rounded-[50%] bg-gradient-to-b from-[#2a7a4a] via-[#236b40] to-[#1c5c36] shadow-[inset_0_0_40px_rgba(0,0,0,0.25),inset_0_4px_12px_rgba(0,0,0,0.15)]">
+            {/* Felt texture */}
+            <div className="absolute inset-0 rounded-[50%] opacity-50" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4h1v1H2V4zm3-3h1v1H5V1z' fill='%23000' fill-opacity='0.02'/%3E%3C/svg%3E")`,
             }} />
-            {/* Center light spot (table lamp effect) */}
-            <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_50%_40%,rgba(255,255,255,0.1)_0%,transparent_50%)]" />
-            {/* Inner decorative line */}
-            <div className="absolute inset-[12px] rounded-[50%] border border-[#4dc88a]/25" />
+            {/* Overhead light spot */}
+            <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_50%_35%,rgba(255,255,255,0.08)_0%,transparent_45%)]" />
+            {/* Inner decorative oval line */}
+            <div className="absolute inset-[10%] rounded-[50%] border border-[#3da06e]/20" />
+            {/* Center logo area */}
+            <div className="absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border border-[#3da06e]/15 flex items-center justify-center opacity-40">
+              <span className="text-[8px] font-bold text-[#4dc88a]/60 tracking-wider">VP</span>
+            </div>
             
             {/* Pot display */}
             <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
@@ -663,9 +675,9 @@ export default function Table() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
-
       {/* My Cards Display (Hero cards at bottom, larger) */}
       {(isSeated || isDemoMode) && displayMyCards.length > 0 && (
         <div className="flex justify-center gap-1 -mt-2 mb-1 z-10">
