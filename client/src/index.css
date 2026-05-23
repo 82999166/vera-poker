@@ -185,6 +185,65 @@
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+/* Winner celebration glow */
+@keyframes winner-glow {
+  0% { box-shadow: 0 0 10px rgba(234, 179, 8, 0.3); transform: scale(1); }
+  25% { box-shadow: 0 0 30px rgba(234, 179, 8, 0.8), 0 0 60px rgba(234, 179, 8, 0.4); transform: scale(1.15); }
+  50% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.6), 0 0 40px rgba(234, 179, 8, 0.3); transform: scale(1.05); }
+  75% { box-shadow: 0 0 30px rgba(234, 179, 8, 0.8), 0 0 60px rgba(234, 179, 8, 0.4); transform: scale(1.12); }
+  100% { box-shadow: 0 0 10px rgba(234, 179, 8, 0.3); transform: scale(1); }
+}
+.animate-winner-glow {
+  animation: winner-glow 2s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Chips flying to winner */
+@keyframes chips-fly-in {
+  0% { transform: translateY(30px) scale(0.3); opacity: 0; }
+  60% { transform: translateY(-5px) scale(1.1); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.animate-chips-fly {
+  animation: chips-fly-in 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Winner amount pop up */
+@keyframes amount-pop {
+  0% { transform: translateY(10px) scale(0.5); opacity: 0; }
+  50% { transform: translateY(-8px) scale(1.2); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.animate-amount-pop {
+  animation: amount-pop 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* Loser fade out */
+@keyframes loser-fade {
+  0% { opacity: 1; filter: brightness(1) saturate(1); }
+  100% { opacity: 0.4; filter: brightness(0.5) saturate(0.2); }
+}
+.animate-loser {
+  animation: loser-fade 0.8s ease-out forwards;
+}
+
+/* Winner banner slide in */
+@keyframes banner-slide {
+  0% { transform: translateY(-30px) scale(0.8); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.animate-banner {
+  animation: banner-slide 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Confetti particles */
+@keyframes confetti-fall {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(60px) rotate(720deg); opacity: 0; }
+}
+.animate-confetti {
+  animation: confetti-fall 2s ease-out forwards;
+}
+
 /* Container override */
 .container {
   width: 100%;

@@ -158,6 +158,7 @@ export default function Table() {
   const [animateCards, setAnimateCards] = useState(false);
   const [showWinner, setShowWinner] = useState<{ name: string; amount: number; handDescription?: string } | null>(null);
   const [showSettlement, setShowSettlement] = useState<any>(null);
+  const [winnerPlayerIds, setWinnerPlayerIds] = useState<number[]>([]);
   const prevHandRef = useRef<number>(0);
 
   const roomId = parseInt(id || "0");
@@ -214,12 +215,17 @@ export default function Table() {
         setShowWinner(tableState.lastWinner);
         if (tableState.settlementDetail) {
           setShowSettlement(tableState.settlementDetail);
+          // Extract winner player IDs for seat animations
+          const wIds = tableState.settlementDetail.winners?.map((w: any) => w.playerId) || [];
+          setWinnerPlayerIds(wIds);
         }
-        setTimeout(() => { setShowWinner(null); setShowSettlement(null); }, 5000);
+        // Play win sound
+        if (!muted) playSound("win");
+        setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); }, 5000);
       }
       prevHandRef.current = tableState.handNumber;
     }
-  }, [tableState?.handNumber]);
+  }, [tableState?.handNumber, muted, playSound]);
 
   // Mutations
   const joinMutation = trpc.game.join.useMutation({
@@ -482,16 +488,39 @@ export default function Table() {
       {/* Winner Announcement Overlay */}
       {showWinner && (
         <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
-          <div className="glass-strong rounded-2xl px-6 py-4 text-center animate-in fade-in zoom-in duration-300 max-w-[320px]">
-            <Trophy className="w-8 h-8 text-gold mx-auto mb-2 animate-bounce" />
-            <p className="text-sm font-bold text-gold">{showWinner.name} {t("table.won")}</p>
-            <p className="text-xl font-black text-gold">${showWinner.amount.toFixed(2)}</p>
+          {/* Confetti particles */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {Array.from({ length: 20 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute animate-confetti"
+                style={{
+                  left: `${10 + Math.random() * 80}%`,
+                  top: `${20 + Math.random() * 30}%`,
+                  width: `${4 + Math.random() * 6}px`,
+                  height: `${4 + Math.random() * 6}px`,
+                  backgroundColor: ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'][i % 6],
+                  borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+                  animationDelay: `${Math.random() * 0.8}s`,
+                  animationDuration: `${1.5 + Math.random() * 1}s`,
+                }}
+              />
+            ))}
+          </div>
+          {/* Winner banner */}
+          <div className="animate-banner bg-black/80 backdrop-blur-md rounded-2xl px-6 py-5 text-center max-w-[320px] border-2 border-gold/50 shadow-[0_0_30px_rgba(234,179,8,0.3)]">
+            <div className="relative">
+              <Trophy className="w-10 h-10 text-gold mx-auto mb-2 drop-shadow-[0_0_10px_rgba(234,179,8,0.6)]" />
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-gold/10 animate-ping" />
+            </div>
+            <p className="text-base font-bold text-gold drop-shadow-[0_0_4px_rgba(234,179,8,0.4)]">{showWinner.name} {t("table.won")}</p>
+            <p className="text-2xl font-black text-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)] mt-1">${showWinner.amount.toFixed(2)}</p>
             {showWinner.handDescription && showWinner.handDescription !== "Last Standing" && (
-              <p className="text-xs text-gold/70 mt-1">{showWinner.handDescription}</p>
+              <p className="text-sm text-gold/80 mt-1 font-medium">{showWinner.handDescription}</p>
             )}
             {/* Side pots info */}
             {showSettlement?.sidePots?.length > 1 && (
-              <div className="mt-2 border-t border-gold/20 pt-2">
+              <div className="mt-3 border-t border-gold/20 pt-2">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Side Pots</p>
                 {showSettlement.sidePots.map((sp: any, i: number) => (
                   <p key={i} className="text-xs text-foreground/80">
@@ -502,11 +531,11 @@ export default function Table() {
             )}
             {/* Showdown players */}
             {showSettlement?.showdownPlayers?.length > 1 && (
-              <div className="mt-2 border-t border-gold/20 pt-2 space-y-1">
+              <div className="mt-3 border-t border-gold/20 pt-2 space-y-1.5">
                 {showSettlement.showdownPlayers.map((sp: any) => (
                   <div key={sp.playerId} className="flex items-center justify-between text-xs">
                     <span className="text-foreground/70">{sp.name}</span>
-                    <span className="text-foreground/90 font-medium">{sp.handDescription}</span>
+                    <span className={`font-medium ${winnerPlayerIds.includes(sp.playerId) ? "text-gold" : "text-foreground/90"}`}>{sp.handDescription}</span>
                   </div>
                 ))}
               </div>
@@ -546,13 +575,15 @@ export default function Table() {
             if (!pos) return null;
             const isHero = player.id === user?.id || (isDemoMode && player.seatIndex === 0);
             const isCurrentTurn = isDemoMode ? player.isActive : (tableState?.currentPlayerId === player.id);
+            const isWinner = winnerPlayerIds.includes(player.id);
+            const isLoser = winnerPlayerIds.length > 0 && !winnerPlayerIds.includes(player.id) && !player.isFolded;
             return (
               <div
                 key={player.id}
-                className="absolute transition-all duration-300 z-10"
+                className={`absolute transition-all duration-300 z-10 ${isLoser ? "animate-loser" : ""}`}
                 style={{ top: pos.top, left: pos.left, transform: pos.transform }}
               >
-                <div className={`flex flex-col items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} transition-transform duration-200`}>
+                <div className={`flex flex-col items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} ${isWinner ? "animate-winner-glow" : ""} transition-transform duration-200`}>
                   {/* Player cards next to seat */}
                   {isHero && displayMyCards.length > 0 && (
                     <div className="flex gap-1 mb-0.5">
@@ -577,6 +608,7 @@ export default function Table() {
 
                   {/* Avatar circle */}
                   <div className={`relative w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-200 ${
+                    isWinner ? "border-gold shadow-[0_0_20px_rgba(234,179,8,0.8)] scale-110" :
                     isCurrentTurn ? "border-gold shadow-[0_0_12px_rgba(212,175,55,0.6)]" :
                     isHero ? "border-truth-blue/60" :
                     player.isFolded ? "border-white/10 opacity-40" : "border-white/30"
@@ -609,6 +641,16 @@ export default function Table() {
                   {/* Current bet chip stack */}
                   {player.currentBet > 0 && !player.isFolded && (
                     <ChipStack amount={player.currentBet} />
+                  )}
+
+                  {/* Winner amount pop-up */}
+                  {isWinner && showWinner && (
+                    <div className="animate-amount-pop flex items-center gap-1 mt-1">
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border border-yellow-600 flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.6)]">
+                        <span className="text-[8px] font-black text-yellow-900">$</span>
+                      </div>
+                      <span className="text-sm font-black text-yellow-300 drop-shadow-[0_0_6px_rgba(234,179,8,0.5)]">+{showWinner.amount.toFixed(2)}</span>
+                    </div>
                   )}
                 </div>
               </div>
