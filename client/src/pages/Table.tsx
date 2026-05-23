@@ -35,18 +35,18 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   if (!card || faceDown) {
     // Card back: red diamond pattern with decorative border
     return (
-      <div className={`w-10 h-14 rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4),0_0_20px_rgba(0,0,0,0.2)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`}>
+      <div className={`w-11 h-[60px] rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4),0_0_20px_rgba(0,0,0,0.2)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`}>
         <div className="w-full h-full bg-gradient-to-br from-[#c0392b] to-[#922b21] border-[1.5px] border-white/80 rounded-md relative">
           {/* Inner border */}
           <div className="absolute inset-[3px] border border-white/40 rounded-sm" />
           {/* Diamond grid pattern */}
           <div className="absolute inset-[5px] rounded-sm overflow-hidden" style={{
-            backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.12) 3px, rgba(255,255,255,0.12) 4px), repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(255,255,255,0.12) 3px, rgba(255,255,255,0.12) 4px)`,
+            backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.1) 4px, rgba(255,255,255,0.1) 5px), repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(255,255,255,0.1) 4px, rgba(255,255,255,0.1) 5px)`,
           }} />
           {/* Center logo */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
-              <span className="text-[6px] font-bold text-white/80">VP</span>
+            <div className="w-5 h-5 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
+              <span className="text-[7px] font-bold text-white/80">VP</span>
             </div>
           </div>
         </div>
@@ -61,21 +61,21 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const isRed = suit === 'h' || suit === 'd';
 
   return (
-    <div className={`w-12 h-[68px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4),0_0_24px_rgba(0,0,0,0.15)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${className}`}>
-      <div className="w-full h-full bg-gradient-to-br from-white to-gray-50 border-[1px] border-gray-200/80 rounded-lg relative flex flex-col items-center justify-between py-1 px-0.5">
+    <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4),0_0_24px_rgba(0,0,0,0.15)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${className}`}>
+      <div className="w-full h-full bg-gradient-to-br from-white to-gray-50 border-[1px] border-gray-200/80 rounded-lg relative flex flex-col items-center justify-between py-1.5 px-1">
         {/* Top-left rank + suit */}
-        <div className="absolute top-0.5 left-1 flex flex-col items-center leading-none">
-          <span className={`text-[12px] font-extrabold ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
-          <span className={`text-[10px] font-bold -mt-0.5 ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+        <div className="absolute top-1 left-1.5 flex flex-col items-center leading-none">
+          <span className={`text-[15px] font-black ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
+          <span className={`text-[10px] font-bold ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
         </div>
-        {/* Center large suit */}
+        {/* Center suit - smaller to avoid overlap */}
         <div className="flex-1 flex items-center justify-center">
-          <span className={`text-2xl ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+          <span className={`text-lg ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
         </div>
         {/* Bottom-right rank + suit (inverted) */}
-        <div className="absolute bottom-0.5 right-1 flex flex-col items-center leading-none rotate-180">
-          <span className={`text-[12px] font-extrabold ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
-          <span className={`text-[10px] font-bold -mt-0.5 ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+        <div className="absolute bottom-1 right-1.5 flex flex-col items-center leading-none rotate-180">
+          <span className={`text-[15px] font-black ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
+          <span className={`text-[10px] font-bold ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
         </div>
       </div>
     </div>
@@ -145,14 +145,14 @@ function AnimatedPot({ amount }: { amount: number }) {
 const DEFAULT_AVATAR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/default-avatar-aXRqAewdDSMxKYhaCU9DtA.webp";
 
 // Player seat positions for 6-max table (oval layout)
-// Seat positions OUTSIDE the table oval (around the border)
+// Seats positioned WELL OUTSIDE the table oval border
 const SEAT_POSITIONS = [
-  { top: "88%", left: "50%", transform: "translate(-50%, -50%)" },  // Bottom (hero)
-  { top: "68%", left: "2%", transform: "translate(0, -50%)" },     // Left bottom
-  { top: "28%", left: "2%", transform: "translate(0, -50%)" },     // Left top
-  { top: "4%", left: "50%", transform: "translate(-50%, 0)" },      // Top
-  { top: "28%", left: "98%", transform: "translate(-100%, -50%)" }, // Right top
-  { top: "68%", left: "98%", transform: "translate(-100%, -50%)" }, // Right bottom
+  { top: "92%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
+  { top: "72%", left: "-2%", transform: "translate(0, -50%)" },     // Left bottom
+  { top: "24%", left: "-2%", transform: "translate(0, -50%)" },     // Left top
+  { top: "1%", left: "50%", transform: "translate(-50%, 0)" },       // Top
+  { top: "24%", left: "102%", transform: "translate(-100%, -50%)" }, // Right top
+  { top: "72%", left: "102%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
 
 // Phase display names - resolved inside component via t()
@@ -256,6 +256,9 @@ export default function Table() {
     onError: (err) => toast.error(err.message),
   });
 
+  // Fetch available rooms for auto-switch after fold
+  const { data: allRooms } = trpc.rooms.list.useQuery(undefined, { enabled: isValidRoom });
+
   const actionMutation = trpc.game.action.useMutation({
     onSuccess: (_, variables) => {
       utils.game.tableState.invalidate({ roomId });
@@ -267,6 +270,23 @@ export default function Table() {
         else if (action === "call") playSound("call");
         else if (action === "raise" || action === "bet") playSound("bet");
         else if (action === "allin") playSound("allIn");
+      }
+      // Auto-switch table after fold
+      if ((variables as any)?.action === "fold" && allRooms) {
+        const currentBB = room ? parseFloat(room.bigBlind) : 0;
+        // Find another room at same blind level with available seats
+        const candidates = allRooms.filter((r: any) =>
+          r.id !== roomId &&
+          r.status !== "closed" &&
+          r.currentPlayers < r.maxPlayers &&
+          parseFloat(r.bigBlind) === currentBB
+        );
+        if (candidates.length > 0) {
+          // Pick the one with most players (more action)
+          const target = candidates.sort((a: any, b: any) => b.currentPlayers - a.currentPlayers)[0];
+          toast.info(t("table.switchingTable"));
+          setTimeout(() => navigate(`/table/${target.id}`), 1500);
+        }
       }
     },
     onError: (err) => toast.error(err.message),
@@ -528,7 +548,7 @@ export default function Table() {
             {/* Community Cards - no placeholders, background has card slots */}
             <div className="absolute top-[44%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2">
               {displayCommunity.map((card, i) => (
-                <CardView key={`${card}-${i}`} card={card} className="!w-12 !h-[66px]" animate={animateCards} delay={i * 150} />
+                <CardView key={`${card}-${i}`} card={card} className="!w-[52px] !h-[72px]" animate={animateCards} delay={i * 150} />
               ))}
             </div>
           {/* Player Seats - positioned outside the table */}
@@ -548,21 +568,21 @@ export default function Table() {
                   {isHero && displayMyCards.length > 0 && (
                     <div className="flex gap-0.5 mb-0.5">
                       {displayMyCards.map((card, i) => (
-                        <CardView key={i} card={card} className="!w-10 !h-[56px]" animate delay={i * 200} />
+                        <CardView key={i} card={card} className="!w-12 !h-[64px]" animate delay={i * 200} />
                       ))}
                     </div>
                   )}
                   {!isHero && player.holeCards && player.holeCards.length > 0 && (
                     <div className="flex gap-0.5 mb-0.5">
                       {player.holeCards.map((card, i) => (
-                        <CardView key={i} card={card} className="!w-9 !h-[50px]" />
+                        <CardView key={i} card={card} className="!w-10 !h-[54px]" />
                       ))}
                     </div>
                   )}
                   {!isHero && (!player.holeCards || player.holeCards.length === 0) && !player.isFolded && displayPhase !== "waiting" && (
                     <div className="flex gap-0.5 mb-0.5">
-                      <CardView faceDown className="!w-8 !h-11" />
-                      <CardView faceDown className="!w-8 !h-11" />
+                      <CardView faceDown className="!w-9 !h-[50px]" />
+                      <CardView faceDown className="!w-9 !h-[50px]" />
                     </div>
                   )}
 
