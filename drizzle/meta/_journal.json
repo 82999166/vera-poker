@@ -43,6 +43,13 @@
       "when": 1779537181472,
       "tag": "0005_sour_gunslinger",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1779539726485,
+      "tag": "0006_magical_darkhawk",
+      "breakpoints": true
     }
   ]
 }

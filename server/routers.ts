@@ -1083,6 +1083,7 @@ Rules:
       const newBalance = (parseFloat(user.balance) + input.amount).toFixed(2);
       await dbInstance.update(users).set({ balance: newBalance }).where(eq(users.id, input.userId));
       const operatorName = ctx.adminUser?.name || ctx.user?.name || "Admin";
+      const operatorId = ctx.adminUser?.adminId || ctx.user?.id;
       await dbInstance.insert(transactions).values({
         userId: input.userId,
         type: "deposit",
@@ -1092,7 +1093,10 @@ Rules:
         status: "confirmed",
         chain: "manual",
         txHash: `manual_${Date.now()}`,
-        note: input.note ? `[手动充值 by ${operatorName}] ${input.note}` : `[手动充值 by ${operatorName}]`,
+        referenceType: "admin_topup",
+        note: input.note ? `[Admin Top-Up by ${operatorName}] ${input.note}` : `[Admin Top-Up by ${operatorName}]`,
+        operatorId: operatorId,
+        operatorName: operatorName,
         createdAt: new Date(),
       });
       return { success: true, newBalance };

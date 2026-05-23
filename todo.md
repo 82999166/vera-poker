@@ -249,9 +249,9 @@
 - [x] Add manual top-up dialog in Admin UsersPanel
 
 ## Translation & i18n Completeness Fix (Round 2)
-- [ ] Fix Admin.tsx: all hardcoded Chinese strings in UserDetailPanel, UsersPanel, StaffPanel use at() or t()
-- [ ] Fix Profile.tsx: game stats, achievements, TG binding section all use t()
-- [ ] Add missing i18n keys to all 3 admin languages (zh-CN, zh-TW, en)
+- [x] Fix Admin.tsx: all hardcoded Chinese strings in UserDetailPanel, UsersPanel, StaffPanel use at() or t()
+- [x] Fix Profile.tsx: game stats, achievements, TG binding section all use t()
+- [x] Add missing i18n keys to all 3 admin languages (zh-CN, zh-TW, en)
 - [ ] Add missing i18n keys to all 12 frontend languages
 
 ## Staff Account Migration
@@ -260,15 +260,15 @@
 - [ ] After migration, update migrated users' role in users table to 'user'
 
 ## User Stats Overview Cards
-- [ ] Backend: admin.userStats query (total users, today new, today active, total balance)
-- [ ] Frontend: add stats cards row at top of UsersPanel
+- [x] Backend: admin.userStats query (total users, today new, today active, total balance)
+- [x] Frontend: add stats cards row at top of UsersPanel
 
 ## Manual Top-Up Audit Log
-- [ ] Add operatorId + operatorName fields to transactions table (migration)
-- [ ] Record operator info in manualTopUp procedure
-- [ ] Show "Admin Manual Top-Up" label + operator name in deposit records tab
+- [x] Add operatorId + operatorName fields to transactions table (migration)
+- [x] Record operator info in manualTopUp procedure
+- [x] Show "Admin Manual Top-Up" label + operator name in deposit records tab
 
 ## Admin Dashboard & User Detail Fixes (2026-05-23)
-- [ ] Admin homepage: show data dashboard (stats overview) as default landing panel
-- [ ] User list: show last login IP in user detail info tab
-- [ ] Fix user detail page: clicking a user row does not navigate into detail view
+- [x] Admin homepage: show data dashboard (stats overview) as default landing panel
+- [x] User list: show last login IP in user detail info tab
+- [x] Fix user detail page: clicking a user row does not navigate into detail view

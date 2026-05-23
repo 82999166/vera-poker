@@ -571,7 +571,7 @@ export async function getUserDetail(userId: number) {
   const [downlineCount, commissionTotal] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(agentRelationships)
       .where(eq(agentRelationships.agentId, userId)),
-    db.select({ total: sql<string>`COALESCE(SUM(amount), '0.00')` }).from(commissionRecords)
+    db.select({ total: sql<string>`COALESCE(SUM(commission_amount), '0.00')` }).from(commissionRecords)
       .where(eq(commissionRecords.agentId, userId)),
   ]);
 

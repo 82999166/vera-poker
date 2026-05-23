@@ -260,6 +260,71 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "finance.commission": "佣金",
     "finance.manualTopUp": "手动充值",
     "finance.autoApproveLimit": "小额自动审批上限",
+    "login.title": "Vera 管理后台",
+    "login.subtitle": "员工登录",
+    "login.username": "用户名",
+    "login.password": "密码",
+    "login.usernamePlaceholder": "请输入员工账号",
+    "login.passwordPlaceholder": "请输入密码",
+    "login.submit": "登录",
+    "login.emptyError": "请输入用户名和密码",
+    "login.failed": "登录失败",
+    "login.welcome": "欢迎回来",
+    "login.networkError": "网络错误，请重试",
+    "finance.confirmDeposit": "确认充值",
+    "finance.confirmTransfer": "确认转账",
+    "finance.pendingCount": "待审核",
+    "finance.chainAddr": "链 / 地址",
+    "finance.withdrawAmount": "提现金额",
+    "finance.confirmWithdrawTitle": "确认提现转账",
+    "finance.txHashLabel": "转账 TX Hash",
+    "finance.txHashHint": "(必填，请先完成链上转账)",
+    "finance.txHashPlaceholder2": "输入链上转账的 Transaction Hash",
+    "finance.txHashRequired": "请输入转账 TX Hash",
+    "finance.confirmTransferDone": "确认已转账",
+    "finance.depositConfirmed": "充值已确认",
+    "finance.withdrawConfirmed": "提现已确认",
+    "finance.rejectConfirm": "确定拒绝该交易？",
+    "finance.rejectReason": "管理员拒绝",
+    "finance.rejected2": "已拒绝",
+    "finance.tabPending": "待审核",
+    "finance.tabDeposits": "充值",
+    "finance.tabWithdrawals": "提现",
+    "finance.tabAll": "全部",
+    "finance.totalVolume2": "总流水",
+    "finance.totalTxCount": "总交易数",
+    "finance.pendingReview": "待审核",
+    "finance.chainLabel": "链",
+    "finance.statusLabel": "状态",
+    "finance.statusPending": "待审核",
+    "finance.statusConfirmed": "已确认",
+    "finance.statusFailed": "已拒绝",
+    "finance.addressLabel": "地址",
+    "finance.timeLabel": "时间",
+    "finance.userLabel": "用户",
+    "finance.noPendingReview": "暂无待审核交易",
+    "tg.oidcTitle": "Telegram Login (OIDC)",
+    "tg.clientId": "Client ID",
+    "tg.clientIdHint": "BotFather → Login Widget 中显示的 Client ID（数字）",
+    "tg.clientSecret": "Client Secret",
+    "tg.clientSecretHint": "BotFather → Login Widget 中显示的 Client Secret",
+    "tg.redirectUri": "Redirect URI",
+    "tg.redirectUriHint": "在 BotFather → Login Widget → Redirect URIs 中添加此地址",
+    "tg.trustedOrigin": "Trusted Origin",
+    "tg.trustedOriginHint": "在 BotFather → Login Widget → Trusted Origins 中添加此地址",
+    "tg.miniAppTitle": "Mini App 配置",
+    "tg.miniAppUrl": "Mini App URL",
+    "tg.miniAppUrlHint": "在 BotFather 中设置 Web App URL 为此地址",
+    "tg.webhookUrl": "Webhook URL",
+    "tg.webhookUrlHint": "在 BotFather 或 API 中设置 Webhook 为此地址",
+    "tg.setWebhookCmd": "设置 Webhook 命令",
+    "tg.botUsernameHint": "填写 Bot 的用户名（如 VeraPokerBot），不含 @",
+    "tg.botTokenHint": "完整 Token（如 123456789:ABCxxx），Bot ID 会自动提取",
+    "config.catGame": "游戏设置",
+    "config.catAgent": "代理系统",
+    "config.catFinance": "财务设置",
+    "config.catRisk": "风控设置",
+    "config.catRoom": "私人房设置",
   },
   "zh-TW": {
     "admin.title": "Vera 管理後台",
@@ -507,6 +572,71 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "finance.commission": "佣金",
     "finance.manualTopUp": "手動充值",
     "finance.autoApproveLimit": "小額自動審批上限",
+    "login.title": "Vera 管理後台",
+    "login.subtitle": "員工登入",
+    "login.username": "用戶名",
+    "login.password": "密碼",
+    "login.usernamePlaceholder": "請輸入員工帳號",
+    "login.passwordPlaceholder": "請輸入密碼",
+    "login.submit": "登入",
+    "login.emptyError": "請輸入用戶名和密碼",
+    "login.failed": "登入失敗",
+    "login.welcome": "歡迎回來",
+    "login.networkError": "網路錯誤，請重試",
+    "finance.confirmDeposit": "確認充値",
+    "finance.confirmTransfer": "確認轉賬",
+    "finance.pendingCount": "待審核",
+    "finance.chainAddr": "鏈 / 地址",
+    "finance.withdrawAmount": "提現金額",
+    "finance.confirmWithdrawTitle": "確認提現轉賬",
+    "finance.txHashLabel": "轉賬 TX Hash",
+    "finance.txHashHint": "(必填，請先完成鏈上轉賬)",
+    "finance.txHashPlaceholder2": "輸入鏈上轉賬的 Transaction Hash",
+    "finance.txHashRequired": "請輸入轉賬 TX Hash",
+    "finance.confirmTransferDone": "確認已轉賬",
+    "finance.depositConfirmed": "充値已確認",
+    "finance.withdrawConfirmed": "提現已確認",
+    "finance.rejectConfirm": "確定拒絕該交易？",
+    "finance.rejectReason": "管理員拒絕",
+    "finance.rejected2": "已拒絕",
+    "finance.tabPending": "待審核",
+    "finance.tabDeposits": "充値",
+    "finance.tabWithdrawals": "提現",
+    "finance.tabAll": "全部",
+    "finance.totalVolume2": "總流水",
+    "finance.totalTxCount": "總交易數",
+    "finance.pendingReview": "待審核",
+    "finance.chainLabel": "鏈",
+    "finance.statusLabel": "狀態",
+    "finance.statusPending": "待審核",
+    "finance.statusConfirmed": "已確認",
+    "finance.statusFailed": "已拒絕",
+    "finance.addressLabel": "地址",
+    "finance.timeLabel": "時間",
+    "finance.userLabel": "用戶",
+    "finance.noPendingReview": "暫無待審核交易",
+    "tg.oidcTitle": "Telegram Login (OIDC)",
+    "tg.clientId": "Client ID",
+    "tg.clientIdHint": "BotFather → Login Widget 中顯示的 Client ID（數字）",
+    "tg.clientSecret": "Client Secret",
+    "tg.clientSecretHint": "BotFather → Login Widget 中顯示的 Client Secret",
+    "tg.redirectUri": "Redirect URI",
+    "tg.redirectUriHint": "在 BotFather → Login Widget → Redirect URIs 中添加此地址",
+    "tg.trustedOrigin": "Trusted Origin",
+    "tg.trustedOriginHint": "在 BotFather → Login Widget → Trusted Origins 中添加此地址",
+    "tg.miniAppTitle": "Mini App 配置",
+    "tg.miniAppUrl": "Mini App URL",
+    "tg.miniAppUrlHint": "在 BotFather 中設置 Web App URL 為此地址",
+    "tg.webhookUrl": "Webhook URL",
+    "tg.webhookUrlHint": "在 BotFather 或 API 中設置 Webhook 為此地址",
+    "tg.setWebhookCmd": "設置 Webhook 命令",
+    "tg.botUsernameHint": "填寫 Bot 的用戶名（如 VeraPokerBot），不含 @",
+    "tg.botTokenHint": "完整 Token（如 123456789:ABCxxx），Bot ID 會自動提取",
+    "config.catGame": "遂戲設置",
+    "config.catAgent": "代理系統",
+    "config.catFinance": "財務設置",
+    "config.catRisk": "風控設置",
+    "config.catRoom": "私人房設置",
   },
   "en": {
     "admin.title": "Vera Admin",
@@ -754,6 +884,71 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "finance.commission": "Commission",
     "finance.manualTopUp": "Manual Top-Up",
     "finance.autoApproveLimit": "Auto-Approve Limit",
+    "login.title": "Vera Admin",
+    "login.subtitle": "Staff Login",
+    "login.username": "Username",
+    "login.password": "Password",
+    "login.usernamePlaceholder": "Enter staff account",
+    "login.passwordPlaceholder": "Enter password",
+    "login.submit": "Sign In",
+    "login.emptyError": "Please enter username and password",
+    "login.failed": "Login failed",
+    "login.welcome": "Welcome back",
+    "login.networkError": "Network error, please retry",
+    "finance.confirmDeposit": "Confirm Deposit",
+    "finance.confirmTransfer": "Confirm Transfer",
+    "finance.pendingCount": "Pending",
+    "finance.chainAddr": "Chain / Address",
+    "finance.withdrawAmount": "Withdrawal Amount",
+    "finance.confirmWithdrawTitle": "Confirm Withdrawal Transfer",
+    "finance.txHashLabel": "Transfer TX Hash",
+    "finance.txHashHint": "(Required - complete on-chain transfer first)",
+    "finance.txHashPlaceholder2": "Enter on-chain Transaction Hash",
+    "finance.txHashRequired": "Please enter TX Hash",
+    "finance.confirmTransferDone": "Confirm Transfer Done",
+    "finance.depositConfirmed": "Deposit confirmed",
+    "finance.withdrawConfirmed": "Withdrawal confirmed",
+    "finance.rejectConfirm": "Reject this transaction?",
+    "finance.rejectReason": "Admin rejected",
+    "finance.rejected2": "Rejected",
+    "finance.tabPending": "Pending",
+    "finance.tabDeposits": "Deposits",
+    "finance.tabWithdrawals": "Withdrawals",
+    "finance.tabAll": "All",
+    "finance.totalVolume2": "Total Volume",
+    "finance.totalTxCount": "Total Transactions",
+    "finance.pendingReview": "Pending Review",
+    "finance.chainLabel": "Chain",
+    "finance.statusLabel": "Status",
+    "finance.statusPending": "Pending",
+    "finance.statusConfirmed": "Confirmed",
+    "finance.statusFailed": "Rejected",
+    "finance.addressLabel": "Address",
+    "finance.timeLabel": "Time",
+    "finance.userLabel": "User",
+    "finance.noPendingReview": "No pending transactions",
+    "tg.oidcTitle": "Telegram Login (OIDC)",
+    "tg.clientId": "Client ID",
+    "tg.clientIdHint": "Client ID shown in BotFather → Login Widget (numeric)",
+    "tg.clientSecret": "Client Secret",
+    "tg.clientSecretHint": "Client Secret shown in BotFather → Login Widget",
+    "tg.redirectUri": "Redirect URI",
+    "tg.redirectUriHint": "Add this URL in BotFather → Login Widget → Redirect URIs",
+    "tg.trustedOrigin": "Trusted Origin",
+    "tg.trustedOriginHint": "Add this URL in BotFather → Login Widget → Trusted Origins",
+    "tg.miniAppTitle": "Mini App Configuration",
+    "tg.miniAppUrl": "Mini App URL",
+    "tg.miniAppUrlHint": "Set Web App URL to this address in BotFather",
+    "tg.webhookUrl": "Webhook URL",
+    "tg.webhookUrlHint": "Set Webhook to this address in BotFather or API",
+    "tg.setWebhookCmd": "Set Webhook Command",
+    "tg.botUsernameHint": "Enter Bot username (e.g. VeraPokerBot), without @",
+    "tg.botTokenHint": "Full token (e.g. 123456789:ABCxxx), Bot ID will be extracted automatically",
+    "config.catGame": "Game Settings",
+    "config.catAgent": "Agent System",
+    "config.catFinance": "Finance",
+    "config.catRisk": "Risk Control",
+    "config.catRoom": "Private Room",
   },
 };
 
@@ -776,11 +971,12 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { at } = useAdminLang();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      toast.error("请输入用户名和密码");
+      toast.error(at("login.emptyError"));
       return;
     }
     setLoading(true);
@@ -792,13 +988,13 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "登录失败");
+        toast.error(data.error || at("login.failed"));
         return;
       }
-      toast.success(`欢迎回来，${data.user.name}`);
+      toast.success(`${at("login.welcome")}，${data.user.name}`);
       onSuccess();
     } catch (err) {
-      toast.error("网络错误，请重试");
+      toast.error(at("login.networkError"));
     } finally {
       setLoading(false);
     }
@@ -812,19 +1008,19 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center mx-auto mb-4 shadow-lg shadow-gold/20">
             <Shield className="w-8 h-8 text-background" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">Vera 管理后台</h1>
-          <p className="text-sm text-muted-foreground mt-1">员工登录</p>
+          <h1 className="text-xl font-bold text-foreground">{at("login.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{at("login.subtitle")}</p>
         </div>
 
         {/* Login Form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">用户名</label>
+            <label className="text-xs font-medium text-muted-foreground">{at("login.username")}</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="请输入员工账号"
+              placeholder={at("login.usernamePlaceholder")}
               className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold/30 focus:border-gold/50 transition-all"
               autoComplete="username"
               autoFocus
@@ -832,13 +1028,13 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">密码</label>
+            <label className="text-xs font-medium text-muted-foreground">{at("login.password")}</label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="请输入密码"
+                placeholder={at("login.passwordPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold/30 focus:border-gold/50 transition-all pr-12"
                 autoComplete="current-password"
               />
@@ -862,7 +1058,7 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
             ) : (
               <>
                 <LogIn className="w-4 h-4" />
-                <span>登录</span>
+                <span>{at("login.submit")}</span>
               </>
             )}
           </button>
@@ -1596,7 +1792,8 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
                 </div>
                 <div className="text-[10px] text-muted-foreground space-y-0.5">
                   <div>{at("finance.chain")}: {tx.chain || "-"} | TX: {tx.txHash ? tx.txHash.substring(0, 16) + "..." : "-"}</div>
-                  {tx.note && <div className="text-[9px] italic opacity-70">{tx.note}</div>}
+                  {tx.operatorName && <div className="text-[9px] text-gold/70">{at("users.adminTopUp")}: {tx.operatorName}</div>}
+                  {tx.note && !tx.note.startsWith('[Admin Top-Up') && <div className="text-[9px] italic opacity-70">{tx.note}</div>}
                   <div>{at("finance.time")}: {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : "-"}</div>
                 </div>
               </div>
@@ -2015,15 +2212,15 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
   const { data: stats } = trpc.admin.stats.useQuery();
 
   const confirmDepositMutation = trpc.wallet.confirmDeposit.useMutation({
-    onSuccess: () => { toast.success("充值已确认"); utils.wallet.allTransactions.invalidate(); },
+    onSuccess: () => { toast.success(at("finance.depositConfirmed")); utils.wallet.allTransactions.invalidate(); },
     onError: (err) => toast.error(err.message),
   });
   const confirmWithdrawMutation = trpc.wallet.confirmWithdrawal.useMutation({
-    onSuccess: () => { toast.success("提现已确认"); utils.wallet.allTransactions.invalidate(); setApproveDialog(null); setTxHashInput(""); },
+    onSuccess: () => { toast.success(at("finance.withdrawConfirmed")); utils.wallet.allTransactions.invalidate(); setApproveDialog(null); setTxHashInput(""); },
     onError: (err) => toast.error(err.message),
   });
   const rejectMutation = trpc.wallet.rejectTransaction.useMutation({
-    onSuccess: () => { toast.success("已拒绝"); utils.wallet.allTransactions.invalidate(); },
+    onSuccess: () => { toast.success(at("finance.rejected2")); utils.wallet.allTransactions.invalidate(); },
     onError: (err) => toast.error(err.message),
   });
 
@@ -2040,15 +2237,15 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="glass rounded-xl p-3 text-center">
-          <p className="text-[10px] text-muted-foreground mb-0.5">总流水</p>
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.totalVolume2")}</p>
           <p className="text-lg font-bold text-gold">${stats?.totalVolume ?? "0.00"}</p>
         </div>
         <div className="glass rounded-xl p-3 text-center">
-          <p className="text-[10px] text-muted-foreground mb-0.5">总交易数</p>
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.totalTxCount")}</p>
           <p className="text-lg font-bold text-truth-blue">{stats?.totalTransactions ?? 0}</p>
         </div>
         <div className="glass rounded-xl p-3 text-center">
-          <p className="text-[10px] text-muted-foreground mb-0.5">待审核</p>
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.pendingReview")}</p>
           <p className="text-lg font-bold text-warning">{pendingTx.length}</p>
         </div>
       </div>
@@ -2063,7 +2260,7 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
               financeTab === tab ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {tab === "pending" ? `待审核(${pendingTx.length})` : tab === "deposits" ? "充值" : tab === "withdrawals" ? "提现" : "全部"}
+            {tab === "pending" ? `${at("finance.tabPending")}(${pendingTx.length})` : tab === "deposits" ? at("finance.tabDeposits") : tab === "withdrawals" ? at("finance.tabWithdrawals") : at("finance.tabAll")}
           </button>
         ))}
       </div>
@@ -2079,17 +2276,17 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
                     tx.type === "deposit" ? "bg-emerald-500/20 text-emerald-400" :
                     tx.type === "withdraw" ? "bg-red-500/20 text-red-400" :
                     "bg-secondary text-muted-foreground"
-                  }`}>{tx.type === "deposit" ? "充值" : tx.type === "withdraw" ? "提现" : tx.type}</span>
-                  <span className="text-xs text-muted-foreground">用户 #{tx.userId}</span>
+                  }`}>{tx.type === "deposit" ? at("finance.tabDeposits") : tx.type === "withdraw" ? at("finance.tabWithdrawals") : tx.type}</span>
+                  <span className="text-xs text-muted-foreground">{at("finance.userLabel")} #{tx.userId}</span>
                   <span className="text-xs text-muted-foreground">#{tx.id}</span>
                 </div>
                 <span className="text-sm font-mono font-medium">${tx.amount}</span>
               </div>
               <div className="text-[10px] text-muted-foreground space-y-0.5 mb-2">
-                <div>链: {tx.chain || "-"} | 状态: <span className={tx.status === "pending" ? "text-warning" : tx.status === "confirmed" ? "text-success" : "text-danger"}>{tx.status === "pending" ? "待审核" : tx.status === "confirmed" ? "已确认" : tx.status === "failed" ? "已拒绝" : tx.status}</span></div>
+                <div>{at("finance.chainLabel")}: {tx.chain || "-"} | {at("finance.statusLabel")}: <span className={tx.status === "pending" ? "text-warning" : tx.status === "confirmed" ? "text-success" : "text-danger"}>{tx.status === "pending" ? at("finance.statusPending") : tx.status === "confirmed" ? at("finance.statusConfirmed") : tx.status === "failed" ? at("finance.statusFailed") : tx.status}</span></div>
                 {tx.txHash && <div>TX: {tx.txHash.substring(0, 24)}...</div>}
-                {tx.walletAddress && <div>地址: {tx.walletAddress.substring(0, 24)}...</div>}
-                <div>时间: {tx.createdAt ? new Date(tx.createdAt).toLocaleString("zh-CN") : "-"}</div>
+                {tx.walletAddress && <div>{at("finance.addressLabel")}: {tx.walletAddress.substring(0, 24)}...</div>}
+                <div>{at("finance.timeLabel")}: {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : "-"}</div>
               </div>
               {/* Action buttons for pending */}
               {tx.status === "pending" && (
@@ -2099,30 +2296,30 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
                       onClick={() => confirmDepositMutation.mutate({ transactionId: tx.id })}
                       disabled={confirmDepositMutation.isPending}
                       className="flex-1 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
-                    >确认充值</button>
+                    >{at("finance.confirmDeposit")}</button>
                   )}
                   {tx.type === "withdraw" && (
                     <button
                       onClick={() => { setApproveDialog({ txId: tx.id, amount: tx.amount, address: tx.walletAddress || "", chain: tx.chain || "" }); setTxHashInput(""); }}
                       disabled={confirmWithdrawMutation.isPending}
                       className="flex-1 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
-                    >确认转账</button>
+                    >{at("finance.confirmTransfer")}</button>
                   )}
                   <button
                     onClick={() => {
-                      if (confirm("确定拒绝该交易？")) {
-                        rejectMutation.mutate({ transactionId: tx.id, reason: "管理员拒绝" });
+                      if (confirm(at("finance.rejectConfirm"))) {
+                        rejectMutation.mutate({ transactionId: tx.id, reason: at("finance.rejectReason") });
                       }
                     }}
                     disabled={rejectMutation.isPending}
                     className="flex-1 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
-                  >拒绝</button>
+                  >{at("finance.reject")}</button>
                 </div>
               )}
             </div>
           ))
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-8">{financeTab === "pending" ? "暂无待审核交易" : at("finance.noTx")}</p>
+          <p className="text-sm text-muted-foreground text-center py-8">{financeTab === "pending" ? at("finance.noPendingReview") : at("finance.noTx")}</p>
         )}
       </div>
 
@@ -2131,40 +2328,40 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setApproveDialog(null)}>
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">确认提现转账</h3>
+              <h3 className="text-lg font-bold">{at("finance.confirmWithdrawTitle")}</h3>
               <button onClick={() => setApproveDialog(null)} className="p-1 rounded-lg hover:bg-secondary"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-3 mb-4">
               <div className="glass rounded-lg p-3">
-                <div className="text-xs text-muted-foreground mb-1">提现金额</div>
+                <div className="text-xs text-muted-foreground mb-1">{at("finance.withdrawAmount")}</div>
                 <div className="text-lg font-bold text-gold">${approveDialog.amount}</div>
               </div>
               <div className="glass rounded-lg p-3">
-                <div className="text-xs text-muted-foreground mb-1">链 / 地址</div>
+                <div className="text-xs text-muted-foreground mb-1">{at("finance.chainAddr")}</div>
                 <div className="text-sm font-mono">{approveDialog.chain} | {approveDialog.address || "-"}</div>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">转账 TX Hash <span className="text-muted-foreground/60">(必填，请先完成链上转账)</span></label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{at("finance.txHashLabel")} <span className="text-muted-foreground/60">{at("finance.txHashHint")}</span></label>
                 <input
                   className="w-full px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm font-mono focus:outline-none focus:ring-1 focus:ring-gold"
-                  placeholder="输入链上转账的 Transaction Hash"
+                  placeholder={at("finance.txHashPlaceholder2")}
                   value={txHashInput}
                   onChange={e => setTxHashInput(e.target.value)}
                 />
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setApproveDialog(null)} className="flex-1 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80">取消</button>
+              <button onClick={() => setApproveDialog(null)} className="flex-1 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80">{at("finance.cancelApprove")}</button>
               <button
                 onClick={() => {
-                  if (!txHashInput.trim()) { toast.error("请输入转账 TX Hash"); return; }
+                  if (!txHashInput.trim()) { toast.error(at("finance.txHashRequired")); return; }
                   confirmWithdrawMutation.mutate({ transactionId: approveDialog.txId, txHash: txHashInput.trim() });
                 }}
                 disabled={confirmWithdrawMutation.isPending || !txHashInput.trim()}
                 className="flex-1 py-2 rounded-lg bg-gold text-black text-sm font-bold hover:bg-gold/90 disabled:opacity-50"
               >
                 {confirmWithdrawMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin inline" /> : null}
-                确认已转账
+                {at("finance.confirmTransferDone")}
               </button>
             </div>
           </div>
@@ -2486,7 +2683,7 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
         <div className="space-y-3">
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">{at("settings.botUsername")}</label>
-            <p className="text-[10px] text-muted-foreground/60 mb-1">填写 Bot 的用户名（如 VeraPokerBot），不含 @</p>
+            <p className="text-[10px] text-muted-foreground/60 mb-1">{at("tg.botUsernameHint")}</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -2502,7 +2699,7 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">{at("settings.botToken")}</label>
-            <p className="text-[10px] text-muted-foreground/60 mb-1">完整 Token（如 123456789:ABCxxx），Bot ID 会自动提取</p>
+            <p className="text-[10px] text-muted-foreground/60 mb-1">{at("tg.botTokenHint")}</p>
             <div className="flex gap-2">
               <input
                 type="password"
@@ -2524,11 +2721,11 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
 
       {/* Telegram OIDC Login Config */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Telegram Login (OIDC)</h3>
+        <h3 className="text-sm font-semibold mb-3">{at("tg.oidcTitle")}</h3>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Client ID</label>
-            <p className="text-[10px] text-muted-foreground/60 mb-1">BotFather → Login Widget 中显示的 Client ID（数字）</p>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("tg.clientId")}</label>
+            <p className="text-[10px] text-muted-foreground/60 mb-1">{at("tg.clientIdHint")}</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -2543,8 +2740,8 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Client Secret</label>
-            <p className="text-[10px] text-muted-foreground/60 mb-1">BotFather → Login Widget 中显示的 Client Secret</p>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("tg.clientSecret")}</label>
+            <p className="text-[10px] text-muted-foreground/60 mb-1">{at("tg.clientSecretHint")}</p>
             <div className="flex gap-2">
               <input
                 type="password"
@@ -2559,34 +2756,34 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Redirect URI</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("tg.redirectUri")}</label>
             <CopyableUrl value={`${window.location.origin}/api/telegram/oidc-callback`} />
-            <p className="text-[10px] text-muted-foreground mt-1">在 BotFather → Login Widget → Redirect URIs 中添加此地址</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{at("tg.redirectUriHint")}</p>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Trusted Origin</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("tg.trustedOrigin")}</label>
             <CopyableUrl value={window.location.origin} />
-            <p className="text-[10px] text-muted-foreground mt-1">在 BotFather → Login Widget → Trusted Origins 中添加此地址</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{at("tg.trustedOriginHint")}</p>
           </div>
         </div>
       </div>
 
       {/* Mini App & Webhook */}
       <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">Mini App 配置</h3>
+        <h3 className="text-sm font-semibold mb-3">{at("tg.miniAppTitle")}</h3>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Mini App URL</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("tg.miniAppUrl")}</label>
             <CopyableUrl value={window.location.origin} />
-            <p className="text-[10px] text-muted-foreground mt-1">在 BotFather 中设置 Web App URL 为此地址</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{at("tg.miniAppUrlHint")}</p>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Webhook URL</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("tg.webhookUrl")}</label>
             <CopyableUrl value={`${window.location.origin}/api/telegram/webhook`} />
-            <p className="text-[10px] text-muted-foreground mt-1">在 BotFather 或 API 中设置 Webhook 为此地址</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{at("tg.webhookUrlHint")}</p>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">设置 Webhook 命令</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("tg.setWebhookCmd")}</label>
             <CopyableUrl value={`https://api.telegram.org/bot[TOKEN]/setWebhook?url=${window.location.origin}/api/telegram/webhook`} small />
           </div>
         </div>

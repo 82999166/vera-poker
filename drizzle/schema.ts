@@ -164,6 +164,9 @@ export const transactions = mysqlTable("transactions", {
   referenceType: varchar("referenceType", { length: 64 }), // hand, room, agent
   referenceId: int("referenceId"),
   note: text("note"),
+  // Operator info (for manual top-ups by admin staff)
+  operatorId: int("operatorId"), // admin_users.id or users.id of the operator
+  operatorName: varchar("operatorName", { length: 128 }), // display name of operator
   // Timestamps
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
