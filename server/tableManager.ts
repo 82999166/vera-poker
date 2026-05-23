@@ -585,6 +585,9 @@ async function startNewHand(roomId: number) {
     smallBlind: parseFloat(room.smallBlind),
     bigBlind: parseFloat(room.bigBlind),
     handNumber,
+    // Clear previous winner info for new hand
+    lastWinner: undefined,
+    settlementDetail: undefined,
   });
 }
 

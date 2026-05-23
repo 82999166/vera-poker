@@ -208,12 +208,20 @@ export default function Table() {
     }
   }, [tableState?.phase, lastPhase, muted, playSound]);
 
-  // Detect winner - trigger when phase becomes 'completed' and lastWinner is available
+  // Detect winner - trigger when lastWinner appears OR phase becomes completed
+  const prevWinnerRef = useRef<string | null>(null);
   const prevPhaseRef = useRef<string>("");
   useEffect(() => {
     const currentPhase = tableState?.phase || "";
-    // Trigger winner display when phase transitions to completed
-    if (currentPhase === "completed" && prevPhaseRef.current !== "completed" && tableState?.lastWinner && !showWinner) {
+    const winnerKey = tableState?.lastWinner ? `${tableState.lastWinner.name}-${tableState.lastWinner.amount}` : null;
+    
+    // Trigger when:
+    // 1. Phase transitions to completed and we have winner data
+    // 2. OR lastWinner appears (even if we missed the phase transition due to polling)
+    const phaseJustCompleted = currentPhase === "completed" && prevPhaseRef.current !== "completed";
+    const winnerJustAppeared = winnerKey && winnerKey !== prevWinnerRef.current;
+    
+    if ((phaseJustCompleted || winnerJustAppeared) && tableState?.lastWinner && !showWinner) {
       setShowWinner(tableState.lastWinner);
       if (tableState.settlementDetail) {
         setShowSettlement(tableState.settlementDetail);
@@ -233,12 +241,14 @@ export default function Table() {
       }
       setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); }, 7000);
     }
+    
     prevPhaseRef.current = currentPhase;
+    prevWinnerRef.current = winnerKey;
     // Also track handNumber for reference
     if (tableState?.handNumber && tableState.handNumber !== prevHandRef.current) {
       prevHandRef.current = tableState.handNumber;
     }
-  }, [tableState?.phase, tableState?.handNumber, tableState?.lastWinner, muted, playSound, user]);
+  }, [tableState?.phase, tableState?.handNumber, tableState?.lastWinner, tableState?.settlementDetail, muted, playSound, user]);
 
   // Mutations
   const joinMutation = trpc.game.join.useMutation({
@@ -274,7 +284,7 @@ export default function Table() {
         else if (action === "check") playSound("check");
         else if (action === "call") playSound("call");
         else if (action === "raise" || action === "bet") playSound("bet");
-        else if (action === "allin") playSound("allIn");
+        else if (action === "all_in" || action === "allin") playSound("allIn");
       }
       // Auto-switch table after fold
       if ((variables as any)?.action === "fold" && allRooms) {

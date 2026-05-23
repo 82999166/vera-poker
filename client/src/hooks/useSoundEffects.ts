@@ -142,16 +142,31 @@ export function useSoundEffects() {
     parseFloat(localStorage.getItem("vera-sound-volume") || "0.7")
   );
 
-  // Initialize AudioContext on first user interaction
+  // Initialize AudioContext - pre-activate on first user interaction
   const ensureContext = useCallback(() => {
     if (!audioContextRef.current || audioContextRef.current.state === "closed") {
-      audioContextRef.current = new AudioContext();
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
     if (audioContextRef.current.state === "suspended") {
-      audioContextRef.current.resume();
+      audioContextRef.current.resume().catch(() => {});
     }
     return audioContextRef.current;
   }, []);
+
+  // Pre-activate audio context on first touch/click (required for mobile/Telegram WebView)
+  useEffect(() => {
+    const activate = () => {
+      ensureContext();
+      document.removeEventListener("touchstart", activate);
+      document.removeEventListener("click", activate);
+    };
+    document.addEventListener("touchstart", activate, { once: true });
+    document.addEventListener("click", activate, { once: true });
+    return () => {
+      document.removeEventListener("touchstart", activate);
+      document.removeEventListener("click", activate);
+    };
+  }, [ensureContext]);
 
   // Play a sound effect
   const play = useCallback((effect: SoundEffect) => {
