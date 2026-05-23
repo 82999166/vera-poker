@@ -161,6 +161,8 @@ const en: Record<string, string> = {
   "common.language": "Language",
   "common.settings": "Settings",
   "common.comingSoon": "Feature coming soon",
+  "common.login": "Enter Game",
+  "common.loginWithTelegram": "Login with Telegram",
 };
 
 // Simplified Chinese
@@ -291,6 +293,8 @@ const zhCN: Record<string, string> = {
   "common.language": "语言",
   "common.settings": "设置",
   "common.comingSoon": "功能即将上线",
+  "common.login": "进入游戏",
+  "common.loginWithTelegram": "Telegram 登录",
 };
 
 // Traditional Chinese
@@ -421,6 +425,8 @@ const zhTW: Record<string, string> = {
   "common.language": "語言",
   "common.settings": "設定",
   "common.comingSoon": "功能即將上線",
+  "common.login": "進入遊戲",
+  "common.loginWithTelegram": "Telegram 登入",
 };
 
 // Japanese
@@ -550,6 +556,8 @@ const ja: Record<string, string> = {
   "common.language": "言語",
   "common.settings": "設定",
   "common.comingSoon": "近日公開",
+  "common.login": "ゲームに入る",
+  "common.loginWithTelegram": "Telegramでログイン",
 };
 
 // Korean
@@ -679,6 +687,8 @@ const ko: Record<string, string> = {
   "common.language": "언어",
   "common.settings": "설정",
   "common.comingSoon": "곧 출시 예정",
+  "common.login": "게임 입장",
+  "common.loginWithTelegram": "Telegram으로 로그인",
 };
 
 // Other languages (key translations only, fallback to English for missing)

@@ -18,6 +18,14 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
+  // In Telegram Mini App, don't redirect to Manus OAuth
+  // The TG auth flow is handled by useTelegramAuth hook
+  const isTgMiniApp = !!(window as any).Telegram?.WebApp?.initData;
+  if (isTgMiniApp) {
+    console.log("[Auth] In Telegram Mini App, skipping OAuth redirect");
+    return;
+  }
+
   window.location.href = getLoginUrl();
 };
 

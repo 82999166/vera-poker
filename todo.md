@@ -109,3 +109,15 @@
 - [x] Side pot calculation in settleHand
 - [x] Async getPlayerView with real usernames from database
 - [x] Connection lost banner with auto-reconnect
+
+## Telegram Authorization Login
+- [x] Backend: Telegram initData validation (HMAC-SHA256 verification)
+- [x] Backend: Telegram Login Widget data validation
+- [x] Backend: Create/bind user by tgId (upsert with TG profile)
+- [x] Backend: Issue session cookie after TG auth
+- [x] Backend: getUserByTgId database helper
+- [x] Backend: upsertUser support tgId/tgUsername fields
+- [x] Frontend: Detect Telegram WebApp environment and auto-login
+- [x] Frontend: Telegram Login Widget on Home page for non-TG browsers
+- [x] Frontend: Skip Manus OAuth redirect when in TG environment
+- [x] Tests: Telegram auth verification unit tests (12 tests passing)

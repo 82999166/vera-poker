@@ -25,6 +25,15 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+    bindTelegram: protectedProcedure
+      .input(z.object({ tgId: z.string(), tgUsername: z.string().nullable() }))
+      .mutation(async ({ ctx, input }) => {
+        const success = await db.bindTelegramToUser(ctx.user.id, input.tgId, input.tgUsername);
+        if (!success) {
+          throw new TRPCError({ code: "CONFLICT", message: "Telegram account already bound to another user" });
+        }
+        return { success: true };
+      }),
   }),
 
   // ==================== CONFIG ====================

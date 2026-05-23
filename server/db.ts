@@ -26,12 +26,12 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   const values: InsertUser = { openId: user.openId };
   const updateSet: Record<string, unknown> = {};
 
-  const textFields = ["name", "email", "loginMethod"] as const;
+  const textFields = ["name", "email", "loginMethod", "tgId", "tgUsername", "avatar", "nickname", "language"] as const;
   type TextField = (typeof textFields)[number];
   const assignNullable = (field: TextField) => {
     const value = user[field];
     if (value === undefined) return;
-    values[field] = value ?? null;
+    (values as any)[field] = value ?? null;
     updateSet[field] = value ?? null;
   };
   textFields.forEach(assignNullable);
@@ -425,4 +425,98 @@ export async function getPlayerRecentHands(userId: number, limit: number = 5) {
     };
   }));
   return results;
+}
+
+// ==================== TELEGRAM USER QUERIES ====================
+
+/**
+ * Find user by Telegram ID
+ */
+export async function getUserByTgId(tgId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.tgId, tgId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Find or create a user by Telegram identity.
+ * If user exists (by tgId), update their profile and return.
+ * If not, create a new user with a generated openId.
+ */
+export async function findOrCreateTelegramUser(params: {
+  tgId: string;
+  tgUsername: string | null;
+  firstName: string;
+  lastName: string | null;
+  photoUrl: string | null;
+  languageCode: string;
+  isPremium: boolean;
+}) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  // Check if user already exists by tgId
+  const existing = await getUserByTgId(params.tgId);
+  if (existing) {
+    // Update profile info
+    const updates: Record<string, unknown> = {
+      tgUsername: params.tgUsername,
+      lastSignedIn: new Date(),
+    };
+    if (params.photoUrl) updates.avatar = params.photoUrl;
+    if (params.firstName) {
+      const fullName = params.lastName
+        ? `${params.firstName} ${params.lastName}`
+        : params.firstName;
+      updates.name = fullName;
+    }
+    if (params.languageCode) updates.language = params.languageCode;
+
+    await db.update(users).set(updates).where(eq(users.id, existing.id));
+    return { ...existing, ...updates };
+  }
+
+  // Create new user with a Telegram-based openId
+  const openId = `tg_${params.tgId}`;
+  const fullName = params.lastName
+    ? `${params.firstName} ${params.lastName}`
+    : params.firstName;
+
+  const insertValues: InsertUser = {
+    openId,
+    name: fullName,
+    tgId: params.tgId,
+    tgUsername: params.tgUsername,
+    avatar: params.photoUrl,
+    nickname: params.tgUsername || params.firstName,
+    language: params.languageCode,
+    loginMethod: "telegram",
+    lastSignedIn: new Date(),
+  };
+
+  // Check if owner
+  if (openId === ENV.ownerOpenId) {
+    insertValues.role = "admin";
+  }
+
+  await db.insert(users).values(insertValues);
+  return getUserByTgId(params.tgId);
+}
+
+/**
+ * Bind Telegram identity to an existing user account
+ */
+export async function bindTelegramToUser(userId: number, tgId: string, tgUsername: string | null) {
+  const db = await getDb();
+  if (!db) return false;
+  
+  // Check if tgId is already bound to another user
+  const existing = await getUserByTgId(tgId);
+  if (existing && existing.id !== userId) {
+    return false; // Already bound to different user
+  }
+
+  await db.update(users).set({ tgId, tgUsername }).where(eq(users.id, userId));
+  return true;
 }
