@@ -231,14 +231,30 @@ export const appRouter = router({
       const user = await db.getUserById(ctx.user.id);
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
       const currentBalance = parseFloat(user.balance);
+      const currentFrozen = parseFloat(user.frozenBalance ?? "0");
       const withdrawAmount = parseFloat(input.amount);
       
+      if (isNaN(withdrawAmount) || withdrawAmount <= 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid amount" });
+      }
+      // Check min withdrawal from config
+      const minWithdraw = parseFloat(await db.getConfigValue("min_withdraw") || "10");
+      if (withdrawAmount < minWithdraw) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Minimum withdrawal is $${minWithdraw}` });
+      }
       if (withdrawAmount > currentBalance) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
       }
       
+      // Deduct from balance and add to frozen
       const newBalance = (currentBalance - withdrawAmount).toFixed(2);
-      await db.updateUserBalance(ctx.user.id, newBalance);
+      const newFrozen = (currentFrozen + withdrawAmount).toFixed(2);
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { users: usersTable } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      await dbInstance.update(usersTable).set({ balance: newBalance, frozenBalance: newFrozen }).where(eq(usersTable.id, ctx.user.id));
+      
       await db.createTransaction({
         userId: ctx.user.id,
         type: "withdraw",
@@ -291,12 +307,13 @@ export const appRouter = router({
       const [tx] = await dbInstance.select().from(transactions).where(eq(transactions.id, input.transactionId)).limit(1);
       if (!tx) throw new TRPCError({ code: "NOT_FOUND" });
       if (tx.status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "Transaction already processed" });
-      // If withdrawal was rejected, refund the frozen amount
+      // If withdrawal was rejected, refund from frozen back to balance
       if (tx.type === "withdraw") {
         const [user] = await dbInstance.select().from(users).where(eq(users.id, tx.userId)).limit(1);
         if (user) {
           const refundBalance = (parseFloat(user.balance) + parseFloat(tx.amount)).toFixed(2);
-          await dbInstance.update(users).set({ balance: refundBalance }).where(eq(users.id, tx.userId));
+          const newFrozen = Math.max(0, parseFloat(user.frozenBalance ?? "0") - parseFloat(tx.amount)).toFixed(2);
+          await dbInstance.update(users).set({ balance: refundBalance, frozenBalance: newFrozen }).where(eq(users.id, tx.userId));
         }
       }
       await dbInstance.update(transactions).set({ status: "failed" }).where(eq(transactions.id, input.transactionId));
@@ -309,12 +326,18 @@ export const appRouter = router({
     })).mutation(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      const { transactions } = await import("../drizzle/schema");
+      const { transactions, users } = await import("../drizzle/schema");
       const { eq } = await import("drizzle-orm");
       const [tx] = await dbInstance.select().from(transactions).where(eq(transactions.id, input.transactionId)).limit(1);
       if (!tx) throw new TRPCError({ code: "NOT_FOUND" });
       if (tx.status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "Transaction already processed" });
       if (tx.type !== "withdraw") throw new TRPCError({ code: "BAD_REQUEST", message: "Not a withdrawal" });
+      // Reduce frozen balance
+      const [user] = await dbInstance.select().from(users).where(eq(users.id, tx.userId)).limit(1);
+      if (user) {
+        const newFrozen = Math.max(0, parseFloat(user.frozenBalance ?? "0") - parseFloat(tx.amount)).toFixed(2);
+        await dbInstance.update(users).set({ frozenBalance: newFrozen }).where(eq(users.id, tx.userId));
+      }
       await dbInstance.update(transactions).set({ status: "confirmed", txHash: input.txHash ?? tx.txHash }).where(eq(transactions.id, input.transactionId));
       return { success: true };
     }),
@@ -842,6 +865,27 @@ Rules:
       if (input.balance) updateData.balance = input.balance;
       await dbInstance.update(users).set(updateData).where(eq(users.id, input.id));
       return { success: true };
+    }),
+    userDetail: adminProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
+      return db.getUserDetail(input.id);
+    }),
+    userTransactions: adminProcedure.input(z.object({ userId: z.number(), page: z.number().default(1), limit: z.number().default(20), type: z.string().optional() })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { transactions: [], total: 0 };
+      const { transactions } = await import("../drizzle/schema");
+      const { eq, and, desc, sql } = await import("drizzle-orm");
+      const offset = (input.page - 1) * input.limit;
+      const conditions = input.type
+        ? and(eq(transactions.userId, input.userId), eq(transactions.type, input.type as any))
+        : eq(transactions.userId, input.userId);
+      const [data, countResult] = await Promise.all([
+        dbInstance.select().from(transactions).where(conditions).orderBy(desc(transactions.createdAt)).limit(input.limit).offset(offset),
+        dbInstance.select({ count: sql<number>`count(*)` }).from(transactions).where(conditions),
+      ]);
+      return { transactions: data, total: countResult[0]?.count ?? 0 };
+    }),
+    userGameHistory: adminProcedure.input(z.object({ userId: z.number(), page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
+      return db.getUserGameHistory(input.userId, input.page, input.limit);
     }),
     riskEvents: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       return db.getRiskEvents(input.page, input.limit);

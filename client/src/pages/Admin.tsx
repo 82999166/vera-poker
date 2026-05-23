@@ -878,24 +878,56 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
 
 // ==================== USERS PANEL ====================
 function UsersPanel({ at }: { at: (k: string) => string }) {
-  const { data, isLoading } = trpc.admin.users.useQuery({ page: 1, limit: 50 });
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const { data, isLoading } = trpc.admin.users.useQuery({ page, limit: 20 });
   const updateMutation = trpc.admin.updateUser.useMutation({
     onSuccess: () => toast.success(at("users.updated")),
   });
 
+  if (selectedUserId) {
+    return <UserDetailPanel userId={selectedUserId} onBack={() => setSelectedUserId(null)} at={at} />;
+  }
+
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
 
   const users = (data as any)?.users ?? data ?? [];
+  const total = (data as any)?.total ?? 0;
+  const filtered = search
+    ? (users as any[]).filter((u: any) => 
+        (u.name || "").toLowerCase().includes(search.toLowerCase()) ||
+        (u.tgUsername || "").toLowerCase().includes(search.toLowerCase()) ||
+        (u.tgId || "").includes(search) ||
+        String(u.id).includes(search)
+      )
+    : users;
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">{at("users.title")}</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">{at("users.title")}</h2>
+        <span className="text-xs text-muted-foreground">共 {total} 用户</span>
+      </div>
+      <input
+        type="text"
+        placeholder="搜索用户名/TG ID/用户ID..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full glass rounded-lg px-3 py-2 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+      />
       <div className="space-y-2">
-        {(users as any[])?.map((u: any) => (
-          <div key={u.id} className="glass rounded-xl p-3">
+        {(filtered as any[])?.map((u: any) => (
+          <div key={u.id} className="glass rounded-xl p-3 cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => setSelectedUserId(u.id)}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{u.name || "Anonymous"}</span>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gold/30 to-gold/10 flex items-center justify-center">
+                  <Users className="w-4 h-4 text-gold" />
+                </div>
+                <div>
+                  <span className="text-sm font-medium block">{u.name || u.nickname || "Anonymous"}</span>
+                  <span className="text-[10px] text-muted-foreground">ID: {u.id} {u.tgUsername ? `@${u.tgUsername}` : ""}</span>
+                </div>
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                   u.role === "admin" ? "bg-gold/20 text-gold" : "bg-secondary text-muted-foreground"
                 }`}>{u.role}</span>
@@ -913,21 +945,244 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
               </div>
               <select
                 defaultValue={u.riskLevel ?? "normal"}
-                onChange={(e) => updateMutation.mutate({ id: u.id, riskLevel: e.target.value as any })}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => { e.stopPropagation(); updateMutation.mutate({ id: u.id, riskLevel: e.target.value as any }); }}
                 className="glass rounded px-2 py-1 text-[10px] bg-transparent outline-none"
               >
-                <option value="normal">{at("users.normal")}</option>
-                <option value="watch">{at("users.watch")}</option>
-                <option value="frozen">{at("users.frozen")}</option>
-                <option value="banned">{at("users.banned")}</option>
+                <option value="normal">正常</option>
+                <option value="watch">观察</option>
+                <option value="frozen">冻结</option>
+                <option value="banned">封禁</option>
               </select>
             </div>
           </div>
         ))}
-        {((users as any[])?.length ?? 0) === 0 && (
+        {((filtered as any[])?.length ?? 0) === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">{at("users.noUsers")}</p>
         )}
       </div>
+      {total > 20 && (
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs glass rounded disabled:opacity-50">上一页</button>
+          <span className="text-xs text-muted-foreground">{page} / {Math.ceil(total / 20)}</span>
+          <button onClick={() => setPage(p => p + 1)} disabled={page >= Math.ceil(total / 20)} className="px-3 py-1 text-xs glass rounded disabled:opacity-50">下一页</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== USER DETAIL PANEL ====================
+function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () => void; at: (k: string) => string }) {
+  const [activeTab, setActiveTab] = useState<"info" | "deposits" | "withdrawals" | "games">("info");
+  const { data: user, isLoading } = trpc.admin.userDetail.useQuery({ id: userId });
+  const { data: txData } = trpc.admin.userTransactions.useQuery(
+    { userId, page: 1, limit: 50, type: activeTab === "deposits" ? "deposit" : activeTab === "withdrawals" ? "withdraw" : undefined },
+    { enabled: activeTab === "deposits" || activeTab === "withdrawals" }
+  );
+  const { data: gameData } = trpc.admin.userGameHistory.useQuery(
+    { userId, page: 1, limit: 50 },
+    { enabled: activeTab === "games" }
+  );
+  const updateMutation = trpc.admin.updateUser.useMutation({
+    onSuccess: () => toast.success("用户已更新"),
+  });
+
+  if (isLoading || !user) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
+
+  const tabs = [
+    { key: "info" as const, label: "基本信息" },
+    { key: "deposits" as const, label: "充值记录" },
+    { key: "withdrawals" as const, label: "提现记录" },
+    { key: "games" as const, label: "游戏记录" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="p-1.5 glass rounded-lg hover:bg-secondary/50"><ArrowLeft className="w-4 h-4" /></button>
+        <div>
+          <h2 className="text-lg font-bold">{(user as any).name || (user as any).nickname || "Anonymous"}</h2>
+          <span className="text-xs text-muted-foreground">ID: {(user as any).id} {(user as any).tgUsername ? `@${(user as any).tgUsername}` : ""}</span>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 glass rounded-lg p-1">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              activeTab === tab.key ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >{tab.label}</button>
+        ))}
+      </div>
+
+      {/* Info Tab */}
+      {activeTab === "info" && (
+        <div className="space-y-4">
+          {/* Financial Summary */}
+          <div className="glass rounded-xl p-4">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><DollarSign className="w-4 h-4 text-gold" />资金概览</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <InfoCard label="当前余额" value={`$${(user as any).balance}`} color="text-gold" />
+              <InfoCard label="冻结余额" value={`$${(user as any).frozenBalance}`} color="text-orange-400" />
+              <InfoCard label="总充值" value={`$${(user as any).financialSummary?.totalDeposited}`} color="text-emerald-400" />
+              <InfoCard label="总提现" value={`$${(user as any).financialSummary?.totalWithdrawn}`} color="text-red-400" />
+              <InfoCard label="总下注" value={`$${(user as any).financialSummary?.totalBets}`} color="text-blue-400" />
+              <InfoCard label="游戏盈亏" value={`$${(user as any).financialSummary?.netProfit}`} color={parseFloat((user as any).financialSummary?.netProfit ?? "0") >= 0 ? "text-emerald-400" : "text-red-400"} />
+              <InfoCard label="贡献抽水" value={`$${(user as any).financialSummary?.totalRake}`} color="text-purple-400" />
+              <InfoCard label="代理佣金" value={`$${(user as any).agentInfo?.totalCommission}`} color="text-amber-400" />
+            </div>
+          </div>
+
+          {/* Account Info */}
+          <div className="glass rounded-xl p-4">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Shield className="w-4 h-4 text-cyan-400" />账户信息</h3>
+            <div className="space-y-2 text-xs">
+              <DetailRow label="用户ID" value={String((user as any).id)} />
+              <DetailRow label="Telegram ID" value={(user as any).tgId || "-"} />
+              <DetailRow label="TG用户名" value={(user as any).tgUsername ? `@${(user as any).tgUsername}` : "-"} />
+              <DetailRow label="昵称" value={(user as any).nickname || "-"} />
+              <DetailRow label="邮箱" value={(user as any).email || "-"} />
+              <DetailRow label="语言" value={(user as any).language || "-"} />
+              <DetailRow label="最后IP" value={(user as any).lastIp || "-"} />
+              <DetailRow label="登录方式" value={(user as any).loginMethod || "-"} />
+              <DetailRow label="注册时间" value={(user as any).createdAt ? new Date((user as any).createdAt).toLocaleString("zh-CN") : "-"} />
+              <DetailRow label="最后登录" value={(user as any).lastSignedIn ? new Date((user as any).lastSignedIn).toLocaleString("zh-CN") : "-"} />
+            </div>
+          </div>
+
+          {/* Agent Info */}
+          <div className="glass rounded-xl p-4">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-emerald-400" />代理信息</h3>
+            <div className="space-y-2 text-xs">
+              <DetailRow label="代理等级" value={(user as any).agentLevel === "agent" ? "代理" : "普通用户"} />
+              <DetailRow label="邀请码" value={(user as any).inviteCode || "未生成"} />
+              <DetailRow label="上级代理" value={(user as any).agentInfo?.inviterName || "无"} />
+              <DetailRow label="下级人数" value={String((user as any).agentInfo?.downlineCount ?? 0)} />
+              <DetailRow label="佣金总额" value={`$${(user as any).agentInfo?.totalCommission ?? "0.00"}`} />
+              <DetailRow label="总游戏局数" value={String((user as any).totalGamesPlayed ?? 0)} />
+            </div>
+          </div>
+
+          {/* Risk Control */}
+          <div className="glass rounded-xl p-4">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Shield className="w-4 h-4 text-red-400" />风控状态</h3>
+            <div className="flex items-center gap-3">
+              <span className="text-xs">当前状态:</span>
+              <select
+                defaultValue={(user as any).riskLevel ?? "normal"}
+                onChange={(e) => updateMutation.mutate({ id: userId, riskLevel: e.target.value as any })}
+                className="glass rounded px-3 py-1.5 text-xs bg-transparent outline-none"
+              >
+                <option value="normal">正常</option>
+                <option value="watch">观察</option>
+                <option value="frozen">冻结</option>
+                <option value="banned">封禁</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deposits Tab */}
+      {activeTab === "deposits" && (
+        <div className="space-y-2">
+          {(txData as any)?.transactions?.length > 0 ? (
+            (txData as any).transactions.map((tx: any) => (
+              <div key={tx.id} className="glass rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-emerald-400">+${tx.amount}</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                    tx.status === "confirmed" ? "bg-success/20 text-success" :
+                    tx.status === "pending" ? "bg-warning/20 text-warning" :
+                    "bg-danger/20 text-danger"
+                  }`}>{tx.status === "confirmed" ? "已到账" : tx.status === "pending" ? "待确认" : "失败"}</span>
+                </div>
+                <div className="text-[10px] text-muted-foreground space-y-0.5">
+                  <div>链: {tx.chain || "-"} | TX: {tx.txHash ? tx.txHash.substring(0, 16) + "..." : "-"}</div>
+                  <div>时间: {tx.createdAt ? new Date(tx.createdAt).toLocaleString("zh-CN") : "-"}</div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">暂无充值记录</p>
+          )}
+        </div>
+      )}
+
+      {/* Withdrawals Tab */}
+      {activeTab === "withdrawals" && (
+        <div className="space-y-2">
+          {(txData as any)?.transactions?.length > 0 ? (
+            (txData as any).transactions.map((tx: any) => (
+              <div key={tx.id} className="glass rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-red-400">-${tx.amount}</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                    tx.status === "confirmed" ? "bg-success/20 text-success" :
+                    tx.status === "pending" ? "bg-warning/20 text-warning" :
+                    tx.status === "cancelled" ? "bg-danger/20 text-danger" :
+                    "bg-secondary text-muted-foreground"
+                  }`}>{tx.status === "confirmed" ? "已完成" : tx.status === "pending" ? "待审核" : tx.status === "cancelled" ? "已拒绝" : tx.status}</span>
+                </div>
+                <div className="text-[10px] text-muted-foreground space-y-0.5">
+                  <div>地址: {tx.walletAddress ? tx.walletAddress.substring(0, 20) + "..." : "-"}</div>
+                  <div>链: {tx.chain || "-"} | TX: {tx.txHash ? tx.txHash.substring(0, 16) + "..." : "-"}</div>
+                  <div>时间: {tx.createdAt ? new Date(tx.createdAt).toLocaleString("zh-CN") : "-"}</div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">暂无提现记录</p>
+          )}
+        </div>
+      )}
+
+      {/* Games Tab */}
+      {activeTab === "games" && (
+        <div className="space-y-2">
+          {(gameData as any)?.games?.length > 0 ? (
+            (gameData as any).games.map((g: any) => (
+              <div key={g.handId} className="glass rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium">{g.roomName}</span>
+                  <span className={`text-xs font-mono ${parseFloat(g.pnl) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {parseFloat(g.pnl) >= 0 ? "+" : ""}${g.pnl}
+                  </span>
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  <span>下注: ${g.betAmount} | 赢得: ${g.winAmount} | 底池: ${g.potSize}</span>
+                  <div>{g.completedAt ? new Date(g.completedAt).toLocaleString("zh-CN") : "-"}</div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">暂无游戏记录</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoCard({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="glass rounded-lg p-2.5 text-center">
+      <div className="text-[10px] text-muted-foreground mb-0.5">{label}</div>
+      <div className={`text-sm font-mono font-medium ${color}`}>{value}</div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between py-1 border-b border-border/30 last:border-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground">{value}</span>
     </div>
   );
 }
@@ -1002,50 +1257,123 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
 
 // ==================== FINANCE PANEL ====================
 function FinancePanel({ at }: { at: (k: string) => string }) {
-  const { data: txData, isLoading } = trpc.wallet.allTransactions.useQuery({ page: 1, limit: 20 });
+  const [financeTab, setFinanceTab] = useState<"pending" | "deposits" | "withdrawals" | "all">("pending");
+  const utils = trpc.useUtils();
+  const { data: txData, isLoading } = trpc.wallet.allTransactions.useQuery({ page: 1, limit: 50, type: financeTab === "deposits" ? "deposit" : financeTab === "withdrawals" ? "withdraw" : undefined });
   const { data: stats } = trpc.admin.stats.useQuery();
+
+  const confirmDepositMutation = trpc.wallet.confirmDeposit.useMutation({
+    onSuccess: () => { toast.success("充值已确认"); utils.wallet.allTransactions.invalidate(); },
+    onError: (err) => toast.error(err.message),
+  });
+  const confirmWithdrawMutation = trpc.wallet.confirmWithdrawal.useMutation({
+    onSuccess: () => { toast.success("提现已确认"); utils.wallet.allTransactions.invalidate(); },
+    onError: (err) => toast.error(err.message),
+  });
+  const rejectMutation = trpc.wallet.rejectTransaction.useMutation({
+    onSuccess: () => { toast.success("已拒绝"); utils.wallet.allTransactions.invalidate(); },
+    onError: (err) => toast.error(err.message),
+  });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
 
-  const transactions = (txData as any)?.transactions ?? [];
+  const allTx = (txData as any)?.transactions ?? [];
+  const pendingTx = allTx.filter((tx: any) => tx.status === "pending");
+  const displayTx = financeTab === "pending" ? pendingTx : allTx;
 
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold">{at("finance.title")}</h2>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="glass rounded-xl p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">{at("finance.totalVolume")}</p>
-          <p className="text-xl font-bold text-gold">${stats?.totalVolume ?? "0.00"}</p>
+      
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="glass rounded-xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">总流水</p>
+          <p className="text-lg font-bold text-gold">${stats?.totalVolume ?? "0.00"}</p>
         </div>
-        <div className="glass rounded-xl p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">{at("finance.totalTx")}</p>
-          <p className="text-xl font-bold text-truth-blue">{stats?.totalTransactions ?? 0}</p>
+        <div className="glass rounded-xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">总交易数</p>
+          <p className="text-lg font-bold text-truth-blue">{stats?.totalTransactions ?? 0}</p>
+        </div>
+        <div className="glass rounded-xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">待审核</p>
+          <p className="text-lg font-bold text-warning">{pendingTx.length}</p>
         </div>
       </div>
 
-      <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">{at("finance.recentTx")}</h3>
-        {transactions.length > 0 ? (
-          <div className="space-y-2">
-            {transactions.map((tx: any) => (
-              <div key={tx.id} className="flex items-center justify-between py-2 border-b border-border/30">
-                <div>
-                  <span className={`text-xs font-medium ${tx.type === "deposit" ? "text-success" : "text-danger"}`}>{tx.type}</span>
-                  <span className="text-xs text-muted-foreground ml-2">{at("common.user")} #{tx.userId}</span>
+      {/* Tabs */}
+      <div className="flex gap-1 glass rounded-lg p-1">
+        {(["pending", "deposits", "withdrawals", "all"] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setFinanceTab(tab)}
+            className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              financeTab === tab ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab === "pending" ? `待审核(${pendingTx.length})` : tab === "deposits" ? "充值" : tab === "withdrawals" ? "提现" : "全部"}
+          </button>
+        ))}
+      </div>
+
+      {/* Transaction List */}
+      <div className="space-y-2">
+        {displayTx.length > 0 ? (
+          displayTx.map((tx: any) => (
+            <div key={tx.id} className="glass rounded-xl p-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                    tx.type === "deposit" ? "bg-emerald-500/20 text-emerald-400" :
+                    tx.type === "withdraw" ? "bg-red-500/20 text-red-400" :
+                    "bg-secondary text-muted-foreground"
+                  }`}>{tx.type === "deposit" ? "充值" : tx.type === "withdraw" ? "提现" : tx.type}</span>
+                  <span className="text-xs text-muted-foreground">用户 #{tx.userId}</span>
+                  <span className="text-xs text-muted-foreground">#{tx.id}</span>
                 </div>
-                <div className="text-right">
-                  <span className="text-sm font-mono">${tx.amount}</span>
-                  <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
-                    tx.status === "completed" ? "bg-success/20 text-success" :
-                    tx.status === "pending" ? "bg-warning/20 text-warning" :
-                    "bg-danger/20 text-danger"
-                  }`}>{tx.status}</span>
-                </div>
+                <span className="text-sm font-mono font-medium">${tx.amount}</span>
               </div>
-            ))}
-          </div>
+              <div className="text-[10px] text-muted-foreground space-y-0.5 mb-2">
+                <div>链: {tx.chain || "-"} | 状态: <span className={tx.status === "pending" ? "text-warning" : tx.status === "confirmed" ? "text-success" : "text-danger"}>{tx.status === "pending" ? "待审核" : tx.status === "confirmed" ? "已确认" : tx.status === "failed" ? "已拒绝" : tx.status}</span></div>
+                {tx.txHash && <div>TX: {tx.txHash.substring(0, 24)}...</div>}
+                {tx.walletAddress && <div>地址: {tx.walletAddress.substring(0, 24)}...</div>}
+                <div>时间: {tx.createdAt ? new Date(tx.createdAt).toLocaleString("zh-CN") : "-"}</div>
+              </div>
+              {/* Action buttons for pending */}
+              {tx.status === "pending" && (
+                <div className="flex gap-2 pt-1 border-t border-border/30">
+                  {tx.type === "deposit" && (
+                    <button
+                      onClick={() => confirmDepositMutation.mutate({ transactionId: tx.id })}
+                      disabled={confirmDepositMutation.isPending}
+                      className="flex-1 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                    >确认充值</button>
+                  )}
+                  {tx.type === "withdraw" && (
+                    <button
+                      onClick={() => {
+                        const hash = prompt("请输入转账TX Hash（可留空）:");
+                        confirmWithdrawMutation.mutate({ transactionId: tx.id, txHash: hash || undefined });
+                      }}
+                      disabled={confirmWithdrawMutation.isPending}
+                      className="flex-1 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                    >确认转账</button>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (confirm("确定拒绝该交易？")) {
+                        rejectMutation.mutate({ transactionId: tx.id, reason: "管理员拒绝" });
+                      }
+                    }}
+                    disabled={rejectMutation.isPending}
+                    className="flex-1 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                  >拒绝</button>
+                </div>
+              )}
+            </div>
+          ))
         ) : (
-          <p className="text-sm text-muted-foreground">{at("finance.noTx")}</p>
+          <p className="text-sm text-muted-foreground text-center py-8">{financeTab === "pending" ? "暂无待审核交易" : at("finance.noTx")}</p>
         )}
       </div>
     </div>

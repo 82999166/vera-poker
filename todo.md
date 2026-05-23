@@ -192,3 +192,29 @@
 - [x] Add OIDC start endpoint (/api/telegram/oidc-start)
 - [x] Add OIDC callback endpoint (/api/telegram/oidc-callback)
 - [x] Frontend uses new OIDC popup flow instead of legacy widget URL
+
+## UI Optimization - Move Language Switcher
+- [x] Remove language tab from bottom navigation
+- [x] Add language switcher to Profile/Me page
+- [x] Simplify bottom nav to 3 tabs: Lobby, Wallet, Profile
+- [x] Add quick links to Agent and Support in Profile page
+
+## Admin User Detail Enhancement
+- [x] Add user detail page with comprehensive info (TG ID, username, registration time, last login, IP, language)
+- [x] Add financial summary (balance, total deposit, total withdrawal, total bets, total P&L)
+- [x] Add deposit records tab (time, amount, chain/coin, TX hash, status)
+- [x] Add withdrawal records tab (time, amount, address, TX hash, status)
+- [x] Add game history tab (room, time, buy-in, cash-out, P&L)
+- [x] Add agent info (parent agent, invite code, referrals count, commission total)
+- [x] Add total bets aggregation to financial summary
+- [x] Add commission total to agent info section
+
+## Deposit/Withdrawal Flow
+- [x] Deposit: user submits TX hash → admin confirms → balance credited
+- [x] Withdrawal: user submits request → balance frozen → admin reviews (approve/reject) → on-chain transfer
+- [x] Admin finance panel with pending queue, approve/reject buttons
+- [x] Frozen balance properly managed (deduct on request, release on confirm, refund on reject)
+- [x] Min withdrawal amount check from config
+- [x] Admin withdrawal review page with approve/reject actions
+- [ ] Small amount auto-approve threshold (configurable in admin)
+- [ ] On-chain payout integration (manual workflow: admin confirms after manual transfer, enters TX hash)

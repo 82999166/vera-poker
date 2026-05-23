@@ -524,3 +524,122 @@ export async function bindTelegramToUser(userId: number, tgId: string, tgUsernam
   await db.update(users).set({ tgId, tgUsername }).where(eq(users.id, userId));
   return true;
 }
+
+// ==================== ADMIN USER DETAIL QUERIES ====================
+
+/**
+ * Get comprehensive user detail for admin panel
+ */
+export async function getUserDetail(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const user = await getUserById(userId);
+  if (!user) return null;
+
+  // Get financial summary from transactions
+  const [depositSum, withdrawSum, gameWinSum, gameLossSum, rakeSum, totalBetsSum] = await Promise.all([
+    db.select({ total: sql<string>`COALESCE(SUM(amount), '0.00')` }).from(transactions)
+      .where(and(eq(transactions.userId, userId), eq(transactions.type, "deposit"), eq(transactions.status, "confirmed"))),
+    db.select({ total: sql<string>`COALESCE(SUM(amount), '0.00')` }).from(transactions)
+      .where(and(eq(transactions.userId, userId), eq(transactions.type, "withdraw"), eq(transactions.status, "confirmed"))),
+    db.select({ total: sql<string>`COALESCE(SUM(amount), '0.00')` }).from(transactions)
+      .where(and(eq(transactions.userId, userId), eq(transactions.type, "game_win"))),
+    db.select({ total: sql<string>`COALESCE(SUM(amount), '0.00')` }).from(transactions)
+      .where(and(eq(transactions.userId, userId), eq(transactions.type, "game_loss"))),
+    db.select({ total: sql<string>`COALESCE(SUM(amount), '0.00')` }).from(transactions)
+      .where(and(eq(transactions.userId, userId), eq(transactions.type, "rake"))),
+    db.select({ total: sql<string>`COALESCE(SUM(betAmount), '0.00')` }).from(handPlayers)
+      .where(eq(handPlayers.userId, userId)),
+  ]);
+
+  // Get agent info
+  const agentRel = await db.select().from(agentRelationships)
+    .where(eq(agentRelationships.downlineId, userId)).limit(1);
+  
+  let inviterName = null;
+  if (agentRel.length > 0) {
+    const inviter = await getUserById(agentRel[0].agentId);
+    inviterName = inviter?.name || inviter?.nickname || `#${agentRel[0].agentId}`;
+  }
+
+  // Get downline count and commission total
+  const [downlineCount, commissionTotal] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(agentRelationships)
+      .where(eq(agentRelationships.agentId, userId)),
+    db.select({ total: sql<string>`COALESCE(SUM(amount), '0.00')` }).from(commissionRecords)
+      .where(eq(commissionRecords.agentId, userId)),
+  ]);
+
+  return {
+    ...user,
+    financialSummary: {
+      totalDeposited: depositSum[0]?.total ?? "0.00",
+      totalWithdrawn: withdrawSum[0]?.total ?? "0.00",
+      totalGameWin: gameWinSum[0]?.total ?? "0.00",
+      totalGameLoss: gameLossSum[0]?.total ?? "0.00",
+      totalRake: rakeSum[0]?.total ?? "0.00",
+      totalBets: totalBetsSum[0]?.total ?? "0.00",
+      netProfit: (parseFloat(gameWinSum[0]?.total ?? "0") - parseFloat(gameLossSum[0]?.total ?? "0")).toFixed(2),
+    },
+    agentInfo: {
+      inviterName,
+      downlineCount: downlineCount[0]?.count ?? 0,
+      totalCommission: commissionTotal[0]?.total ?? "0.00",
+    },
+  };
+}
+
+/**
+ * Get user's game history for admin panel
+ */
+export async function getUserGameHistory(userId: number, page = 1, limit = 20) {
+  const db = await getDb();
+  if (!db) return { games: [], total: 0 };
+  const offset = (page - 1) * limit;
+
+  // Get hands the user participated in
+  const playerHandIds = await db.select({ handId: handPlayers.handId })
+    .from(handPlayers)
+    .where(eq(handPlayers.userId, userId))
+    .orderBy(desc(handPlayers.id))
+    .limit(limit)
+    .offset(offset);
+
+  if (playerHandIds.length === 0) return { games: [], total: 0 };
+
+  const handIds = playerHandIds.map(h => h.handId);
+  const hands = await db.select().from(gameHands).where(inArray(gameHands.id, handIds)).orderBy(desc(gameHands.id));
+
+  // Get room names
+  const roomIds = [...new Set(hands.map(h => h.roomId))];
+  const roomData = roomIds.length > 0
+    ? await db.select({ id: rooms.id, name: rooms.name }).from(rooms).where(inArray(rooms.id, roomIds))
+    : [];
+  const roomMap = Object.fromEntries(roomData.map(r => [r.id, r.name]));
+
+  // Get player's data for each hand
+  const games = await Promise.all(hands.map(async (hand) => {
+    const myData = await db.select().from(handPlayers).where(
+      and(eq(handPlayers.handId, hand.id), eq(handPlayers.userId, userId))
+    );
+    const playerData = myData[0];
+    return {
+      handId: hand.id,
+      roomName: roomMap[hand.roomId] || `Room #${hand.roomId}`,
+      potSize: hand.potSize,
+      rakeAmount: hand.rakeAmount,
+      completedAt: hand.completedAt,
+      betAmount: playerData?.betAmount ?? "0.00",
+      winAmount: playerData?.winAmount ?? "0.00",
+      isWinner: playerData?.isWinner ?? false,
+      pnl: ((parseFloat(playerData?.winAmount ?? "0")) - parseFloat(playerData?.betAmount ?? "0")).toFixed(2),
+    };
+  }));
+
+  // Total count
+  const countResult = await db.select({ count: sql<number>`count(*)` }).from(handPlayers)
+    .where(eq(handPlayers.userId, userId));
+
+  return { games, total: countResult[0]?.count ?? 0 };
+}
