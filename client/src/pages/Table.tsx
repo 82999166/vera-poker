@@ -389,7 +389,7 @@ export default function Table() {
   const canCheck = myPlayer ? myPlayer.currentBet >= currentBet : false;
 
   return (
-    <div className="h-screen bg-gradient-to-b from-[#4a2c17] via-[#3a1f0e] to-[#1a0e06] flex flex-col overflow-hidden">
+    <div className="h-screen bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col overflow-hidden">
       {/* Top Bar */}
       <div className="glass-strong px-3 py-2 flex items-center justify-between z-10 border-b border-border/30">
         <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground transition-colors active:scale-95">
@@ -505,7 +505,7 @@ export default function Table() {
       <div className="flex-1 relative overflow-hidden">
         {/* Poker Table Background Image */}
         <img 
-          src="/manus-storage/poker-table-style-b_de85f03e.png" 
+          src="/manus-storage/poker-table-blue_251daee6.png" 
           alt="" 
           className="absolute inset-0 w-full h-full object-cover pointer-events-none"
         />
