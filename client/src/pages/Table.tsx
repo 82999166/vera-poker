@@ -61,21 +61,21 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const isRed = suit === 'h' || suit === 'd';
 
   return (
-    <div className={`w-10 h-14 rounded-md overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.4),0_1px_2px_rgba(0,0,0,0.2)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${className}`}>
+    <div className={`w-12 h-[68px] rounded-md overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.4),0_1px_2px_rgba(0,0,0,0.2)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${className}`}>
       <div className="w-full h-full bg-white border-[1px] border-gray-200 rounded-md relative flex flex-col items-center justify-between py-1 px-0.5">
         {/* Top-left rank + suit */}
         <div className="absolute top-0.5 left-1 flex flex-col items-center leading-none">
-          <span className={`text-[9px] font-bold ${isRed ? 'text-red-500' : 'text-gray-900'}`}>{displayRank}</span>
-          <span className={`text-[8px] -mt-0.5 ${isRed ? 'text-red-500' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+          <span className={`text-[12px] font-extrabold ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
+          <span className={`text-[10px] font-bold -mt-0.5 ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
         </div>
         {/* Center large suit */}
         <div className="flex-1 flex items-center justify-center">
-          <span className={`text-xl ${isRed ? 'text-red-500' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+          <span className={`text-2xl ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
         </div>
         {/* Bottom-right rank + suit (inverted) */}
         <div className="absolute bottom-0.5 right-1 flex flex-col items-center leading-none rotate-180">
-          <span className={`text-[9px] font-bold ${isRed ? 'text-red-500' : 'text-gray-900'}`}>{displayRank}</span>
-          <span className={`text-[8px] -mt-0.5 ${isRed ? 'text-red-500' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+          <span className={`text-[12px] font-extrabold ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
+          <span className={`text-[10px] font-bold -mt-0.5 ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
         </div>
       </div>
     </div>
@@ -505,7 +505,7 @@ export default function Table() {
       <div className="flex-1 relative overflow-hidden">
         {/* Poker Table Background Image */}
         <img 
-          src="/manus-storage/poker-table-blue_251daee6.png" 
+          src="/manus-storage/poker-table-blue-opt_a0932ba9.jpg" 
           alt="" 
           className="absolute inset-0 w-full h-full object-cover pointer-events-none"
         />
@@ -653,7 +653,7 @@ export default function Table() {
       {(isSeated || isDemoMode) && displayMyCards.length > 0 && (
         <div className="flex justify-center gap-1 -mt-2 mb-1 z-10">
           {displayMyCards.map((card, i) => (
-            <CardView key={i} card={card} className="!w-12 !h-[68px] !shadow-xl" animate delay={i * 300} />
+            <CardView key={i} card={card} className="!w-16 !h-[88px] !shadow-xl" animate delay={i * 300} />
           ))}
         </div>
       )}
