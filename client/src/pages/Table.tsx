@@ -141,14 +141,18 @@ function AnimatedPot({ amount }: { amount: number }) {
   );
 }
 
+// Default avatar for players without a Telegram profile photo
+const DEFAULT_AVATAR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/default-avatar-aXRqAewdDSMxKYhaCU9DtA.webp";
+
 // Player seat positions for 6-max table (oval layout)
+// Seat positions OUTSIDE the table oval (around the border)
 const SEAT_POSITIONS = [
-  { top: "78%", left: "50%", transform: "translate(-50%, -50%)" },  // Bottom (hero)
-  { top: "58%", left: "3%", transform: "translate(0, -50%)" },     // Left bottom
-  { top: "22%", left: "3%", transform: "translate(0, -50%)" },     // Left top
-  { top: "5%", left: "50%", transform: "translate(-50%, 0)" },     // Top
-  { top: "22%", left: "97%", transform: "translate(-100%, -50%)" },// Right top
-  { top: "58%", left: "97%", transform: "translate(-100%, -50%)" },// Right bottom
+  { top: "88%", left: "50%", transform: "translate(-50%, -50%)" },  // Bottom (hero)
+  { top: "68%", left: "2%", transform: "translate(0, -50%)" },     // Left bottom
+  { top: "28%", left: "2%", transform: "translate(0, -50%)" },     // Left top
+  { top: "4%", left: "50%", transform: "translate(-50%, 0)" },      // Top
+  { top: "28%", left: "98%", transform: "translate(-100%, -50%)" }, // Right top
+  { top: "68%", left: "98%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
 
 // Phase display names - resolved inside component via t()
@@ -517,17 +521,13 @@ export default function Table() {
               )}
             </div>
 
-            {/* Community Cards */}
-            <div className="absolute top-[46%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5">
+            {/* Community Cards - no placeholders, background has card slots */}
+            <div className="absolute top-[44%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2">
               {displayCommunity.map((card, i) => (
-                <CardView key={`${card}-${i}`} card={card} animate={animateCards} delay={i * 150} />
-              ))}
-              {/* Placeholder for remaining cards */}
-              {Array.from({ length: Math.max(0, 5 - displayCommunity.length) }).map((_, i) => (
-                <div key={`empty-${i}`} className="w-10 h-14 rounded-lg border border-dashed border-white/20 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]" />
+                <CardView key={`${card}-${i}`} card={card} className="!w-12 !h-[66px]" animate={animateCards} delay={i * 150} />
               ))}
             </div>
-          {/* Player Seats */}
+          {/* Player Seats - positioned outside the table */}
           {displayPlayers.map(player => {
             const pos = SEAT_POSITIONS[player.seatIndex];
             if (!pos) return null;
@@ -536,42 +536,53 @@ export default function Table() {
             return (
               <div
                 key={player.id}
-                className="absolute transition-all duration-300"
+                className="absolute transition-all duration-300 z-10"
                 style={{ top: pos.top, left: pos.left, transform: pos.transform }}
               >
-                <div className={`flex flex-col items-center gap-0.5 ${isCurrentTurn ? "scale-105" : ""} transition-transform duration-200`}>
-                  {/* Turn indicator ring */}
-                  {isCurrentTurn && (
-                    <div className="absolute -inset-1 rounded-xl border-2 border-gold/60 animate-pulse" />
-                  )}
-
-                  {/* Player cards */}
+                <div className={`flex flex-col items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} transition-transform duration-200`}>
+                  {/* Player cards next to seat */}
                   {isHero && displayMyCards.length > 0 && (
                     <div className="flex gap-0.5 mb-0.5">
                       {displayMyCards.map((card, i) => (
-                        <CardView key={i} card={card} className="!w-9 !h-[52px]" animate delay={i * 200} />
+                        <CardView key={i} card={card} className="!w-10 !h-[56px]" animate delay={i * 200} />
                       ))}
                     </div>
                   )}
                   {!isHero && player.holeCards && player.holeCards.length > 0 && (
                     <div className="flex gap-0.5 mb-0.5">
                       {player.holeCards.map((card, i) => (
-                        <CardView key={i} card={card} className="!w-8 !h-11" />
+                        <CardView key={i} card={card} className="!w-9 !h-[50px]" />
                       ))}
                     </div>
                   )}
                   {!isHero && (!player.holeCards || player.holeCards.length === 0) && !player.isFolded && displayPhase !== "waiting" && (
                     <div className="flex gap-0.5 mb-0.5">
-                      <CardView faceDown className="!w-7 !h-10" />
-                      <CardView faceDown className="!w-7 !h-10" />
+                      <CardView faceDown className="!w-8 !h-11" />
+                      <CardView faceDown className="!w-8 !h-11" />
                     </div>
                   )}
 
-                  {/* Player info card */}
-                  <div className={`glass rounded-lg px-2.5 py-1 text-center min-w-[64px] transition-all duration-200 ${
+                  {/* Avatar circle */}
+                  <div className={`relative w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-200 ${
+                    isCurrentTurn ? "border-gold shadow-[0_0_12px_rgba(212,175,55,0.6)]" :
+                    isHero ? "border-truth-blue/60" :
+                    player.isFolded ? "border-white/10 opacity-40" : "border-white/30"
+                  }`}>
+                    <img
+                      src={(player as any).avatar || DEFAULT_AVATAR}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_AVATAR; }}
+                    />
+                    {isCurrentTurn && (
+                      <div className="absolute inset-0 rounded-full border-2 border-gold animate-pulse" />
+                    )}
+                  </div>
+
+                  {/* Player info below avatar */}
+                  <div className={`glass rounded-lg px-2 py-0.5 text-center min-w-[60px] transition-all duration-200 ${
                     player.isFolded ? "opacity-30 grayscale" : ""
-                  } ${player.isAllIn ? "border border-red-500/60 shadow-[0_0_8px_rgba(239,68,68,0.3)]" : ""
-                  } ${isHero ? "border border-truth-blue/40" : ""}`}>
+                  } ${player.isAllIn ? "border border-red-500/60 shadow-[0_0_8px_rgba(239,68,68,0.3)]" : ""}`}>
                     <p className="text-[9px] text-muted-foreground truncate max-w-[56px] leading-tight">
                       {isHero ? t("table.you") : (player as any).name || `P${player.seatIndex + 1}`}
                     </p>
@@ -643,14 +654,7 @@ export default function Table() {
           )}
         </div>
       </div>
-      {/* My Cards Display (Hero cards at bottom, larger) */}
-      {(isSeated || isDemoMode) && displayMyCards.length > 0 && (
-        <div className="flex justify-center gap-1 -mt-2 mb-1 z-10">
-          {displayMyCards.map((card, i) => (
-            <CardView key={i} card={card} className="!w-16 !h-[88px] !shadow-[0_8px_24px_rgba(0,0,0,0.7),0_4px_8px_rgba(0,0,0,0.5)]" animate delay={i * 300} />
-          ))}
-        </div>
-      )}
+
 
       {/* Action Panel */}
       {(isSeated || isDemoMode) && (

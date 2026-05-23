@@ -59,11 +59,11 @@ export async function getPlayerView(roomId: number, playerId: number) {
   const myPlayer = gs.players.find(p => p.id === playerId);
   const myCards = myPlayer?.holeCards || [];
 
-  // Fetch player names from DB
-  const playerNames = new Map<number, string>();
+  // Fetch player names and avatars from DB
+  const playerInfo = new Map<number, { name: string; avatar: string | null }>();
   for (const p of gs.players) {
     const user = await db.getUserById(p.id);
-    playerNames.set(p.id, user?.name || `Player ${p.seatIndex + 1}`);
+    playerInfo.set(p.id, { name: user?.name || `Player ${p.seatIndex + 1}`, avatar: user?.avatar || null });
   }
 
   const players = gs.players.map(p => ({
@@ -75,7 +75,8 @@ export async function getPlayerView(roomId: number, playerId: number) {
     isFolded: p.isFolded,
     isAllIn: p.isAllIn,
     isActive: p.isActive,
-    name: playerNames.get(p.id) || `P${p.seatIndex + 1}`,
+    name: playerInfo.get(p.id)?.name || `P${p.seatIndex + 1}`,
+    avatar: playerInfo.get(p.id)?.avatar || null,
     // Only reveal cards in showdown or for the requesting player
     holeCards: (gs.phase === "showdown" || gs.phase === "completed" || p.id === playerId)
       ? p.holeCards
