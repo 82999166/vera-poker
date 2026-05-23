@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useMobile";
 
 import {
@@ -168,6 +169,12 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "stats.users": "用户数",
     "stats.volume": "交易额",
     "stats.hands": "牌局数",
+    "stats.today": "今日新增",
+    "stats.todayNew": "今日新增",
+    "stats.todayActive": "今日活跃",
+    "stats.totalBalance": "平台总余额",
+    "stats.platformFunds": "用户资金",
+    "stats.pendingWithdrawals": "待审批提现",
     "common.user": "用户",
     "common.agent": "代理",
     "common.level": "等级",
@@ -409,6 +416,12 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "stats.users": "用戶數",
     "stats.volume": "交易額",
     "stats.hands": "牌局數",
+    "stats.today": "今日新增",
+    "stats.todayNew": "今日新增",
+    "stats.todayActive": "今日活躍",
+    "stats.totalBalance": "平台總余額",
+    "stats.platformFunds": "用戶資金",
+    "stats.pendingWithdrawals": "待審批提現",
     "common.user": "用戶",
     "common.agent": "代理",
     "common.level": "等級",
@@ -650,6 +663,12 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "stats.users": "Users",
     "stats.volume": "Volume",
     "stats.hands": "Hands",
+    "stats.today": "Today",
+    "stats.todayNew": "Today New",
+    "stats.todayActive": "Today Active",
+    "stats.totalBalance": "Total Balance",
+    "stats.platformFunds": "User Funds",
+    "stats.pendingWithdrawals": "Pending Withdrawals",
     "common.user": "User",
     "common.agent": "Agent",
     "common.level": "Level",
@@ -858,17 +877,21 @@ type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "
 
 // ==================== MAIN ADMIN COMPONENT ====================
 export default function Admin() {
-  // Admin_users session only (game users cannot access admin panel)
+  // Support both admin_users session AND game user admin role (dual auth)
   const { data: adminUser, isLoading: adminLoading } = trpc.auth.adminMe.useQuery();
+  const { user: gameUser, loading: gameUserLoading } = useAuth();
   const adminLogoutMutation = trpc.auth.adminLogout.useMutation({
     onSuccess: () => { window.location.reload(); },
   });
-  const [activeTab, setActiveTab] = useState<AdminTab>("config");
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSuccess: () => { window.location.reload(); },
+  });
+  const [activeTab, setActiveTab] = useState<AdminTab>("stats");
   const isMobile = useIsMobile();
   const { lang, changeLang, at } = useAdminLang();
 
-  // Loading state
-  if (adminLoading) {
+  // Loading state - wait for both auth checks
+  if (adminLoading || gameUserLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <RefreshCw className="w-8 h-8 animate-spin text-gold" />
@@ -876,15 +899,25 @@ export default function Admin() {
     );
   }
 
-  // Not logged in as admin_user → show staff login
-  if (!adminUser) {
+  // Check if user has admin access via either method
+  const isGameAdmin = gameUser && ["admin", "super_admin"].includes(gameUser.role);
+  const hasAdminAccess = !!adminUser || isGameAdmin;
+
+  // Not logged in with any admin credentials → show staff login
+  if (!hasAdminAccess) {
     return <InlineStaffLogin onSuccess={() => window.location.reload()} />;
   }
 
-  // Determine effective role and name from admin_users session
-  const effectiveRole = adminUser.role;
-  const effectiveName = adminUser.name;
-  const handleLogout = () => { adminLogoutMutation.mutate(); };
+  // Determine effective role and name (admin_users session takes priority)
+  const effectiveRole = adminUser?.role ?? (isGameAdmin ? "admin" : "user");
+  const effectiveName = adminUser?.name ?? gameUser?.name ?? "Admin";
+  const handleLogout = () => {
+    if (adminUser) {
+      adminLogoutMutation.mutate();
+    } else {
+      logoutMutation.mutate();
+    }
+  };
 
   // Role-based tab permissions
   const roleTabMap: Record<string, AdminTab[]> = {
@@ -992,7 +1025,7 @@ export default function Admin() {
         {/* Main Content */}
         <main className="flex-1 min-h-screen overflow-y-auto">
           <div className="max-w-5xl mx-auto p-6">
-            <PanelContent tab={activeTab} at={at} />
+            <PanelContent tab={activeTab} at={at} onNavigate={(t) => setActiveTab(t as AdminTab)} />
           </div>
         </main>
       </div>
@@ -1053,14 +1086,14 @@ export default function Admin() {
 
       {/* Main Content */}
       <main className="flex-1 p-4 overflow-y-auto">
-        <PanelContent tab={activeTab} at={at} />
+        <PanelContent tab={activeTab} at={at} onNavigate={(t) => setActiveTab(t as AdminTab)} />
       </main>
     </div>
   );
 }
 
 // ==================== PANEL CONTENT ROUTER ====================
-function PanelContent({ tab, at }: { tab: AdminTab; at: (key: string) => string }) {
+function PanelContent({ tab, at, onNavigate }: { tab: AdminTab; at: (key: string) => string; onNavigate: (tab: string) => void }) {
   switch (tab) {
     case "config": return <ConfigPanel at={at} />;
     case "users": return <UsersPanel at={at} />;
@@ -1070,7 +1103,7 @@ function PanelContent({ tab, at }: { tab: AdminTab; at: (key: string) => string 
     case "risk": return <RiskPanel at={at} />;
     case "faq": return <FaqPanel at={at} />;
     case "settings": return <SystemSettingsPanel at={at} />;
-    case "stats": return <StatsPanel at={at} />;
+    case "stats": return <StatsPanel at={at} onNavigate={onNavigate} />;
     case "staff": return <StaffPanel at={at} />;
     default: return null;
   }
@@ -1295,7 +1328,10 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
                       }`}>{u.role}</span>
                     )}
                   </div>
-                  <span className="text-[10px] text-muted-foreground">#{u.id}{u.tgUsername ? ` @${u.tgUsername}` : ""}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground">#{u.id}{u.tgUsername ? ` @${u.tgUsername}` : ""}</span>
+                    {u.lastIp && <span className="text-[9px] text-muted-foreground/60 font-mono">{u.lastIp}</span>}
+                  </div>
                 </div>
               </div>
               {/* Last login */}
@@ -1342,9 +1378,9 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
   const [activeTab, setActiveTab] = useState<"info" | "deposits" | "withdrawals" | "games">("info");
   // Fix: stabilize query inputs to prevent infinite re-fetch loop
   const [stableUserId] = useState(userId);
-  const { data: user, isLoading, refetch: refetchUser } = trpc.admin.userDetail.useQuery(
+  const { data: user, isLoading, error: userError, refetch: refetchUser } = trpc.admin.userDetail.useQuery(
     { id: stableUserId },
-    { staleTime: 30_000 }  // 30s cache to prevent rapid re-fetching
+    { staleTime: 30_000, retry: 1 }  // 30s cache, only retry once to prevent loops
   );
   const { data: txData } = trpc.admin.userTransactions.useQuery(
     { userId: stableUserId, page: 1, limit: 50, type: activeTab === "deposits" ? "deposit" : activeTab === "withdrawals" ? "withdraw" : undefined },
@@ -1372,7 +1408,13 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
     onError: (err) => toast.error(err.message),
   });
 
-  if (isLoading || !user) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
+  if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
+  if (userError || !user) return (
+    <div className="flex flex-col items-center justify-center h-64 gap-3">
+      <p className="text-sm text-muted-foreground">{userError?.message || at("common.noData")}</p>
+      <button onClick={onBack} className="text-xs text-gold hover:underline">{at("admin.back")}</button>
+    </div>
+  );
 
   const tabs = [
     { key: "info" as const, label: at("users.infoTab") },
@@ -2726,7 +2768,7 @@ function StaffPanel({ at }: { at: (k: string) => string }) {
 }
 
 // ==================== STATS PANEL ====================
-function StatsPanel({ at }: { at: (k: string) => string }) {
+function StatsPanel({ at, onNavigate }: { at: (k: string) => string; onNavigate?: (tab: string) => void }) {
   const { data: stats, isLoading } = trpc.admin.stats.useQuery();
   const { data: trends, isLoading: trendsLoading } = trpc.admin.trends.useQuery({ days: 14 });
 
@@ -2736,23 +2778,54 @@ function StatsPanel({ at }: { at: (k: string) => string }) {
     <div className="space-y-6">
       <h2 className="text-lg font-bold">{at("stats.title")}</h2>
       
-      {/* Summary Cards */}
+      {/* Primary KPI Cards - 4 columns */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="glass rounded-xl p-4 text-center">
+        <div className="glass rounded-xl p-4 text-center cursor-pointer hover:bg-secondary/30 transition-colors" onClick={() => onNavigate?.("users")}>
           <p className="text-xs text-muted-foreground mb-1">{at("stats.totalUsers")}</p>
           <p className="text-2xl font-bold">{stats?.totalUsers ?? 0}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">+{stats?.todayNewUsers ?? 0} {at("stats.today")}</p>
         </div>
         <div className="glass rounded-xl p-4 text-center">
+          <p className="text-xs text-muted-foreground mb-1">{at("stats.todayActive")}</p>
+          <p className="text-2xl font-bold text-truth-blue">{stats?.todayActiveUsers ?? 0}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">{at("stats.dau")}</p>
+        </div>
+        <div className="glass rounded-xl p-4 text-center">
+          <p className="text-xs text-muted-foreground mb-1">{at("stats.totalBalance")}</p>
+          <p className="text-2xl font-bold text-gold">${stats?.totalBalance ?? "0.00"}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">{at("stats.platformFunds")}</p>
+        </div>
+        <div
+          className={`glass rounded-xl p-4 text-center cursor-pointer hover:bg-secondary/30 transition-colors ${
+            (stats?.pendingWithdrawals ?? 0) > 0 ? "border border-orange-400/40" : ""
+          }`}
+          onClick={() => onNavigate?.("finance")}
+        >
+          <p className="text-xs text-muted-foreground mb-1">{at("stats.pendingWithdrawals")}</p>
+          <p className={`text-2xl font-bold ${ (stats?.pendingWithdrawals ?? 0) > 0 ? "text-orange-400" : "" }`}>
+            {stats?.pendingWithdrawals ?? 0}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">${stats?.pendingWithdrawAmount ?? "0.00"}</p>
+        </div>
+      </div>
+
+      {/* Secondary Stats Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="glass rounded-xl p-3 text-center cursor-pointer hover:bg-secondary/30 transition-colors" onClick={() => onNavigate?.("rooms")}>
           <p className="text-xs text-muted-foreground mb-1">{at("stats.totalRooms")}</p>
-          <p className="text-2xl font-bold text-truth-blue">{stats?.totalRooms ?? 0}</p>
+          <p className="text-xl font-bold text-truth-blue">{stats?.totalRooms ?? 0}</p>
         </div>
-        <div className="glass rounded-xl p-4 text-center">
+        <div className="glass rounded-xl p-3 text-center">
           <p className="text-xs text-muted-foreground mb-1">{at("stats.totalTx")}</p>
-          <p className="text-2xl font-bold text-gold">{stats?.totalTransactions ?? 0}</p>
+          <p className="text-xl font-bold">{stats?.totalTransactions ?? 0}</p>
         </div>
-        <div className="glass rounded-xl p-4 text-center">
+        <div className="glass rounded-xl p-3 text-center">
           <p className="text-xs text-muted-foreground mb-1">{at("stats.totalVolume")}</p>
-          <p className="text-2xl font-bold text-success">${stats?.totalVolume ?? "0.00"}</p>
+          <p className="text-xl font-bold text-success">${stats?.totalVolume ?? "0.00"}</p>
+        </div>
+        <div className="glass rounded-xl p-3 text-center">
+          <p className="text-xs text-muted-foreground mb-1">{at("stats.todayNew")}</p>
+          <p className="text-xl font-bold text-emerald-400">{stats?.todayNewUsers ?? 0}</p>
         </div>
       </div>
 
@@ -2770,17 +2843,17 @@ function StatsPanel({ at }: { at: (k: string) => string }) {
             {/* DAU Chart */}
             <div className="glass rounded-xl p-4">
               <p className="text-xs font-medium text-muted-foreground mb-3">{at("stats.dau")}</p>
-              <TrendChart data={trends?.dailyUsers ?? []} dataKey="count" color="oklch(0.82 0.15 85)" label={at("stats.users")} />
+              <TrendChart data={trends?.dailyUsers ?? []} dataKey="count" color="oklch(0.82 0.15 85)" label={at("stats.users")} noDataText={at("common.noData")} />
             </div>
             {/* Daily Volume Chart */}
             <div className="glass rounded-xl p-4">
               <p className="text-xs font-medium text-muted-foreground mb-3">{at("stats.dailyVolume")}</p>
-              <TrendChart data={trends?.dailyVolume ?? []} dataKey="volume" color="oklch(0.72 0.15 155)" label={at("stats.volume")} isVolume />
+              <TrendChart data={trends?.dailyVolume ?? []} dataKey="volume" color="oklch(0.72 0.15 155)" label={at("stats.volume")} isVolume noDataText={at("common.noData")} />
             </div>
             {/* Daily Hands Chart */}
             <div className="glass rounded-xl p-4">
               <p className="text-xs font-medium text-muted-foreground mb-3">{at("stats.dailyHands")}</p>
-              <TrendChart data={trends?.dailyHands ?? []} dataKey="count" color="oklch(0.7 0.15 250)" label={at("stats.hands")} />
+              <TrendChart data={trends?.dailyHands ?? []} dataKey="count" color="oklch(0.7 0.15 250)" label={at("stats.hands")} noDataText={at("common.noData")} />
             </div>
           </div>
         )}
@@ -2790,11 +2863,11 @@ function StatsPanel({ at }: { at: (k: string) => string }) {
 }
 
 // Simple trend chart using SVG (no external chart lib needed for this minimal display)
-function TrendChart({ data, dataKey, color, label, isVolume }: { data: any[]; dataKey: string; color: string; label: string; isVolume?: boolean }) {
+function TrendChart({ data, dataKey, color, label, isVolume, noDataText }: { data: any[]; dataKey: string; color: string; label: string; isVolume?: boolean; noDataText?: string }) {
   if (!data || data.length === 0) {
     return (
       <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">
-        暂无数据
+        {noDataText || "No data"}
       </div>
     );
   }

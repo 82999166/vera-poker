@@ -40,6 +40,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     values.lastSignedIn = user.lastSignedIn;
     updateSet.lastSignedIn = user.lastSignedIn;
   }
+  if ((user as any).lastIp !== undefined) {
+    (values as any).lastIp = (user as any).lastIp;
+    updateSet.lastIp = (user as any).lastIp;
+  }
   if (user.role !== undefined) {
     values.role = user.role;
     updateSet.role = user.role;

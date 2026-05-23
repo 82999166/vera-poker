@@ -301,9 +301,12 @@ class SDKServer {
       throw ForbiddenError("User not found");
     }
 
+    // Extract client IP for last login tracking
+    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || (req.socket?.remoteAddress) || null;
     await db.upsertUser({
       openId: user.openId,
       lastSignedIn: signedInAt,
+      ...(clientIp ? { lastIp: clientIp } : {}),
     });
 
     return user;

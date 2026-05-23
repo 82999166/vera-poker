@@ -1114,9 +1114,14 @@ Rules:
       // Today active users (logged in today)
       const [todayActive] = await dbInstance.select({ count: sql<number>`count(*)` }).from(users)
         .where(sql`DATE(lastSignedIn) = CURDATE()`);
-      // Total balance across all game users
+            // Total balance across all game users
       const [totalBal] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(balance), 0)` }).from(users);
-      
+      // Pending withdrawals
+      const { eq, and } = await import("drizzle-orm");
+      const [pendingWithdrawCount] = await dbInstance.select({ count: sql<number>`count(*)` }).from(transactions)
+        .where(and(eq(transactions.type, "withdraw"), eq(transactions.status, "pending")));
+      const [pendingWithdrawAmount] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(amount), 0)` }).from(transactions)
+        .where(and(eq(transactions.type, "withdraw"), eq(transactions.status, "pending")));
       return {
         totalUsers: userCount?.count ?? 0,
         totalRooms: roomCount?.count ?? 0,
@@ -1125,6 +1130,8 @@ Rules:
         todayNewUsers: todayNew?.count ?? 0,
         todayActiveUsers: todayActive?.count ?? 0,
         totalBalance: parseFloat(totalBal?.total ?? "0").toFixed(2),
+        pendingWithdrawals: pendingWithdrawCount?.count ?? 0,
+        pendingWithdrawAmount: parseFloat(pendingWithdrawAmount?.total ?? "0").toFixed(2),
       };
     }),
     // Trend data for charts

@@ -267,3 +267,8 @@
 - [ ] Add operatorId + operatorName fields to transactions table (migration)
 - [ ] Record operator info in manualTopUp procedure
 - [ ] Show "Admin Manual Top-Up" label + operator name in deposit records tab
+
+## Admin Dashboard & User Detail Fixes (2026-05-23)
+- [ ] Admin homepage: show data dashboard (stats overview) as default landing panel
+- [ ] User list: show last login IP in user detail info tab
+- [ ] Fix user detail page: clicking a user row does not navigate into detail view

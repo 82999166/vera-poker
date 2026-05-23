@@ -31,8 +31,13 @@ export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
-    // Only allow admin_users session (separate from game users)
+    // Allow admin_users session (dedicated admin table)
     if (ctx.adminUser && ["super_admin", "admin"].includes(ctx.adminUser.role)) {
+      return next({ ctx: { ...ctx } });
+    }
+
+    // Fallback: allow game users with admin/super_admin role (Manus OAuth owners)
+    if (ctx.user && ["admin", "super_admin"].includes(ctx.user.role)) {
       return next({ ctx: { ...ctx } });
     }
 
@@ -41,11 +46,17 @@ export const adminProcedure = t.procedure.use(
 );
 
 // Staff procedure: allows any admin_users session role (admin, cs, finance, tech)
+// Also allows game users with admin role as fallback
 export const staffProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
     if (ctx.adminUser) {
+      return next({ ctx: { ...ctx } });
+    }
+
+    // Fallback: allow game users with admin role
+    if (ctx.user && ["admin", "super_admin"].includes(ctx.user.role)) {
       return next({ ctx: { ...ctx } });
     }
 
