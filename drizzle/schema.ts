@@ -256,6 +256,8 @@ export const achievements = mysqlTable("achievements", {
   key: varchar("key", { length: 64 }).notNull().unique(),
   name: varchar("name", { length: 128 }).notNull(),
   nameZh: varchar("nameZh", { length: 128 }).notNull(),
+  nameEn: varchar("nameEn", { length: 128 }),
+  nameZhTW: varchar("nameZhTW", { length: 128 }),
   description: varchar("description", { length: 512 }).notNull(),
   descriptionZh: varchar("descriptionZh", { length: 512 }).notNull(),
   icon: varchar("icon", { length: 32 }).notNull(), // emoji or icon name

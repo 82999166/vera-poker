@@ -1100,7 +1100,7 @@ Rules:
     // Stats
     stats: adminProcedure.query(async () => {
       const dbInstance = await db.getDb();
-      if (!dbInstance) return { totalUsers: 0, totalRooms: 0, totalTransactions: 0, totalVolume: "0.00" };
+      if (!dbInstance) return { totalUsers: 0, totalRooms: 0, totalTransactions: 0, totalVolume: "0.00", todayNewUsers: 0, todayActiveUsers: 0, totalBalance: "0.00" };
       const { users, rooms, transactions } = await import("../drizzle/schema");
       const { sql } = await import("drizzle-orm");
       
@@ -1108,12 +1108,23 @@ Rules:
       const [roomCount] = await dbInstance.select({ count: sql<number>`count(*)` }).from(rooms);
       const [txCount] = await dbInstance.select({ count: sql<number>`count(*)` }).from(transactions);
       const [volume] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(amount), 0)` }).from(transactions);
+      // Today new users (registered today)
+      const [todayNew] = await dbInstance.select({ count: sql<number>`count(*)` }).from(users)
+        .where(sql`DATE(createdAt) = CURDATE()`);
+      // Today active users (logged in today)
+      const [todayActive] = await dbInstance.select({ count: sql<number>`count(*)` }).from(users)
+        .where(sql`DATE(lastSignedIn) = CURDATE()`);
+      // Total balance across all game users
+      const [totalBal] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(balance), 0)` }).from(users);
       
       return {
         totalUsers: userCount?.count ?? 0,
         totalRooms: roomCount?.count ?? 0,
         totalTransactions: txCount?.count ?? 0,
         totalVolume: volume?.total ?? "0.00",
+        todayNewUsers: todayNew?.count ?? 0,
+        todayActiveUsers: todayActive?.count ?? 0,
+        totalBalance: parseFloat(totalBal?.total ?? "0").toFixed(2),
       };
     }),
     // Trend data for charts

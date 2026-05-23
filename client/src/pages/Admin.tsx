@@ -184,6 +184,75 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "faq.catGame": "游戏规则",
     "faq.catAgent": "代理",
     "faq.catSecurity": "安全",
+    "users.totalGameUsers": "游戏用户",
+    "users.todayNew": "今日新增",
+    "users.todayActive": "今日活跃",
+    "users.totalBalance": "平台总余额",
+    "users.search": "搜索用户名 / TG ID / 用户ID...",
+    "users.colUser": "用户",
+    "users.colLastLogin": "最后登录",
+    "users.colBalance": "余额",
+    "users.colStatus": "状态",
+    "users.prevPage": "上一页",
+    "users.nextPage": "下一页",
+    "users.manualTopUp": "手动充值",
+    "users.topUpAmount": "充值金额",
+    "users.topUpNote": "备注（可选）",
+    "users.confirmTopUp": "确认充值",
+    "users.topUpSuccess": "充值成功",
+    "users.topUpTitle": "管理员手动充值",
+    "users.infoTab": "基本信息",
+    "users.depositsTab": "充值记录",
+    "users.withdrawalsTab": "提现记录",
+    "users.gamesTab": "游戏记录",
+    "users.balance": "余额",
+    "users.totalHands": "总手数",
+    "users.totalWins": "胜场",
+    "users.winRate": "胜率",
+    "users.totalDeposited": "累计充值",
+    "users.totalWithdrawn": "累计提现",
+    "users.riskLevel": "风控等级",
+    "users.agentLevel": "代理等级",
+    "users.regularUser": "普通用户",
+    "users.registeredAt": "注册时间",
+    "users.lastLogin": "最后登录",
+    "users.noTx": "暂无记录",
+    "users.noGames": "暂无游戏记录",
+    "users.adminTopUp": "管理员充值",
+    "config.gameCat": "游戏设置",
+    "config.agentCat": "代理系统",
+    "config.financeCat": "财务设置",
+    "config.riskCat": "风控设置",
+    "config.roomCat": "私人房设置",
+    "staff.newPassword": "新密码",
+    "staff.confirm": "确认",
+    "common.copied": "已复制",
+    "common.copy": "复制",
+    "common.noData": "暂无数据",
+    "finance.pendingWithdrawals": "待审批提现",
+    "finance.noPending": "暂无待审批提现",
+    "finance.approveWithdrawal": "审批提现",
+    "finance.txHash": "链上交易哈希 (TX Hash)",
+    "finance.txHashPlaceholder": "0x...",
+    "finance.confirmApprove": "确认转账完成",
+    "finance.cancelApprove": "取消",
+    "finance.approved": "已审批",
+    "finance.rejected": "已拒绝",
+    "finance.reject": "拒绝",
+    "finance.approve": "审批",
+    "finance.amount": "金额",
+    "finance.chain": "链",
+    "finance.address": "地址",
+    "finance.status": "状态",
+    "finance.time": "时间",
+    "finance.user": "用户",
+    "finance.type": "类型",
+    "finance.deposit": "充值",
+    "finance.withdraw": "提现",
+    "finance.rake": "抽水",
+    "finance.commission": "佣金",
+    "finance.manualTopUp": "手动充值",
+    "finance.autoApproveLimit": "小额自动审批上限",
   },
   "zh-TW": {
     "admin.title": "Vera 管理後台",
@@ -356,6 +425,75 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "faq.catGame": "遊戲規則",
     "faq.catAgent": "代理",
     "faq.catSecurity": "安全",
+    "users.totalGameUsers": "遊戲用戶",
+    "users.todayNew": "今日新增",
+    "users.todayActive": "今日活躍",
+    "users.totalBalance": "平台總餘額",
+    "users.search": "搜尋用戶名 / TG ID / 用戶ID...",
+    "users.colUser": "用戶",
+    "users.colLastLogin": "最後登入",
+    "users.colBalance": "餘額",
+    "users.colStatus": "狀態",
+    "users.prevPage": "上一頁",
+    "users.nextPage": "下一頁",
+    "users.manualTopUp": "手動充值",
+    "users.topUpAmount": "充值金額",
+    "users.topUpNote": "備注（可選）",
+    "users.confirmTopUp": "確認充值",
+    "users.topUpSuccess": "充值成功",
+    "users.topUpTitle": "管理員手動充值",
+    "users.infoTab": "基本資訊",
+    "users.depositsTab": "充值記錄",
+    "users.withdrawalsTab": "提現記錄",
+    "users.gamesTab": "遊戲記錄",
+    "users.balance": "餘額",
+    "users.totalHands": "總手數",
+    "users.totalWins": "勝場",
+    "users.winRate": "勝率",
+    "users.totalDeposited": "累計充值",
+    "users.totalWithdrawn": "累計提現",
+    "users.riskLevel": "風控等級",
+    "users.agentLevel": "代理等級",
+    "users.regularUser": "普通用戶",
+    "users.registeredAt": "注冊時間",
+    "users.lastLogin": "最後登入",
+    "users.noTx": "暫無記錄",
+    "users.noGames": "暫無遊戲記錄",
+    "users.adminTopUp": "管理員充值",
+    "config.gameCat": "遊戲設置",
+    "config.agentCat": "代理系統",
+    "config.financeCat": "財務設置",
+    "config.riskCat": "風控設置",
+    "config.roomCat": "私人房設置",
+    "staff.newPassword": "新密碼",
+    "staff.confirm": "確認",
+    "common.copied": "已複製",
+    "common.copy": "複製",
+    "common.noData": "暫無數據",
+    "finance.pendingWithdrawals": "待審批提現",
+    "finance.noPending": "暫無待審批提現",
+    "finance.approveWithdrawal": "審批提現",
+    "finance.txHash": "鏈上交易哈希 (TX Hash)",
+    "finance.txHashPlaceholder": "0x...",
+    "finance.confirmApprove": "確認轉賬完成",
+    "finance.cancelApprove": "取消",
+    "finance.approved": "已審批",
+    "finance.rejected": "已拒絕",
+    "finance.reject": "拒絕",
+    "finance.approve": "審批",
+    "finance.amount": "金額",
+    "finance.chain": "鏈",
+    "finance.address": "地址",
+    "finance.status": "狀態",
+    "finance.time": "時間",
+    "finance.user": "用戶",
+    "finance.type": "類型",
+    "finance.deposit": "充值",
+    "finance.withdraw": "提現",
+    "finance.rake": "抽水",
+    "finance.commission": "佣金",
+    "finance.manualTopUp": "手動充值",
+    "finance.autoApproveLimit": "小額自動審批上限",
   },
   "en": {
     "admin.title": "Vera Admin",
@@ -528,6 +666,75 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "faq.catGame": "Game Rules",
     "faq.catAgent": "Agent",
     "faq.catSecurity": "Security",
+    "users.totalGameUsers": "Game Users",
+    "users.todayNew": "New Today",
+    "users.todayActive": "Active Today",
+    "users.totalBalance": "Platform Balance",
+    "users.search": "Search username / TG ID / User ID...",
+    "users.colUser": "User",
+    "users.colLastLogin": "Last Login",
+    "users.colBalance": "Balance",
+    "users.colStatus": "Status",
+    "users.prevPage": "Prev",
+    "users.nextPage": "Next",
+    "users.manualTopUp": "Manual Top-Up",
+    "users.topUpAmount": "Amount",
+    "users.topUpNote": "Note (optional)",
+    "users.confirmTopUp": "Confirm Top-Up",
+    "users.topUpSuccess": "Top-up successful",
+    "users.topUpTitle": "Admin Manual Top-Up",
+    "users.infoTab": "Info",
+    "users.depositsTab": "Deposits",
+    "users.withdrawalsTab": "Withdrawals",
+    "users.gamesTab": "Game History",
+    "users.balance": "Balance",
+    "users.totalHands": "Total Hands",
+    "users.totalWins": "Wins",
+    "users.winRate": "Win Rate",
+    "users.totalDeposited": "Total Deposited",
+    "users.totalWithdrawn": "Total Withdrawn",
+    "users.riskLevel": "Risk Level",
+    "users.agentLevel": "Agent Level",
+    "users.regularUser": "Regular User",
+    "users.registeredAt": "Registered",
+    "users.lastLogin": "Last Login",
+    "users.noTx": "No records",
+    "users.noGames": "No game history",
+    "users.adminTopUp": "Admin Top-Up",
+    "config.gameCat": "Game Settings",
+    "config.agentCat": "Agent System",
+    "config.financeCat": "Finance",
+    "config.riskCat": "Risk Control",
+    "config.roomCat": "Private Room",
+    "staff.newPassword": "New Password",
+    "staff.confirm": "Confirm",
+    "common.copied": "Copied",
+    "common.copy": "Copy",
+    "common.noData": "No data",
+    "finance.pendingWithdrawals": "Pending Withdrawals",
+    "finance.noPending": "No pending withdrawals",
+    "finance.approveWithdrawal": "Approve Withdrawal",
+    "finance.txHash": "On-chain TX Hash",
+    "finance.txHashPlaceholder": "0x...",
+    "finance.confirmApprove": "Confirm Transfer Done",
+    "finance.cancelApprove": "Cancel",
+    "finance.approved": "Approved",
+    "finance.rejected": "Rejected",
+    "finance.reject": "Reject",
+    "finance.approve": "Approve",
+    "finance.amount": "Amount",
+    "finance.chain": "Chain",
+    "finance.address": "Address",
+    "finance.status": "Status",
+    "finance.time": "Time",
+    "finance.user": "User",
+    "finance.type": "Type",
+    "finance.deposit": "Deposit",
+    "finance.withdraw": "Withdrawal",
+    "finance.rake": "Rake",
+    "finance.commission": "Commission",
+    "finance.manualTopUp": "Manual Top-Up",
+    "finance.autoApproveLimit": "Auto-Approve Limit",
   },
 };
 
@@ -995,6 +1202,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const { data, isLoading, refetch } = trpc.admin.users.useQuery({ page, limit: 20 });
+  const { data: statsData } = trpc.admin.stats.useQuery();
   const updateMutation = trpc.admin.updateUser.useMutation({
     onSuccess: () => { toast.success(at("users.updated")); refetch(); },
   });
@@ -1027,21 +1235,42 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">{at("users.title")}</h2>
-        <span className="text-xs text-muted-foreground">共 {total} 游戏用户</span>
+        <span className="text-xs text-muted-foreground">{total} {at("users.totalGameUsers")}</span>
       </div>
+      {/* Stats overview cards */}
+      {statsData && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="glass rounded-xl p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] text-muted-foreground">{at("users.totalGameUsers")}</span>
+            <span className="text-lg font-bold text-gold">{(statsData as any).totalUsers ?? 0}</span>
+          </div>
+          <div className="glass rounded-xl p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] text-muted-foreground">{at("users.todayNew")}</span>
+            <span className="text-lg font-bold text-success">{(statsData as any).todayNewUsers ?? 0}</span>
+          </div>
+          <div className="glass rounded-xl p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] text-muted-foreground">{at("users.todayActive")}</span>
+            <span className="text-lg font-bold text-truth-blue">{(statsData as any).todayActiveUsers ?? 0}</span>
+          </div>
+          <div className="glass rounded-xl p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] text-muted-foreground">{at("users.totalBalance")}</span>
+            <span className="text-lg font-bold text-gold">${(statsData as any).totalBalance ?? "0.00"}</span>
+          </div>
+        </div>
+      )}
       <input
         type="text"
-        placeholder="搜索用户名 / TG ID / 用户ID..."
+        placeholder={at("users.search")}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="w-full glass rounded-lg px-3 py-2 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
       />
       {/* Column Header */}
       <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 text-[10px] text-muted-foreground font-medium">
-        <span>用户</span>
-        <span className="text-right w-20">最后登录</span>
-        <span className="text-right w-16">余额</span>
-        <span className="text-right w-14">状态</span>
+        <span>{at("users.colUser")}</span>
+        <span className="text-right w-20">{at("users.colLastLogin")}</span>
+        <span className="text-right w-16">{at("users.colBalance")}</span>
+        <span className="text-right w-14">{at("users.colStatus")}</span>
       </div>
       <div className="space-y-1.5">
         {(filtered as any[])?.map((u: any) => (
@@ -1084,10 +1313,10 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
                     riskColors[u.riskLevel ?? "normal"]
                   }`}
                 >
-                  <option value="normal">正常</option>
-                  <option value="watch">观察</option>
-                  <option value="frozen">冻结</option>
-                  <option value="banned">封禁</option>
+                  <option value="normal">{at("users.normal")}</option>
+                  <option value="watch">{at("users.watch")}</option>
+                  <option value="frozen">{at("users.frozen")}</option>
+                  <option value="banned">{at("users.banned")}</option>
                 </select>
               </div>
             </div>
@@ -1099,9 +1328,9 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
       </div>
       {total > 20 && (
         <div className="flex items-center justify-center gap-2 pt-2">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs glass rounded disabled:opacity-50">上一页</button>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs glass rounded disabled:opacity-50">{at("users.prevPage")}</button>
           <span className="text-xs text-muted-foreground">{page} / {Math.ceil(total / 20)}</span>
-          <button onClick={() => setPage(p => p + 1)} disabled={page >= Math.ceil(total / 20)} className="px-3 py-1 text-xs glass rounded disabled:opacity-50">下一页</button>
+          <button onClick={() => setPage(p => p + 1)} disabled={page >= Math.ceil(total / 20)} className="px-3 py-1 text-xs glass rounded disabled:opacity-50">{at("users.nextPage")}</button>
         </div>
       )}
     </div>
@@ -1126,7 +1355,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
     { enabled: activeTab === "games", staleTime: 30_000 }
   );
   const updateMutation = trpc.admin.updateUser.useMutation({
-    onSuccess: () => { toast.success("用户已更新"); refetchUser(); },
+    onSuccess: () => { toast.success(at("users.updated")); refetchUser(); },
   });
   // Manual top-up state
   const [showTopUp, setShowTopUp] = useState(false);
@@ -1134,7 +1363,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
   const [topUpNote, setTopUpNote] = useState("");
   const topUpMutation = trpc.admin.manualTopUp.useMutation({
     onSuccess: (data) => {
-      toast.success(`充值成功！新余额: $${data.newBalance}`);
+      toast.success(`${at("users.topUpSuccess")} $${data.newBalance}`);
       setShowTopUp(false);
       setTopUpAmount("");
       setTopUpNote("");
@@ -1146,10 +1375,10 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
   if (isLoading || !user) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
 
   const tabs = [
-    { key: "info" as const, label: "基本信息" },
-    { key: "deposits" as const, label: "充值记录" },
-    { key: "withdrawals" as const, label: "提现记录" },
-    { key: "games" as const, label: "游戏记录" },
+    { key: "info" as const, label: at("users.infoTab") },
+    { key: "deposits" as const, label: at("users.depositsTab") },
+    { key: "withdrawals" as const, label: at("users.withdrawalsTab") },
+    { key: "games" as const, label: at("users.gamesTab") },
   ];
 
   return (
@@ -1159,16 +1388,16 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowTopUp(false)}>
           <div className="glass-strong rounded-2xl p-5 w-80 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-gold">手动充值</h3>
+              <h3 className="text-base font-bold text-gold">{at("users.manualTopUp")}</h3>
               <button onClick={() => setShowTopUp(false)} className="p-1 rounded hover:bg-secondary"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">用户: {(user as any).name || (user as any).nickname} (ID: {(user as any).id})</p>
-              <p className="text-xs text-muted-foreground">当前余额: <span className="text-gold font-mono">${(user as any).balance}</span></p>
+              <p className="text-xs text-muted-foreground">{at("users.colUser")}: {(user as any).name || (user as any).nickname} (ID: {(user as any).id})</p>
+              <p className="text-xs text-muted-foreground">{at("users.balance")}: <span className="text-gold font-mono">${(user as any).balance}</span></p>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">充值金额 (USDT)</label>
+                <label className="text-xs text-muted-foreground mb-1 block">{at("users.topUpAmount")} (USDT)</label>
                 <input
                   type="number"
                   min="0.01"
@@ -1180,7 +1409,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
                 />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">备注 (可选)</label>
+                <label className="text-xs text-muted-foreground mb-1 block">{at("users.topUpNote")}</label>
                 <input
                   type="text"
                   placeholder="充值原因..."
@@ -1191,18 +1420,18 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setShowTopUp(false)} className="flex-1 px-3 py-2 text-sm glass rounded-lg hover:bg-secondary">取消</button>
+              <button onClick={() => setShowTopUp(false)} className="flex-1 px-3 py-2 text-sm glass rounded-lg hover:bg-secondary">{at("rooms.cancel")}</button>
               <button
                 onClick={() => {
                   const amount = parseFloat(topUpAmount);
-                  if (isNaN(amount) || amount <= 0) { toast.error("请输入有效金额"); return; }
+                  if (isNaN(amount) || amount <= 0) { toast.error(at("users.topUpAmount")); return; }
                   topUpMutation.mutate({ userId: stableUserId, amount, note: topUpNote || undefined });
                 }}
                 disabled={topUpMutation.isPending || !topUpAmount}
                 className="flex-1 px-3 py-2 text-sm bg-gold text-background rounded-lg font-medium hover:bg-gold/90 disabled:opacity-50 flex items-center justify-center gap-1"
               >
                 {topUpMutation.isPending ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <DollarSign className="w-3.5 h-3.5" />}
-                确认充值
+                {at("users.confirmTopUp")}
               </button>
             </div>
           </div>
@@ -1220,7 +1449,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
           className="flex items-center gap-1.5 px-3 py-1.5 bg-gold/20 text-gold rounded-lg text-xs font-medium hover:bg-gold/30 transition-colors"
         >
           <DollarSign className="w-3.5 h-3.5" />
-          手动充值
+          {at("users.manualTopUp")}
         </button>
       </div>
 
@@ -1242,63 +1471,62 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
         <div className="space-y-4">
           {/* Financial Summary */}
           <div className="glass rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><DollarSign className="w-4 h-4 text-gold" />资金概览</h3>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><DollarSign className="w-4 h-4 text-gold" />{at("finance.title")}</h3>
             <div className="grid grid-cols-2 gap-3">
-              <InfoCard label="当前余额" value={`$${(user as any).balance}`} color="text-gold" />
-              <InfoCard label="冻结余额" value={`$${(user as any).frozenBalance}`} color="text-orange-400" />
-              <InfoCard label="总充值" value={`$${(user as any).financialSummary?.totalDeposited}`} color="text-emerald-400" />
-              <InfoCard label="总提现" value={`$${(user as any).financialSummary?.totalWithdrawn}`} color="text-red-400" />
-              <InfoCard label="总下注" value={`$${(user as any).financialSummary?.totalBets}`} color="text-blue-400" />
-              <InfoCard label="游戏盈亏" value={`$${(user as any).financialSummary?.netProfit}`} color={parseFloat((user as any).financialSummary?.netProfit ?? "0") >= 0 ? "text-emerald-400" : "text-red-400"} />
-              <InfoCard label="贡献抽水" value={`$${(user as any).financialSummary?.totalRake}`} color="text-purple-400" />
-              <InfoCard label="代理佣金" value={`$${(user as any).agentInfo?.totalCommission}`} color="text-amber-400" />
+              <InfoCard label={at("users.balance")} value={`$${(user as any).balance}`} color="text-gold" />
+              <InfoCard label={at("users.colBalance")} value={`$${(user as any).frozenBalance}`} color="text-orange-400" />
+              <InfoCard label={at("users.totalDeposited")} value={`$${(user as any).financialSummary?.totalDeposited}`} color="text-emerald-400" />
+              <InfoCard label={at("users.totalWithdrawn")} value={`$${(user as any).financialSummary?.totalWithdrawn}`} color="text-red-400" />
+              <InfoCard label={at("users.totalHands")} value={`$${(user as any).financialSummary?.totalBets}`} color="text-blue-400" />
+              <InfoCard label={at("users.winRate")} value={`$${(user as any).financialSummary?.netProfit}`} color={parseFloat((user as any).financialSummary?.netProfit ?? "0") >= 0 ? "text-emerald-400" : "text-red-400"} />
+              <InfoCard label={at("finance.rake")} value={`$${(user as any).financialSummary?.totalRake}`} color="text-purple-400" />
+              <InfoCard label={at("finance.commission")} value={`$${(user as any).agentInfo?.totalCommission}`} color="text-amber-400" />
             </div>
           </div>
 
           {/* Account Info */}
           <div className="glass rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Shield className="w-4 h-4 text-cyan-400" />账户信息</h3>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Shield className="w-4 h-4 text-cyan-400" />{at("tab.users")}</h3>
             <div className="space-y-2 text-xs">
-              <DetailRow label="用户ID" value={String((user as any).id)} />
+              <DetailRow label={at("users.colUser") + " ID"} value={String((user as any).id)} />
               <DetailRow label="Telegram ID" value={(user as any).tgId || "-"} />
-              <DetailRow label="TG用户名" value={(user as any).tgUsername ? `@${(user as any).tgUsername}` : "-"} />
-              <DetailRow label="昵称" value={(user as any).nickname || "-"} />
-              <DetailRow label="邮箱" value={(user as any).email || "-"} />
-              <DetailRow label="语言" value={(user as any).language || "-"} />
-              <DetailRow label="最后IP" value={(user as any).lastIp || "-"} />
-              <DetailRow label="登录方式" value={(user as any).loginMethod || "-"} />
-              <DetailRow label="注册时间" value={(user as any).createdAt ? new Date((user as any).createdAt).toLocaleString("zh-CN") : "-"} />
-              <DetailRow label="最后登录" value={(user as any).lastSignedIn ? new Date((user as any).lastSignedIn).toLocaleString("zh-CN") : "-"} />
+              <DetailRow label="TG" value={(user as any).tgUsername ? `@${(user as any).tgUsername}` : "-"} />
+              <DetailRow label={at("users.colUser")} value={(user as any).nickname || "-"} />
+              <DetailRow label="Email" value={(user as any).email || "-"} />
+              <DetailRow label={at("settings.defaultLang")} value={(user as any).language || "-"} />
+              <DetailRow label="IP" value={(user as any).lastIp || "-"} />
+              <DetailRow label={at("users.lastLogin")} value={(user as any).lastSignedIn ? new Date((user as any).lastSignedIn).toLocaleString() : "-"} />
+              <DetailRow label={at("users.registeredAt")} value={(user as any).createdAt ? new Date((user as any).createdAt).toLocaleString() : "-"} />
             </div>
           </div>
 
           {/* Agent Info */}
           <div className="glass rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-emerald-400" />代理信息</h3>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-emerald-400" />{at("tab.agents")}</h3>
             <div className="space-y-2 text-xs">
-              <DetailRow label="代理等级" value={(user as any).agentLevel === "agent" ? "代理" : "普通用户"} />
-              <DetailRow label="邀请码" value={(user as any).inviteCode || "未生成"} />
-              <DetailRow label="上级代理" value={(user as any).agentInfo?.inviterName || "无"} />
-              <DetailRow label="下级人数" value={String((user as any).agentInfo?.downlineCount ?? 0)} />
-              <DetailRow label="佣金总额" value={`$${(user as any).agentInfo?.totalCommission ?? "0.00"}`} />
-              <DetailRow label="总游戏局数" value={String((user as any).totalGamesPlayed ?? 0)} />
+              <DetailRow label={at("users.agentLevel")} value={(user as any).agentLevel === "agent" ? at("common.agent") : at("users.regularUser")} />
+              <DetailRow label={at("rooms.inviteCode")} value={(user as any).inviteCode || "-"} />
+              <DetailRow label={at("common.agent")} value={(user as any).agentInfo?.inviterName || "-"} />
+              <DetailRow label={at("agents.totalRel")} value={String((user as any).agentInfo?.downlineCount ?? 0)} />
+              <DetailRow label={at("finance.commission")} value={`$${(user as any).agentInfo?.totalCommission ?? "0.00"}`} />
+              <DetailRow label={at("users.totalHands")} value={String((user as any).totalGamesPlayed ?? 0)} />
             </div>
           </div>
 
           {/* Risk Control */}
           <div className="glass rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Shield className="w-4 h-4 text-red-400" />风控状态</h3>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Shield className="w-4 h-4 text-red-400" />{at("users.riskLevel")}</h3>
             <div className="flex items-center gap-3">
-              <span className="text-xs">当前状态:</span>
+              <span className="text-xs">{at("finance.status")}:</span>
               <select
                 defaultValue={(user as any).riskLevel ?? "normal"}
                 onChange={(e) => updateMutation.mutate({ id: userId, riskLevel: e.target.value as any })}
                 className="glass rounded px-3 py-1.5 text-xs bg-transparent outline-none"
               >
-                <option value="normal">正常</option>
-                <option value="watch">观察</option>
-                <option value="frozen">冻结</option>
-                <option value="banned">封禁</option>
+                <option value="normal">{at("users.normal")}</option>
+                <option value="watch">{at("users.watch")}</option>
+                <option value="frozen">{at("users.frozen")}</option>
+                <option value="banned">{at("users.banned")}</option>
               </select>
             </div>
           </div>
@@ -1312,21 +1540,27 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
             (txData as any).transactions.map((tx: any) => (
               <div key={tx.id} className="glass rounded-xl p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium text-emerald-400">+${tx.amount}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-emerald-400">+${tx.amount}</span>
+                    {tx.referenceType === "admin_topup" && (
+                      <span className="px-1 py-0.5 rounded text-[9px] bg-gold/20 text-gold">{at("users.adminTopUp")}</span>
+                    )}
+                  </div>
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                     tx.status === "confirmed" ? "bg-success/20 text-success" :
                     tx.status === "pending" ? "bg-warning/20 text-warning" :
                     "bg-danger/20 text-danger"
-                  }`}>{tx.status === "confirmed" ? "已到账" : tx.status === "pending" ? "待确认" : "失败"}</span>
+                  }`}>{tx.status === "confirmed" ? at("finance.approved") : tx.status === "pending" ? at("agents.pending") : at("finance.rejected")}</span>
                 </div>
                 <div className="text-[10px] text-muted-foreground space-y-0.5">
-                  <div>链: {tx.chain || "-"} | TX: {tx.txHash ? tx.txHash.substring(0, 16) + "..." : "-"}</div>
-                  <div>时间: {tx.createdAt ? new Date(tx.createdAt).toLocaleString("zh-CN") : "-"}</div>
+                  <div>{at("finance.chain")}: {tx.chain || "-"} | TX: {tx.txHash ? tx.txHash.substring(0, 16) + "..." : "-"}</div>
+                  {tx.note && <div className="text-[9px] italic opacity-70">{tx.note}</div>}
+                  <div>{at("finance.time")}: {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : "-"}</div>
                 </div>
               </div>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">暂无充值记录</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{at("users.noTx")}</p>
           )}
         </div>
       )}
@@ -1344,17 +1578,17 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
                     tx.status === "pending" ? "bg-warning/20 text-warning" :
                     tx.status === "cancelled" ? "bg-danger/20 text-danger" :
                     "bg-secondary text-muted-foreground"
-                  }`}>{tx.status === "confirmed" ? "已完成" : tx.status === "pending" ? "待审核" : tx.status === "cancelled" ? "已拒绝" : tx.status}</span>
+                  }`}>{tx.status === "confirmed" ? at("finance.approved") : tx.status === "pending" ? at("agents.pending") : tx.status === "cancelled" ? at("finance.rejected") : tx.status}</span>
                 </div>
                 <div className="text-[10px] text-muted-foreground space-y-0.5">
-                  <div>地址: {tx.walletAddress ? tx.walletAddress.substring(0, 20) + "..." : "-"}</div>
-                  <div>链: {tx.chain || "-"} | TX: {tx.txHash ? tx.txHash.substring(0, 16) + "..." : "-"}</div>
-                  <div>时间: {tx.createdAt ? new Date(tx.createdAt).toLocaleString("zh-CN") : "-"}</div>
+                  <div>{at("finance.address")}: {tx.walletAddress ? tx.walletAddress.substring(0, 20) + "..." : "-"}</div>
+                  <div>{at("finance.chain")}: {tx.chain || "-"} | TX: {tx.txHash ? tx.txHash.substring(0, 16) + "..." : "-"}</div>
+                  <div>{at("finance.time")}: {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : "-"}</div>
                 </div>
               </div>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">暂无提现记录</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{at("users.noTx")}</p>
           )}
         </div>
       )}
@@ -1372,13 +1606,13 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
                   </span>
                 </div>
                 <div className="text-[10px] text-muted-foreground">
-                  <span>下注: ${g.betAmount} | 赢得: ${g.winAmount} | 底池: ${g.potSize}</span>
-                  <div>{g.completedAt ? new Date(g.completedAt).toLocaleString("zh-CN") : "-"}</div>
+                  <span>{at("finance.amount")}: ${g.betAmount} | {at("users.totalWins")}: ${g.winAmount}</span>
+                  <div>{g.completedAt ? new Date(g.completedAt).toLocaleString() : "-"}</div>
                 </div>
               </div>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">暂无游戏记录</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{at("users.noGames")}</p>
           )}
         </div>
       )}

@@ -150,6 +150,64 @@ export async function updateStaffPassword(adminUserId: number, newPassword: stri
   return true;
 }
 
+// Migrate legacy staff accounts from game users table to admin_users table
+export async function migrateStaffFromUsers(): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    const { users } = await import("../drizzle/schema");
+    const { inArray } = await import("drizzle-orm");
+
+    // Find all game users with staff roles
+    const staffUsers = await db.select().from(users)
+      .where(inArray(users.role, ["admin", "cs", "finance", "tech"] as any[]));
+
+    if (staffUsers.length === 0) {
+      console.log("[StaffAuth] No legacy staff accounts to migrate");
+      return;
+    }
+
+    let migrated = 0;
+    for (const u of staffUsers) {
+      // Use staffUsername if available, otherwise generate from name/id
+      const username = u.staffUsername || `staff_${u.id}`;
+      // Check if already migrated
+      const [existing] = await db.select().from(adminUsers).where(eq(adminUsers.username, username)).limit(1);
+      if (existing) {
+        console.log(`[StaffAuth] Staff ${username} already exists in admin_users, skipping`);
+        continue;
+      }
+      // Use existing staffPasswordHash if available, otherwise set temp password
+      let passwordHash: string;
+      if (u.staffPasswordHash) {
+        passwordHash = u.staffPasswordHash;
+      } else {
+        const { hash } = hashPassword("changeme123");
+        passwordHash = hash;
+      }
+      // Map role: admin stays admin, others keep their role
+      const adminRole = (u.role === "admin" ? "admin" : u.role) as "admin" | "cs" | "finance" | "tech";
+      await db.insert(adminUsers).values({
+        username,
+        passwordHash,
+        name: u.name || username,
+        role: adminRole,
+        permissions: [],
+        isActive: true,
+      });
+      // Downgrade game user role to 'user' so they no longer have admin access via game session
+      await db.update(users).set({ role: "user" }).where(eq(users.id, u.id));
+      migrated++;
+      console.log(`[StaffAuth] Migrated staff user ${username} (role: ${adminRole}) to admin_users`);
+    }
+    if (migrated > 0) {
+      console.log(`[StaffAuth] Migration complete: ${migrated} staff accounts moved to admin_users`);
+    }
+  } catch (error) {
+    console.error("[StaffAuth] Migration failed:", error);
+  }
+}
+
 // Bootstrap default super admin account if none exists (uses admin_users table)
 export async function bootstrapSuperAdmin() {
   try {

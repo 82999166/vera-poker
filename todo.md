@@ -247,3 +247,23 @@
 - [x] Rewrite user list as single-row per user (last login date + balance inline)
 - [x] Add manual top-up (deposit) procedure: admin.manualTopUp
 - [x] Add manual top-up dialog in Admin UsersPanel
+
+## Translation & i18n Completeness Fix (Round 2)
+- [ ] Fix Admin.tsx: all hardcoded Chinese strings in UserDetailPanel, UsersPanel, StaffPanel use at() or t()
+- [ ] Fix Profile.tsx: game stats, achievements, TG binding section all use t()
+- [ ] Add missing i18n keys to all 3 admin languages (zh-CN, zh-TW, en)
+- [ ] Add missing i18n keys to all 12 frontend languages
+
+## Staff Account Migration
+- [ ] Add admin.migrateStaffUsers procedure: copy admin/cs/finance/tech role users from users table to admin_users
+- [ ] Show migration button in Staff panel with count of unmigrated accounts
+- [ ] After migration, update migrated users' role in users table to 'user'
+
+## User Stats Overview Cards
+- [ ] Backend: admin.userStats query (total users, today new, today active, total balance)
+- [ ] Frontend: add stats cards row at top of UsersPanel
+
+## Manual Top-Up Audit Log
+- [ ] Add operatorId + operatorName fields to transactions table (migration)
+- [ ] Record operator info in manualTopUp procedure
+- [ ] Show "Admin Manual Top-Up" label + operator name in deposit records tab

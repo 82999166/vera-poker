@@ -7,7 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { registerTelegramRoutes } from "./telegram";
 import { registerTelegramAuthRoutes } from "../telegramAuth";
-import { staffRouter, bootstrapSuperAdmin } from "../staffAuth";
+import { staffRouter, bootstrapSuperAdmin, migrateStaffFromUsers } from "../staffAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -68,6 +68,7 @@ async function startServer() {
     console.log(`Server running on http://localhost:${port}/`);
     // Bootstrap default super admin account
     bootstrapSuperAdmin();
+    migrateStaffFromUsers();
   });
 }
 
