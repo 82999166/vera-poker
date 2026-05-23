@@ -147,12 +147,12 @@ const DEFAULT_AVATAR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691
 // Player seat positions for 6-max table (oval layout)
 // Seats positioned WELL OUTSIDE the table oval border
 const SEAT_POSITIONS = [
-  { top: "92%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
-  { top: "72%", left: "-2%", transform: "translate(0, -50%)" },     // Left bottom
-  { top: "24%", left: "-2%", transform: "translate(0, -50%)" },     // Left top
-  { top: "1%", left: "50%", transform: "translate(-50%, 0)" },       // Top
-  { top: "24%", left: "102%", transform: "translate(-100%, -50%)" }, // Right top
-  { top: "72%", left: "102%", transform: "translate(-100%, -50%)" }, // Right bottom
+  { top: "98%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
+  { top: "74%", left: "-2%", transform: "translate(0, -50%)" },     // Left bottom
+  { top: "26%", left: "-2%", transform: "translate(0, -50%)" },     // Left top
+  { top: "2%", left: "50%", transform: "translate(-50%, 0)" },       // Top
+  { top: "26%", left: "102%", transform: "translate(-100%, -50%)" }, // Right top
+  { top: "74%", left: "102%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
 
 // Phase display names - resolved inside component via t()
@@ -553,7 +553,10 @@ export default function Table() {
             </div>
           {/* Player Seats - positioned outside the table */}
           {displayPlayers.map(player => {
-            const pos = SEAT_POSITIONS[player.seatIndex];
+            // Rotate seats so hero is always at bottom (position 0)
+            const heroSeatIndex = displayPlayers.find(p => p.id === user?.id)?.seatIndex ?? 0;
+            const rotatedIndex = (player.seatIndex - heroSeatIndex + 6) % 6;
+            const pos = SEAT_POSITIONS[rotatedIndex];
             if (!pos) return null;
             const isHero = player.id === user?.id || (isDemoMode && player.seatIndex === 0);
             const isCurrentTurn = isDemoMode ? player.isActive : (tableState?.currentPlayerId === player.id);
@@ -566,9 +569,9 @@ export default function Table() {
                 <div className={`flex flex-col items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} transition-transform duration-200`}>
                   {/* Player cards next to seat */}
                   {isHero && displayMyCards.length > 0 && (
-                    <div className="flex gap-0.5 mb-0.5">
+                    <div className="flex gap-1 mb-0.5">
                       {displayMyCards.map((card, i) => (
-                        <CardView key={i} card={card} className="!w-12 !h-[64px]" animate delay={i * 200} />
+                        <CardView key={i} card={card} className="!w-14 !h-[76px]" animate delay={i * 200} />
                       ))}
                     </div>
                   )}
