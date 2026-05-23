@@ -7,7 +7,7 @@ import { getLoginUrl } from "@/const";
 import {
   Settings, Users, DollarSign, Shield, BarChart3, Save, RefreshCw,
   Plus, Trash2, ArrowLeft, UserCheck, Pause, Play, X, MessageSquare,
-  Globe, LogOut, PanelLeft, Layers
+  Globe, LogOut, PanelLeft, Layers, Copy, Check
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -1259,23 +1259,17 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
         <div className="space-y-3">
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Mini App URL</label>
-            <div className="glass rounded-lg px-3 py-2 text-xs font-mono text-foreground/80 break-all">
-              {window.location.origin}
-            </div>
+            <CopyableUrl value={window.location.origin} />
             <p className="text-[10px] text-muted-foreground mt-1">在 BotFather 中设置 Web App URL 为此地址</p>
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Webhook URL</label>
-            <div className="glass rounded-lg px-3 py-2 text-xs font-mono text-foreground/80 break-all">
-              {window.location.origin}/api/telegram/webhook
-            </div>
+            <CopyableUrl value={`${window.location.origin}/api/telegram/webhook`} />
             <p className="text-[10px] text-muted-foreground mt-1">在 BotFather 或 API 中设置 Webhook 为此地址</p>
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">设置 Webhook 命令</label>
-            <div className="glass rounded-lg px-3 py-2 text-[10px] font-mono text-foreground/60 break-all">
-              https://api.telegram.org/bot[TOKEN]/setWebhook?url={window.location.origin}/api/telegram/webhook
-            </div>
+            <CopyableUrl value={`https://api.telegram.org/bot[TOKEN]/setWebhook?url=${window.location.origin}/api/telegram/webhook`} small />
           </div>
         </div>
       </div>
@@ -1434,6 +1428,31 @@ function TrendChart({ data, dataKey, color, label, isVolume }: { data: any[]; da
         <span className="text-[9px] text-muted-foreground">{data[0]?.date?.slice(5) ?? ""}</span>
         <span className="text-[9px] text-muted-foreground">{data[data.length - 1]?.date?.slice(5) ?? ""}</span>
       </div>
+    </div>
+  );
+}
+
+function CopyableUrl({ value, small }: { value: string; small?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      toast.success("已复制");
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`glass rounded-lg px-3 py-2 ${small ? "text-[10px] text-foreground/60" : "text-xs text-foreground/80"} font-mono break-all flex-1`}>
+        {value}
+      </div>
+      <button
+        onClick={handleCopy}
+        className="shrink-0 p-2 rounded-lg glass hover:bg-gold/10 transition-colors text-muted-foreground hover:text-gold"
+        title="复制"
+      >
+        {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+      </button>
     </div>
   );
 }
