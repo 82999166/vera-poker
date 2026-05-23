@@ -131,14 +131,14 @@ function AnimatedPot({ amount }: { amount: number }) {
 const DEFAULT_AVATAR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/default-avatar-aXRqAewdDSMxKYhaCU9DtA.webp";
 
 // Player seat positions for 6-max table (oval layout)
-// Seats positioned WELL OUTSIDE the table oval border
+// Seats positioned outside the table oval, but within screen bounds
 const SEAT_POSITIONS = [
-  { top: "98%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
-  { top: "74%", left: "-2%", transform: "translate(0, -50%)" },     // Left bottom
-  { top: "26%", left: "-2%", transform: "translate(0, -50%)" },     // Left top
+  { top: "96%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
+  { top: "72%", left: "4%", transform: "translate(0, -50%)" },      // Left bottom
+  { top: "26%", left: "4%", transform: "translate(0, -50%)" },      // Left top
   { top: "2%", left: "50%", transform: "translate(-50%, 0)" },       // Top
-  { top: "26%", left: "102%", transform: "translate(-100%, -50%)" }, // Right top
-  { top: "74%", left: "102%", transform: "translate(-100%, -50%)" }, // Right bottom
+  { top: "26%", left: "96%", transform: "translate(-100%, -50%)" }, // Right top
+  { top: "72%", left: "96%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
 
 // Phase display names - resolved inside component via t()
@@ -545,7 +545,7 @@ export default function Table() {
       )}
 
       {/* Table Area */}
-      <div className="flex-1 relative overflow-hidden" style={{ backgroundImage: 'url(/table-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
+      <div className="flex-1 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
         {/* Game content overlay */}
         <div className="absolute inset-0">
             
