@@ -4,6 +4,7 @@
  */
 import * as gameEngine from "./gameEngine";
 import * as db from "./db";
+import { notifyTurnAction } from "./notifications";
 import type { GameState, PlayerAction, Card } from "./gameEngine";
 
 interface SettlementDetail {
@@ -250,6 +251,9 @@ export async function processPlayerAction(
 
   // Check if betting round is complete and advance game
   await checkAndAdvanceGame(roomId);
+
+  // Notify next player it's their turn (async, non-blocking)
+  notifyNextPlayer(roomId).catch(() => {});
 
   return { success: true };
 }
@@ -598,3 +602,23 @@ export function checkTimeouts() {
 
 // Run timeout checker every 5 seconds
 setInterval(checkTimeouts, 5000);
+
+/**
+ * Notify the next player that it's their turn via Telegram
+ */
+async function notifyNextPlayer(roomId: number) {
+  const table = activeTables.get(roomId);
+  if (!table) return;
+  const gs = table.gameState;
+  if (gs.phase === "waiting" || gs.phase === "completed") return;
+
+  const currentPlayer = gs.players[gs.currentPlayerIndex];
+  if (!currentPlayer || currentPlayer.isFolded || currentPlayer.isAllIn) return;
+
+  const room = await db.getRoomById(roomId);
+  const roomName = room?.name || `Room #${roomId}`;
+  const timeLeft = table.turnTimeout;
+
+  // Send notification (non-blocking, fire-and-forget)
+  notifyTurnAction(currentPlayer.id, roomName, timeLeft);
+}

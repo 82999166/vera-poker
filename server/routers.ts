@@ -125,6 +125,22 @@ export const appRouter = router({
       await db.updateRoom(id, data);
       return { success: true };
     }),
+    // Invite a user to a private room
+    invite: protectedProcedure.input(z.object({
+      roomId: z.number(),
+      targetUserId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      const room = await db.getRoomById(input.roomId);
+      if (!room) throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
+      if (room.type !== "private") throw new TRPCError({ code: "BAD_REQUEST", message: "Only private rooms support invitations" });
+      if (room.ownerId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN", message: "Only room owner can invite" });
+      const inviter = await db.getUserById(ctx.user.id);
+      const inviterName = inviter?.nickname || inviter?.name || "Player";
+      // Send TG notification to the target user
+      const { notifyPrivateRoomInvite } = await import("./notifications");
+      await notifyPrivateRoomInvite(input.targetUserId, room.name, inviterName);
+      return { success: true, inviteCode: room.inviteCode };
+    }),
     // Admin: manage all rooms
     adminList: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
@@ -379,6 +395,17 @@ export const appRouter = router({
         // Refund
         await db.updateUserBalance(ctx.user.id, user.balance);
         throw new TRPCError({ code: "BAD_REQUEST", message: result.message || "Cannot join table" });
+      }
+      // For private rooms, notify other players that someone joined
+      if (room.type === "private") {
+        const { notifyPrivateRoomInvite } = await import("./notifications");
+        const players = await db.getRoomPlayers(input.roomId);
+        const joinerName = user.nickname || user.name || "Player";
+        for (const p of players) {
+          if (p.userId !== ctx.user.id) {
+            notifyPrivateRoomInvite(p.userId, room.name, joinerName).catch(() => {});
+          }
+        }
       }
       return { seatIndex: result.seatIndex, newBalance };
     }),

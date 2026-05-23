@@ -153,8 +153,8 @@
 
 ## Push Notification System
 - [x] Backend: TG notification service module with convenience helpers
-- [ ] Wire notifyPrivateRoomInvite into room invite flow (requires game flow integration)
-- [ ] Wire notifyTurnAction into game turn logic (requires game flow integration)
+- [x] Wire notifyPrivateRoomInvite into room.invite mutation + post-join notification
+- [x] Wire notifyTurnAction into game turn logic (triggers after each player action)
 - [x] Admin batch notification sending
 - [ ] Notification preferences in user profile (deferred)
 
