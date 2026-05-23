@@ -2,7 +2,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getLoginUrl } from "@/const";
-import { useTelegramAuth, isTelegramMiniApp } from "@/hooks/useTelegramAuth";
+import { useTelegramAuth, isTelegramMiniApp, getTelegramStartParam } from "@/hooks/useTelegramAuth";
+import { trpc } from "@/lib/trpc";
 import { useI18n } from "@/lib/i18n";
 import { Shield, Zap, Globe, Users, ArrowRight, Loader2 } from "lucide-react";
 
@@ -36,9 +37,25 @@ export default function Home() {
     });
   }, [isTgApp, tgLoginAttempted, isAuthenticated, autoAuthenticate, refresh]);
 
-  // Auto-redirect authenticated users to lobby
+  // Auto-redirect authenticated users - handle deep link params
   useEffect(() => {
-    if (isAuthenticated && !loading) {
+    if (!isAuthenticated || loading) return;
+    const startParam = getTelegramStartParam();
+    if (startParam && startParam.startsWith("room_")) {
+      const inviteCode = startParam.replace("room_", "");
+      // Resolve invite code to room ID then navigate
+      fetch(`/api/trpc/rooms.resolveInviteCode?input=${encodeURIComponent(JSON.stringify({ inviteCode }))}`)
+        .then(r => r.json())
+        .then(data => {
+          const room = data?.result?.data;
+          if (room && room.id) {
+            navigate(`/table/${room.id}`);
+          } else {
+            navigate("/lobby");
+          }
+        })
+        .catch(() => navigate("/lobby"));
+    } else {
       navigate("/lobby");
     }
   }, [isAuthenticated, loading, navigate]);

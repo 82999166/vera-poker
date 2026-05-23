@@ -44,7 +44,71 @@ export function registerTelegramRoutes(app: Express) {
 
       // Handle bot commands
       if (text.startsWith("/start")) {
-        replyText = "Welcome to Vera Poker! 🎰\n\nUse /help to see available commands.";
+        // Parse deep link parameter: /start room_XXXXX or /start ref_XXXXX
+        const param = message.text!.split(" ")[1] || "";
+        const miniAppUrl = await db.getConfigValue("telegram_mini_app_url") || "";
+        
+        if (param.startsWith("room_")) {
+          const inviteCode = param.replace("room_", "");
+          replyText = `🎰 You've been invited to a private room!\n\nTap the button below to join the game:`;
+          // Send with inline keyboard to open Mini App with room param
+          const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;
+          await fetch(telegramApiUrl2, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: message.chat.id,
+              text: replyText,
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: "🃏 Join Room", web_app: { url: miniAppUrl ? `${miniAppUrl}?startapp=room_${inviteCode}` : "" } }
+                ]]
+              }
+            }),
+          });
+          res.json({ ok: true });
+          return;
+        } else if (param.startsWith("ref_")) {
+          replyText = `Welcome to Vera Poker! 🎰\n\nYou were referred by a friend. Tap below to start playing and earn rewards!`;
+          if (miniAppUrl) {
+            const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;
+            await fetch(telegramApiUrl2, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: message.chat.id,
+                text: replyText,
+                reply_markup: {
+                  inline_keyboard: [[
+                    { text: "🎰 Play Now", web_app: { url: miniAppUrl } }
+                  ]]
+                }
+              }),
+            });
+            res.json({ ok: true });
+            return;
+          }
+        } else {
+          replyText = "Welcome to Vera Poker! 🎰\n\nThe world's first provably fair poker platform.\n\nUse /help to see available commands.";
+          if (miniAppUrl) {
+            const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;
+            await fetch(telegramApiUrl2, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: message.chat.id,
+                text: replyText,
+                reply_markup: {
+                  inline_keyboard: [[
+                    { text: "🃏 Open Vera Poker", web_app: { url: miniAppUrl } }
+                  ]]
+                }
+              }),
+            });
+            res.json({ ok: true });
+            return;
+          }
+        }
       } else if (text.startsWith("/help")) {
         replyText = `Available commands:\n/start - Start the bot\n/balance - Check your balance\n/rooms - List active rooms\n/help - Show this message`;
       } else if (text.startsWith("/balance")) {

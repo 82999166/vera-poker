@@ -249,3 +249,27 @@ export const notifications = mysqlTable("notifications", {
   metadata: json("metadata"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
+// ==================== ACHIEVEMENTS ====================
+export const achievements = mysqlTable("achievements", {
+  id: int("id").autoincrement().primaryKey(),
+  key: varchar("key", { length: 64 }).notNull().unique(),
+  name: varchar("name", { length: 128 }).notNull(),
+  nameZh: varchar("nameZh", { length: 128 }).notNull(),
+  description: varchar("description", { length: 512 }).notNull(),
+  descriptionZh: varchar("descriptionZh", { length: 512 }).notNull(),
+  icon: varchar("icon", { length: 32 }).notNull(), // emoji or icon name
+  category: mysqlEnum("category", ["beginner", "veteran", "whale", "social", "lucky"]).notNull(),
+  condition: json("condition").notNull(), // { type: "hands_played", threshold: 100 }
+  rewardAmount: decimal("rewardAmount", { precision: 18, scale: 2 }).default("0.00"),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const playerAchievements = mysqlTable("player_achievements", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  achievementId: int("achievementId").notNull(),
+  unlockedAt: timestamp("unlockedAt").defaultNow().notNull(),
+});

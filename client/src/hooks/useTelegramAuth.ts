@@ -79,6 +79,21 @@ export function getTelegramWebApp() {
 }
 
 /**
+ * Get start_param from Telegram Mini App deep link or URL query
+ * e.g. /start room_XXXXX -> startapp=room_XXXXX
+ */
+export function getTelegramStartParam(): string | null {
+  // Try Telegram WebApp start_param first
+  const webapp = getTelegramWebApp();
+  if (webapp && (webapp as any).initDataUnsafe?.start_param) {
+    return (webapp as any).initDataUnsafe.start_param;
+  }
+  // Fallback: check URL query params (for web_app_data links)
+  const params = new URLSearchParams(window.location.search);
+  return params.get("startapp") || params.get("tgWebAppStartParam") || null;
+}
+
+/**
  * Hook for Telegram authentication
  * Handles Mini App auto-login and Login Widget authentication
  */

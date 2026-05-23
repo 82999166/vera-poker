@@ -125,6 +125,16 @@ export const appRouter = router({
       await db.updateRoom(id, data);
       return { success: true };
     }),
+    // Resolve invite code to room ID
+    resolveInviteCode: publicProcedure.input(z.object({ inviteCode: z.string() })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return null;
+      const { rooms } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const [room] = await dbInstance.select({ id: rooms.id, name: rooms.name, status: rooms.status })
+        .from(rooms).where(eq(rooms.inviteCode, input.inviteCode)).limit(1);
+      return room || null;
+    }),
     // Invite a user to a private room
     invite: protectedProcedure.input(z.object({
       roomId: z.number(),
@@ -604,6 +614,135 @@ Rules:
         totalProfit: parseFloat(stats?.totalProfit ?? "0").toFixed(2),
       };
     }),
+    achievements: protectedProcedure.query(async ({ ctx }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { all: [], unlocked: [] };
+      const { achievements, playerAchievements, handPlayers, users } = await import("../drizzle/schema");
+      const { eq, sql } = await import("drizzle-orm");
+      // Get all achievements
+      const allAchievements = await dbInstance.select().from(achievements).orderBy(achievements.sortOrder);
+      // Get user's unlocked achievements
+      const unlocked = await dbInstance.select({
+        achievementId: playerAchievements.achievementId,
+        unlockedAt: playerAchievements.unlockedAt,
+      }).from(playerAchievements).where(eq(playerAchievements.userId, ctx.user.id));
+      const unlockedIds = new Set(unlocked.map(u => u.achievementId));
+      // Get user stats for progress calculation
+      const [stats] = await dbInstance.select({
+        totalHands: sql<number>`count(*)`,
+        wins: sql<number>`SUM(CASE WHEN isWinner = 1 THEN 1 ELSE 0 END)`,
+      }).from(handPlayers).where(eq(handPlayers.userId, ctx.user.id));
+      const user = await db.getUserById(ctx.user.id);
+      // Count invites from agent_relationships
+      const { agentRelationships } = await import("../drizzle/schema");
+      const { and: andOp } = await import("drizzle-orm");
+      const [inviteCount] = await dbInstance.select({
+        count: sql<number>`count(*)`,
+      }).from(agentRelationships).where(andOp(eq(agentRelationships.agentId, ctx.user.id), eq(agentRelationships.level, 1)));
+      // Get biggest pot and win streak from hand_players
+      const [bigPot] = await dbInstance.select({
+        maxWin: sql<string>`COALESCE(MAX(CAST(winAmount AS DECIMAL(18,2))), 0)`,
+      }).from(handPlayers).where(eq(handPlayers.userId, ctx.user.id));
+      // Win streak: count consecutive wins from most recent hands
+      const recentHands = await dbInstance.select({
+        isWinner: handPlayers.isWinner,
+      }).from(handPlayers).where(eq(handPlayers.userId, ctx.user.id)).orderBy(sql`id DESC`).limit(100);
+      let winStreak = 0;
+      for (const h of recentHands) {
+        if (h.isWinner) winStreak++;
+        else break;
+      }
+      const userProgress: UserProgress = {
+        hands_played: stats?.totalHands ?? 0,
+        wins: stats?.wins ?? 0,
+        total_deposited: parseFloat(user?.totalDeposited ?? "0"),
+        invites: inviteCount?.count ?? 0,
+        win_streak: winStreak,
+        biggest_pot: parseFloat(bigPot?.maxWin ?? "0"),
+      };
+      return {
+        all: allAchievements.map(a => ({
+          ...a,
+          isUnlocked: unlockedIds.has(a.id),
+          progress: getAchievementProgress(a.condition as any, userProgress),
+        })),
+        unlocked: unlocked.map(u => u.achievementId),
+      };
+    }),
+    checkAndUnlock: protectedProcedure.mutation(async ({ ctx }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { newlyUnlocked: [] };
+      const { achievements, playerAchievements, handPlayers, users } = await import("../drizzle/schema");
+      const { eq, sql, and, notInArray } = await import("drizzle-orm");
+      // Get already unlocked
+      const alreadyUnlocked = await dbInstance.select({ achievementId: playerAchievements.achievementId })
+        .from(playerAchievements).where(eq(playerAchievements.userId, ctx.user.id));
+      const unlockedIds = alreadyUnlocked.map(u => u.achievementId);
+      // Get all active achievements not yet unlocked
+      let pendingAchievements;
+      if (unlockedIds.length > 0) {
+        pendingAchievements = await dbInstance.select().from(achievements)
+          .where(and(eq(achievements.isActive, true), notInArray(achievements.id, unlockedIds)));
+      } else {
+        pendingAchievements = await dbInstance.select().from(achievements)
+          .where(eq(achievements.isActive, true));
+      }
+      // Get user stats
+      const [stats] = await dbInstance.select({
+        totalHands: sql<number>`count(*)`,
+        wins: sql<number>`SUM(CASE WHEN isWinner = 1 THEN 1 ELSE 0 END)`,
+      }).from(handPlayers).where(eq(handPlayers.userId, ctx.user.id));
+      const user = await db.getUserById(ctx.user.id);
+      // Count invites
+      const { agentRelationships } = await import("../drizzle/schema");
+      const [inviteCount] = await dbInstance.select({
+        count: sql<number>`count(*)`,
+      }).from(agentRelationships).where(and(eq(agentRelationships.agentId, ctx.user.id), eq(agentRelationships.level, 1)));
+      // Biggest pot
+      const [bigPot] = await dbInstance.select({
+        maxWin: sql<string>`COALESCE(MAX(CAST(winAmount AS DECIMAL(18,2))), 0)`,
+      }).from(handPlayers).where(eq(handPlayers.userId, ctx.user.id));
+      // Win streak
+      const recentHands = await dbInstance.select({
+        isWinner: handPlayers.isWinner,
+      }).from(handPlayers).where(eq(handPlayers.userId, ctx.user.id)).orderBy(sql`id DESC`).limit(100);
+      let winStreak = 0;
+      for (const h of recentHands) {
+        if (h.isWinner) winStreak++;
+        else break;
+      }
+      const userProgress: UserProgress = {
+        hands_played: stats?.totalHands ?? 0,
+        wins: stats?.wins ?? 0,
+        total_deposited: parseFloat(user?.totalDeposited ?? "0"),
+        invites: inviteCount?.count ?? 0,
+        win_streak: winStreak,
+        biggest_pot: parseFloat(bigPot?.maxWin ?? "0"),
+      };
+      // Check each pending achievement and accumulate total reward
+      const newlyUnlocked: number[] = [];
+      let totalReward = 0;
+      for (const achievement of pendingAchievements) {
+        const condition = achievement.condition as { type: string; threshold: number };
+        const progress = getProgressValue(condition.type, userProgress);
+        if (progress >= condition.threshold) {
+          await dbInstance.insert(playerAchievements).values({
+            userId: ctx.user.id,
+            achievementId: achievement.id,
+          });
+          newlyUnlocked.push(achievement.id);
+          if (achievement.rewardAmount && parseFloat(achievement.rewardAmount) > 0) {
+            totalReward += parseFloat(achievement.rewardAmount);
+          }
+        }
+      }
+      // Apply accumulated reward in one operation
+      if (totalReward > 0 && user) {
+        const newBalance = (parseFloat(user.balance) + totalReward).toFixed(2);
+        await db.updateUserBalance(ctx.user.id, newBalance);
+      }
+      return { newlyUnlocked };
+    }),
   }),
 
   // ==================== LEADERBOARD ====================
@@ -868,4 +1007,30 @@ Rules:
 
 export type AppRouter = typeof appRouter;
 
+// Achievement progress helpers
+interface UserProgress {
+  hands_played: number;
+  wins: number;
+  total_deposited: number;
+  invites: number;
+  win_streak: number;
+  biggest_pot: number;
+}
+
+function getProgressValue(type: string, userProgress: UserProgress): number {
+  switch (type) {
+    case "hands_played": return userProgress.hands_played;
+    case "wins": return userProgress.wins;
+    case "total_deposited": return userProgress.total_deposited;
+    case "invites": return userProgress.invites;
+    case "win_streak": return userProgress.win_streak;
+    case "biggest_pot": return userProgress.biggest_pot;
+    default: return 0;
+  }
+}
+
+function getAchievementProgress(condition: { type: string; threshold: number }, userProgress: UserProgress): number {
+  const current = getProgressValue(condition.type, userProgress);
+  return Math.min(Math.round((current / condition.threshold) * 100), 100);
+}
 

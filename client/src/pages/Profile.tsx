@@ -1,13 +1,13 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useI18n } from "@/lib/i18n";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 import {
   User, Trophy, TrendingUp, Gamepad2, Edit2, Check, X,
-  Link2, Unlink, ArrowLeft, Shield, Clock, Coins
+  Link2, Unlink, ArrowLeft, Shield, Clock, Coins, Award
 } from "lucide-react";
 
 export default function Profile() {
@@ -23,6 +23,24 @@ export default function Profile() {
   const { data: stats } = trpc.profile.gameStats.useQuery(undefined, {
     enabled: !!user,
   });
+  const { data: achievementsData } = trpc.profile.achievements.useQuery(undefined, {
+    enabled: !!user,
+  });
+  const utils = trpc.useUtils();
+  const checkAchievements = trpc.profile.checkAndUnlock.useMutation({
+    onSuccess: (data) => {
+      if (data.newlyUnlocked.length > 0) {
+        toast.success(`解锁了 ${data.newlyUnlocked.length} 个新成就！`);
+        utils.profile.achievements.invalidate();
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (user) {
+      checkAchievements.mutate();
+    }
+  }, [user]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateMutation = trpc.profile.update.useMutation({
     onSuccess: () => { toast.success("已更新"); refetch(); setEditingNickname(false); },
@@ -191,6 +209,51 @@ export default function Profile() {
                 绑定
               </button>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Achievements */}
+      <div className="px-4 pb-4">
+        <div className="glass rounded-2xl p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Award className="w-4 h-4 text-gold" />
+            成就徽章
+            {achievementsData && (
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                {achievementsData.unlocked.length}/{achievementsData.all.length}
+              </span>
+            )}
+          </h3>
+          {achievementsData && achievementsData.all.length > 0 ? (
+            <div className="grid grid-cols-4 gap-2">
+              {achievementsData.all.map((a: any) => (
+                <div
+                  key={a.id}
+                  className={`relative rounded-xl p-2 text-center transition-all ${
+                    a.isUnlocked
+                      ? "glass border border-gold/30 shadow-[0_0_8px_rgba(212,175,55,0.15)]"
+                      : "glass opacity-50 grayscale"
+                  }`}
+                  title={a.nameZh + (a.isUnlocked ? " ✓" : ` (${a.progress}%)`)}
+                >
+                  <span className="text-xl">{a.icon}</span>
+                  <p className="text-[9px] mt-0.5 truncate font-medium">{a.nameZh}</p>
+                  {!a.isUnlocked && (
+                    <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full bg-gold/60 rounded-full transition-all" style={{ width: `${a.progress}%` }} />
+                    </div>
+                  )}
+                  {a.isUnlocked && (
+                    <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gold flex items-center justify-center">
+                      <Check className="w-2 h-2 text-black" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-4">暂无成就数据</p>
           )}
         </div>
       </div>
