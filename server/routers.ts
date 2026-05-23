@@ -542,6 +542,14 @@ export const appRouter = router({
       }
       return { success: result.success };
     }),
+    // Player ready for next hand
+    ready: protectedProcedure.input(z.object({ roomId: z.number() })).mutation(async ({ ctx, input }) => {
+      const result = await tableManager.playerReady(input.roomId, ctx.user.id);
+      if (!result.success) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: result.message || "Ready failed" });
+      }
+      return { success: true };
+    }),
     // Player action (fold/check/call/raise/all_in)
     action: protectedProcedure.input(z.object({
       roomId: z.number(),

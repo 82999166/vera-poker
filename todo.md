@@ -331,3 +331,9 @@
 - [x] 赢家公告显示时间延长至7秒，后端新一手延迟8秒
 - [x] 赢家金币飞入动画（5个金币错开飞入）+ 赢得金额弹出（黑底金边胶囊）
 - [x] 确保 showdown 阶段有足够停留时间（触发改为 phase=completed 检测，不再依赖 handNumber 变化）
+
+## Next Round Start Button + Game Logic Audit (2026-05-24)
+- [x] 结算后牌桌中间显示"开始下一局"按钮，玩家点击才开始
+- [x] 超时未点击开始则自动退出牌场（30秒超时，退还筹码到余额）
+- [x] 审查 gameEngine 符合国际德州扑克规则（修复单挑盲注、BB option、最小加注、raise reopen）
+- [x] 修复审查中发现的逻辑问题（hasActedThisRound 跟踪、minRaise 计算、raise reopen）

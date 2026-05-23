@@ -25,6 +25,10 @@ interface ActiveTable {
   handNumber: number;
   lastWinner?: { name: string; amount: number; handDescription?: string };
   settlementDetail?: SettlementDetail;
+  // Ready system: players must click "start" after each hand
+  readyPlayers: Set<number>; // player IDs who clicked ready
+  readyDeadline?: number; // timestamp when unready players get kicked
+  waitingForReady: boolean; // true when in between hands waiting for ready clicks
 }
 
 // In-memory store of active tables
@@ -99,6 +103,11 @@ export async function getPlayerView(roomId: number, playerId: number) {
     turnTimeout: table.turnTimeout,
     lastWinner: table.lastWinner || null,
     settlementDetail: table.settlementDetail || null,
+    // Ready system
+    waitingForReady: table.waitingForReady,
+    readyPlayers: Array.from(table.readyPlayers),
+    readyDeadline: table.readyDeadline || null,
+    readyCountdown: table.readyDeadline ? Math.max(0, Math.ceil((table.readyDeadline - Date.now()) / 1000)) : null,
   };
 }
 
@@ -237,9 +246,10 @@ export async function processPlayerAction(
     if (!amount || amount <= 0) {
       return { success: false, message: "Raise amount must be positive" };
     }
-    const minRaise = gs.currentBet * 2;
-    if (amount < minRaise && amount < currentPlayer.chips) {
-      return { success: false, message: `Minimum raise is ${minRaise}` };
+    // Minimum raise = currentBet + minRaise increment (standard poker rule)
+    const minRaiseTotal = gs.currentBet + gs.minRaise;
+    if (amount < minRaiseTotal && amount < currentPlayer.chips + currentPlayer.currentBet) {
+      return { success: false, message: `Minimum raise is $${minRaiseTotal.toFixed(2)}` };
     }
     if (amount > currentPlayer.chips + currentPlayer.currentBet) {
       return { success: false, message: "Cannot raise more than your stack" };
@@ -522,15 +532,11 @@ async function settleHand(roomId: number) {
     await db.updateRoomPlayerChips(roomId, player.id, player.chips.toFixed(2));
   }
 
-  // Schedule next hand after a delay (8 seconds for settlement viewing + winner animation)
-  setTimeout(async () => {
-    const currentPlayers = await db.getRoomPlayers(roomId);
-    if (currentPlayers.length >= 2) {
-      await startNewHand(roomId);
-    } else {
-      activeTables.delete(roomId);
-    }
-  }, 8000);
+  // After settlement, wait for players to click "ready" instead of auto-starting
+  // Set a 30-second deadline for players to ready up
+  table.waitingForReady = true;
+  table.readyPlayers = new Set();
+  table.readyDeadline = Date.now() + 30000; // 30 seconds to ready up
 }
 
 /**
@@ -588,16 +594,27 @@ async function startNewHand(roomId: number) {
     // Clear previous winner info for new hand
     lastWinner: undefined,
     settlementDetail: undefined,
+    // Reset ready system
+    readyPlayers: new Set(),
+    waitingForReady: false,
+    readyDeadline: undefined,
   });
 }
 
 /**
- * Auto-fold players who timeout
+ * Auto-fold players who timeout + check ready deadlines
  */
 export function checkTimeouts() {
   const now = Date.now();
   for (const [roomId, table] of activeTables.entries()) {
+    // Check ready deadline - kick unready players after timeout
+    if (table.waitingForReady && table.readyDeadline && now >= table.readyDeadline) {
+      handleReadyTimeout(roomId);
+      continue;
+    }
+
     if (table.gameState.phase === "waiting" || table.gameState.phase === "completed") continue;
+    if (table.waitingForReady) continue; // Don't auto-fold during ready phase
     
     const elapsed = (now - table.lastActionAt) / 1000;
     if (elapsed > table.turnTimeout) {
@@ -610,6 +627,72 @@ export function checkTimeouts() {
       }
     }
   }
+}
+
+/**
+ * Handle ready timeout - remove unready players and start if enough remain
+ */
+async function handleReadyTimeout(roomId: number) {
+  const table = activeTables.get(roomId);
+  if (!table) return;
+
+  const gs = table.gameState;
+  const allPlayerIds = gs.players.map(p => p.id);
+  const unreadyPlayers = allPlayerIds.filter(id => !table.readyPlayers.has(id));
+
+  // Remove unready players from the room (return chips to balance)
+  for (const playerId of unreadyPlayers) {
+    const player = gs.players.find(p => p.id === playerId);
+    if (player) {
+      // Return remaining chips to balance
+      const user = await db.getUserById(playerId);
+      if (user) {
+        const newBalance = (parseFloat(user.balance) + player.chips).toFixed(2);
+        await db.updateUserBalance(playerId, newBalance);
+      }
+      await db.removeRoomPlayer(roomId, playerId);
+    }
+  }
+
+  // Update room player count
+  const remaining = await db.getRoomPlayers(roomId);
+  await db.updateRoom(roomId, { currentPlayers: remaining.length });
+
+  // If enough ready players remain, start new hand
+  if (remaining.length >= 2) {
+    table.waitingForReady = false;
+    table.readyDeadline = undefined;
+    await startNewHand(roomId);
+  } else {
+    // Not enough players, clean up table
+    activeTables.delete(roomId);
+    await db.updateRoom(roomId, { status: "waiting" });
+  }
+}
+
+/**
+ * Player clicks "ready" for next hand
+ */
+export async function playerReady(roomId: number, userId: number): Promise<{ success: boolean; message?: string }> {
+  const table = activeTables.get(roomId);
+  if (!table) return { success: false, message: "No active table" };
+  if (!table.waitingForReady) return { success: false, message: "Not in ready phase" };
+
+  table.readyPlayers.add(userId);
+
+  // Check if all players are ready
+  const gs = table.gameState;
+  const activePlayers = gs.players.filter(p => p.isActive);
+  const allReady = activePlayers.every(p => table.readyPlayers.has(p.id));
+
+  if (allReady && activePlayers.length >= 2) {
+    // All players ready - start next hand immediately
+    table.waitingForReady = false;
+    table.readyDeadline = undefined;
+    await startNewHand(roomId);
+  }
+
+  return { success: true };
 }
 
 // Run timeout checker every 5 seconds

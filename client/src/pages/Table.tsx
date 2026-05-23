@@ -308,6 +308,14 @@ export default function Table() {
     onError: (err) => toast.error(err.message),
   });
 
+  const readyMutation = trpc.game.ready.useMutation({
+    onSuccess: () => {
+      utils.game.tableState.invalidate({ roomId });
+      if (!muted) playSound("check");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   // Derived state from table state
   const phase = tableState?.phase ?? "waiting";
   const pot = tableState?.pot ?? 0;
@@ -318,6 +326,10 @@ export default function Table() {
   const players = tableState?.players ?? [];
   const turnTimeout = tableState?.turnTimeout ?? 30;
   const lastActionAt = tableState?.lastActionAt ?? Date.now();
+  const waitingForReady = tableState?.waitingForReady ?? false;
+  const readyPlayers = tableState?.readyPlayers ?? [];
+  const readyCountdown = tableState?.readyCountdown ?? null;
+  const amIReady = user ? readyPlayers.includes(user.id) : false;
 
   // Countdown timer with urgency feedback
   const [countdown, setCountdown] = useState(30);
@@ -607,6 +619,29 @@ export default function Table() {
                 <CardView key={`${card}-${i}`} card={card} className="!w-[52px] !h-[72px]" animate={animateCards} delay={i * 150} />
               ))}
             </div>
+
+            {/* Start Next Hand button in center of table */}
+            {waitingForReady && !isDemoMode && (
+              <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
+                {!amIReady ? (
+                  <button
+                    onClick={() => readyMutation.mutate({ roomId })}
+                    disabled={readyMutation.isPending}
+                    className="px-6 py-2.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-500/40 hover:shadow-green-500/60 transition-all active:scale-[0.97] disabled:opacity-50"
+                    style={{ animation: 'pulse 2s infinite' }}
+                  >
+                    ▶ {t("table.startNextHand")}
+                  </button>
+                ) : (
+                  <div className="px-4 py-2 rounded-full bg-black/60 border border-green-500/50 text-green-400 text-xs font-semibold">
+                    ✓ {t("table.readyWaiting")}
+                  </div>
+                )}
+                {readyCountdown !== null && (
+                  <span className="mt-1 text-[10px] text-white/60">{readyCountdown}s</span>
+                )}
+              </div>
+            )}
           {/* Player Seats - positioned outside the table */}
           {displayPlayers.map(player => {
             // Rotate seats so hero is always at bottom (position 0)
@@ -793,7 +828,38 @@ export default function Table() {
             </div>
           )}
 
-          {displayPhase === "waiting" && !isDemoMode && (
+          {/* Waiting for ready - Start Next Hand button */}
+          {waitingForReady && !isDemoMode && (
+            <div className="text-center py-3">
+              {amIReady ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-sm text-green-400 font-semibold">{t("table.readyWaiting")}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {readyPlayers.length}/{players.length} {t("table.playersReady")}
+                    {readyCountdown !== null && ` · ${readyCountdown}s`}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    onClick={() => readyMutation.mutate({ roomId })}
+                    disabled={readyMutation.isPending}
+                    className="px-8 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-base shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all active:scale-[0.97] disabled:opacity-50 animate-pulse"
+                  >
+                    {readyMutation.isPending ? "..." : t("table.startNextHand")}
+                  </button>
+                  <span className="text-[10px] text-muted-foreground">
+                    {readyCountdown !== null && `${t("table.autoLeaveIn")} ${readyCountdown}s`}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {displayPhase === "waiting" && !waitingForReady && !isDemoMode && (
             <div className="text-center py-3">
               <div className="flex items-center justify-center gap-2 mb-1">
                 <div className="w-2 h-2 rounded-full bg-truth-blue animate-pulse" />
@@ -803,7 +869,7 @@ export default function Table() {
             </div>
           )}
 
-          {(displayPhase !== "waiting" || isDemoMode) && (
+          {(displayPhase !== "waiting" || isDemoMode) && !waitingForReady && (
             <>
               {/* Raise slider */}
               <div className="flex items-center gap-2 mb-2.5">

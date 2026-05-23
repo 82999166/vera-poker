@@ -26,6 +26,7 @@ export interface Player {
   isFolded: boolean;
   isAllIn: boolean;
   isActive: boolean;
+  hasActedThisRound: boolean; // Track if player has acted in current betting round
 }
 
 export interface GameState {
@@ -110,11 +111,16 @@ export function initializeGame(players: { id: number; seatIndex: number; chips: 
     isFolded: false,
     isAllIn: false,
     isActive: true,
+    hasActedThisRound: false,
   }));
 
   const numPlayers = gamePlayers.length;
-  const smallBlindIndex = (dealerIndex + 1) % numPlayers;
-  const bigBlindIndex = (dealerIndex + 2) % numPlayers;
+  // Heads-up (2 players): Dealer = Small Blind, other = Big Blind
+  // 3+ players: SB = dealer+1, BB = dealer+2
+  const smallBlindIndex = numPlayers === 2 ? dealerIndex : (dealerIndex + 1) % numPlayers;
+  const bigBlindIndex = numPlayers === 2 ? (dealerIndex + 1) % numPlayers : (dealerIndex + 2) % numPlayers;
+  // Preflop action: starts left of BB (which is SB/dealer in heads-up, UTG in 3+)
+  const firstToAct = numPlayers === 2 ? dealerIndex : (bigBlindIndex + 1) % numPlayers;
 
   return {
     phase: "dealing",
@@ -122,7 +128,7 @@ export function initializeGame(players: { id: number; seatIndex: number; chips: 
     communityCards: [],
     pot: 0,
     sidePots: [],
-    currentPlayerIndex: (bigBlindIndex + 1) % numPlayers,
+    currentPlayerIndex: firstToAct,
     dealerIndex,
     smallBlindIndex,
     bigBlindIndex,
@@ -145,17 +151,19 @@ export function postBlinds(state: GameState, smallBlind: number, bigBlind: numbe
   sbPlayer.chips -= sbAmount;
   sbPlayer.currentBet = sbAmount;
   sbPlayer.totalBet = sbAmount;
+  sbPlayer.hasActedThisRound = false; // SB hasn't voluntarily acted yet
   if (sbPlayer.chips === 0) sbPlayer.isAllIn = true;
 
   const bbAmount = Math.min(bigBlind, bbPlayer.chips);
   bbPlayer.chips -= bbAmount;
   bbPlayer.currentBet = bbAmount;
   bbPlayer.totalBet = bbAmount;
+  bbPlayer.hasActedThisRound = false; // BB hasn't voluntarily acted yet (BB option)
   if (bbPlayer.chips === 0) bbPlayer.isAllIn = true;
 
   newState.pot = sbAmount + bbAmount;
   newState.currentBet = bbAmount;
-  newState.minRaise = bigBlind;
+  newState.minRaise = bigBlind; // First raise must be at least 1 BB increment
   newState.phase = "preflop";
 
   return newState;
@@ -191,9 +199,10 @@ export function processAction(state: GameState, playerId: number, action: Player
   switch (action) {
     case "fold":
       player.isFolded = true;
+      player.hasActedThisRound = true;
       break;
     case "check":
-      // No action needed
+      player.hasActedThisRound = true;
       break;
     case "call": {
       const callAmount = Math.min(newState.currentBet - player.currentBet, player.chips);
@@ -201,19 +210,29 @@ export function processAction(state: GameState, playerId: number, action: Player
       player.currentBet += callAmount;
       player.totalBet += callAmount;
       newState.pot += callAmount;
+      player.hasActedThisRound = true;
       if (player.chips === 0) player.isAllIn = true;
       break;
     }
     case "raise": {
-      const raiseAmount = amount ?? newState.currentBet * 2;
+      const raiseAmount = amount ?? (newState.currentBet + newState.minRaise);
       const totalNeeded = raiseAmount - player.currentBet;
       const actualAmount = Math.min(totalNeeded, player.chips);
       player.chips -= actualAmount;
       player.currentBet += actualAmount;
       player.totalBet += actualAmount;
       newState.pot += actualAmount;
+      // Update minRaise: the increment of this raise becomes the new minimum
+      const raiseIncrement = player.currentBet - newState.currentBet;
+      newState.minRaise = Math.max(raiseIncrement, newState.minRaise);
       newState.currentBet = player.currentBet;
-      newState.minRaise = raiseAmount - state.currentBet;
+      player.hasActedThisRound = true;
+      // A raise reopens action for all other players
+      for (const p of newState.players) {
+        if (p.id !== player.id && !p.isFolded && !p.isAllIn) {
+          p.hasActedThisRound = false;
+        }
+      }
       if (player.chips === 0) player.isAllIn = true;
       break;
     }
@@ -224,8 +243,18 @@ export function processAction(state: GameState, playerId: number, action: Player
       newState.pot += allInAmount;
       player.chips = 0;
       player.isAllIn = true;
+      player.hasActedThisRound = true;
       if (player.currentBet > newState.currentBet) {
-        newState.minRaise = player.currentBet - newState.currentBet;
+        const raiseIncrement = player.currentBet - newState.currentBet;
+        // Only reopen betting if the all-in is a full raise (>= minRaise)
+        if (raiseIncrement >= newState.minRaise) {
+          newState.minRaise = raiseIncrement;
+          for (const p of newState.players) {
+            if (p.id !== player.id && !p.isFolded && !p.isAllIn) {
+              p.hasActedThisRound = false;
+            }
+          }
+        }
         newState.currentBet = player.currentBet;
       }
       break;
@@ -259,18 +288,22 @@ export function isBettingRoundComplete(state: GameState): boolean {
   
   if (playersWhoCanAct.length <= 1) return true;
   
-  // All active non-all-in players have matched the current bet
-  return playersWhoCanAct.every(p => p.currentBet === state.currentBet);
+  // All active non-all-in players must have:
+  // 1. Matched the current bet
+  // 2. Had at least one chance to act this round (hasActedThisRound)
+  return playersWhoCanAct.every(p => p.currentBet === state.currentBet && p.hasActedThisRound);
 }
 
 export function advancePhase(state: GameState): GameState {
   const newState = { ...state, players: state.players.map(p => ({ ...p })) };
   
-  // Reset current bets for new round
+  // Reset current bets and action tracking for new round
   for (const player of newState.players) {
     player.currentBet = 0;
+    player.hasActedThisRound = false;
   }
   newState.currentBet = 0;
+  newState.minRaise = 0; // Will be set by first bet/raise in new round
 
   // Find first active player after dealer
   newState.currentPlayerIndex = getNextActivePlayer(newState, newState.dealerIndex);
