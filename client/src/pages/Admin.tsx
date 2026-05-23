@@ -226,6 +226,9 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.noTx": "暂无记录",
     "users.noGames": "暂无游戏记录",
     "users.adminTopUp": "管理员充值",
+    "users.online": "在线",
+    "users.offline": "离线",
+    "users.atTable": "在桌",
     "config.gameCat": "游戏设置",
     "config.agentCat": "代理系统",
     "config.financeCat": "财务设置",
@@ -538,6 +541,9 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.noTx": "暫無記錄",
     "users.noGames": "暫無遊戲記錄",
     "users.adminTopUp": "管理員充值",
+    "users.online": "在線",
+    "users.offline": "離線",
+    "users.atTable": "在桌",
     "config.gameCat": "遊戲設置",
     "config.agentCat": "代理系統",
     "config.financeCat": "財務設置",
@@ -850,6 +856,9 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.noTx": "No records",
     "users.noGames": "No game history",
     "users.adminTopUp": "Admin Top-Up",
+    "users.online": "Online",
+    "users.offline": "Offline",
+    "users.atTable": "At Table",
     "config.gameCat": "Game Settings",
     "config.agentCat": "Agent System",
     "config.financeCat": "Finance",
@@ -1495,11 +1504,12 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
         className="w-full glass rounded-lg px-3 py-2 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
       />
       {/* Column Header */}
-      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 text-[10px] text-muted-foreground font-medium">
+      <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-3 text-[10px] text-muted-foreground font-medium">
         <span>{at("users.colUser")}</span>
-        <span className="text-right w-20">{at("users.colLastLogin")}</span>
+        <span className="text-right w-28">{at("users.colLastLogin")}</span>
         <span className="text-right w-16">{at("users.colBalance")}</span>
-        <span className="text-right w-14">{at("users.colStatus")}</span>
+        <span className="text-right w-20">{at("users.colStatus")}</span>
+        <span className="text-right w-14"></span>
       </div>
       <div className="space-y-1.5">
         {(filtered as any[])?.map((u: any) => (
@@ -1509,7 +1519,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
             onClick={() => setSelectedUserId(u.id)}
           >
             {/* Single row layout */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-center">
               {/* User info */}
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-7 h-7 shrink-0 rounded-full bg-gradient-to-br from-gold/30 to-gold/10 flex items-center justify-center">
@@ -1530,12 +1540,22 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
                   </div>
                 </div>
               </div>
-              {/* Last login */}
-              <span className="text-[10px] text-muted-foreground text-right w-20 shrink-0">
-                {u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" }) : "-"}
+              {/* Last login - full date + time */}
+              <span className="text-[10px] text-muted-foreground text-right w-28 shrink-0">
+                {u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}
               </span>
               {/* Balance */}
               <span className="text-sm font-mono text-gold text-right w-16 shrink-0">${u.balance ?? "0.00"}</span>
+              {/* Online status */}
+              <div className="w-20 shrink-0 flex justify-end">
+                {u.onlineStatus?.online ? (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-500/20 text-emerald-400">
+                    {at("users.atTable")}: {u.onlineStatus.roomName}
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-muted-foreground">{at("users.offline")}</span>
+                )}
+              </div>
               {/* Risk status */}
               <div className="w-14 shrink-0 flex justify-end" onClick={e => e.stopPropagation()}>
                 <select

@@ -79,7 +79,29 @@ export async function getAllUsers(page = 1, limit = 20) {
     db.select().from(users).orderBy(desc(users.createdAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(users),
   ]);
-  return { users: data, total: countResult[0]?.count ?? 0 };
+  
+  // Get active players in rooms for online status
+  const activePlayers = await db.select({
+    userId: roomPlayers.userId,
+    roomId: roomPlayers.roomId,
+    roomName: rooms.name,
+  }).from(roomPlayers)
+    .innerJoin(rooms, eq(roomPlayers.roomId, rooms.id))
+    .where(eq(roomPlayers.status, "active"));
+  
+  const playerRoomMap = new Map<number, { roomId: number; roomName: string }>();
+  for (const ap of activePlayers) {
+    playerRoomMap.set(ap.userId, { roomId: ap.roomId, roomName: ap.roomName });
+  }
+  
+  const usersWithStatus = data.map(u => ({
+    ...u,
+    onlineStatus: playerRoomMap.has(u.id) 
+      ? { online: true, roomId: playerRoomMap.get(u.id)!.roomId, roomName: playerRoomMap.get(u.id)!.roomName }
+      : { online: false, roomId: null, roomName: null },
+  }));
+  
+  return { users: usersWithStatus, total: countResult[0]?.count ?? 0 };
 }
 
 export async function updateUserBalance(userId: number, amount: string) {
@@ -571,7 +593,7 @@ export async function getUserDetail(userId: number) {
   const [downlineCount, commissionTotal] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(agentRelationships)
       .where(eq(agentRelationships.agentId, userId)),
-    db.select({ total: sql<string>`COALESCE(SUM(commission_amount), '0.00')` }).from(commissionRecords)
+    db.select({ total: sql<string>`COALESCE(SUM(commissionAmount), '0.00')` }).from(commissionRecords)
       .where(eq(commissionRecords.agentId, userId)),
   ]);
 

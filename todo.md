@@ -278,3 +278,8 @@
 - [x] Add private room entrance in lobby - input room number (pure digits) to join directly
 - [x] Fix cash table display: show available table count instead of "0/6" seat format
 - [x] TG login persistence: save session after authorization, no re-auth needed on subsequent visits
+
+## Admin User Management Fixes (2026-05-23)
+- [x] User list: show full date+time for last login (not just date)
+- [x] User list: show user online status (which table they're at, or "offline")
+- [x] Fix commission_records query error: commission_amount field does not exist in table
