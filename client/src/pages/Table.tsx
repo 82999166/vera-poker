@@ -502,37 +502,7 @@ export default function Table() {
       )}
 
       {/* Table Area */}
-      <div className="flex-1 relative overflow-hidden">
-        {/* Background: dark blue with angular light beams */}
-        <div className="absolute inset-0 bg-[#0a1a2e]">
-          {/* Diagonal light beams */}
-          <div className="absolute inset-0 opacity-30" style={{ background: 'linear-gradient(135deg, transparent 30%, rgba(0,180,255,0.1) 45%, transparent 55%), linear-gradient(-135deg, transparent 30%, rgba(0,180,255,0.1) 45%, transparent 55%)' }} />
-        </div>
-        {/* Poker table: metallic oval border + blue felt */}
-        <div className="absolute inset-4 sm:inset-6" style={{ perspective: '900px' }}>
-          <div className="absolute inset-0" style={{ transform: 'rotateX(3deg)', transformOrigin: 'center 55%' }}>
-            {/* Outer metallic rail */}
-            <div className="absolute inset-0 rounded-[50%] bg-gradient-to-b from-[#8a8a8a] via-[#4a4a4a] to-[#2a2a2a] shadow-[0_8px_32px_rgba(0,0,0,0.8)]">
-              {/* Rail highlight */}
-              <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_30%_20%,rgba(255,255,255,0.15)_0%,transparent_40%)]" />
-              {/* Inner metallic edge */}
-              <div className="absolute inset-[6px] rounded-[50%] bg-gradient-to-b from-[#5a5a5a] to-[#2a2a2a]" />
-              {/* Cyan neon glow ring */}
-              <div className="absolute inset-[8px] rounded-[50%] shadow-[inset_0_0_15px_rgba(0,200,255,0.4),0_0_10px_rgba(0,200,255,0.2)]" />
-            </div>
-            {/* Blue felt surface */}
-            <div className="absolute inset-[14px] rounded-[50%] bg-gradient-to-b from-[#1a3a6a] via-[#152e55] to-[#0f2240] shadow-[inset_0_0_50px_rgba(0,0,0,0.4)]">
-              {/* Felt texture */}
-              <div className="absolute inset-0 rounded-[50%] opacity-30" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4h1v1H2V4zm3-3h1v1H5V1z' fill='%23fff' fill-opacity='0.02'/%3E%3C/svg%3E")` }} />
-              {/* Center light spot */}
-              <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_50%_40%,rgba(100,180,255,0.06)_0%,transparent_50%)]" />
-              {/* Center logo */}
-              <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full border border-[#3a6a9a]/20 flex items-center justify-center opacity-30">
-                <span className="text-[10px] font-bold text-[#5a9acf]/50 tracking-wider">♠</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="flex-1 relative overflow-hidden" style={{ backgroundImage: 'url(/table-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
         {/* Game content overlay */}
         <div className="absolute inset-0">
             
