@@ -463,4 +463,9 @@
 
 ## Customer Service Transfer to TG & iPhone 7 Plus Fi- [x] 在线客服“转人工”按钮跳转到 TG 对话（使用 t.me/xxx 链接）
 - [x] 管理后台系统设置中添加“人工客服 TG 号”配置项
-- [x] 修复 iPhone 7 Plus 在 TG 中打开游戏顶部空白问题（viewport-fit + TG viewport CSS var + expand/fullscreen）��safe-area-inset-top）
+- [x] 修复 iPhone 7 Plus 在 TG 中打开游戏顶部空白问题（viewport-fit + TG viewport CSS var + expand/fullscreen）�safe-area-inset-top）
+
+## Invite Code Full Flow Fix (2026-05-24 Round 17)
+- [x] 注册时自动分配邀请码（findOrCreateTelegramUser + upsertUser 中新用户自动生成 inviteCode）
+- [x] ref_ 链接注册后自动绑定上下级关系（TG bot 传递 ref_ 参数到 Mini App URL，Home.tsx 登录后自动调用 agent.register）
+- [x] 代理页面能正确显示下线列表（已有用户缺少 inviteCode 时自动补充）

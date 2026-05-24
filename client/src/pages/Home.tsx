@@ -56,6 +56,15 @@ export default function Home() {
           }
         })
         .catch(() => navigate("/lobby"));
+    } else if (startParam && startParam.startsWith("ref_")) {
+      const refCode = startParam.replace("ref_", "");
+      // Auto-register as downline of the referrer via tRPC batch endpoint
+      fetch(`/api/trpc/agent.register?batch=1`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ "0": { json: { inviteCode: refCode } } }),
+      }).catch(() => {});
+      navigate("/lobby");
     } else {
       navigate("/lobby");
     }

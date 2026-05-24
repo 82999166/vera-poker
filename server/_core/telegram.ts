@@ -69,6 +69,7 @@ export function registerTelegramRoutes(app: Express) {
           res.json({ ok: true });
           return;
         } else if (param.startsWith("ref_")) {
+          const refCode = param.replace("ref_", "");
           replyText = `Welcome to Vera Poker! 🎰\n\nYou were referred by a friend. Tap below to start playing and earn rewards!`;
           if (miniAppUrl) {
             const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;
@@ -80,7 +81,7 @@ export function registerTelegramRoutes(app: Express) {
                 text: replyText,
                 reply_markup: {
                   inline_keyboard: [[
-                    { text: "🎰 Play Now", web_app: { url: miniAppUrl } }
+                    { text: "🎰 Play Now", web_app: { url: `${miniAppUrl}?startapp=ref_${refCode}` } }
                   ]]
                 }
               }),

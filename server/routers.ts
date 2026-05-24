@@ -474,8 +474,14 @@ export const appRouter = router({
   // ==================== AGENT ====================
     agent: router({
     dashboard: protectedProcedure.query(async ({ ctx }) => {
-      const user = await db.getUserById(ctx.user.id);
+      let user = await db.getUserById(ctx.user.id);
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      // Auto-generate invite code for existing users who don't have one
+      if (!user.inviteCode) {
+        await db.ensureUserInviteCode(user.id);
+        user = await db.getUserById(ctx.user.id);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      }
       const downlines = await db.getAgentDownlines(ctx.user.id);
       const commissions = await db.getAgentCommissions(ctx.user.id, 1, 10);
       const totalEarnings = downlines.reduce((sum, d) => sum + parseFloat(d.totalCommissionEarned ?? "0"), 0);
@@ -505,6 +511,12 @@ export const appRouter = router({
       if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const { users } = await import("../drizzle/schema");
       const { eq } = await import("drizzle-orm");
+
+      // Check if user already has an inviter (prevent duplicate registration)
+      const [currentUser] = await dbInstance.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
+      if (currentUser?.invitedBy) {
+        return { success: true }; // Already registered, silently succeed
+      }
       
       const [inviter] = await dbInstance.select().from(users).where(eq(users.inviteCode, input.inviteCode)).limit(1);
       if (!inviter) throw new TRPCError({ code: "NOT_FOUND", message: "Invalid invite code" });

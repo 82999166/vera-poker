@@ -17,7 +17,46 @@ export async function getDb() {
   return _db;
 }
 
+// ==================== HELPER FUNCTIONS ====================
+
+/**
+ * Generate a unique 8-character alphanumeric invite code for a user
+ */
+async function generateUniqueInviteCode(): Promise<string> {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // exclude confusing chars: I,O,0,1
+  const db = await getDb();
+  for (let attempt = 0; attempt < 10; attempt++) {
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    // Check uniqueness
+    if (db) {
+      const existing = await db.select({ id: users.id }).from(users).where(eq(users.inviteCode, code)).limit(1);
+      if (existing.length === 0) return code;
+    } else {
+      return code;
+    }
+  }
+  // Fallback: use timestamp-based code
+  return `V${Date.now().toString(36).toUpperCase().slice(-7)}`;
+}
+
 // ==================== USER QUERIES ====================
+
+/**
+ * Ensure a user has an invite code. If not, generate one and save it.
+ */
+export async function ensureUserInviteCode(userId: number): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [user] = await db.select({ inviteCode: users.inviteCode }).from(users).where(eq(users.id, userId)).limit(1);
+  if (user?.inviteCode) return user.inviteCode;
+  const code = await generateUniqueInviteCode();
+  await db.update(users).set({ inviteCode: code }).where(eq(users.id, userId));
+  return code;
+}
+
 export async function upsertUser(user: InsertUser): Promise<{ isNew: boolean }> {
   if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
@@ -28,6 +67,11 @@ export async function upsertUser(user: InsertUser): Promise<{ isNew: boolean }> 
 
   const values: InsertUser = { openId: user.openId };
   const updateSet: Record<string, unknown> = {};
+
+  // Generate invite code for new users
+  if (isNew) {
+    values.inviteCode = await generateUniqueInviteCode();
+  }
 
   const textFields = ["name", "email", "loginMethod", "tgId", "tgUsername", "avatar", "nickname", "language"] as const;
   type TextField = (typeof textFields)[number];
@@ -553,6 +597,9 @@ export async function findOrCreateTelegramUser(params: {
     ? `${params.firstName} ${params.lastName}`
     : params.firstName;
 
+  // Generate unique invite code for new user
+  const inviteCode = await generateUniqueInviteCode();
+
   const insertValues: InsertUser = {
     openId,
     name: fullName,
@@ -563,6 +610,7 @@ export async function findOrCreateTelegramUser(params: {
     language: params.languageCode,
     loginMethod: "telegram",
     lastSignedIn: new Date(),
+    inviteCode,
   };
 
   // Check if owner
