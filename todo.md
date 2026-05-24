@@ -437,3 +437,7 @@
 ## Multi-Table Restriction Fix (2026-05-24 Round 12)
 - [x] 修复玩家可以同时在多个桌子上玩的bug - joinTable 中添加 getPlayerActiveRoom 检查
 - [x] 玩家加入新桌时自动离开原桌（筹码返回余额）再加入新桌
+
+## UX & Zero Chips Fix (2026-05-24 Round 13)
+- [x] 玩家离开牌桌后自动跳转回大厅 - leaveMutation onSuccess 中 navigate("/lobby")
+- [x] 玩家筹码为0时不能继续开始游戏 - startNewHand 中踢出0筹码玩家 + 前端显示"筹码不足"提示和返回大厅按钮

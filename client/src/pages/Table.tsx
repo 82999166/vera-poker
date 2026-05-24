@@ -357,6 +357,8 @@ export default function Table() {
       setIsSeated(false);
       toast.success(t("table.left"));
       utils.wallet.balance.invalidate();
+      // Navigate back to lobby after leaving
+      navigate("/lobby");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -729,7 +731,19 @@ export default function Table() {
             {/* Start Next Hand button in center of table - only show after settlement overlay dismissed */}
             {waitingForReady && !isDemoMode && !showWinner && (
               <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
-                {!amIReady ? (
+                {myPlayer && myPlayer.chips <= 0 ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="px-4 py-2 rounded-full bg-black/60 border border-red-500/50 text-red-400 text-xs font-semibold">
+                      {t("table.noChips")}
+                    </div>
+                    <button
+                      onClick={() => navigate("/lobby")}
+                      className="px-4 py-1.5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-600 text-white text-xs font-bold shadow-lg active:scale-[0.97]"
+                    >
+                      {t("table.backToLobby")}
+                    </button>
+                  </div>
+                ) : !amIReady ? (
                   <button
                     onClick={() => readyMutation.mutate({ roomId })}
                     disabled={readyMutation.isPending}

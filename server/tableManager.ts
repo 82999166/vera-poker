@@ -674,11 +674,25 @@ async function startNewHand(roomId: number) {
   const roomPlayersList = await db.getRoomPlayers(roomId);
   if (roomPlayersList.length < 2) return;
 
+  // Remove players with 0 chips - they can't play
+  const zeroChipPlayers = roomPlayersList.filter((rp: any) => parseFloat(rp.chipCount) <= 0);
+  for (const zp of zeroChipPlayers) {
+    await db.removeRoomPlayer(roomId, zp.userId);
+  }
+  
+  // Re-fetch active players after removing zero-chip players
+  const activePlayers = roomPlayersList.filter((rp: any) => parseFloat(rp.chipCount) > 0);
+  if (activePlayers.length < 2) {
+    // Update room player count
+    await db.updateRoom(roomId, { currentPlayers: activePlayers.length });
+    return;
+  }
+
   const existingTable = activeTables.get(roomId);
   const handNumber = (existingTable?.handNumber ?? 0) + 1;
-  const dealerIndex = handNumber % roomPlayersList.length;
+  const dealerIndex = handNumber % activePlayers.length;
 
-  const players = roomPlayersList.map((rp: any) => ({
+  const players = activePlayers.map((rp: any) => ({
     id: rp.userId,
     seatIndex: rp.seatIndex,
     chips: parseFloat(rp.chipCount),
