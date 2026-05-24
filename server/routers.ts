@@ -1442,6 +1442,71 @@ Rules:
       return { count: result?.count ?? 0 };
     }),
   }),
+  // Admin CS Records
+  adminCs: router({
+    conversations: staffProcedure.input(z.object({
+      page: z.number().default(1),
+      limit: z.number().default(20),
+      userId: z.number().optional(),
+    })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { items: [], total: 0 };
+      const { csMessages, users } = await import("../drizzle/schema");
+      const { sql, eq, desc } = await import("drizzle-orm");
+
+      // Get unique users who have CS messages
+      const offset = (input.page - 1) * input.limit;
+
+      if (input.userId) {
+        // Get messages for specific user
+        const msgs = await dbInstance.select()
+          .from(csMessages)
+          .where(eq(csMessages.userId, input.userId))
+          .orderBy(desc(csMessages.createdAt))
+          .limit(200);
+        const [countResult] = await dbInstance.select({ count: sql<number>`count(*)` })
+          .from(csMessages)
+          .where(eq(csMessages.userId, input.userId));
+        return { items: msgs, total: countResult?.count ?? 0 };
+      }
+
+      // Get conversation list grouped by user
+      const convos = await dbInstance.select({
+        userId: csMessages.userId,
+        lastMessage: sql<string>`(SELECT content FROM cs_messages m2 WHERE m2.userId = cs_messages.userId ORDER BY m2.createdAt DESC LIMIT 1)`,
+        lastTime: sql<Date>`MAX(cs_messages.createdAt)`,
+        messageCount: sql<number>`count(*)`,
+      })
+        .from(csMessages)
+        .groupBy(csMessages.userId)
+        .orderBy(sql`MAX(cs_messages.createdAt) DESC`)
+        .limit(input.limit)
+        .offset(offset);
+
+      // Get total unique users
+      const [totalResult] = await dbInstance.select({ count: sql<number>`count(DISTINCT userId)` }).from(csMessages);
+
+      // Get user names
+      const userIds = convos.map(c => c.userId);
+      let userMap: Record<number, string> = {};
+      if (userIds.length > 0) {
+        const userRows = await dbInstance.select({ id: users.id, name: users.name, tgUsername: users.tgUsername })
+          .from(users)
+          .where(sql`${users.id} IN (${sql.raw(userIds.join(","))})`);
+        userRows.forEach(u => { userMap[u.id] = u.tgUsername || u.name || `User#${u.id}`; });
+      }
+
+      const items = convos.map(c => ({
+        userId: c.userId,
+        userName: userMap[c.userId] || `User#${c.userId}`,
+        lastMessage: c.lastMessage,
+        lastTime: c.lastTime,
+        messageCount: c.messageCount,
+      }));
+
+      return { items, total: totalResult?.count ?? 0 };
+    }),
+  }),
   // Admin Logs
   adminLogs: router({
     list: staffProcedure.input(z.object({

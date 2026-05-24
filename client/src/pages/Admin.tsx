@@ -33,6 +33,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.settings": "系统设置",
     "tab.stats": "数据统计",
     "tab.staff": "员工管理",
+    "tab.csRecords": "客服记录",
     "tab.logs": "操作日志",
     "logs.title": "操作日志",
     "logs.noLogs": "暂无日志记录",
@@ -383,6 +384,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.settings": "系統設置",
     "tab.stats": "數據統計",
     "tab.staff": "員工管理",
+    "tab.csRecords": "客服記錄",
     "tab.logs": "操作日誌",
     "logs.title": "操作日誌",
     "logs.noLogs": "暫無日誌記錄",
@@ -733,6 +735,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.settings": "System",
     "tab.stats": "Statistics",
     "tab.staff": "Staff",
+    "tab.csRecords": "CS Records",
     "tab.logs": "Logs",
     "logs.title": "Operation Logs",
     "logs.noLogs": "No logs yet",
@@ -1183,7 +1186,7 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // ==================== ADMIN TABS ====================
-type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs";
+type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs" | "csRecords";
 
 // ==================== MAIN ADMIN COMPONENT ====================
 export default function Admin() {
@@ -1231,25 +1234,26 @@ export default function Admin() {
 
   // Role-based tab permissions
   const roleTabMap: Record<string, AdminTab[]> = {
-    super_admin: ["config", "users", "rooms", "finance", "agents", "risk", "faq", "settings", "stats", "staff", "logs"],
-    admin: ["config", "users", "rooms", "finance", "agents", "risk", "faq", "settings", "stats", "staff", "logs"],
-    cs: ["users", "rooms", "faq", "stats"],
-    finance: ["finance", "agents", "stats"],
-    tech: ["config", "rooms", "risk", "settings", "stats"],
+    super_admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "csRecords", "logs"],
+    admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "csRecords", "logs"],
+    cs: ["stats", "users", "rooms", "faq", "csRecords"],
+    finance: ["stats", "finance", "agents"],
+    tech: ["stats", "config", "rooms", "risk", "settings"],
   };
   const allowedTabs = roleTabMap[effectiveRole] || ["stats"];
 
   const allTabs: { key: AdminTab; icon: any; label: string }[] = [
-    { key: "config", icon: Settings, label: at("tab.config") },
+    { key: "stats", icon: BarChart3, label: at("tab.stats") },
     { key: "users", icon: Users, label: at("tab.users") },
     { key: "rooms", icon: Layers, label: at("tab.rooms") },
-    { key: "finance", icon: DollarSign, label: at("tab.finance") },
+    { key: "staff", icon: Shield, label: at("tab.staff") },
     { key: "agents", icon: UserCheck, label: at("tab.agents") },
+    { key: "finance", icon: DollarSign, label: at("tab.finance") },
     { key: "risk", icon: Shield, label: at("tab.risk") },
     { key: "faq", icon: MessageSquare, label: at("tab.faq") },
+    { key: "config", icon: Settings, label: at("tab.config") },
     { key: "settings", icon: Settings, label: at("tab.settings") },
-    { key: "stats", icon: BarChart3, label: at("tab.stats") },
-    { key: "staff", icon: Shield, label: at("tab.staff") },
+    { key: "csRecords", icon: MessageSquare, label: at("tab.csRecords") },
     { key: "logs", icon: Eye, label: at("tab.logs") },
   ];
   const tabs = allTabs.filter(t => allowedTabs.includes(t.key));
@@ -1417,6 +1421,7 @@ function PanelContent({ tab, at, onNavigate }: { tab: AdminTab; at: (key: string
     case "stats": return <StatsPanel at={at} onNavigate={onNavigate} />;
     case "staff": return <StaffPanel at={at} />;
     case "logs": return <LogsPanel at={at} />;
+    case "csRecords": return <CsRecordsPanel at={at} />;
     default: return null;
   }
 }
@@ -3465,6 +3470,110 @@ function CopyableUrl({ value, small }: { value: string; small?: boolean }) {
   );
 }
 
+
+// ==================== CS RECORDS PANEL ====================
+function CsRecordsPanel({ at }: { at: (k: string) => string }) {
+  const [page, setPage] = useState(1);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const convosQuery = trpc.adminCs.conversations.useQuery({ page, limit: 20 });
+  const detailQuery = trpc.adminCs.conversations.useQuery(
+    { page: 1, limit: 1, userId: selectedUserId! },
+    { enabled: !!selectedUserId }
+  );
+
+  if (selectedUserId && detailQuery.data) {
+    const msgs = detailQuery.data.items;
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setSelectedUserId(null)} className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <h3 className="text-lg font-bold">{at("csRecords.detail") || "对话详情"} (User#{selectedUserId})</h3>
+          <span className="text-xs text-muted-foreground">({msgs.length} messages)</span>
+        </div>
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+          {msgs.slice().reverse().map((msg: any) => (
+            <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+              <div className={`max-w-[75%] rounded-xl px-3 py-2 text-sm ${
+                msg.role === "user"
+                  ? "bg-gold/20 text-foreground"
+                  : msg.role === "system"
+                  ? "bg-muted text-muted-foreground italic"
+                  : "bg-truth-blue/10 text-foreground"
+              }`}>
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-[10px] font-medium uppercase opacity-60">{msg.role}</span>
+                  <span className="text-[10px] opacity-40">{new Date(msg.createdAt).toLocaleString()}</span>
+                </div>
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-bold">{at("tab.csRecords")}</h3>
+      {convosQuery.isLoading && <p className="text-muted-foreground">Loading...</p>}
+      {convosQuery.data && convosQuery.data.items.length === 0 && (
+        <p className="text-muted-foreground">{at("csRecords.empty") || "暂无客服对话记录"}</p>
+      )}
+      {convosQuery.data && convosQuery.data.items.length > 0 && (
+        <div className="border border-border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="px-4 py-2 text-left">{at("csRecords.user") || "用户"}</th>
+                <th className="px-4 py-2 text-left">{at("csRecords.lastMsg") || "最后消息"}</th>
+                <th className="px-4 py-2 text-center">{at("csRecords.count") || "消息数"}</th>
+                <th className="px-4 py-2 text-right">{at("csRecords.time") || "时间"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {convosQuery.data.items.map((item: any) => (
+                <tr
+                  key={item.userId}
+                  className="border-t border-border hover:bg-muted/30 cursor-pointer transition-colors"
+                  onClick={() => setSelectedUserId(item.userId)}
+                >
+                  <td className="px-4 py-2 font-medium">{item.userName}</td>
+                  <td className="px-4 py-2 text-muted-foreground truncate max-w-[200px]">{item.lastMessage}</td>
+                  <td className="px-4 py-2 text-center">{item.messageCount}</td>
+                  <td className="px-4 py-2 text-right text-muted-foreground text-xs">
+                    {item.lastTime ? new Date(item.lastTime).toLocaleString() : "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {convosQuery.data && convosQuery.data.total > 20 && (
+        <div className="flex justify-center gap-2">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1 rounded border border-border disabled:opacity-50 hover:bg-muted/50"
+          >
+            Prev
+          </button>
+          <span className="px-3 py-1 text-sm text-muted-foreground">Page {page}</span>
+          <button
+            onClick={() => setPage(p => p + 1)}
+            disabled={convosQuery.data.items.length < 20}
+            className="px-3 py-1 rounded border border-border disabled:opacity-50 hover:bg-muted/50"
+          >
+            Next
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ==================== LOGS PANEL ====================
 function LogsPanel({ at }: { at: (k: string) => string }) {
