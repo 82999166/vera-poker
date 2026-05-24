@@ -433,3 +433,7 @@
 ## All-in Logic Fix (2026-05-24 Round 11)
 - [x] 修复3人局2人all-in后第3人被跳过的bug - 将 playersWhoCanAct.length<=1 改为 ===0，确保最后1人仍能行动
 - [x] 确保只有所有能行动的玩家都已行动后才结束下注轮 - 测试验证通过
+
+## Multi-Table Restriction Fix (2026-05-24 Round 12)
+- [x] 修复玩家可以同时在多个桌子上玩的bug - joinTable 中添加 getPlayerActiveRoom 检查
+- [x] 玩家加入新桌时自动离开原桌（筹码返回余额）再加入新桌

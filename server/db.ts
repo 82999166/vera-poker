@@ -359,6 +359,20 @@ export async function getAllCommissions(page = 1, limit = 20) {
 }
 
 // ==================== ROOM PLAYER MANAGEMENT ====================
+/**
+ * Check if a player is currently active in any room
+ * Returns the roomId if found, null otherwise
+ */
+export async function getPlayerActiveRoom(userId: number): Promise<{ roomId: number; seatIndex: number } | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select({ roomId: roomPlayers.roomId, seatIndex: roomPlayers.seatIndex })
+    .from(roomPlayers)
+    .where(and(eq(roomPlayers.userId, userId), eq(roomPlayers.status, "active")))
+    .limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
 export async function addRoomPlayer(roomId: number, userId: number, seatIndex: number, chipCount: string) {
   const db = await getDb();
   if (!db) return;

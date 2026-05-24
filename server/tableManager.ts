@@ -138,10 +138,24 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
 
   const existingPlayers = await db.getRoomPlayers(roomId);
   
-  // Check if already seated
+  // Check if already seated at THIS table
   const alreadySeated = existingPlayers.find((p: any) => p.userId === userId);
   if (alreadySeated) {
     return { success: true, seatIndex: alreadySeated.seatIndex, message: "Already seated" };
+  }
+
+  // Check if player is already seated at ANOTHER table - prevent multi-tabling
+  const activeRoom = await db.getPlayerActiveRoom(userId);
+  if (activeRoom && activeRoom.roomId !== roomId) {
+    // Auto-leave the other table first and return chips to balance
+    const leaveResult = await leaveTable(activeRoom.roomId, userId);
+    if (leaveResult.remainingChips > 0) {
+      const currentUser = await db.getUserById(userId);
+      if (currentUser) {
+        const updatedBalance = (parseFloat(currentUser.balance) + leaveResult.remainingChips).toFixed(2);
+        await db.updateUserBalance(userId, updatedBalance);
+      }
+    }
   }
 
   // Check max players
