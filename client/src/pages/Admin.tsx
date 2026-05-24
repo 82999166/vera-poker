@@ -77,6 +77,8 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "config.finance": "财务设置",
     "config.riskControl": "风控设置",
     "config.privateRoom": "私人房设置",
+    "config.walletAddress": "收款钱包地址",
+    "config.blockchainApi": "区块链 API 配置",
     "config.addNew": "新增配置",
     "config.key": "键名",
     "config.value": "值",
@@ -422,6 +424,8 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "config.finance": "財務設置",
     "config.riskControl": "風控設置",
     "config.privateRoom": "私人房設置",
+    "config.walletAddress": "收款錢包地址",
+    "config.blockchainApi": "區塊鏈 API 配置",
     "config.addNew": "新增配置",
     "config.key": "鍵名",
     "config.value": "值",
@@ -767,6 +771,8 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "config.finance": "Finance",
     "config.riskControl": "Risk Control",
     "config.privateRoom": "Private Room",
+    "config.walletAddress": "Wallet Addresses",
+    "config.blockchainApi": "Blockchain API Config",
     "config.addNew": "Add New Configuration",
     "config.key": "Key",
     "config.value": "Value",
@@ -1447,6 +1453,17 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
     discount_10_rounds: "10局折扣",
     discount_20_rounds: "20局折扣",
     discount_50_rounds: "50局折扣",
+    deposit_wallet_trc20: "TRC20 收款地址",
+    deposit_wallet_erc20: "ERC20 收款地址",
+    deposit_wallet_bep20: "BEP20 收款地址",
+    deposit_wallet_ton: "TON 收款地址",
+    deposit_wallet_polygon: "Polygon 收款地址",
+    trongrid_api_key: "TronGrid API Key",
+    etherscan_api_key: "Etherscan API Key",
+    bscscan_api_key: "BscScan API Key",
+    polygonscan_api_key: "PolygonScan API Key",
+    auto_confirm_enabled: "自动确认充值 (true/false)",
+    auto_confirm_min_confirmations: "最少确认数",
   };
 
   const configGroups: Record<string, string[]> = {
@@ -1455,6 +1472,8 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
     [at("config.finance")]: ["min_deposit", "min_withdrawal", "auto_approve_limit", "withdrawal_fee_rate", "daily_withdrawal_limit"],
     [at("config.riskControl")]: ["min_account_age_days", "observation_period_days", "max_same_table_ratio"],
     [at("config.privateRoom")]: ["room_fee_micro", "room_fee_low", "room_fee_mid", "room_fee_high", "room_fee_premium", "discount_5_rounds", "discount_10_rounds", "discount_20_rounds", "discount_50_rounds"],
+    [at("config.walletAddress")]: ["deposit_wallet_trc20", "deposit_wallet_erc20", "deposit_wallet_bep20", "deposit_wallet_ton", "deposit_wallet_polygon"],
+    [at("config.blockchainApi")]: ["trongrid_api_key", "etherscan_api_key", "bscscan_api_key", "polygonscan_api_key", "auto_confirm_enabled", "auto_confirm_min_confirmations"],
   };
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;

@@ -11,6 +11,8 @@ import { staffRouter, bootstrapSuperAdmin, migrateStaffFromUsers } from "../staf
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { sdk } from "./sdk";
+import { processAutoConfirmDeposits } from "../blockchainVerify";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -42,6 +44,19 @@ async function startServer() {
   registerTelegramRoutes(app);
   registerTelegramAuthRoutes(app);
   app.use(staffRouter);
+
+  // Scheduled task: auto-confirm deposits via blockchain verification
+  app.post("/api/scheduled/autoConfirmDeposits", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user.isCron) return res.status(403).json({ error: "cron-only" });
+      const result = await processAutoConfirmDeposits();
+      res.json({ ok: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message, stack: err.stack, timestamp: new Date().toISOString() });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

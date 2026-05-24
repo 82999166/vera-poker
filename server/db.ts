@@ -739,3 +739,32 @@ export async function getAdminLogs(page: number = 1, limit: number = 50, filters
   
   return { logs, total: countResult[0]?.count ?? 0 };
 }
+
+
+// ==================== BLOCKCHAIN AUTO-CONFIRM ====================
+export async function getPendingDeposits() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(transactions)
+    .where(and(eq(transactions.type, "deposit"), eq(transactions.status, "pending")))
+    .orderBy(asc(transactions.createdAt));
+}
+
+export async function confirmDepositById(transactionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [tx] = await db.select().from(transactions).where(eq(transactions.id, transactionId)).limit(1);
+  if (!tx || tx.status !== "pending") return null;
+  
+  // Update transaction status
+  await db.update(transactions).set({ status: "confirmed" }).where(eq(transactions.id, transactionId));
+  
+  // Update user balance
+  const [user] = await db.select().from(users).where(eq(users.id, tx.userId)).limit(1);
+  if (user) {
+    const newBalance = (parseFloat(user.balance ?? "0") + parseFloat(tx.amount)).toFixed(2);
+    await db.update(users).set({ balance: newBalance }).where(eq(users.id, tx.userId));
+  }
+  
+  return tx;
+}
