@@ -367,7 +367,7 @@ async function settleHand(roomId: number) {
   }
 
   // Get system config for rake
-  const rakeConfig = await db.getConfig("rake_percent");
+  const rakeConfig = await db.getConfig("rake_percentage");
   const rakeCapConfig = await db.getConfig("rake_cap");
   const rakePercent = rakeConfig ? parseFloat(rakeConfig.value) : 5;
   const rakeCap = rakeCapConfig ? parseFloat(rakeCapConfig.value) : 3;
@@ -533,6 +533,7 @@ async function settleHand(roomId: number) {
       potSize: gs.pot.toFixed(2),
       winnerId: mainWinnerId,
       winningHand,
+      rakeAmount: totalRake.toFixed(2),
       completedAt: new Date(),
     });
   }
@@ -540,6 +541,29 @@ async function settleHand(roomId: number) {
   // Persist ALL players' updated chip stacks to DB
   for (const player of gs.players) {
     await db.updateRoomPlayerChips(roomId, player.id, player.chips.toFixed(2));
+  }
+
+  // Distribute agent commissions from rake
+  if (totalRake > 0 && table.handId) {
+    try {
+      await distributeAgentCommissions(totalRake, gs.players.map(p => p.id), table.handId);
+    } catch (e) {
+      console.error("[Commission] Error distributing commissions:", e);
+    }
+  }
+
+  // Increment playedRounds for private rooms and check if room should close
+  const currentRoom = await db.getRoomById(roomId);
+  if (currentRoom && currentRoom.type === "private") {
+    const newPlayedRounds = (currentRoom.playedRounds ?? 0) + 1;
+    await db.updateRoom(roomId, { playedRounds: newPlayedRounds });
+    // If totalRounds is set and reached, close the room (inviteCode becomes invalid)
+    if (currentRoom.totalRounds && newPlayedRounds >= currentRoom.totalRounds) {
+      await db.updateRoom(roomId, { status: "closed" });
+      // Remove from active tables
+      activeTables.delete(roomId);
+      return; // Don't set up ready phase, room is done
+    }
   }
 
   // After settlement, wait for players to click "ready" instead of auto-starting
@@ -726,4 +750,88 @@ async function notifyNextPlayer(roomId: number) {
 
   // Send notification (non-blocking, fire-and-forget)
   notifyTurnAction(currentPlayer.id, roomName, timeLeft);
+}
+
+/**
+ * Distribute agent commissions from rake to agents of players at the table
+ * For each player, check if they have an agent (level 1 and level 2)
+ * and distribute commission based on configured rates from database
+ */
+async function distributeAgentCommissions(totalRake: number, playerIds: number[], handId: number) {
+  const dbInstance = await db.getDb();
+  if (!dbInstance) return;
+  
+  const { agentRelationships, commissionRecords } = await import("../drizzle/schema");
+  const { eq, and, inArray } = await import("drizzle-orm");
+  
+  // Get commission rates from database
+  const level1Rate = parseFloat(await db.getConfigValue("agent_level1_rate", "10")) / 100;
+  const level2Rate = parseFloat(await db.getConfigValue("agent_level2_rate", "5")) / 100;
+  
+  // Per-player rake share (evenly split for simplicity)
+  const perPlayerRake = totalRake / playerIds.length;
+  
+  // Find all agent relationships for players at this table
+  const relationships = await dbInstance.select()
+    .from(agentRelationships)
+    .where(inArray(agentRelationships.downlineId, playerIds));
+  
+  if (relationships.length === 0) return;
+  
+  for (const rel of relationships) {
+    // Only distribute if the downline is unlocked
+    if (!rel.isUnlocked) {
+      // Update unlock progress (increment gamesPlayed)
+      const progress = typeof rel.unlockProgress === "string" 
+        ? JSON.parse(rel.unlockProgress) 
+        : (rel.unlockProgress ?? { gamesPlayed: 0, totalDeposit: 0, totalRake: 0 });
+      progress.gamesPlayed = (progress.gamesPlayed ?? 0) + 1;
+      progress.totalRake = parseFloat((parseFloat(progress.totalRake || "0") + perPlayerRake).toFixed(2));
+      
+      // Check if unlock conditions are met
+      const shouldUnlock = progress.gamesPlayed >= 20 && 
+        parseFloat(progress.totalDeposit || "0") >= 10 && 
+        parseFloat(progress.totalRake || "0") >= 1;
+      
+      await dbInstance.update(agentRelationships)
+        .set({ 
+          unlockProgress: JSON.stringify(progress),
+          ...(shouldUnlock ? { isUnlocked: true, unlockedAt: new Date() } : {}),
+        })
+        .where(eq(agentRelationships.id, rel.id));
+      
+      continue; // Don't distribute commission until unlocked
+    }
+    
+    // Calculate commission based on level
+    const rate = rel.level === 1 ? level1Rate : level2Rate;
+    const commissionAmount = perPlayerRake * rate;
+    
+    if (commissionAmount <= 0) continue;
+    
+    // Insert commission record
+    await dbInstance.insert(commissionRecords).values({
+      agentId: rel.agentId,
+      downlineId: rel.downlineId,
+      handId,
+      level: rel.level,
+      rakeAmount: perPlayerRake.toFixed(2),
+      commissionRate: (rate * 100).toFixed(2),
+      commissionAmount: commissionAmount.toFixed(2),
+      status: "settled",
+    });
+    
+    // Update agent's balance (add commission to current balance)
+    const agent = await db.getUserById(rel.agentId);
+    if (agent) {
+      const newBalance = (parseFloat(agent.balance ?? "0") + commissionAmount).toFixed(2);
+      await db.updateUserBalance(rel.agentId, newBalance);
+    }
+    
+    // Update totalCommissionEarned in agent_relationships
+    const currentEarned = parseFloat(rel.totalCommissionEarned ?? "0");
+    await dbInstance.update(agentRelationships)
+      .set({ totalCommissionEarned: (currentEarned + commissionAmount).toFixed(2) })
+      .where(eq(agentRelationships.id, rel.id));
+  }
 }

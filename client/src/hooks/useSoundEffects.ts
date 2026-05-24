@@ -200,6 +200,21 @@ export function useSoundEffects() {
   }, []);
 
   // Voice announcement using Web Speech API
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  
+  // Pre-load voices (some browsers load them asynchronously)
+  useEffect(() => {
+    if (!window.speechSynthesis) return;
+    const loadVoices = () => {
+      voicesRef.current = window.speechSynthesis.getVoices();
+    };
+    loadVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    return () => {
+      window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
+    };
+  }, []);
+
   const speak = useCallback((text: string) => {
     if (!enabledRef.current) return;
     if (!window.speechSynthesis) return;
@@ -207,16 +222,19 @@ export function useSoundEffects() {
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.2; // Slightly faster for game pace
+      utterance.rate = 1.1; // Slightly faster for game pace
       utterance.volume = volumeRef.current;
       utterance.pitch = 1.0;
-      // Try to use a Chinese voice if available
-      const voices = window.speechSynthesis.getVoices();
+      // Use pre-loaded voices
+      const voices = voicesRef.current.length > 0 ? voicesRef.current : window.speechSynthesis.getVoices();
       const zhVoice = voices.find(v => v.lang.startsWith("zh")) || voices.find(v => v.lang.startsWith("en"));
       if (zhVoice) utterance.voice = zhVoice;
-      window.speechSynthesis.speak(utterance);
+      // Workaround for Chrome/WebView bug: speech won't start if called too quickly after cancel
+      setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+      }, 50);
     } catch (e) {
-      // Silently fail
+      // Silently fail - speechSynthesis may not be available in some WebViews
     }
   }, []);
 

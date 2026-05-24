@@ -62,14 +62,28 @@ export default function Lobby() {
     }
   };
 
-  // Join private room by room number (ID)
-  const handleJoinPrivateRoom = () => {
+  // Join private room by invite code (6-digit number)
+  const trpcUtils = trpc.useUtils();
+  const handleJoinPrivateRoom = async () => {
     const code = privateRoomCode.trim();
-    if (!code || !/^\d+$/.test(code)) {
+    if (!code || !/^\d{6}$/.test(code)) {
       toast.error(t("lobby.invalidRoomCode"));
       return;
     }
-    navigate(`/table/${code}`);
+    try {
+      const room = await trpcUtils.rooms.resolveInviteCode.fetch({ inviteCode: code });
+      if (!room) {
+        toast.error(t("lobby.roomNotFound"));
+        return;
+      }
+      if (room.status === "closed") {
+        toast.error(t("lobby.roomClosed"));
+        return;
+      }
+      navigate(`/table/${room.id}`);
+    } catch {
+      toast.error(t("lobby.roomNotFound"));
+    }
   };
 
   return (
@@ -227,8 +241,8 @@ export default function Lobby() {
         {activeTab === "tourneys" && (
           <div className="glass rounded-xl p-6 text-center">
             <Trophy className="w-10 h-10 text-gold mx-auto mb-3 opacity-60" />
-            <p className="text-sm text-muted-foreground">Coming Soon</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">Sit & Go / MTT tournaments</p>
+            <p className="text-sm text-muted-foreground">{t("lobby.tourneysSoon")}</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">{t("lobby.tourneysDesc")}</p>
           </div>
         )}
 
@@ -251,10 +265,10 @@ export default function Lobby() {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm font-semibold text-foreground">{room.name}</span>
                       {room.fairnessLevel === "high" && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-truth-blue/20 text-truth-blue-bright">ON-CHAIN</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-truth-blue/20 text-truth-blue-bright">{t("lobby.onChain")}</span>
                       )}
                       {isPlaying && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success">LIVE</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success">{t("lobby.live")}</span>
                       )}
                       {room.type === "private" && (
                         <Lock className="w-3 h-3 text-gold" />
@@ -274,7 +288,7 @@ export default function Lobby() {
                     <button className={`font-semibold px-3 py-1.5 rounded-lg text-xs transition-opacity ${
                       isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"
                     }`} disabled={isFull}>
-                      {isFull ? "Full" : t("lobby.sit")}
+                      {isFull ? t("lobby.full") : t("lobby.sit")}
                     </button>
                   </div>
                 </div>

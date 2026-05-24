@@ -20,6 +20,17 @@ export default function Agent() {
     }
   };
 
+  const shareToTG = () => {
+    if (dashboard?.inviteLink) {
+      // Use Telegram's share URL scheme to directly open TG share dialog
+      const text = encodeURIComponent(t("agent.shareText") || "Join Vera Poker!");
+      const url = encodeURIComponent(dashboard.inviteLink);
+      // Try Telegram deep link first (works in TG WebView and mobile)
+      const tgShareUrl = `https://t.me/share/url?url=${url}&text=${text}`;
+      window.open(tgShareUrl, "_blank");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -75,7 +86,7 @@ export default function Agent() {
             <button onClick={copyLink} className="bg-gold text-background p-2 rounded-lg hover:opacity-90 transition-opacity">
               <Copy className="w-4 h-4" />
             </button>
-            <button onClick={copyLink} className="bg-truth-blue text-white p-2 rounded-lg hover:opacity-90 transition-opacity">
+            <button onClick={shareToTG} className="bg-truth-blue text-white p-2 rounded-lg hover:opacity-90 transition-opacity">
               <Share2 className="w-4 h-4" />
             </button>
           </div>
@@ -89,11 +100,11 @@ export default function Agent() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">{t("agent.level1")}</span>
-              <span className="text-sm font-bold text-gold">30%</span>
+              <span className="text-sm font-bold text-gold">{dashboard?.level1Rate ?? 10}%</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">{t("agent.level2")}</span>
-              <span className="text-sm font-bold text-truth-blue">10%</span>
+              <span className="text-sm font-bold text-truth-blue">{dashboard?.level2Rate ?? 5}%</span>
             </div>
           </div>
         </div>
@@ -148,7 +159,7 @@ export default function Agent() {
                         {t("agent.levelDownline").replace("{level}", String(dl.level))}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
-                        {dl.isUnlocked ? t("agent.unlocked") : `${gamesPlayed}/20 hands`}
+                        {dl.isUnlocked ? t("agent.unlocked") : `${gamesPlayed}/20 ${t("agent.hands")}`}
                       </p>
                     </div>
                   </div>

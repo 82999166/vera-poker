@@ -116,7 +116,7 @@ export const appRouter = router({
       billingMode: z.enum(["standard_rake", "per_round_fee"]).default("standard_rake"),
       roundFee: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
-      const inviteCode = nanoid(8);
+      const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
       const roomId = await db.createRoom({
         ...input,
         ownerId: ctx.user.id,
@@ -210,7 +210,7 @@ export const appRouter = router({
       rakeCap: z.string().nullable().optional(),
       fairnessLevel: z.enum(["basic", "medium", "high"]).default("basic"),
     })).mutation(async ({ ctx, input }) => {
-      const inviteCode = nanoid(8);
+      const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
       const ownerId = ctx.adminUser?.adminId ?? ctx.user?.id ?? 0;
       const roomId = await db.createRoom({
         ...input,
@@ -431,25 +431,31 @@ export const appRouter = router({
   }),
 
   // ==================== AGENT ====================
-  agent: router({
+    agent: router({
     dashboard: protectedProcedure.query(async ({ ctx }) => {
       const user = await db.getUserById(ctx.user.id);
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
-      
       const downlines = await db.getAgentDownlines(ctx.user.id);
       const commissions = await db.getAgentCommissions(ctx.user.id, 1, 10);
-      
       const totalEarnings = downlines.reduce((sum, d) => sum + parseFloat(d.totalCommissionEarned ?? "0"), 0);
       const unlockedCount = downlines.filter(d => d.isUnlocked).length;
-
+      // Read commission rates from database
+      const level1RateConfig = await db.getConfig("agent_level1_rate");
+      const level2RateConfig = await db.getConfig("agent_level2_rate");
+      const level1Rate = level1RateConfig ? parseFloat(level1RateConfig.value) : 10;
+      const level2Rate = level2RateConfig ? parseFloat(level2RateConfig.value) : 5;
+      // Read TG bot username from database
+      const botUsername = await db.getConfigValue("tg_bot_username", "VeraPokerbot");
       return {
         inviteCode: user.inviteCode ?? "",
-        inviteLink: `https://t.me/VeraPokerBot?start=ref_${user.inviteCode ?? ""}`,
+        inviteLink: `https://t.me/${botUsername}?start=ref_${user.inviteCode ?? ""}`,
         totalDownlines: downlines.length,
         unlockedDownlines: unlockedCount,
         totalEarnings: totalEarnings.toFixed(2),
         availableBalance: user.balance,
         recentCommissions: commissions.records,
+        level1Rate,
+        level2Rate,
       };
     }),
     register: protectedProcedure.input(z.object({ inviteCode: z.string() })).mutation(async ({ ctx, input }) => {

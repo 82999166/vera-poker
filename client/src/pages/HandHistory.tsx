@@ -167,8 +167,8 @@ export default function HandHistory() {
                                 <p className="text-xs font-medium text-foreground">{player.name}</p>
                                 <p className="text-[10px] text-muted-foreground">
                                   {player.action === "fold" ? t("table.fold") : 
-                                   player.action === "all_in" ? "ALL IN" : 
-                                   player.isWinner ? "🏆 Winner" : "-"}
+                                   player.action === "all_in" ? t("table.allIn") : 
+                                   player.isWinner ? `🏆 ${t("table.winner")}` : "-"}
                                 </p>
                               </div>
                             </div>

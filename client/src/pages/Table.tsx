@@ -141,7 +141,20 @@ const SEAT_POSITIONS = [
   { top: "72%", left: "96%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
 
-// Phase display names - resolved inside component via t()
+// Hand rank translation helper - maps English server descriptions to i18n keys
+const HAND_RANK_MAP: Record<string, string> = {
+  "Royal Flush": "hand.royalFlush",
+  "Straight Flush": "hand.straightFlush",
+  "Four of a Kind": "hand.fourOfAKind",
+  "Full House": "hand.fullHouse",
+  "Flush": "hand.flush",
+  "Straight": "hand.straight",
+  "Three of a Kind": "hand.threeOfAKind",
+  "Two Pair": "hand.twoPair",
+  "One Pair": "hand.onePair",
+  "High Card": "hand.highCard",
+  "Last Standing": "hand.lastStanding",
+};
 
 export default function Table() {
   const { id } = useParams<{ id: string }>();
@@ -268,7 +281,7 @@ export default function Table() {
     onSuccess: (data) => {
       setIsSeated(true);
       setShowBuyIn(false);
-      toast.success(`Seat #${data.seatIndex + 1}`);
+      toast.success(t("table.seatJoined", { seat: data.seatIndex + 1 }));
       utils.game.tableState.invalidate({ roomId });
       utils.wallet.balance.invalidate();
     },
@@ -484,7 +497,7 @@ export default function Table() {
         </button>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-            {room ? room.name : isDemoMode ? "Demo" : `#${id}`}
+            {room ? room.name : isDemoMode ? t("table.demo") : `#${id}`}
           </span>
           {displayPhase !== "waiting" && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-truth-blue/20 text-truth-blue font-medium">
@@ -583,15 +596,15 @@ export default function Table() {
             <p className="text-base font-bold text-gold drop-shadow-[0_0_4px_rgba(234,179,8,0.4)]">{showWinner.name} {t("table.won")}</p>
             <p className="text-2xl font-black text-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)] mt-1">${showWinner.amount.toFixed(2)}</p>
             {showWinner.handDescription && showWinner.handDescription !== "Last Standing" && (
-              <p className="text-sm text-gold/80 mt-1 font-medium">{showWinner.handDescription}</p>
+              <p className="text-sm text-gold/80 mt-1 font-medium">{HAND_RANK_MAP[showWinner.handDescription] ? t(HAND_RANK_MAP[showWinner.handDescription]) : showWinner.handDescription}</p>
             )}
             {/* Side pots info */}
             {showSettlement?.sidePots?.length > 1 && (
               <div className="mt-3 border-t border-gold/20 pt-2">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Side Pots</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t("table.sidePots")}</p>
                 {showSettlement.sidePots.map((sp: any, i: number) => (
                   <p key={i} className="text-xs text-foreground/80">
-                    Pot {i + 1}: ${sp.amount.toFixed(2)} → {sp.winnerName}
+                    {t("table.potNumber", { n: i + 1 })}: ${sp.amount.toFixed(2)} → {sp.winnerName}
                   </p>
                 ))}
               </div>
@@ -602,7 +615,7 @@ export default function Table() {
                 {showSettlement.showdownPlayers.map((sp: any) => (
                   <div key={sp.playerId} className="flex items-center justify-between text-xs">
                     <span className="text-foreground/70">{sp.name}</span>
-                    <span className={`font-medium ${winnerPlayerIds.includes(sp.playerId) ? "text-gold" : "text-foreground/90"}`}>{sp.handDescription}</span>
+                    <span className={`font-medium ${winnerPlayerIds.includes(sp.playerId) ? "text-gold" : "text-foreground/90"}`}>{HAND_RANK_MAP[sp.handDescription] ? t(HAND_RANK_MAP[sp.handDescription]) : sp.handDescription}</span>
                   </div>
                 ))}
               </div>
@@ -724,7 +737,7 @@ export default function Table() {
                     <p className={`text-[11px] font-bold leading-tight ${
                       player.isAllIn ? "text-red-400" : player.isFolded ? "text-muted-foreground" : "text-foreground"
                     }`}>
-                      {player.isAllIn ? "ALL IN" : player.isFolded ? t("table.fold") : `$${player.chips.toFixed(1)}`}
+                      {player.isAllIn ? t("table.allIn") : player.isFolded ? t("table.fold") : `$${player.chips.toFixed(1)}`}
                     </p>
                   </div>
 
@@ -842,36 +855,7 @@ export default function Table() {
             </div>
           )}
 
-          {/* Waiting for ready - Start Next Hand button */}
-          {waitingForReady && !isDemoMode && (
-            <div className="text-center py-3">
-              {amIReady ? (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-sm text-green-400 font-semibold">{t("table.readyWaiting")}</span>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground">
-                    {readyPlayers.length}/{players.length} {t("table.playersReady")}
-                    {readyCountdown !== null && ` · ${readyCountdown}s`}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <button
-                    onClick={() => readyMutation.mutate({ roomId })}
-                    disabled={readyMutation.isPending}
-                    className="px-8 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-base shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all active:scale-[0.97] disabled:opacity-50 animate-pulse"
-                  >
-                    {readyMutation.isPending ? "..." : t("table.startNextHand")}
-                  </button>
-                  <span className="text-[10px] text-muted-foreground">
-                    {readyCountdown !== null && `${t("table.autoLeaveIn")} ${readyCountdown}s`}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
+
 
           {displayPhase === "waiting" && !waitingForReady && !isDemoMode && (
             <div className="text-center py-3">
@@ -879,7 +863,7 @@ export default function Table() {
                 <div className="w-2 h-2 rounded-full bg-truth-blue animate-pulse" />
                 <span className="text-sm text-muted-foreground">{t("table.waiting")}</span>
               </div>
-              <span className="text-[10px] text-muted-foreground/60">Min 2 players</span>
+              <span className="text-[10px] text-muted-foreground/60">{t("table.minPlayers")}</span>
             </div>
           )}
 

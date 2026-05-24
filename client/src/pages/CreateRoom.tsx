@@ -20,13 +20,13 @@ export default function CreateRoom() {
   const createMutation = trpc.rooms.create.useMutation({
     onSuccess: (data) => {
       setCreatedRoom(data);
-      toast.success("Room created successfully!");
+      toast.success(t("room.createdSuccess"));
     },
     onError: (err) => toast.error(err.message),
   });
 
   const handleCreate = () => {
-    if (!name.trim()) return toast.error("Please enter a room name");
+    if (!name.trim()) return toast.error(t("room.nameRequired"));
     createMutation.mutate({
       name: name.trim(),
       type: "private",
@@ -60,22 +60,22 @@ export default function CreateRoom() {
           <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">🎉</span>
           </div>
-          <h2 className="text-xl font-bold mb-2">Room Created!</h2>
-          <p className="text-sm text-muted-foreground mb-4">Share the invite link with your friends</p>
+          <h2 className="text-xl font-bold mb-2">{t("room.created")}</h2>
+          <p className="text-sm text-muted-foreground mb-4">{t("room.createdHint")}</p>
           
           <div className="glass rounded-lg p-3 mb-4">
-            <p className="text-xs text-muted-foreground mb-1">Invite Code</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("room.inviteCode")}</p>
             <p className="text-lg font-bold text-gold font-mono">{createdRoom.inviteCode}</p>
           </div>
 
           <div className="glass rounded-lg p-3 mb-4">
-            <p className="text-xs text-muted-foreground mb-1">Invite Link</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("room.inviteLink")}</p>
             <p className="text-[10px] text-foreground font-mono break-all">{inviteLink}</p>
           </div>
 
           <div className="flex gap-2">
             <button
-              onClick={() => { navigator.clipboard.writeText(inviteLink); toast.success("Copied!"); }}
+              onClick={() => { navigator.clipboard.writeText(inviteLink); toast.success(t("agent.copied")); }}
               className="flex-1 py-2.5 rounded-lg bg-gold text-background font-semibold text-sm flex items-center justify-center gap-1"
             >
               <Copy className="w-4 h-4" /> {t("agent.copy")}
@@ -84,7 +84,7 @@ export default function CreateRoom() {
               onClick={() => navigate(`/table/${createdRoom.roomId}`)}
               className="flex-1 py-2.5 rounded-lg bg-truth-blue text-white font-semibold text-sm"
             >
-              Enter Room
+              {t("room.enterRoom")}
             </button>
           </div>
         </div>
@@ -105,12 +105,12 @@ export default function CreateRoom() {
       <div className="flex-1 px-4 py-4 space-y-5">
         {/* Room Name */}
         <div>
-          <label className="text-xs text-muted-foreground mb-2 block">Room Name</label>
+          <label className="text-xs text-muted-foreground mb-2 block">{t("room.name")}</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="My Poker Room"
+            placeholder={t("room.name")}
             className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold"
           />
         </div>
@@ -169,7 +169,7 @@ export default function CreateRoom() {
                     : "glass text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {n} {n === 1 ? "round" : "rounds"}
+                {n} {n === 1 ? t("room.roundUnit") : t("room.roundsUnit")}
               </button>
             ))}
           </div>
@@ -188,7 +188,7 @@ export default function CreateRoom() {
               }`}
             >
               <p className="font-semibold">{t("room.standardRake")}</p>
-              <p className="text-[10px] opacity-70">5% per pot (cap $3)</p>
+              <p className="text-[10px] opacity-70">{t("room.billingRakeDesc")}</p>
             </button>
             <button
               onClick={() => setBillingMode("per_round_fee")}
@@ -199,7 +199,7 @@ export default function CreateRoom() {
               }`}
             >
               <p className="font-semibold">{t("room.perRound")}</p>
-              <p className="text-[10px] opacity-70">Fixed fee, 0% rake</p>
+              <p className="text-[10px] opacity-70">{t("room.billingFlatDesc")}</p>
             </button>
           </div>
         </div>
