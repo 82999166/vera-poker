@@ -18,10 +18,17 @@ const CHAINS: { key: ChainType; label: string; network: string }[] = [
   { key: "Polygon", label: "Polygon", network: "Polygon" },
 ];
 
+function getInitialTab(): TabType {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get("tab");
+  if (tab === "deposit" || tab === "withdraw" || tab === "history") return tab;
+  return "deposit";
+}
+
 export default function Wallet() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<TabType>("deposit");
+  const [activeTab, setActiveTab] = useState<TabType>(getInitialTab);
   const [chain, setChain] = useState<ChainType>("TRC20");
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");

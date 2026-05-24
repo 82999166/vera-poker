@@ -396,3 +396,9 @@
 - [x] 坐下后头像立即显示 - getPlayerView 在 waiting 状态下也返回已入座玩家信息（含头像）
 - [x] 安卓版本语音播报修复 - 添加用户手势预激活、resume() 调用、watchdog 监控、lang 属性设置
 - [x] waiting 状态下 2 人以上可点击"开始游戏"按钮（playerReady 支持无 activeTables 时直接开局）
+
+## Lobby UI Redesign (2026-05-24)
+- [x] 大厅顶部添加充值/提现两个大按钮（金色背景，与截图一致）
+- [x] 快速加入（一键开玩）移到 tab 筛选行旁边
+- [x] 整体布局按截图调整（header + 充值提现 + tabs + 筛选 + 房间列表）
+- [x] Wallet 页面支持 ?tab=deposit/withdraw URL 参数跳转

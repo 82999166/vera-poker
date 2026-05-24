@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
 import { useLocation } from "wouter";
 import { useState } from "react";
-import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, TrendingUp, TrendingDown, Hash, ArrowRight } from "lucide-react";
+import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, TrendingUp, TrendingDown, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 
@@ -109,24 +109,23 @@ export default function Lobby() {
         </div>
       </header>
 
-      {/* Quick Join Card */}
+      {/* Deposit / Withdraw Buttons */}
       <div className="px-4 pt-4">
-        <div className="glass rounded-xl p-4 glow-gold">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground">{t("wallet.balance")}</p>
-              <p className="text-2xl font-bold text-gold glow-text-gold">
-                ${walletData?.balance ?? "0.00"}
-              </p>
-            </div>
-            <button
-              onClick={handleQuickJoin}
-              className="bg-gold text-background font-bold px-5 py-3 rounded-xl text-sm hover:opacity-90 transition-all active:scale-[0.97] flex items-center gap-2 shadow-lg"
-            >
-              <Zap className="w-4 h-4" />
-              {t("lobby.quickJoin")}
-            </button>
-          </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => navigate("/wallet?tab=deposit")}
+            className="flex-1 bg-gold text-background font-bold py-3.5 rounded-xl text-base hover:opacity-90 transition-all active:scale-[0.97] flex items-center justify-center gap-2 shadow-lg"
+          >
+            <ArrowDownToLine className="w-5 h-5" />
+            {t("wallet.deposit")}
+          </button>
+          <button
+            onClick={() => navigate("/wallet?tab=withdraw")}
+            className="flex-1 bg-background border-2 border-gold text-gold font-bold py-3.5 rounded-xl text-base hover:bg-gold/10 transition-all active:scale-[0.97] flex items-center justify-center gap-2"
+          >
+            <ArrowUpFromLine className="w-5 h-5" />
+            {t("wallet.withdraw")}
+          </button>
         </div>
       </div>
 
@@ -152,14 +151,21 @@ export default function Lobby() {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="px-4 pt-3 flex gap-2">
+      {/* Quick Actions: Leaderboard + Quick Join */}
+      <div className="px-4 pt-3 flex items-center justify-between">
         <button
           onClick={() => navigate("/leaderboard")}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-gold hover:bg-gold/10 transition-colors"
         >
           <Trophy className="w-3.5 h-3.5" />
           {t("lobby.leaderboard")}
+        </button>
+        <button
+          onClick={handleQuickJoin}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-gold hover:bg-gold/10 transition-colors"
+        >
+          <Zap className="w-3.5 h-3.5" />
+          {t("lobby.quickJoin")}
         </button>
       </div>
 
@@ -209,11 +215,21 @@ export default function Lobby() {
         </div>
       )}
 
-      {/* My Recent Hands */}
-      {user && <RecentHandsPreview />}
+      {/* Online counter */}
+      <div className="px-4 pt-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+          <span className="text-xs text-muted-foreground">{t("lobby.online", { count: totalOnline })}</span>
+        </div>
+        {activeTab === "cash" && filteredRooms.length > 0 && (
+          <span className="text-xs text-muted-foreground">
+            {filteredRooms.length} {t("lobby.tables")}
+          </span>
+        )}
+      </div>
 
       {/* Room List */}
-      <div className="flex-1 px-4 pt-3 pb-24 space-y-3">
+      <div className="flex-1 px-4 pt-2 pb-24 space-y-3">
         {activeTab === "private" && (
           <button
             onClick={() => navigate("/create-room")}
@@ -223,19 +239,6 @@ export default function Lobby() {
             <span className="font-semibold">{t("lobby.createRoom")}</span>
           </button>
         )}
-
-        {/* Online counter */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-xs text-muted-foreground">{t("lobby.online", { count: totalOnline })}</span>
-          </div>
-          {activeTab === "cash" && filteredRooms.length > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {filteredRooms.length} {t("lobby.tables")}
-            </span>
-          )}
-        </div>
 
         {/* Tournament placeholder */}
         {activeTab === "tourneys" && (
@@ -299,45 +302,6 @@ export default function Lobby() {
       </div>
 
       <BottomNav active="lobby" />
-    </div>
-  );
-}
-
-// Recent hands preview component
-function RecentHandsPreview() {
-  const [, navigate] = useLocation();
-  const { data: recentHands } = trpc.game.myRecentHands.useQuery({ limit: 3 });
-
-  if (!recentHands || recentHands.length === 0) return null;
-
-  return (
-    <div className="px-4 pt-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("table.handHistory")}</span>
-        <button onClick={() => navigate("/history/all")} className="text-[10px] text-gold hover:text-gold/80 transition-colors">
-          {t("table.viewAll")} →
-        </button>
-      </div>
-      <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-        {recentHands.map(hand => (
-          <div key={hand.id} className="glass rounded-lg p-2.5 min-w-[120px] flex-shrink-0 cursor-pointer card-hover" onClick={() => navigate(`/history/${hand.roomId}`)}>
-            <div className="flex items-center gap-1 mb-1">
-              {hand.myResult?.isWinner ? (
-                <TrendingUp className="w-3 h-3 text-success" />
-              ) : (
-                <TrendingDown className="w-3 h-3 text-red-400" />
-              )}
-              <span className={`text-xs font-bold ${hand.myResult?.isWinner ? "text-success" : "text-red-400"}`}>
-                {hand.myResult?.isWinner ? `+$${hand.myResult.winAmount || "0"}` : "-"}
-              </span>
-            </div>
-            <p className="text-[10px] text-muted-foreground">#{hand.id}</p>
-            {hand.myResult?.holeCards && (
-              <p className="text-[10px] text-foreground/70 font-mono mt-0.5">{hand.myResult.holeCards}</p>
-            )}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
