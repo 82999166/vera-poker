@@ -460,3 +460,7 @@
 - [x] 0筹码时显示“续买”按钮而非仅显示“返回大厅”，玩家可直接在牌桌内补充筹码
 - [x] 大厅添加“返回牌桌”横幅：当玩家仍在某桌入座时，大厅顶部显示快捷返回按钮
 - [x] handleReadyTimeout 中同步清理 gs.players（移除被踢玩家）
+
+## Customer Service Transfer to TG & iPhone 7 Plus Fi- [x] 在线客服“转人工”按钮跳转到 TG 对话（使用 t.me/xxx 链接）
+- [x] 管理后台系统设置中添加“人工客服 TG 号”配置项
+- [x] 修复 iPhone 7 Plus 在 TG 中打开游戏顶部空白问题（viewport-fit + TG viewport CSS var + expand/fullscreen）��safe-area-inset-top）

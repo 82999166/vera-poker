@@ -187,6 +187,21 @@ export function useTelegramAuth() {
     if (webapp) {
       webapp.ready();
       webapp.expand();
+      // Disable vertical swipes to prevent accidental close
+      if (typeof (webapp as any).disableVerticalSwipes === 'function') {
+        (webapp as any).disableVerticalSwipes();
+      }
+      // Set header color to match app background
+      if (typeof (webapp as any).setHeaderColor === 'function') {
+        (webapp as any).setHeaderColor('#1a1a2e');
+      }
+      if (typeof (webapp as any).setBackgroundColor === 'function') {
+        (webapp as any).setBackgroundColor('#1a1a2e');
+      }
+      // Request fullscreen on newer TG versions (7.8+)
+      if (typeof (webapp as any).requestFullscreen === 'function') {
+        try { (webapp as any).requestFullscreen(); } catch(e) { /* ignore if not supported */ }
+      }
     }
 
     return authenticateWithInitData();

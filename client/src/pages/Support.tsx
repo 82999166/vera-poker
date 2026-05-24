@@ -3,7 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { t, getLocale } from "@/lib/i18n";
 import { useLocation } from "wouter";
-import { ArrowLeft, Send, Bot, User, Loader2 } from "lucide-react";
+import { ArrowLeft, Send, Bot, User, Loader2, UserRound } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 
 interface Message {
@@ -26,6 +26,8 @@ export default function Support() {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const { data: publicConfigs } = trpc.config.getPublic.useQuery();
+  const csTgUsername = (publicConfigs as Record<string, string>)?.cs_tg_username || "";
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const chatMutation = trpc.cs.chat.useMutation({
@@ -130,6 +132,18 @@ export default function Support() {
 
       {/* Input */}
       <div className="glass-strong border-t border-border px-4 py-3 z-10">
+        {/* Transfer to human CS button */}
+        {csTgUsername && (
+          <div className="mb-2">
+            <button
+              onClick={() => window.open(`https://t.me/${csTgUsername}`, "_blank")}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-truth-blue/10 border border-truth-blue/30 text-truth-blue text-xs font-medium hover:bg-truth-blue/20 transition-all active:scale-[0.98]"
+            >
+              <UserRound className="w-3.5 h-3.5" />
+              {t("cs.transferHuman")}
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <input
             type="text"

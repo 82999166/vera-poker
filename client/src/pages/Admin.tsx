@@ -177,6 +177,8 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "settings.tgBot": "Telegram Bot 配置",
     "settings.botUsername": "Bot 用户名",
     "settings.botToken": "Bot Token（隐藏）",
+    "settings.csTg": "人工客服 TG 号",
+    "settings.csTgDesc": "玩家在在线客服中点击\u201c转人工\u201d时，将跳转到此 Telegram 账号的对话",
     "settings.supportedLangs": "支持语言列表",
     "settings.saved": "设置已保存！",
     "stats.title": "数据看板",
@@ -525,6 +527,8 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "settings.tgBot": "Telegram Bot 配置",
     "settings.botUsername": "Bot 用戶名",
     "settings.botToken": "Bot Token（隱藏）",
+    "settings.csTg": "人工客服 TG 號",
+    "settings.csTgDesc": "玩家在在線客服中點擊\u201c轉人工\u201d時，將跳轉到此 Telegram 帳號的對話",
     "settings.supportedLangs": "支持語言列表",
     "settings.saved": "設置已保存！",
     "stats.title": "數據看板",
@@ -873,6 +877,8 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "settings.tgBot": "Telegram Bot Configuration",
     "settings.botUsername": "Bot Username",
     "settings.botToken": "Bot Token (hidden)",
+    "settings.csTg": "Human CS Telegram",
+    "settings.csTgDesc": "When players click 'Transfer to Human' in AI chat, they will be redirected to this Telegram account",
     "settings.supportedLangs": "Supported Languages",
     "settings.saved": "Setting saved!",
     "stats.title": "Analytics Dashboard",
@@ -2849,6 +2855,7 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
   const [tgBotUsername, setTgBotUsername] = useState("");
   const [tgClientId, setTgClientId] = useState("");
   const [tgClientSecret, setTgClientSecret] = useState("");
+  const [csTgUsername, setCsTgUsername] = useState("");
 
   useEffect(() => {
     if (configs) {
@@ -2859,12 +2866,13 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
       setTgBotUsername(configMap.get("tg_bot_username") ?? "");
       setTgClientId(configMap.get("tg_client_id") ?? "");
       setTgClientSecret(configMap.get("tg_client_secret") ?? "");
+      setCsTgUsername(configMap.get("cs_tg_username") ?? "");
     }
   }, [configs]);
 
   const saveSystemSetting = (key: string, value: string) => {
-    // tg_bot_username needs to be public for frontend Login Widget
-    const isPublic = key === "tg_bot_username";
+    // tg_bot_username and cs_tg_username need to be public for frontend
+    const isPublic = key === "tg_bot_username" || key === "cs_tg_username";
     upsertMutation.mutate({ key, value, category: "system", label: key, valueType: "string", isPublic });
   };
 
@@ -3026,6 +3034,27 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
             <CopyableUrl value={`https://api.telegram.org/bot[TOKEN]/setWebhook?url=${window.location.origin}/api/telegram/webhook`} small />
           </div>
         </div>
+      </div>
+
+      {/* Human Customer Service TG */}
+      <div className="glass rounded-xl p-4">
+        <h3 className="text-sm font-semibold mb-3">{at("settings.csTg")}</h3>
+        <p className="text-xs text-muted-foreground mb-3">{at("settings.csTgDesc")}</p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={csTgUsername}
+            onChange={(e) => setCsTgUsername(e.target.value)}
+            placeholder="VeraPokerCS"
+            className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+          />
+          <button onClick={() => saveSystemSetting("cs_tg_username", csTgUsername)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
+            <Save className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {csTgUsername && (
+          <p className="text-[10px] text-muted-foreground mt-2">t.me/{csTgUsername}</p>
+        )}
       </div>
 
       {/* Supported Languages */}
