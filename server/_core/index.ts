@@ -62,6 +62,19 @@ async function startServer() {
     }
   });
 
+  // Scheduled task: tournament reminders (3h, 1h, 10min before start)
+  app.post("/api/scheduled/tournamentReminders", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user.isCron) return res.status(403).json({ error: "cron-only" });
+      const { processTournamentReminders } = await import("../tournamentReminders");
+      const result = await processTournamentReminders();
+      res.json({ ok: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message, stack: err.stack, timestamp: new Date().toISOString() });
+    }
+  });
+
   // TTS proxy for Android WebView (which doesn't support Web Speech API)
   app.get("/api/tts", async (req, res) => {
     try {

@@ -265,16 +265,10 @@ export default function Lobby() {
           </button>
         )}
 
-        {/* Tournament placeholder */}
-        {activeTab === "tourneys" && (
-          <div className="glass rounded-xl p-6 text-center">
-            <Trophy className="w-10 h-10 text-gold mx-auto mb-3 opacity-60" />
-            <p className="text-sm text-muted-foreground">{t("lobby.tourneysSoon")}</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">{t("lobby.tourneysDesc")}</p>
-          </div>
-        )}
+        {/* Tournament List */}
+        {activeTab === "tourneys" && <TournamentList />}
 
-        {isLoading ? (
+        {activeTab !== "tourneys" && (isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
           </div>
@@ -323,7 +317,7 @@ export default function Lobby() {
               </div>
             );
           })
-        )}
+        ))}
       </div>
 
       <BottomNav active="lobby" />
@@ -406,6 +400,265 @@ function BannerCarousel() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ==================== Tournament List ====================
+function TournamentList() {
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
+  const { data: tournaments, isLoading } = trpc.tournaments.list.useQuery(undefined, { refetchInterval: 10000 });
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!tournaments || tournaments.length === 0) {
+    return (
+      <div className="glass rounded-xl p-6 text-center">
+        <Trophy className="w-10 h-10 text-gold mx-auto mb-3 opacity-60" />
+        <p className="text-sm text-muted-foreground">{t("tourney.noTournaments")}</p>
+      </div>
+    );
+  }
+
+  const statusOrder: Record<string, number> = { registration: 0, running: 1, finished: 2, cancelled: 3, draft: 4 };
+  const sorted = [...tournaments].sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9));
+
+  if (selectedId) {
+    return <TournamentDetail id={selectedId} onBack={() => setSelectedId(null)} />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {sorted.map(t_item => (
+        <div
+          key={t_item.id}
+          className="glass rounded-xl p-4 card-hover cursor-pointer"
+          onClick={() => setSelectedId(t_item.id)}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-semibold text-foreground">{t_item.name}</span>
+                <TournamentStatusBadge status={t_item.status} />
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span>{t("tourney.entryFee")}: {t_item.entryFee} USDT</span>
+                <span>{t_item.registeredCount || 0}/{t_item.maxPlayers} {t("tourney.players")}</span>
+              </div>
+              <div className="text-xs text-muted-foreground/70 mt-1">
+                <TournamentCountdown startTime={new Date(t_item.startTime)} status={t_item.status} />
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TournamentStatusBadge({ status }: { status: string }) {
+  const config: Record<string, { bg: string; text: string; label: string }> = {
+    registration: { bg: "bg-success/20", text: "text-success", label: t("tourney.statusRegistration") },
+    running: { bg: "bg-amber-500/20", text: "text-amber-400", label: t("tourney.statusRunning") },
+    finished: { bg: "bg-gray-500/20", text: "text-gray-400", label: t("tourney.statusFinished") },
+    cancelled: { bg: "bg-red-500/20", text: "text-red-400", label: t("tourney.statusCancelled") },
+    draft: { bg: "bg-blue-500/20", text: "text-blue-400", label: t("tourney.statusDraft") },
+  };
+  const c = config[status] || config.draft;
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${c.bg} ${c.text}`}>
+      {c.label}
+    </span>
+  );
+}
+
+function TournamentCountdown({ startTime, status }: { startTime: Date; status: string }) {
+  const [now, setNow] = useState(Date.now());
+  React.useEffect(() => {
+    if (status !== "registration") return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [status]);
+
+  if (status === "running") return <span className="text-amber-400">{t("tourney.inProgress")}</span>;
+  if (status === "finished") return <span>{t("tourney.ended")}</span>;
+  if (status === "cancelled") return <span className="text-red-400">{t("tourney.cancelled")}</span>;
+
+  const diff = startTime.getTime() - now;
+  if (diff <= 0) return <span className="text-amber-400">{t("tourney.starting")}</span>;
+
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+
+  if (hours > 24) {
+    return <span>{new Date(startTime).toLocaleString()}</span>;
+  }
+  return (
+    <span className="text-gold font-mono">
+      {t("tourney.startsIn")} {hours > 0 ? `${hours}h ` : ""}{minutes}m {seconds}s
+    </span>
+  );
+}
+
+// ==================== Tournament Detail ====================
+function TournamentDetail({ id, onBack }: { id: number; onBack: () => void }) {
+  const { user } = useAuth();
+  const { data, isLoading, refetch } = trpc.tournaments.detail.useQuery({ id });
+  const { data: myReg, refetch: refetchReg } = trpc.tournaments.myRegistration.useQuery(
+    { tournamentId: id },
+    { enabled: !!user }
+  );
+  const registerMutation = trpc.tournaments.register.useMutation({
+    onSuccess: () => { refetch(); refetchReg(); toast.success(t("tourney.registerSuccess")); },
+    onError: (err) => toast.error(err.message),
+  });
+  const cancelMutation = trpc.tournaments.cancelRegistration.useMutation({
+    onSuccess: () => { refetch(); refetchReg(); toast.success(t("tourney.cancelSuccess")); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  if (isLoading || !data) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const { tournament: tourney, registrations } = data;
+  const prizePool = parseFloat(tourney.entryFee) * (tourney.registeredCount || 0) * (1 - parseFloat(tourney.platformRake) / 100);
+  const isRegistered = myReg && myReg.status === "registered";
+  const canRegister = tourney.status === "registration" && !isRegistered;
+  const canCancel = tourney.status === "registration" && isRegistered;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="p-2 glass rounded-lg hover:bg-muted/50">
+          <ArrowRight className="w-4 h-4 rotate-180" />
+        </button>
+        <div className="flex-1">
+          <h2 className="text-lg font-bold text-foreground">{tourney.name}</h2>
+          <TournamentStatusBadge status={tourney.status} />
+        </div>
+      </div>
+
+      {/* Info Card */}
+      <div className="glass rounded-xl p-4 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <InfoItem label={t("tourney.entryFee")} value={`${tourney.entryFee} USDT`} />
+          <InfoItem label={t("tourney.startingChips")} value={`${tourney.startingChips.toLocaleString()}`} />
+          <InfoItem label={t("tourney.prizePool")} value={`${prizePool.toFixed(2)} USDT`} highlight />
+          <InfoItem label={t("tourney.players")} value={`${tourney.registeredCount || 0}/${tourney.maxPlayers}`} />
+          <InfoItem label={t("tourney.totalRounds")} value={`${tourney.totalRounds}`} />
+          <InfoItem label={t("tourney.blindLevel")} value={`${tourney.blindLevelDuration} min`} />
+          <InfoItem label={t("tourney.perTable")} value={`${tourney.playersPerTable}`} />
+          <InfoItem label={t("tourney.platformRake")} value={`${tourney.platformRake}%`} />
+        </div>
+
+        {/* Start time */}
+        <div className="pt-2 border-t border-border">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{t("tourney.startTime")}</span>
+            <span className="text-foreground font-medium">{new Date(tourney.startTime).toLocaleString()}</span>
+          </div>
+          <div className="mt-1">
+            <TournamentCountdown startTime={new Date(tourney.startTime)} status={tourney.status} />
+          </div>
+        </div>
+      </div>
+
+      {/* Prize Distribution */}
+      {tourney.prizeDistribution && (tourney.prizeDistribution as Array<{rank: number; percentage: number}>).length > 0 && (
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-2">{t("tourney.prizeDistribution")}</h3>
+          <div className="space-y-1">
+            {(tourney.prizeDistribution as Array<{rank: number; percentage: number}>).map((p) => (
+              <div key={p.rank} className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  {p.rank === 1 ? "🥇" : p.rank === 2 ? "🥈" : p.rank === 3 ? "🥉" : `#${p.rank}`} {t("tourney.rank")} {p.rank}
+                </span>
+                <span className="text-gold font-medium">{p.percentage}% ({(prizePool * p.percentage / 100).toFixed(2)} USDT)</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Registered Players */}
+      {registrations && registrations.length > 0 && (
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-2">
+            {t("tourney.registeredPlayers")} ({registrations.length})
+          </h3>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {registrations.slice(0, 20).map((r: any) => (
+              <div key={r.reg.id} className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{r.user?.name || r.user?.tgUsername || `User #${r.reg.userId}`}</span>
+                <span className="text-muted-foreground/60">{new Date(r.reg.registeredAt).toLocaleString()}</span>
+              </div>
+            ))}
+            {registrations.length > 20 && (
+              <p className="text-xs text-muted-foreground text-center">+{registrations.length - 20} more</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      {user && (
+        <div className="pt-2">
+          {canRegister && (
+            <button
+              onClick={() => registerMutation.mutate({ tournamentId: id })}
+              disabled={registerMutation.isPending}
+              className="w-full py-3 rounded-xl bg-gold text-background font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {registerMutation.isPending ? "..." : t("tourney.register")} ({tourney.entryFee} USDT)
+            </button>
+          )}
+          {canCancel && (
+            <button
+              onClick={() => cancelMutation.mutate({ tournamentId: id })}
+              disabled={cancelMutation.isPending}
+              className="w-full py-3 rounded-xl border border-red-500 text-red-400 font-bold text-sm hover:bg-red-500/10 transition-colors disabled:opacity-50"
+            >
+              {cancelMutation.isPending ? "..." : t("tourney.cancelRegistration")}
+            </button>
+          )}
+          {isRegistered && tourney.status !== "registration" && (
+            <div className="text-center text-sm text-success font-medium">
+              {t("tourney.youAreRegistered")}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!user && tourney.status === "registration" && (
+        <div className="text-center text-sm text-muted-foreground">
+          {t("tourney.loginToRegister")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoItem({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`text-sm font-semibold ${highlight ? "text-gold" : "text-foreground"}`}>{value}</p>
     </div>
   );
 }
