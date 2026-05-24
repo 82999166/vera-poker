@@ -3,9 +3,17 @@
  * Uses Web Audio API for low-latency sound playback
  * Uses Audio element + server-side TTS proxy for voice announcements (Android WebView compatible)
  * Voice announcements follow the system language setting
+ * 
+ * Voice Mode:
+ * - "off": No voice announcements at all
+ * - "winner_only": Only announce winner/settlement results
+ * - "all": Announce all actions (bet, call, raise, fold, check, all-in, winner)
  */
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef, useEffect, useState } from "react";
 import { getLocale } from "@/lib/i18n";
+
+// Voice announcement modes
+export type VoiceMode = "off" | "winner_only" | "all";
 
 // Sound effect types
 export type SoundEffect =
@@ -310,6 +318,15 @@ function unlockAudio(): void {
   }
 }
 
+/**
+ * Get the saved voice mode from localStorage
+ */
+function getSavedVoiceMode(): VoiceMode {
+  const saved = localStorage.getItem("vera-voice-mode");
+  if (saved === "off" || saved === "winner_only" || saved === "all") return saved;
+  return "all"; // Default: announce all actions
+}
+
 export function useSoundEffects() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const enabledRef = useRef<boolean>(
@@ -318,6 +335,8 @@ export function useSoundEffects() {
   const volumeRef = useRef<number>(
     parseFloat(localStorage.getItem("vera-sound-volume") || "0.7")
   );
+  const voiceModeRef = useRef<VoiceMode>(getSavedVoiceMode());
+  const [voiceMode, setVoiceModeState] = useState<VoiceMode>(voiceModeRef.current);
 
   // Initialize AudioContext
   const ensureContext = useCallback(() => {
@@ -373,6 +392,13 @@ export function useSoundEffects() {
     localStorage.setItem("vera-sound-volume", String(volumeRef.current));
   }, []);
 
+  // Set voice mode
+  const setVoiceMode = useCallback((mode: VoiceMode) => {
+    voiceModeRef.current = mode;
+    localStorage.setItem("vera-voice-mode", mode);
+    setVoiceModeState(mode);
+  }, []);
+
   // Cleanup
   useEffect(() => {
     return () => {
@@ -380,17 +406,18 @@ export function useSoundEffects() {
     };
   }, []);
 
-  // Voice announcement using server-side TTS proxy (works on Android WebView)
-  // Now follows system language setting
+  // Voice announcement for settlement/winner - only blocked by "off" mode
   const speak = useCallback((text: string) => {
     if (!enabledRef.current) return;
+    if (voiceModeRef.current === "off") return;
     const currentLang = getLocale();
     playTTS(text, currentLang, volumeRef.current);
   }, []);
 
-  // Announce a poker action with amount - text follows system language
+  // Announce a poker action with amount - blocked by "off" and "winner_only" modes
   const announceAction = useCallback((action: string, amount?: number, playerName?: string) => {
     if (!enabledRef.current) return;
+    if (voiceModeRef.current !== "all") return; // Only announce actions in "all" mode
     const currentLang = getLocale();
     const amountStr = amount ? `$${amount}` : "";
     const name = playerName || "";
@@ -406,7 +433,10 @@ export function useSoundEffects() {
     announceAction,
     toggle,
     setVolume,
+    setVoiceMode,
+    voiceMode,
     isEnabled: () => enabledRef.current,
     getVolume: () => volumeRef.current,
+    getVoiceMode: () => voiceModeRef.current,
   };
 }

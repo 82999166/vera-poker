@@ -292,6 +292,9 @@ const en: Record<string, string> = {
   "hand.onePair": "One Pair",
   "hand.highCard": "High Card",
   "hand.lastStanding": "Last Standing",
+  "voice.off": "Voice: Off",
+  "voice.winnerOnly": "Voice: Winner Only",
+  "voice.all": "Voice: All Actions",
   // Support extra
   "cs.online247": "Online 24/7",
   // Verify extra
@@ -575,6 +578,9 @@ const zhCN: Record<string, string> = {
   "hand.onePair": "一对",
   "hand.highCard": "高牌",
   "hand.lastStanding": "最后存活",
+  "voice.off": "语音：关闭",
+  "voice.winnerOnly": "语音：仅播报赢家",
+  "voice.all": "语音：播报所有动作",
   // Support extra
   "cs.online247": "全天候在线",
   // Verify extra
@@ -845,6 +851,9 @@ const zhTW: Record<string, string> = {
   "hand.onePair": "一對",
   "hand.highCard": "高牌",
   "hand.lastStanding": "最後存活",
+  "voice.off": "語音：關閉",
+  "voice.winnerOnly": "語音：僅播報贏家",
+  "voice.all": "語音：播報所有動作",
   // Support extra
   "cs.online247": "全天候在線",
   // Verify extra
@@ -1060,6 +1069,9 @@ const ja: Record<string, string> = {
   "hand.onePair": "ワンペア",
   "hand.highCard": "ハイカード",
   "hand.lastStanding": "最後の一人",
+  "voice.off": "音声：オフ",
+  "voice.winnerOnly": "音声：勝者のみ",
+  "voice.all": "音声：全アクション",
   "cs.online247": "24時間365日対応",
   "verify.intro": "すべてのハンドは暗号学的に検証可能です。",
   "verify.quickLookup": "クイック検索", "verify.manualVerify": "手動検証",
@@ -1274,6 +1286,9 @@ const ko: Record<string, string> = {
   "hand.onePair": "원페어",
   "hand.highCard": "하이카드",
   "hand.lastStanding": "마지막 생존자",
+  "voice.off": "음성: 끄기",
+  "voice.winnerOnly": "음성: 승자만",
+  "voice.all": "음성: 모든 액션",
   "cs.online247": "24시간 연중무휴",
   "verify.intro": "모든 핸드는 암호학적으로 검증 가능합니다.",
   "verify.quickLookup": "빠른 조회", "verify.manualVerify": "수동 검증",

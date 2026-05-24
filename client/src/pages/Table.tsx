@@ -161,7 +161,7 @@ export default function Table() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { t } = useI18n();
-  const { play: playSound, toggle: toggleSound, isEnabled: isSoundEnabled, announceAction, speak } = useSoundEffects();
+  const { play: playSound, toggle: toggleSound, isEnabled: isSoundEnabled, announceAction, speak, voiceMode, setVoiceMode } = useSoundEffects();
   const [muted, setMuted] = useState(() => localStorage.getItem("vera-sound-enabled") === "false");
   const [raiseAmount, setRaiseAmount] = useState(4.00);
   const [isSeated, setIsSeated] = useState(false);
@@ -533,6 +533,37 @@ export default function Table() {
           </button>
           <button onClick={() => { setMuted(!muted); toggleSound(); }} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-95">
             {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+          {/* Voice mode toggle: off → winner_only → all → off */}
+          <button
+            onClick={() => {
+              const modes: Array<"off" | "winner_only" | "all"> = ["off", "winner_only", "all"];
+              const currentIdx = modes.indexOf(voiceMode);
+              const nextMode = modes[(currentIdx + 1) % 3];
+              setVoiceMode(nextMode);
+              const labels: Record<string, string> = {
+                off: t("voice.off"),
+                winner_only: t("voice.winnerOnly"),
+                all: t("voice.all"),
+              };
+              toast(labels[nextMode], { duration: 1500 });
+            }}
+            className={`p-1.5 rounded-lg transition-all active:scale-95 ${
+              voiceMode === "off" ? "text-muted-foreground/50" :
+              voiceMode === "winner_only" ? "text-gold" :
+              "text-green-400"
+            } hover:bg-secondary`}
+            title={voiceMode === "off" ? t("voice.off") : voiceMode === "winner_only" ? t("voice.winnerOnly") : t("voice.all")}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              {voiceMode === "off" ? (
+                <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/><line x1="4" x2="20" y1="4" y2="20"/></>
+              ) : voiceMode === "winner_only" ? (
+                <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="1" fill="currentColor"/></>
+              ) : (
+                <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></>
+              )}
+            </svg>
           </button>
         </div>
       </div>

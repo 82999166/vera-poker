@@ -417,3 +417,8 @@
 - [x] TTS 语音播报跟随系统语言 - 后端 TTS 代理支持 lang 参数，前端传入 getLocale() 当前语言
 - [x] announceAction 文本跟随系统语言 - 12种语言的操作播报模板（中/英/日/韩/西/葡/俄/越/泰/印尼/阿拉伯）
 - [x] 结算语音播报跟随系统语言 - 赢家牌型播报文本多语言化
+
+## Voice Announcement Settings (2026-05-24 Round 9)
+- [x] 语音播报分级开关：全部关闭 / 只播报赢家 / 播报所有动作 (VoiceMode: off/winner_only/all)
+- [x] 在牌桌设置中添加语音播报选项 UI - 麦克风图标按钮，点击循环切换模式，不同颜色指示状态
+- [x] 持久化用户选择（localStorage vera-voice-mode）
