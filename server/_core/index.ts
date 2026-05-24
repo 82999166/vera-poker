@@ -50,8 +50,13 @@ async function startServer() {
     try {
       const user = await sdk.authenticateRequest(req);
       if (!user.isCron) return res.status(403).json({ error: "cron-only" });
-      const result = await processAutoConfirmDeposits();
-      res.json({ ok: true, ...result });
+      // Run both: hash-based verification AND address monitoring
+      const { processAddressMonitoring } = await import("../blockchainVerify");
+      const [hashResult, monitorResult] = await Promise.all([
+        processAutoConfirmDeposits(),
+        processAddressMonitoring(),
+      ]);
+      res.json({ ok: true, hashVerification: hashResult, addressMonitoring: monitorResult });
     } catch (err: any) {
       res.status(500).json({ error: err.message, stack: err.stack, timestamp: new Date().toISOString() });
     }

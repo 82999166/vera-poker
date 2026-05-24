@@ -326,23 +326,60 @@ async function checkAndAdvanceGame(roomId: number) {
       return;
     }
 
-    // If all remaining players are all-in, keep advancing phases until showdown
-    // This prevents the game from getting stuck when no one can act
+    // If all remaining players are all-in, schedule delayed phase advances
+    // so the frontend can show each community card stage with animation
     const activePlayers = gameEngine.getActivePlayers(table.gameState);
     const playersWhoCanAct = activePlayers.filter(p => !p.isAllIn);
-    while (playersWhoCanAct.length <= 1 && !gameEngine.isHandComplete(table.gameState)) {
-      if (gameEngine.isBettingRoundComplete(table.gameState)) {
-        table.gameState = gameEngine.advancePhase(table.gameState);
-        table.lastActionAt = Date.now();
-      } else {
-        break;
-      }
-    }
-    // Final check after all advances
-    if (gameEngine.isHandComplete(table.gameState)) {
-      await settleHand(roomId);
+    if (playersWhoCanAct.length <= 1 && !gameEngine.isHandComplete(table.gameState)) {
+      // Schedule sequential phase advances with delays for visual effect
+      scheduleAllInAdvance(roomId);
     }
   }
+}
+
+/**
+ * Schedule delayed phase advances for all-in scenarios
+ * Each phase advances after a delay so frontend can show card animations
+ */
+const allInTimers = new Map<number, NodeJS.Timeout>();
+
+function scheduleAllInAdvance(roomId: number) {
+  // Clear any existing timer for this room
+  const existing = allInTimers.get(roomId);
+  if (existing) clearTimeout(existing);
+
+  const DELAY_MS = 1800; // 1.8 seconds between each phase advance
+
+  const timer = setTimeout(async () => {
+    allInTimers.delete(roomId);
+    const table = activeTables.get(roomId);
+    if (!table) return;
+
+    if (gameEngine.isHandComplete(table.gameState)) {
+      await settleHand(roomId);
+      return;
+    }
+
+    if (gameEngine.isBettingRoundComplete(table.gameState)) {
+      table.gameState = gameEngine.advancePhase(table.gameState);
+      table.lastActionAt = Date.now();
+
+      if (gameEngine.isHandComplete(table.gameState)) {
+        await settleHand(roomId);
+        return;
+      }
+
+      // Check if still need to advance (all players still all-in)
+      const activePlayers = gameEngine.getActivePlayers(table.gameState);
+      const playersWhoCanAct = activePlayers.filter(p => !p.isAllIn);
+      if (playersWhoCanAct.length <= 1 && !gameEngine.isHandComplete(table.gameState)) {
+        // Schedule next advance
+        scheduleAllInAdvance(roomId);
+      }
+    }
+  }, DELAY_MS);
+
+  allInTimers.set(roomId, timer);
 }
 
 /**

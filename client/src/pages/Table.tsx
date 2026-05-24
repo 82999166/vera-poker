@@ -78,16 +78,50 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   );
 }
 
-// Chip stack visualization
+// Chip stack visualization with flying animation
 function ChipStack({ amount, size = "sm", animate = false }: { amount: number; size?: "sm" | "md"; animate?: boolean }) {
   if (amount <= 0) return null;
+  const prevAmountRef = useRef(amount);
+  const [showFlyChips, setShowFlyChips] = useState(false);
+  const chipCount = Math.min(5, Math.max(1, Math.ceil(amount / 10))); // 1-5 chips based on amount
+
+  useEffect(() => {
+    if (amount > prevAmountRef.current) {
+      setShowFlyChips(true);
+      const timer = setTimeout(() => setShowFlyChips(false), 700);
+      return () => clearTimeout(timer);
+    }
+    prevAmountRef.current = amount;
+  }, [amount]);
+
   return (
-    <div className={`flex items-center gap-1 bg-black/60 rounded-full px-2 py-0.5 border border-gold/30 ${animate ? "animate-in slide-in-from-bottom-2 duration-300" : ""}`}>
-      {/* Gold coin icon */}
-      <div className={`${size === "sm" ? "w-4 h-4" : "w-5 h-5"} rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border border-yellow-600/80 flex items-center justify-center shadow-[0_0_4px_rgba(234,179,8,0.5)]`}>
-        <span className={`${size === "sm" ? "text-[7px]" : "text-[8px]"} font-black text-yellow-900`}>$</span>
+    <div className="relative">
+      {/* Flying chip particles when bet increases */}
+      {showFlyChips && (
+        <div className="absolute inset-0 pointer-events-none">
+          {Array.from({ length: chipCount }).map((_, i) => (
+            <div
+              key={`fly-${i}-${amount}`}
+              className="absolute w-3 h-3 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border border-yellow-600/80 shadow-[0_0_6px_rgba(234,179,8,0.6)] animate-chip-scatter"
+              style={{
+                left: '50%',
+                top: '50%',
+                '--scatter-x': `${(Math.random() - 0.5) * 30}px`,
+                '--scatter-y': `${-30 - Math.random() * 30}px`,
+                '--scatter-r': `${Math.random() * 360}deg`,
+                animationDelay: `${i * 60}ms`,
+              } as React.CSSProperties}
+            />
+          ))}
+        </div>
+      )}
+      <div className={`flex items-center gap-1 bg-black/60 rounded-full px-2 py-0.5 border border-gold/30 ${showFlyChips ? "animate-chip" : ""}`}>
+        {/* Gold coin icon */}
+        <div className={`${size === "sm" ? "w-4 h-4" : "w-5 h-5"} rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border border-yellow-600/80 flex items-center justify-center shadow-[0_0_4px_rgba(234,179,8,0.5)]`}>
+          <span className={`${size === "sm" ? "text-[7px]" : "text-[8px]"} font-black text-yellow-900`}>$</span>
+        </div>
+        <span className={`${size === "sm" ? "text-[11px]" : "text-sm"} text-yellow-300 font-bold drop-shadow-[0_0_3px_rgba(234,179,8,0.4)]`}>{amount.toFixed(2)}</span>
       </div>
-      <span className={`${size === "sm" ? "text-[11px]" : "text-sm"} text-yellow-300 font-bold drop-shadow-[0_0_3px_rgba(234,179,8,0.4)]`}>{amount.toFixed(2)}</span>
     </div>
   );
 }

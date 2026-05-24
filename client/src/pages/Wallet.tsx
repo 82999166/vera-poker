@@ -57,8 +57,9 @@ export default function Wallet() {
   });
 
   const handleDeposit = () => {
-    if (!amount || !txHash) return toast.error(t("wallet.fillAll"));
-    depositMutation.mutate({ amount, chain, txHash });
+    if (!amount) return toast.error(t("wallet.fillAll"));
+    // txHash is now optional - if not provided, system will auto-detect
+    depositMutation.mutate({ amount, chain, ...(txHash ? { txHash } : {}) });
   };
 
   const handleWithdraw = () => {
@@ -198,9 +199,11 @@ export default function Wallet() {
               />
             </div>
 
-            {/* TX Hash */}
+            {/* TX Hash - Optional */}
             <div>
-              <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.txHash")}</label>
+              <label className="text-xs text-muted-foreground mb-2 block">
+                {t("wallet.txHash")} <span className="text-gold/60">({t("common.optional")})</span>
+              </label>
               <input
                 type="text"
                 value={txHash}
@@ -208,6 +211,10 @@ export default function Wallet() {
                 placeholder={t("wallet.txHashPlaceholder")}
                 className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold font-mono text-xs"
               />
+              <p className="text-[10px] text-gold/60 mt-1 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" />
+                {t("wallet.autoDetectTip")}
+              </p>
             </div>
 
             <button

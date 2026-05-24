@@ -73,9 +73,18 @@ const soundGenerators: Record<SoundEffect, (ctx: AudioContext) => void> = {
     createOscillatorSound(ctx, 2000, 0.05, "square", 0.05);
   },
   bet: (ctx) => {
-    createOscillatorSound(ctx, 800, 0.06, "triangle", 0.2);
-    setTimeout(() => createOscillatorSound(ctx, 1000, 0.04, "triangle", 0.15), 30);
-    setTimeout(() => createOscillatorSound(ctx, 900, 0.05, "triangle", 0.1), 60);
+    // Realistic chip stack sound: multiple ceramic clicks + metallic ring
+    createNoiseSound(ctx, 0.04, 0.2); // initial impact
+    createOscillatorSound(ctx, 2200, 0.03, "triangle", 0.08); // metallic ring
+    setTimeout(() => {
+      createNoiseSound(ctx, 0.03, 0.15);
+      createOscillatorSound(ctx, 1800, 0.025, "triangle", 0.06);
+    }, 40);
+    setTimeout(() => {
+      createNoiseSound(ctx, 0.025, 0.12);
+      createOscillatorSound(ctx, 2500, 0.02, "sine", 0.04);
+    }, 80);
+    setTimeout(() => createNoiseSound(ctx, 0.02, 0.08), 120); // settling
   },
   check: (ctx) => {
     createOscillatorSound(ctx, 600, 0.08, "sine", 0.15);
@@ -94,14 +103,27 @@ const soundGenerators: Record<SoundEffect, (ctx: AudioContext) => void> = {
     osc.stop(ctx.currentTime + 0.2);
   },
   call: (ctx) => {
-    createOscillatorSound(ctx, 700, 0.06, "triangle", 0.15);
-    setTimeout(() => createOscillatorSound(ctx, 850, 0.04, "triangle", 0.1), 40);
+    // Chip toss sound: single chip landing
+    createNoiseSound(ctx, 0.035, 0.18);
+    createOscillatorSound(ctx, 2000, 0.025, "triangle", 0.07);
+    setTimeout(() => createNoiseSound(ctx, 0.02, 0.1), 50);
   },
   allIn: (ctx) => {
-    createOscillatorSound(ctx, 400, 0.1, "sawtooth", 0.1);
-    setTimeout(() => createOscillatorSound(ctx, 600, 0.1, "sawtooth", 0.12), 80);
-    setTimeout(() => createOscillatorSound(ctx, 800, 0.15, "sawtooth", 0.15), 160);
-    setTimeout(() => createNoiseSound(ctx, 0.2, 0.1), 240);
+    // Dramatic all-in: heavy chip push + rising tone
+    createNoiseSound(ctx, 0.15, 0.25); // big chip slide
+    createOscillatorSound(ctx, 300, 0.08, "sawtooth", 0.08);
+    setTimeout(() => {
+      createNoiseSound(ctx, 0.1, 0.2);
+      createOscillatorSound(ctx, 500, 0.08, "sawtooth", 0.1);
+    }, 80);
+    setTimeout(() => {
+      createNoiseSound(ctx, 0.12, 0.18);
+      createOscillatorSound(ctx, 800, 0.12, "sawtooth", 0.12);
+    }, 160);
+    setTimeout(() => {
+      createNoiseSound(ctx, 0.2, 0.15);
+      createOscillatorSound(ctx, 1200, 0.15, "triangle", 0.1);
+    }, 260);
   },
   win: (ctx) => {
     const notes = [523, 659, 784, 1047];

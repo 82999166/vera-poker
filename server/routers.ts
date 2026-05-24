@@ -276,7 +276,7 @@ export const appRouter = router({
     deposit: protectedProcedure.input(z.object({
       amount: z.string(),
       chain: z.enum(["TRC20", "ERC20", "BEP20", "TON", "Polygon"]),
-      txHash: z.string(),
+      txHash: z.string().optional(), // Optional - if not provided, system will auto-detect via address monitoring
     })).mutation(async ({ ctx, input }) => {
       const user = await db.getUserById(ctx.user.id);
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
@@ -297,13 +297,14 @@ export const appRouter = router({
         balanceBefore: user.balance,
         balanceAfter: user.balance, // unchanged until confirmed
         chain: input.chain,
-        txHash: input.txHash,
+        txHash: input.txHash || null, // null means waiting for auto-detection
         status: "pending",
       });
       // Notify admin about new deposit request
       const { notifyAdmins: notifyAdminsDeposit } = await import("./notifications");
-      notifyAdminsDeposit("新充值申请", `用户#${ctx.user.id} (${user.name || "Unknown"}) 提交充值 $${input.amount}\n链: ${input.chain}\nTxHash: ${input.txHash}`).catch(() => {});
-      return { success: true, message: "Deposit submitted, awaiting confirmation" };
+      const hashInfo = input.txHash ? `TxHash: ${input.txHash}` : "等待链上自动检测";
+      notifyAdminsDeposit("新充值申请", `用户#${ctx.user.id} (${user.name || "Unknown"}) 提交充值 $${input.amount}\n链: ${input.chain}\n${hashInfo}`).catch(() => {});
+      return { success: true, message: input.txHash ? "Deposit submitted, awaiting confirmation" : "Deposit submitted, auto-detecting transfer..." };
     }),
     withdraw: protectedProcedure.input(z.object({
       amount: z.string(),

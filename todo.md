@@ -422,3 +422,10 @@
 - [x] 语音播报分级开关：全部关闭 / 只播报赢家 / 播报所有动作 (VoiceMode: off/winner_only/all)
 - [x] 在牌桌设置中添加语音播报选项 UI - 麦克风图标按钮，点击循环切换模式，不同颜色指示状态
 - [x] 持久化用户选择（localStorage vera-voice-mode）
+
+## Game Logic, Chip Animation & Auto Deposit (2026-05-24 Round 10)
+- [x] 检查游戏发牌逻辑符合国际标准 - all-in 时逐阶段延迟发牌（2s间隔）而非瞬间推进
+- [x] 修复 all-in 场景下一次性发完所有牌 - scheduleAllInAdvance 函数逐步推进
+- [x] 下注时添加筹码飞向底池的动画效果 - ChipStack 组件添加 chip-fly-to-pot CSS 动画
+- [x] 下注时增强音效 - bet/call/allIn 音效用 Web Audio API 合成金属碰撞声
+- [x] USDT充值自动确认到账 - processAddressMonitoring 扫描充值地址入账，txHash 改为可选

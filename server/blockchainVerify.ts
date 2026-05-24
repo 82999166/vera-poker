@@ -184,6 +184,180 @@ export async function verifyTransaction(txHash: string, chain: string): Promise<
 }
 
 /**
+ * Scan incoming transfers to the deposit address for a specific chain
+ * Used for auto-detection when user doesn't provide txHash
+ */
+async function scanIncomingTransfers(chain: string, depositAddress: string, sinceMinutes: number = 30): Promise<Array<{ txHash: string; amount: string; from: string; timestamp: number }>> {
+  const transfers: Array<{ txHash: string; amount: string; from: string; timestamp: number }> = [];
+  
+  try {
+    if (chain === "TRC20") {
+      const apiKey = await getConfigValue("trongrid_api_key", "");
+      const contractAddr = USDT_CONTRACTS.TRC20;
+      const url = `https://api.trongrid.io/v1/accounts/${depositAddress}/transactions/trc20?only_to=true&limit=50&contract_address=${contractAddr}`;
+      const headers: Record<string, string> = { "Accept": "application/json" };
+      if (apiKey) headers["TRON-PRO-API-KEY"] = apiKey;
+      const resp = await fetch(url, { headers });
+      if (resp.ok) {
+        const data = await resp.json();
+        const now = Date.now();
+        for (const tx of data.data || []) {
+          const txTime = tx.block_timestamp || 0;
+          if (now - txTime > sinceMinutes * 60 * 1000) continue;
+          const amount = (parseFloat(tx.value || "0") / 1e6).toFixed(2);
+          transfers.push({
+            txHash: tx.transaction_id,
+            amount,
+            from: tx.from,
+            timestamp: txTime,
+          });
+        }
+      }
+    } else if (chain === "ERC20" || chain === "BEP20" || chain === "Polygon") {
+      const explorerMap: Record<string, string> = {
+        ERC20: "https://api.etherscan.io/api",
+        BEP20: "https://api.bscscan.com/api",
+        Polygon: "https://api.polygonscan.com/api",
+      };
+      const apiKeyMap: Record<string, string> = {
+        ERC20: "etherscan_api_key",
+        BEP20: "bscscan_api_key",
+        Polygon: "polygonscan_api_key",
+      };
+      const apiKey = await getConfigValue(apiKeyMap[chain], "");
+      if (!apiKey) return transfers;
+      const contractAddr = USDT_CONTRACTS[chain];
+      const baseUrl = explorerMap[chain];
+      const url = `${baseUrl}?module=account&action=tokentx&contractaddress=${contractAddr}&address=${depositAddress}&page=1&offset=50&sort=desc&apikey=${apiKey}`;
+      const resp = await fetch(url);
+      if (resp.ok) {
+        const data = await resp.json();
+        const now = Date.now();
+        for (const tx of data.result || []) {
+          if (tx.to?.toLowerCase() !== depositAddress.toLowerCase()) continue;
+          const txTime = parseInt(tx.timeStamp || "0") * 1000;
+          if (now - txTime > sinceMinutes * 60 * 1000) continue;
+          const decimals = parseInt(tx.tokenDecimal || "6");
+          const amount = (parseFloat(tx.value || "0") / Math.pow(10, decimals)).toFixed(2);
+          transfers.push({
+            txHash: tx.hash,
+            amount,
+            from: tx.from,
+            timestamp: txTime,
+          });
+        }
+      }
+    } else if (chain === "TON") {
+      const url = `https://toncenter.com/api/v2/getTransactions?address=${depositAddress}&limit=50`;
+      const resp = await fetch(url);
+      if (resp.ok) {
+        const data = await resp.json();
+        const now = Date.now();
+        for (const tx of data.result || []) {
+          if (!tx.in_msg?.value) continue;
+          const txTime = (tx.utime || 0) * 1000;
+          if (now - txTime > sinceMinutes * 60 * 1000) continue;
+          const amount = (parseInt(tx.in_msg.value) / 1e9).toFixed(2);
+          transfers.push({
+            txHash: tx.transaction_id?.hash || "",
+            amount,
+            from: tx.in_msg.source || "",
+            timestamp: txTime,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    // Silently fail - will retry on next scan
+  }
+  
+  return transfers;
+}
+
+/**
+ * Process pending deposits without txHash by scanning the deposit address
+ * Matches incoming transfers by amount and time window
+ */
+export async function processAddressMonitoring(): Promise<{ matched: number; errors: string[] }> {
+  const autoDetectEnabled = await getConfigValue("auto_detect_enabled", "true");
+  if (autoDetectEnabled !== "true") {
+    return { matched: 0, errors: ["Address monitoring is disabled"] };
+  }
+  
+  const pendingDeposits = await getPendingDeposits();
+  // Filter deposits without txHash (waiting for auto-detection)
+  const noHashDeposits = pendingDeposits.filter(d => !d.txHash && d.chain);
+  if (noHashDeposits.length === 0) return { matched: 0, errors: [] };
+  
+  let matched = 0;
+  const errors: string[] = [];
+  
+  // Group by chain to minimize API calls
+  const byChain = new Map<string, typeof noHashDeposits>();
+  for (const d of noHashDeposits) {
+    const chain = d.chain!;
+    if (!byChain.has(chain)) byChain.set(chain, []);
+    byChain.get(chain)!.push(d);
+  }
+  
+  for (const [chain, deposits] of byChain) {
+    const depositAddress = await getConfigValue(`deposit_wallet_${chain.toLowerCase()}`, "");
+    if (!depositAddress) {
+      errors.push(`No deposit address configured for ${chain}`);
+      continue;
+    }
+    
+    // Scan last 60 minutes of transfers
+    const transfers = await scanIncomingTransfers(chain, depositAddress, 60);
+    
+    // Try to match each pending deposit with an incoming transfer
+    for (const deposit of deposits) {
+      const expectedAmount = parseFloat(deposit.amount);
+      const depositTime = new Date(deposit.createdAt).getTime();
+      
+      // Find matching transfer: amount within 5% tolerance, after deposit request time
+      const match = transfers.find(t => {
+        const amountMatch = Math.abs(parseFloat(t.amount) - expectedAmount) / expectedAmount <= 0.05;
+        const timeMatch = t.timestamp >= depositTime - 60000; // Allow 1 min before request (clock skew)
+        // Make sure this txHash isn't already used by another deposit
+        return amountMatch && timeMatch;
+      });
+      
+      if (match) {
+        // Update the deposit with the found txHash
+        const db = (await import("./db"));
+        const drizzleDb = await (db as any).getDb();
+        if (drizzleDb) {
+          const { transactions: txTable } = await import("../drizzle/schema");
+          const { eq } = await import("drizzle-orm");
+          await drizzleDb.update(txTable).set({ txHash: match.txHash }).where(eq(txTable.id, deposit.id));
+          
+          // Now confirm it
+          const tx = await confirmDepositById(deposit.id);
+          if (tx) {
+            matched++;
+            notifyDepositConfirmed(deposit.userId, deposit.amount, chain).catch(() => {});
+            notifyAdmins("自动检测充值确认", `用户#${deposit.userId} 充值 $${deposit.amount} (${chain}) 已自动检测并确认\nTxHash: ${match.txHash}\n来源地址: ${match.from}`).catch(() => {});
+            createAdminLog({
+              action: "auto_detect_deposit",
+              category: "finance",
+              targetType: "transaction",
+              targetId: String(deposit.id),
+              detail: { amount: deposit.amount, chain, txHash: match.txHash, from: match.from },
+            });
+          }
+          // Remove matched transfer to prevent double-matching
+          const idx = transfers.indexOf(match);
+          if (idx >= 0) transfers.splice(idx, 1);
+        }
+      }
+    }
+  }
+  
+  return { matched, errors };
+}
+
+/**
  * Process all pending deposits - called by scheduled task
  * Checks each pending deposit's txHash on the blockchain and auto-confirms if valid
  */
