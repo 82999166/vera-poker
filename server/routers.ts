@@ -1531,6 +1531,61 @@ Rules:
       return { items, total: totalResult?.count ?? 0 };
     }),
   }),
+  // Public Banners
+  banners: router({
+    list: publicProcedure.query(async () => {
+      return db.getActiveBanners();
+    }),
+  }),
+  // Admin Banners Management
+  adminBanners: router({
+    list: staffProcedure.query(async () => {
+      return db.getAllBanners();
+    }),
+    create: staffProcedure.input(z.object({
+      title: z.string().min(1),
+      imageUrl: z.string().min(1),
+      linkUrl: z.string().optional(),
+      linkType: z.enum(["url", "page", "none"]).default("none"),
+      sortOrder: z.number().default(0),
+      isActive: z.boolean().default(true),
+      startTime: z.string().nullable().optional(),
+      endTime: z.string().nullable().optional(),
+    })).mutation(async ({ input }) => {
+      const id = await db.createBanner({
+        ...input,
+        startTime: input.startTime ? new Date(input.startTime) : null,
+        endTime: input.endTime ? new Date(input.endTime) : null,
+      });
+      return { id };
+    }),
+    update: staffProcedure.input(z.object({
+      id: z.number(),
+      title: z.string().optional(),
+      imageUrl: z.string().optional(),
+      linkUrl: z.string().nullable().optional(),
+      linkType: z.enum(["url", "page", "none"]).optional(),
+      sortOrder: z.number().optional(),
+      isActive: z.boolean().optional(),
+      startTime: z.string().nullable().optional(),
+      endTime: z.string().nullable().optional(),
+    })).mutation(async ({ input }) => {
+      const { id, ...data } = input;
+      const updateData: any = { ...data };
+      if (data.startTime !== undefined) updateData.startTime = data.startTime ? new Date(data.startTime) : null;
+      if (data.endTime !== undefined) updateData.endTime = data.endTime ? new Date(data.endTime) : null;
+      await db.updateBanner(id, updateData);
+      return { success: true };
+    }),
+    delete: staffProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      await db.deleteBanner(input.id);
+      return { success: true };
+    }),
+    toggleActive: staffProcedure.input(z.object({ id: z.number(), isActive: z.boolean() })).mutation(async ({ input }) => {
+      await db.updateBanner(input.id, { isActive: input.isActive });
+      return { success: true };
+    }),
+  }),
   // Admin Logs
   adminLogs: router({
     list: staffProcedure.input(z.object({

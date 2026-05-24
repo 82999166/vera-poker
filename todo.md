@@ -490,3 +490,13 @@
 - [x] 管理后台添加"客服记录"菜单（在操作日志前面）
 - [x] 管理后台菜单按指定顺序排列（数据统计→用户管理→房间管理→员工管理→代理管理→财务管理→风控中心→FAQ知识库→系统配置→系统设置→客服记录→操作日志）
 - [x] 客服记录面板：对话列表（用户名、最后消息、消息数、时间）+ 点击查看详情
+
+## Homepage Activity Banner + Agent Promo Poster (2026-05-24 Round 21)
+- [x] DB: banners 表（id, title, imageUrl, linkUrl, sortOrder, isActive, startTime, endTime, createdAt）
+- [x] 后端：Banner CRUD procedures（admin 创建/编辑/删除/排序/上下架）
+- [x] 后端：公开接口获取当前有效 Banner 列表
+- [x] 前端：大厅顶部活动轮播 Banner（自动滚动、指示器、点击跳转）
+- [x] 管理后台：活动管理面板（Banner 列表、新增/编辑弹窗、拖拽排序、上下架开关）
+- [x] 后端：代理推广海报生成接口（Canvas 服务端渲染或前端 Canvas）
+- [x] 前端：代理页面"生成推广海报"按钮 + Canvas 绘制海报（品牌Logo+邀请码+二维码+文案）
+- [x] 前端：海报保存到相册 + TG 分享（带预览图和注册链接）

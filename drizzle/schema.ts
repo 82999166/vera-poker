@@ -336,3 +336,21 @@ export const csMessages = mysqlTable("cs_messages", {
 
 export type CsMessage = typeof csMessages.$inferSelect;
 export type InsertCsMessage = typeof csMessages.$inferInsert;
+
+// ==================== BANNERS (Activity/Promotion) ====================
+export const banners = mysqlTable("banners", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 128 }).notNull(),
+  imageUrl: text("imageUrl").notNull(), // Banner image URL
+  linkUrl: text("linkUrl"), // Click destination URL (optional)
+  linkType: mysqlEnum("linkType", ["url", "page", "none"]).default("none").notNull(), // url=external, page=internal route, none=no action
+  sortOrder: int("sortOrder").default(0).notNull(), // Lower = higher priority
+  isActive: boolean("isActive").default(true).notNull(),
+  startTime: timestamp("startTime"), // Scheduled start (null = immediate)
+  endTime: timestamp("endTime"), // Scheduled end (null = permanent)
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Banner = typeof banners.$inferSelect;
+export type InsertBanner = typeof banners.$inferInsert;

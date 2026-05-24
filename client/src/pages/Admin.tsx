@@ -34,6 +34,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.stats": "数据统计",
     "tab.staff": "员工管理",
     "tab.csRecords": "客服记录",
+    "tab.banners": "活动管理",
     "tab.logs": "操作日志",
     "logs.title": "操作日志",
     "logs.noLogs": "暂无日志记录",
@@ -385,6 +386,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.stats": "數據統計",
     "tab.staff": "員工管理",
     "tab.csRecords": "客服記錄",
+    "tab.banners": "活動管理",
     "tab.logs": "操作日誌",
     "logs.title": "操作日誌",
     "logs.noLogs": "暫無日誌記錄",
@@ -736,6 +738,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.stats": "Statistics",
     "tab.staff": "Staff",
     "tab.csRecords": "CS Records",
+    "tab.banners": "Banners",
     "tab.logs": "Logs",
     "logs.title": "Operation Logs",
     "logs.noLogs": "No logs yet",
@@ -1186,7 +1189,7 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // ==================== ADMIN TABS ====================
-type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs" | "csRecords";
+type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs" | "csRecords" | "banners";
 
 // ==================== MAIN ADMIN COMPONENT ====================
 export default function Admin() {
@@ -1234,11 +1237,11 @@ export default function Admin() {
 
   // Role-based tab permissions
   const roleTabMap: Record<string, AdminTab[]> = {
-    super_admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "csRecords", "logs"],
-    admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "csRecords", "logs"],
+    super_admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "csRecords", "logs"],
+    admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "csRecords", "logs"],
     cs: ["stats", "users", "rooms", "faq", "csRecords"],
     finance: ["stats", "finance", "agents"],
-    tech: ["stats", "config", "rooms", "risk", "settings"],
+    tech: ["stats", "config", "rooms", "risk", "settings", "banners"],
   };
   const allowedTabs = roleTabMap[effectiveRole] || ["stats"];
 
@@ -1253,6 +1256,7 @@ export default function Admin() {
     { key: "faq", icon: MessageSquare, label: at("tab.faq") },
     { key: "config", icon: Settings, label: at("tab.config") },
     { key: "settings", icon: Settings, label: at("tab.settings") },
+    { key: "banners", icon: Layers, label: at("tab.banners") || "活动管理" },
     { key: "csRecords", icon: MessageSquare, label: at("tab.csRecords") },
     { key: "logs", icon: Eye, label: at("tab.logs") },
   ];
@@ -1422,6 +1426,7 @@ function PanelContent({ tab, at, onNavigate }: { tab: AdminTab; at: (key: string
     case "staff": return <StaffPanel at={at} />;
     case "logs": return <LogsPanel at={at} />;
     case "csRecords": return <CsRecordsPanel at={at} />;
+    case "banners": return <BannersPanel at={at} />;
     default: return null;
   }
 }
@@ -3470,6 +3475,199 @@ function CopyableUrl({ value, small }: { value: string; small?: boolean }) {
   );
 }
 
+
+// ==================== BANNERS PANEL ====================
+function BannersPanel({ at }: { at: (k: string) => string }) {
+  const bannersQuery = trpc.adminBanners.list.useQuery();
+  const createMutation = trpc.adminBanners.create.useMutation({ onSuccess: () => bannersQuery.refetch() });
+  const updateMutation = trpc.adminBanners.update.useMutation({ onSuccess: () => bannersQuery.refetch() });
+  const deleteMutation = trpc.adminBanners.delete.useMutation({ onSuccess: () => bannersQuery.refetch() });
+  const toggleMutation = trpc.adminBanners.toggleActive.useMutation({ onSuccess: () => bannersQuery.refetch() });
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingBanner, setEditingBanner] = useState<any>(null);
+  const [formData, setFormData] = useState({ title: "", imageUrl: "", linkUrl: "", linkType: "none" as "url" | "page" | "none", sortOrder: 0 });
+
+  const handleCreate = () => {
+    setEditingBanner(null);
+    setFormData({ title: "", imageUrl: "", linkUrl: "", linkType: "none", sortOrder: 0 });
+    setShowForm(true);
+  };
+
+  const handleEdit = (banner: any) => {
+    setEditingBanner(banner);
+    setFormData({
+      title: banner.title,
+      imageUrl: banner.imageUrl,
+      linkUrl: banner.linkUrl || "",
+      linkType: banner.linkType || "none",
+      sortOrder: banner.sortOrder || 0,
+    });
+    setShowForm(true);
+  };
+
+  const handleSubmit = () => {
+    if (!formData.title || !formData.imageUrl) {
+      toast.error("标题和图片链接不能为空");
+      return;
+    }
+    if (editingBanner) {
+      updateMutation.mutate({ id: editingBanner.id, ...formData });
+    } else {
+      createMutation.mutate(formData);
+    }
+    setShowForm(false);
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm("确定删除该 Banner？")) {
+      deleteMutation.mutate({ id });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold">{at("tab.banners") || "活动管理"}</h3>
+        <button
+          onClick={handleCreate}
+          className="px-4 py-2 rounded-lg bg-gold text-background text-sm font-medium hover:opacity-90 transition-opacity"
+        >
+          + {at("banners.add") || "添加 Banner"}
+        </button>
+      </div>
+
+      {/* Form Dialog */}
+      {showForm && (
+        <div className="border border-border rounded-lg p-4 bg-card space-y-3">
+          <h4 className="font-semibold">{editingBanner ? (at("banners.edit") || "编辑 Banner") : (at("banners.add") || "添加 Banner")}</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground">{at("banners.title") || "标题"}</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData(p => ({ ...p, title: e.target.value }))}
+                placeholder="比赛广告 / 充值活动"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">{at("banners.imageUrl") || "图片链接"}</label>
+              <input
+                type="text"
+                value={formData.imageUrl}
+                onChange={(e) => setFormData(p => ({ ...p, imageUrl: e.target.value }))}
+                placeholder="https://..."
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">{at("banners.linkType") || "点击动作"}</label>
+              <select
+                value={formData.linkType}
+                onChange={(e) => setFormData(p => ({ ...p, linkType: e.target.value as any }))}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+              >
+                <option value="none">无动作</option>
+                <option value="url">外部链接</option>
+                <option value="page">内部页面</option>
+              </select>
+            </div>
+            {formData.linkType !== "none" && (
+              <div>
+                <label className="text-xs text-muted-foreground">{at("banners.linkUrl") || "链接地址"}</label>
+                <input
+                  type="text"
+                  value={formData.linkUrl}
+                  onChange={(e) => setFormData(p => ({ ...p, linkUrl: e.target.value }))}
+                  placeholder={formData.linkType === "url" ? "https://..." : "/wallet"}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+                />
+              </div>
+            )}
+            <div>
+              <label className="text-xs text-muted-foreground">{at("banners.sortOrder") || "排序（小的在前）"}</label>
+              <input
+                type="number"
+                value={formData.sortOrder}
+                onChange={(e) => setFormData(p => ({ ...p, sortOrder: parseInt(e.target.value) || 0 }))}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+              />
+            </div>
+          </div>
+          {formData.imageUrl && (
+            <div className="mt-2">
+              <p className="text-xs text-muted-foreground mb-1">预览:</p>
+              <img src={formData.imageUrl} alt="preview" className="h-20 rounded-lg object-cover" />
+            </div>
+          )}
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2 rounded-lg bg-truth-blue text-white text-sm font-medium hover:opacity-90"
+            >
+              {editingBanner ? ("保存") : ("创建")}
+            </button>
+            <button
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted/50"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Banner List */}
+      {bannersQuery.isLoading && <p className="text-muted-foreground">Loading...</p>}
+      {bannersQuery.data && bannersQuery.data.length === 0 && (
+        <p className="text-muted-foreground">{at("banners.empty") || "暂无 Banner，点击上方按钮添加"}</p>
+      )}
+      {bannersQuery.data && bannersQuery.data.length > 0 && (
+        <div className="space-y-3">
+          {bannersQuery.data.map((banner: any) => (
+            <div key={banner.id} className="border border-border rounded-lg p-3 flex items-center gap-3">
+              <img src={banner.imageUrl} alt={banner.title} className="w-24 h-16 rounded-lg object-cover flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-sm truncate">{banner.title}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${banner.isActive ? "bg-green-500/20 text-green-400" : "bg-muted text-muted-foreground"}`}>
+                    {banner.isActive ? "已上架" : "已下架"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  排序: {banner.sortOrder} | 类型: {banner.linkType === "url" ? "外链" : banner.linkType === "page" ? "内页" : "无"}
+                  {banner.linkUrl && ` | ${banner.linkUrl}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => toggleMutation.mutate({ id: banner.id, isActive: !banner.isActive })}
+                  className={`px-2 py-1 rounded text-xs ${banner.isActive ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}
+                >
+                  {banner.isActive ? "下架" : "上架"}
+                </button>
+                <button
+                  onClick={() => handleEdit(banner)}
+                  className="px-2 py-1 rounded text-xs bg-truth-blue/20 text-truth-blue"
+                >
+                  编辑
+                </button>
+                <button
+                  onClick={() => handleDelete(banner.id)}
+                  className="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400"
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ==================== CS RECORDS PANEL ====================
 function CsRecordsPanel({ at }: { at: (k: string) => string }) {

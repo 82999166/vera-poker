@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import React, { useState } from "react";
 import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, TrendingUp, TrendingDown, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
@@ -150,6 +150,9 @@ export default function Lobby() {
           </button>
         </div>
       </div>
+
+      {/* Activity Banners */}
+      <BannerCarousel />
 
       {/* Tabs */}
       <div className="px-4 pt-4">
@@ -324,6 +327,72 @@ export default function Lobby() {
       </div>
 
       <BottomNav active="lobby" />
+    </div>
+  );
+}
+
+// ==================== Banner Carousel ====================
+function BannerCarousel() {
+  const { data: bannerList } = trpc.banners.list.useQuery();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [, navigate] = useLocation();
+
+  // Auto-scroll
+  React.useEffect(() => {
+    if (!bannerList || bannerList.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % bannerList.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [bannerList]);
+
+  if (!bannerList || bannerList.length === 0) return null;
+
+  const handleClick = (banner: typeof bannerList[0]) => {
+    if (banner.linkType === "url" && banner.linkUrl) {
+      window.open(banner.linkUrl, "_blank");
+    } else if (banner.linkType === "page" && banner.linkUrl) {
+      navigate(banner.linkUrl);
+    }
+  };
+
+  return (
+    <div className="px-4 pt-3">
+      <div className="relative rounded-xl overflow-hidden" style={{ aspectRatio: "3/1" }}>
+        {/* Slides */}
+        <div
+          className="flex transition-transform duration-500 ease-out h-full"
+          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+        >
+          {bannerList.map((banner) => (
+            <div
+              key={banner.id}
+              className="w-full flex-shrink-0 h-full cursor-pointer"
+              onClick={() => handleClick(banner)}
+            >
+              <img
+                src={banner.imageUrl}
+                alt={banner.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
+        {/* Indicators */}
+        {bannerList.length > 1 && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {bannerList.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={(e) => { e.stopPropagation(); setCurrentIndex(idx); }}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  idx === currentIndex ? "bg-gold w-5" : "bg-white/50"
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

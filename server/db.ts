@@ -1,6 +1,6 @@
 import { eq, and, desc, asc, sql, gte, lte, like, or, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, systemConfigs, rooms, roomPlayers, gameHands, handPlayers, transactions, agentRelationships, commissionRecords, riskEvents, csConversations, faqEntries, notifications, csMessages } from "../drizzle/schema";
+import { InsertUser, users, systemConfigs, rooms, roomPlayers, gameHands, handPlayers, transactions, agentRelationships, commissionRecords, riskEvents, csConversations, faqEntries, notifications, csMessages, banners } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -891,4 +891,53 @@ export async function clearCsMessages(userId: number) {
   const db = await getDb();
   if (!db) return;
   await db.delete(csMessages).where(eq(csMessages.userId, userId));
+}
+
+// ==================== BANNERS ====================
+export async function getActiveBanners() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  const now = new Date();
+  const results = await dbInstance.select().from(banners)
+    .where(and(
+      eq(banners.isActive, true),
+      or(sql`${banners.startTime} IS NULL`, lte(banners.startTime, now)),
+      or(sql`${banners.endTime} IS NULL`, gte(banners.endTime, now))
+    ))
+    .orderBy(asc(banners.sortOrder), desc(banners.createdAt));
+  return results;
+}
+
+export async function getAllBanners() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  return dbInstance.select().from(banners).orderBy(asc(banners.sortOrder), desc(banners.createdAt));
+}
+
+export async function createBanner(data: { title: string; imageUrl: string; linkUrl?: string; linkType?: "url" | "page" | "none"; sortOrder?: number; isActive?: boolean; startTime?: Date | null; endTime?: Date | null }) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return null;
+  const [result] = await dbInstance.insert(banners).values({
+    title: data.title,
+    imageUrl: data.imageUrl,
+    linkUrl: data.linkUrl || null,
+    linkType: data.linkType || "none",
+    sortOrder: data.sortOrder ?? 0,
+    isActive: data.isActive ?? true,
+    startTime: data.startTime || null,
+    endTime: data.endTime || null,
+  });
+  return result.insertId;
+}
+
+export async function updateBanner(id: number, data: Partial<{ title: string; imageUrl: string; linkUrl: string | null; linkType: "url" | "page" | "none"; sortOrder: number; isActive: boolean; startTime: Date | null; endTime: Date | null }>) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return;
+  await dbInstance.update(banners).set(data).where(eq(banners.id, id));
+}
+
+export async function deleteBanner(id: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return;
+  await dbInstance.delete(banners).where(eq(banners.id, id));
 }
