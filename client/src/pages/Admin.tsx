@@ -3474,12 +3474,19 @@ function CopyableUrl({ value, small }: { value: string; small?: boolean }) {
 // ==================== CS RECORDS PANEL ====================
 function CsRecordsPanel({ at }: { at: (k: string) => string }) {
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const convosQuery = trpc.adminCs.conversations.useQuery({ page, limit: 20 });
+  const convosQuery = trpc.adminCs.conversations.useQuery({ page, limit: 20, search: search || undefined });
   const detailQuery = trpc.adminCs.conversations.useQuery(
     { page: 1, limit: 1, userId: selectedUserId! },
     { enabled: !!selectedUserId }
   );
+
+  const handleSearch = () => {
+    setSearch(searchInput);
+    setPage(1);
+  };
 
   if (selectedUserId && detailQuery.data) {
     const msgs = detailQuery.data.items;
@@ -3517,9 +3524,41 @@ function CsRecordsPanel({ at }: { at: (k: string) => string }) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-bold">{at("tab.csRecords")}</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold">{at("tab.csRecords")}</h3>
+      </div>
+      {/* Search bar */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          placeholder={at("csRecords.searchPlaceholder") || "搜索用户名 / TG用户名 / 用户ID"}
+          className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-truth-blue"
+        />
+        <button
+          onClick={handleSearch}
+          className="px-4 py-2 rounded-lg bg-truth-blue text-white text-sm font-medium hover:opacity-90 transition-opacity"
+        >
+          {at("csRecords.search") || "搜索"}
+        </button>
+        {search && (
+          <button
+            onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}
+            className="px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
+          >
+            {at("csRecords.clear") || "清除"}
+          </button>
+        )}
+      </div>
+      {search && (
+        <p className="text-xs text-muted-foreground">
+          {at("csRecords.searchResult") || "搜索结果"}: "{search}" ({convosQuery.data?.total ?? 0} {at("csRecords.users") || "个用户"})
+        </p>
+      )}
       {convosQuery.isLoading && <p className="text-muted-foreground">Loading...</p>}
-      {convosQuery.data && convosQuery.data.items.length === 0 && (
+      {convosQuery.data && convosQuery.data.items.length === 0 && !convosQuery.isLoading && (
         <p className="text-muted-foreground">{at("csRecords.empty") || "暂无客服对话记录"}</p>
       )}
       {convosQuery.data && convosQuery.data.items.length > 0 && (

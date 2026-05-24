@@ -1448,13 +1448,13 @@ Rules:
       page: z.number().default(1),
       limit: z.number().default(20),
       userId: z.number().optional(),
+      search: z.string().optional(),
     })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { items: [], total: 0 };
       const { csMessages, users } = await import("../drizzle/schema");
-      const { sql, eq, desc } = await import("drizzle-orm");
+      const { sql, eq, desc, like, or, inArray } = await import("drizzle-orm");
 
-      // Get unique users who have CS messages
       const offset = (input.page - 1) * input.limit;
 
       if (input.userId) {
@@ -1470,21 +1470,45 @@ Rules:
         return { items: msgs, total: countResult?.count ?? 0 };
       }
 
+      // If search query provided, find matching user IDs first
+      let filteredUserIds: number[] | null = null;
+      if (input.search && input.search.trim()) {
+        const searchTerm = `%${input.search.trim()}%`;
+        const matchedUsers = await dbInstance.select({ id: users.id })
+          .from(users)
+          .where(or(
+            like(users.name, searchTerm),
+            like(users.tgUsername, searchTerm),
+            sql`CAST(${users.id} AS CHAR) = ${input.search.trim()}`
+          ))
+          .limit(100);
+        filteredUserIds = matchedUsers.map(u => u.id);
+        if (filteredUserIds.length === 0) return { items: [], total: 0 };
+      }
+
+      // Build where clause
+      const whereClause = filteredUserIds
+        ? sql`${csMessages.userId} IN (${sql.raw(filteredUserIds.join(","))})`
+        : undefined;
+
       // Get conversation list grouped by user
-      const convos = await dbInstance.select({
+      const convosQuery = dbInstance.select({
         userId: csMessages.userId,
         lastMessage: sql<string>`(SELECT content FROM cs_messages m2 WHERE m2.userId = cs_messages.userId ORDER BY m2.createdAt DESC LIMIT 1)`,
         lastTime: sql<Date>`MAX(cs_messages.createdAt)`,
         messageCount: sql<number>`count(*)`,
       })
-        .from(csMessages)
-        .groupBy(csMessages.userId)
-        .orderBy(sql`MAX(cs_messages.createdAt) DESC`)
-        .limit(input.limit)
-        .offset(offset);
+        .from(csMessages);
+
+      const convos = whereClause
+        ? await convosQuery.where(whereClause).groupBy(csMessages.userId).orderBy(sql`MAX(cs_messages.createdAt) DESC`).limit(input.limit).offset(offset)
+        : await convosQuery.groupBy(csMessages.userId).orderBy(sql`MAX(cs_messages.createdAt) DESC`).limit(input.limit).offset(offset);
 
       // Get total unique users
-      const [totalResult] = await dbInstance.select({ count: sql<number>`count(DISTINCT userId)` }).from(csMessages);
+      const totalQuery = whereClause
+        ? await dbInstance.select({ count: sql<number>`count(DISTINCT userId)` }).from(csMessages).where(whereClause)
+        : await dbInstance.select({ count: sql<number>`count(DISTINCT userId)` }).from(csMessages);
+      const totalResult = totalQuery[0];
 
       // Get user names
       const userIds = convos.map(c => c.userId);
