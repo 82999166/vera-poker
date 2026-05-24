@@ -953,3 +953,86 @@ async function distributeAgentCommissions(totalRake: number, playerIds: number[]
     notifyCommissionEarned(rel.agentId, commissionAmount.toFixed(2)).catch(() => {});
   }
 }
+
+// === Rebuy Functions ===
+
+/** Get player's current chips at the table (returns -1 if not seated) */
+export async function getPlayerChips(roomId: number, userId: number): Promise<number> {
+  const table = activeTables.get(roomId);
+  if (table) {
+    const player = table.gameState.players.find(p => p.id === userId);
+    if (player) return player.chips;
+  }
+  // Check room_players table
+  const roomPlayersList = await db.getRoomPlayers(roomId);
+  const rp = roomPlayersList.find((p: any) => p.userId === userId && p.status === "active");
+  if (rp) return parseFloat(rp.chipCount);
+  return -1; // Not seated
+}
+
+/** Check if player can rebuy (only between hands, not during active play) */
+export async function canPlayerRebuy(roomId: number, userId: number): Promise<boolean> {
+  const table = activeTables.get(roomId);
+  if (!table) return true; // No active game = waiting state, can rebuy
+
+  // If game is in waitingForReady state, allow rebuy
+  if (table.waitingForReady) return true;
+
+  // If there's an active game in progress, cannot rebuy
+  const gs = table.gameState;
+  const player = gs.players.find(p => p.id === userId);
+  if (!player) return true; // Player not in current hand (maybe just joined)
+
+  // Cannot rebuy during active hand
+  return false;
+}
+
+/** Add chips to a player at the table */
+export async function addPlayerChips(roomId: number, userId: number, amount: number): Promise<void> {
+  // Update room_players table
+  const roomPlayersList = await db.getRoomPlayers(roomId);
+  const rp = roomPlayersList.find((p: any) => p.userId === userId && p.status === "active");
+  if (rp) {
+    const newChips = (parseFloat(rp.chipCount) + amount).toFixed(2);
+    await db.updateRoomPlayerChips(roomId, userId, newChips);
+  }
+
+  // Update in-memory game state if active
+  const table = activeTables.get(roomId);
+  if (table) {
+    const player = table.gameState.players.find(p => p.id === userId);
+    if (player) {
+      player.chips += amount;
+    }
+  }
+}
+
+/** Auto-rebuy: check if player needs auto-rebuy and execute it */
+export async function processAutoRebuy(roomId: number, userId: number, threshold: number, targetAmount: number): Promise<{ success: boolean; added?: number }> {
+  const currentChips = await getPlayerChips(roomId, userId);
+  if (currentChips < 0 || currentChips >= threshold) return { success: false };
+
+  const canDo = await canPlayerRebuy(roomId, userId);
+  if (!canDo) return { success: false };
+
+  const user = await db.getUserById(userId);
+  if (!user) return { success: false };
+
+  const balance = parseFloat(user.balance);
+  const needed = targetAmount - currentChips;
+  if (needed <= 0 || balance < needed) return { success: false };
+
+  // Check max buy-in limit
+  const room = await db.getRoomById(roomId);
+  if (room) {
+    const maxBuyIn = parseFloat(room.maxBuyIn);
+    if (currentChips + needed > maxBuyIn) return { success: false };
+  }
+
+  // Execute rebuy
+  const newBalance = (balance - needed).toFixed(2);
+  await db.updateUserBalance(userId, newBalance);
+  await addPlayerChips(roomId, userId, needed);
+
+  return { success: true, added: needed };
+}

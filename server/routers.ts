@@ -589,6 +589,43 @@ export const appRouter = router({
       }
       return { success: true };
     }),
+    // Rebuy - add chips at the table without leaving
+    rebuy: protectedProcedure.input(z.object({
+      roomId: z.number(),
+      amount: z.number().min(1),
+    })).mutation(async ({ ctx, input }) => {
+      const room = await db.getRoomById(input.roomId);
+      if (!room) throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
+      
+      // Check user balance
+      const user = await db.getUserById(ctx.user.id);
+      if (!user || parseFloat(user.balance) < input.amount) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
+      }
+      
+      // Check rebuy limits
+      const maxBuyIn = parseFloat(room.maxBuyIn);
+      const currentChips = await tableManager.getPlayerChips(input.roomId, ctx.user.id);
+      if (currentChips < 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Not seated at this table" });
+      }
+      if (currentChips + input.amount > maxBuyIn) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Total chips cannot exceed max buy-in ($${maxBuyIn})` });
+      }
+      
+      // Only allow rebuy when not in active hand (waiting or waitingForReady)
+      const canRebuy = await tableManager.canPlayerRebuy(input.roomId, ctx.user.id);
+      if (!canRebuy) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Can only rebuy between hands" });
+      }
+      
+      // Deduct from balance and add to chips
+      const newBalance = (parseFloat(user.balance) - input.amount).toFixed(2);
+      await db.updateUserBalance(ctx.user.id, newBalance);
+      await tableManager.addPlayerChips(input.roomId, ctx.user.id, input.amount);
+      
+      return { success: true, newBalance, newChips: currentChips + input.amount };
+    }),
     // Player action (fold/check/call/raise/all_in)
     action: protectedProcedure.input(z.object({
       roomId: z.number(),

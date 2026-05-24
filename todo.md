@@ -441,3 +441,11 @@
 ## UX & Zero Chips Fix (2026-05-24 Round 13)
 - [x] 玩家离开牌桌后自动跳转回大厅 - leaveMutation onSuccess 中 navigate("/lobby")
 - [x] 玩家筹码为0时不能继续开始游戏 - startNewHand 中踢出0筹码玩家 + 前端显示"筹码不足"提示和返回大厅按钮
+
+## Rebuy Feature (2026-05-24 Round 14)
+- [x] 后端续买 API - 允许玩家在牌桌内补充筹码（从余额扣除，增加到桌上筹码）
+- [x] 续买限制 - 只能在非游戏中（waiting/waitingForReady）时续买，金额在 minBuyIn~maxBuyIn 范围内
+- [x] 低筹码警告 - 当筹码低于大盲注的5倍时弹出提示
+- [x] 自动续买选项 - 玩家可预设“筹码低于X时自动从余额补充到Y”
+- [x] 前端续买弹窗 UI
+- [x] 前端自动续买设置 UI（localStorage 持久化）

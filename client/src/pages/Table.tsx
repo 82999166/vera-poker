@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useI18n, getLocale } from "@/lib/i18n";
-import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users } from "lucide-react";
+import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users, Plus, AlertTriangle, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 
@@ -392,6 +392,48 @@ export default function Table() {
     onError: (err) => toast.error(err.message),
   });
 
+  // === Rebuy ===
+  const [showRebuyDialog, setShowRebuyDialog] = useState(false);
+  const [rebuyAmount, setRebuyAmount] = useState("");
+  const [showAutoRebuySettings, setShowAutoRebuySettings] = useState(false);
+
+  // Wallet balance for rebuy
+  const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user && showRebuyDialog });
+
+  // Auto-rebuy settings from localStorage
+  const getAutoRebuySettings = () => {
+    try {
+      const saved = localStorage.getItem(`vera-auto-rebuy-${roomId}`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { enabled: false, threshold: 0, targetAmount: 0 };
+  };
+  const [autoRebuySettings, setAutoRebuySettings] = useState(getAutoRebuySettings);
+
+  const saveAutoRebuySettings = (settings: { enabled: boolean; threshold: number; targetAmount: number }) => {
+    setAutoRebuySettings(settings);
+    localStorage.setItem(`vera-auto-rebuy-${roomId}`, JSON.stringify(settings));
+  };
+
+  const rebuyMutation = trpc.game.rebuy.useMutation({
+    onSuccess: (data) => {
+      setShowRebuyDialog(false);
+      setRebuyAmount("");
+      toast.success(t("rebuy.success"));
+      utils.game.tableState.invalidate({ roomId });
+      utils.wallet.balance.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const autoRebuyTriggeredRef = useRef<number>(0);
+
+  const handleRebuy = () => {
+    const amount = parseFloat(rebuyAmount);
+    if (!amount || amount <= 0) return toast.error(t("rebuy.invalidAmount"));
+    rebuyMutation.mutate({ roomId, amount });
+  };
+
   // Derived state from table state
   const phase = tableState?.phase ?? "waiting";
   const pot = tableState?.pot ?? 0;
@@ -537,6 +579,25 @@ export default function Table() {
   // Find my player's current bet to determine if can check
   const myPlayer = displayPlayers.find(p => p.id === user?.id);
   const canCheck = myPlayer ? myPlayer.currentBet >= currentBet : false;
+  const bigBlindValue = room ? parseFloat(room.bigBlind) : 2;
+  const canRebuy = isSeated && (waitingForReady || phase === "waiting") && !isDemoMode;
+  const isLowChips = myPlayer && myPlayer.chips > 0 && myPlayer.chips < bigBlindValue * 5;
+
+  // Auto-rebuy trigger: when waitingForReady becomes true and auto-rebuy is enabled
+  useEffect(() => {
+    if (waitingForReady && autoRebuySettings.enabled && myPlayer && room) {
+      const handNum = tableState?.handNumber ?? 0;
+      if (handNum > autoRebuyTriggeredRef.current && myPlayer.chips < autoRebuySettings.threshold) {
+        autoRebuyTriggeredRef.current = handNum;
+        const maxBuyIn = parseFloat(room.maxBuyIn);
+        const target = Math.min(autoRebuySettings.targetAmount, maxBuyIn);
+        const needed = Math.max(0, target - myPlayer.chips);
+        if (needed > 0) {
+          rebuyMutation.mutate({ roomId, amount: needed });
+        }
+      }
+    }
+  }, [waitingForReady, autoRebuySettings, myPlayer?.chips, tableState?.handNumber]);
 
   return (
     <div className="h-screen bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col overflow-hidden">
@@ -759,6 +820,16 @@ export default function Table() {
                 )}
                 {readyCountdown !== null && (
                   <span className="mt-1 text-[10px] text-white/60">{readyCountdown}s</span>
+                )}
+                {/* Rebuy button between hands */}
+                {canRebuy && myPlayer && myPlayer.chips > 0 && (
+                  <button
+                    onClick={() => setShowRebuyDialog(true)}
+                    className="mt-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/80 to-yellow-600/80 text-white text-[11px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-[0.97] flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    {t("rebuy.addChips")}
+                  </button>
                 )}
               </div>
             )}
@@ -1037,6 +1108,139 @@ export default function Table() {
               </button>
             </>
           )}
+        </div>
+      )}
+
+      {/* Low Chips Warning Badge - shown near bottom when chips are low */}
+      {isLowChips && canRebuy && !showRebuyDialog && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 animate-bounce">
+          <button
+            onClick={() => setShowRebuyDialog(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/90 text-white text-[11px] font-semibold shadow-lg shadow-orange-500/30 active:scale-[0.97] transition-all"
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            {t("rebuy.lowChips")}
+          </button>
+        </div>
+      )}
+
+      {/* Rebuy Dialog Overlay */}
+      {showRebuyDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowRebuyDialog(false)}>
+          <div className="bg-[#1a2744] rounded-2xl p-5 w-[300px] max-w-[90vw] border border-border/30 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-foreground text-center mb-3">{t("rebuy.title")}</h3>
+            
+            {/* Current chips & balance info */}
+            <div className="flex justify-between text-[11px] text-muted-foreground mb-3">
+              <span>{t("rebuy.currentChips")}: <span className="text-yellow-300 font-semibold">${myPlayer?.chips.toFixed(2) ?? "0"}</span></span>
+              <span>{t("wallet.balance")}: <span className="text-green-400 font-semibold">${walletData?.balance ?? "0.00"}</span></span>
+            </div>
+
+            {/* Amount input */}
+            <input
+              type="number"
+              value={rebuyAmount}
+              onChange={e => setRebuyAmount(e.target.value)}
+              placeholder={`${t("rebuy.amount")} (1 - ${room ? (parseFloat(room.maxBuyIn) - (myPlayer?.chips ?? 0)).toFixed(0) : "---"})`}
+              className="w-full px-3 py-2.5 rounded-xl bg-secondary text-foreground text-sm text-center border border-border/50 focus:border-gold/50 focus:outline-none transition-colors mb-2"
+            />
+
+            {/* Quick amount buttons */}
+            <div className="flex gap-1.5 mb-3">
+              {[50, 100, 200].map(amt => (
+                <button
+                  key={amt}
+                  onClick={() => setRebuyAmount(String(amt))}
+                  className="flex-1 py-1.5 rounded-lg bg-secondary text-[11px] text-muted-foreground font-medium hover:bg-secondary/80 hover:text-foreground transition-colors active:scale-[0.97]"
+                >
+                  +{amt}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  if (room && myPlayer) {
+                    const max = parseFloat(room.maxBuyIn) - myPlayer.chips;
+                    const balance = parseFloat(walletData?.balance ?? "0");
+                    setRebuyAmount(String(Math.min(max, balance).toFixed(0)));
+                  }
+                }}
+                className="flex-1 py-1.5 rounded-lg bg-gold/20 text-[11px] text-gold font-medium hover:bg-gold/30 transition-colors active:scale-[0.97]"
+              >
+                MAX
+              </button>
+            </div>
+
+            {/* Max buy-in info */}
+            <p className="text-[10px] text-muted-foreground/60 text-center mb-3">
+              {t("rebuy.maxBuyIn")}: ${room ? parseFloat(room.maxBuyIn).toFixed(0) : "---"}
+            </p>
+
+            {/* Action buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowRebuyDialog(false)}
+                className="flex-1 py-2.5 rounded-xl bg-secondary text-muted-foreground text-sm hover:bg-secondary/80 transition-colors active:scale-[0.97]"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                onClick={handleRebuy}
+                disabled={rebuyMutation.isPending || !rebuyAmount}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-sm hover:opacity-90 transition-all active:scale-[0.97] disabled:opacity-50"
+              >
+                {rebuyMutation.isPending ? "..." : t("rebuy.confirm")}
+              </button>
+            </div>
+
+            {/* Auto-rebuy toggle */}
+            <div className="mt-3 pt-3 border-t border-border/20">
+              <button
+                onClick={() => setShowAutoRebuySettings(!showAutoRebuySettings)}
+                className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors w-full"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                {t("rebuy.autoRebuy")}
+                <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded ${autoRebuySettings.enabled ? "bg-green-500/20 text-green-400" : "bg-secondary text-muted-foreground/60"}`}>
+                  {autoRebuySettings.enabled ? "ON" : "OFF"}
+                </span>
+              </button>
+
+              {showAutoRebuySettings && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-muted-foreground whitespace-nowrap">{t("rebuy.threshold")}:</label>
+                    <input
+                      type="number"
+                      value={autoRebuySettings.threshold || ""}
+                      onChange={e => saveAutoRebuySettings({ ...autoRebuySettings, threshold: parseFloat(e.target.value) || 0 })}
+                      placeholder={`< ${bigBlindValue * 5}`}
+                      className="flex-1 px-2 py-1 rounded-lg bg-secondary text-[11px] text-foreground border border-border/50 focus:border-gold/50 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-muted-foreground whitespace-nowrap">{t("rebuy.targetAmount")}:</label>
+                    <input
+                      type="number"
+                      value={autoRebuySettings.targetAmount || ""}
+                      onChange={e => saveAutoRebuySettings({ ...autoRebuySettings, targetAmount: parseFloat(e.target.value) || 0 })}
+                      placeholder={room ? parseFloat(room.minBuyIn).toFixed(0) : "100"}
+                      className="flex-1 px-2 py-1 rounded-lg bg-secondary text-[11px] text-foreground border border-border/50 focus:border-gold/50 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    onClick={() => saveAutoRebuySettings({ ...autoRebuySettings, enabled: !autoRebuySettings.enabled })}
+                    className={`w-full py-1.5 rounded-lg text-[11px] font-semibold transition-all active:scale-[0.97] ${
+                      autoRebuySettings.enabled
+                        ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
+                        : "bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30"
+                    }`}
+                  >
+                    {autoRebuySettings.enabled ? t("rebuy.disableAuto") : t("rebuy.enableAuto")}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
