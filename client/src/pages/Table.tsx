@@ -161,7 +161,7 @@ export default function Table() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { t } = useI18n();
-  const { play: playSound, toggle: toggleSound, isEnabled: isSoundEnabled, announceAction } = useSoundEffects();
+  const { play: playSound, toggle: toggleSound, isEnabled: isSoundEnabled, announceAction, speak } = useSoundEffects();
   const [muted, setMuted] = useState(() => localStorage.getItem("vera-sound-enabled") === "false");
   const [raiseAmount, setRaiseAmount] = useState(4.00);
   const [isSeated, setIsSeated] = useState(false);
@@ -241,7 +241,7 @@ export default function Table() {
         const wIds = tableState.settlementDetail.winners?.map((w: any) => w.playerId) || [];
         setWinnerPlayerIds(wIds);
       }
-      // Play win/lose sound based on whether current user won
+      // Play win/lose sound and announce winning hand type
       if (!muted) {
         const wIds = tableState.settlementDetail?.winners?.map((w: any) => w.playerId) || [];
         if (user && wIds.includes(user.id)) {
@@ -250,6 +250,19 @@ export default function Table() {
           playSound("lose");
         } else {
           playSound("win");
+        }
+        // Announce winning hand type like a real casino dealer
+        const primaryWinner = tableState.settlementDetail?.winners?.sort((a: any, b: any) => b.amount - a.amount)?.[0];
+        if (primaryWinner && primaryWinner.handDescription && primaryWinner.handDescription !== "Last Standing") {
+          const handKey = HAND_RANK_MAP[primaryWinner.handDescription];
+          const handName = handKey ? t(handKey) : primaryWinner.handDescription;
+          setTimeout(() => {
+            speak(`${primaryWinner.name}, ${handName}赢`);
+          }, 800);
+        } else if (primaryWinner && primaryWinner.handDescription === "Last Standing") {
+          setTimeout(() => {
+            speak(`${primaryWinner.name}赢，其他玩家弃牌`);
+          }, 800);
         }
       }
       setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); }, 7000);
@@ -282,7 +295,9 @@ export default function Table() {
       setIsSeated(true);
       setShowBuyIn(false);
       toast.success(t("table.seatJoined", { seat: data.seatIndex + 1 }));
+      // Immediately refetch table state to show avatar
       utils.game.tableState.invalidate({ roomId });
+      utils.rooms.getPlayers.invalidate({ roomId });
       utils.wallet.balance.invalidate();
     },
     onError: (err) => toast.error(err.message),
@@ -859,11 +874,26 @@ export default function Table() {
 
           {displayPhase === "waiting" && !waitingForReady && !isDemoMode && (
             <div className="text-center py-3">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full bg-truth-blue animate-pulse" />
-                <span className="text-sm text-muted-foreground">{t("table.waiting")}</span>
-              </div>
-              <span className="text-[10px] text-muted-foreground/60">{t("table.minPlayers")}</span>
+              {players.length >= 2 ? (
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    onClick={() => readyMutation.mutate({ roomId })}
+                    disabled={readyMutation.isPending}
+                    className="px-6 py-2.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-500/40 hover:shadow-green-500/60 transition-all active:scale-[0.97] disabled:opacity-50"
+                  >
+                    ▶ {t("table.startNextHand")}
+                  </button>
+                  <span className="text-[10px] text-muted-foreground/60">{players.length} {t("table.minPlayers")}</span>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <div className="w-2 h-2 rounded-full bg-truth-blue animate-pulse" />
+                    <span className="text-sm text-muted-foreground">{t("table.waiting")}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground/60">{t("table.minPlayers")}</span>
+                </div>
+              )}
             </div>
           )}
 

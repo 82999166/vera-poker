@@ -55,7 +55,26 @@ export async function getPlayerView(roomId: number, playerId: number) {
       table = activeTables.get(roomId);
     }
     if (!table) {
-      return { phase: "waiting", players: [], communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [] };
+      // Return seated players with avatar info even when no game is active
+      const seatedPlayers = await db.getRoomPlayers(roomId);
+      const waitingPlayers = [];
+      for (const sp of seatedPlayers) {
+        const user = await db.getUserById(sp.userId);
+        waitingPlayers.push({
+          id: sp.userId,
+          seatIndex: sp.seatIndex,
+          chips: parseFloat(sp.chipCount || "0"),
+          currentBet: 0,
+          totalBet: 0,
+          isFolded: false,
+          isAllIn: false,
+          isActive: true,
+          name: user?.nickname || user?.name || `Player ${sp.seatIndex + 1}`,
+          avatar: user?.avatar || null,
+          holeCards: [],
+        });
+      }
+      return { phase: "waiting", players: waitingPlayers, communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [] };
     }
   }
 
@@ -308,6 +327,24 @@ async function checkAndAdvanceGame(roomId: number) {
     table.lastActionAt = Date.now();
 
     // After advancing, check again if hand is complete
+    if (gameEngine.isHandComplete(table.gameState)) {
+      await settleHand(roomId);
+      return;
+    }
+
+    // If all remaining players are all-in, keep advancing phases until showdown
+    // This prevents the game from getting stuck when no one can act
+    const activePlayers = gameEngine.getActivePlayers(table.gameState);
+    const playersWhoCanAct = activePlayers.filter(p => !p.isAllIn);
+    while (playersWhoCanAct.length <= 1 && !gameEngine.isHandComplete(table.gameState)) {
+      if (gameEngine.isBettingRoundComplete(table.gameState)) {
+        table.gameState = gameEngine.advancePhase(table.gameState);
+        table.lastActionAt = Date.now();
+      } else {
+        break;
+      }
+    }
+    // Final check after all advances
     if (gameEngine.isHandComplete(table.gameState)) {
       await settleHand(roomId);
     }
@@ -709,7 +746,17 @@ async function handleReadyTimeout(roomId: number) {
  */
 export async function playerReady(roomId: number, userId: number): Promise<{ success: boolean; message?: string }> {
   const table = activeTables.get(roomId);
-  if (!table) return { success: false, message: "No active table" };
+  
+  // If no active table exists (waiting state), try to start a new game
+  if (!table) {
+    const players = await db.getRoomPlayers(roomId);
+    if (players.length >= 2) {
+      await startNewHand(roomId);
+      return { success: true };
+    }
+    return { success: false, message: "Need at least 2 players" };
+  }
+  
   if (!table.waitingForReady) return { success: false, message: "Not in ready phase" };
 
   table.readyPlayers.add(userId);

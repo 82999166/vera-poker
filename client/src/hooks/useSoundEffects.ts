@@ -215,24 +215,83 @@ export function useSoundEffects() {
     };
   }, []);
 
+  // Track if speech has been activated by user gesture
+  const speechActivatedRef = useRef(false);
+
+  // Activate speech synthesis on first user interaction (required for Android WebView)
+  useEffect(() => {
+    const activateSpeech = () => {
+      if (speechActivatedRef.current) return;
+      speechActivatedRef.current = true;
+      if (window.speechSynthesis) {
+        // Android Chrome/WebView requires a user gesture to unlock speech
+        const silentUtterance = new SpeechSynthesisUtterance("");
+        silentUtterance.volume = 0;
+        silentUtterance.rate = 10;
+        window.speechSynthesis.speak(silentUtterance);
+        // Also ensure synthesis is not paused
+        window.speechSynthesis.resume();
+      }
+    };
+    document.addEventListener("touchstart", activateSpeech, { once: true });
+    document.addEventListener("click", activateSpeech, { once: true });
+    document.addEventListener("pointerdown", activateSpeech, { once: true });
+    return () => {
+      document.removeEventListener("touchstart", activateSpeech);
+      document.removeEventListener("click", activateSpeech);
+      document.removeEventListener("pointerdown", activateSpeech);
+    };
+  }, []);
+
   const speak = useCallback((text: string) => {
     if (!enabledRef.current) return;
     if (!window.speechSynthesis) return;
     try {
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
+      // Resume if paused (Android WebView can auto-pause)
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.1; // Slightly faster for game pace
       utterance.volume = volumeRef.current;
       utterance.pitch = 1.0;
-      // Use pre-loaded voices
-      const voices = voicesRef.current.length > 0 ? voicesRef.current : window.speechSynthesis.getVoices();
-      const zhVoice = voices.find(v => v.lang.startsWith("zh")) || voices.find(v => v.lang.startsWith("en"));
-      if (zhVoice) utterance.voice = zhVoice;
-      // Workaround for Chrome/WebView bug: speech won't start if called too quickly after cancel
+      // Use pre-loaded voices - refresh if empty (Android loads voices lazily)
+      let voices = voicesRef.current;
+      if (voices.length === 0) {
+        voices = window.speechSynthesis.getVoices();
+        voicesRef.current = voices;
+      }
+      // Prefer Chinese voice, fallback to English, then default
+      const zhVoice = voices.find(v => v.lang.startsWith("zh-CN"))
+        || voices.find(v => v.lang.startsWith("zh"))
+        || voices.find(v => v.lang.startsWith("en"));
+      if (zhVoice) {
+        utterance.voice = zhVoice;
+        utterance.lang = zhVoice.lang;
+      } else {
+        utterance.lang = "zh-CN";
+      }
+      // Workaround for Chrome/Android WebView bug:
+      // 1. Speech won't start if called too quickly after cancel
+      // 2. Android may need resume() before speak()
       setTimeout(() => {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
         window.speechSynthesis.speak(utterance);
-      }, 50);
+        // Android Chrome bug: speech can get stuck after ~15s
+        // Set a watchdog to resume if needed
+        const watchdog = setTimeout(() => {
+          if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) return;
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+        }, 500);
+        utterance.onend = () => clearTimeout(watchdog);
+        utterance.onerror = () => clearTimeout(watchdog);
+      }, 100);
     } catch (e) {
       // Silently fail - speechSynthesis may not be available in some WebViews
     }

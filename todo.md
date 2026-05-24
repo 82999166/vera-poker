@@ -388,3 +388,11 @@
 - [x] 管理后台添加收款钱包地址配置菜单（各链USDT地址可编辑）
 - [x] 接入区块链API（TronGrid/Etherscan/BscScan等）实现充值自动到账确认
 - [x] 定时轮询检测链上交易，匹配txHash后自动确认充值
+
+## Game Flow & Settlement Fix (2026-05-24)
+- [x] 修复结算卡住问题（游戏停在"结算中"不继续）- checkAndAdvanceGame 添加 while loop 自动推进 all-in 场景
+- [x] 结算时配牌逻辑：显示所有玩家牌中最大的牌型
+- [x] 结算语音播报：播报赢家牌型（如"同花顺赢"、"葫芦赢"等）- 800ms 延迟后播报
+- [x] 坐下后头像立即显示 - getPlayerView 在 waiting 状态下也返回已入座玩家信息（含头像）
+- [x] 安卓版本语音播报修复 - 添加用户手势预激活、resume() 调用、watchdog 监控、lang 属性设置
+- [x] waiting 状态下 2 人以上可点击"开始游戏"按钮（playerReady 支持无 activeTables 时直接开局）
