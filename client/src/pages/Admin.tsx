@@ -6,7 +6,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import {
   Settings, Users, DollarSign, Shield, BarChart3, Save, RefreshCw,
   Plus, Trash2, ArrowLeft, UserCheck, Pause, Play, X, MessageSquare,
-  Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn, Pencil
+  Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn, Pencil, Trophy
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,6 +35,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.staff": "员工管理",
     "tab.csRecords": "客服记录",
     "tab.banners": "活动管理",
+    "tab.tournaments": "锦标赛管理",
     "tab.logs": "操作日志",
     "logs.title": "操作日志",
     "logs.noLogs": "暂无日志记录",
@@ -387,6 +388,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.staff": "員工管理",
     "tab.csRecords": "客服記錄",
     "tab.banners": "活動管理",
+    "tab.tournaments": "錦標賽管理",
     "tab.logs": "操作日誌",
     "logs.title": "操作日誌",
     "logs.noLogs": "暫無日誌記錄",
@@ -739,6 +741,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.staff": "Staff",
     "tab.csRecords": "CS Records",
     "tab.banners": "Banners",
+    "tab.tournaments": "Tournaments",
     "tab.logs": "Logs",
     "logs.title": "Operation Logs",
     "logs.noLogs": "No logs yet",
@@ -1189,7 +1192,7 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // ==================== ADMIN TABS ====================
-type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs" | "csRecords" | "banners";
+type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs" | "csRecords" | "banners" | "tournaments";
 
 // ==================== MAIN ADMIN COMPONENT ====================
 export default function Admin() {
@@ -1237,8 +1240,8 @@ export default function Admin() {
 
   // Role-based tab permissions
   const roleTabMap: Record<string, AdminTab[]> = {
-    super_admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "csRecords", "logs"],
-    admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "csRecords", "logs"],
+    super_admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs"],
+    admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs"],
     cs: ["stats", "users", "rooms", "faq", "csRecords"],
     finance: ["stats", "finance", "agents"],
     tech: ["stats", "config", "rooms", "risk", "settings", "banners"],
@@ -1257,6 +1260,7 @@ export default function Admin() {
     { key: "config", icon: Settings, label: at("tab.config") },
     { key: "settings", icon: Settings, label: at("tab.settings") },
     { key: "banners", icon: Layers, label: at("tab.banners") || "活动管理" },
+    { key: "tournaments", icon: Trophy, label: at("tab.tournaments") || "锦标赛" },
     { key: "csRecords", icon: MessageSquare, label: at("tab.csRecords") },
     { key: "logs", icon: Eye, label: at("tab.logs") },
   ];
@@ -1427,6 +1431,7 @@ function PanelContent({ tab, at, onNavigate }: { tab: AdminTab; at: (key: string
     case "logs": return <LogsPanel at={at} />;
     case "csRecords": return <CsRecordsPanel at={at} />;
     case "banners": return <BannersPanel at={at} />;
+    case "tournaments": return <TournamentsPanel at={at} />;
     default: return null;
   }
 }
@@ -3704,6 +3709,286 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ==================== TOURNAMENTS PANEL ====================
+function TournamentsPanel({ at }: { at: (k: string) => string }) {
+  const [page, setPage] = useState(1);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const { data: listData, refetch } = trpc.adminTournaments.list.useQuery({});
+  const createMutation = trpc.adminTournaments.create.useMutation({ onSuccess: () => { refetch(); setShowForm(false); toast.success("创建成功"); } });
+  const updateMutation = trpc.adminTournaments.update.useMutation({ onSuccess: () => { refetch(); setShowForm(false); setEditingId(null); toast.success("更新成功"); } });
+  const deleteMutation = trpc.adminTournaments.delete.useMutation({ onSuccess: () => { refetch(); toast.success("删除成功"); } });
+
+  // Form state
+  const [form, setForm] = useState({
+    name: "",
+    entryFee: "10",
+    startingChips: 10000,
+    totalRounds: 60,
+    playersPerTable: 9,
+    minPlayers: 10,
+    maxPlayers: 1000,
+    blindLevelDuration: 10,
+    tableShuffleInterval: 15,
+    finalTableThreshold: 9,
+    platformRake: "10",
+    scheduledStartTime: "",
+    prizeDistribution: [
+      { rank: 1, percentage: 50 },
+      { rank: 2, percentage: 30 },
+      { rank: 3, percentage: 20 },
+    ],
+  });
+
+  const resetForm = () => {
+    setForm({
+      name: "", entryFee: "10", startingChips: 10000, totalRounds: 60,
+      playersPerTable: 9, minPlayers: 10, maxPlayers: 1000,
+      blindLevelDuration: 10, tableShuffleInterval: 15, finalTableThreshold: 9,
+      platformRake: "10", scheduledStartTime: "",
+      prizeDistribution: [{ rank: 1, percentage: 50 }, { rank: 2, percentage: 30 }, { rank: 3, percentage: 20 }],
+    });
+  };
+
+  const handleSubmit = () => {
+    if (!form.name || !form.scheduledStartTime) {
+      toast.error("请填写比赛名称和开赛时间");
+      return;
+    }
+    // Generate default blind structure based on starting chips
+    const baseBlind = Math.floor(form.startingChips / 200);
+    const blindStructure = Array.from({ length: 20 }, (_, i) => {
+      const multiplier = Math.pow(1.5, i);
+      const smallBlind = Math.round(baseBlind * multiplier);
+      return { level: i + 1, smallBlind, bigBlind: smallBlind * 2, ante: i >= 3 ? Math.round(smallBlind * 0.2) : 0 };
+    });
+    if (editingId) {
+      updateMutation.mutate({
+        id: editingId,
+        name: form.name,
+        entryFee: form.entryFee,
+        startingChips: form.startingChips,
+        totalRounds: form.totalRounds,
+        playersPerTable: form.playersPerTable,
+        minPlayers: form.minPlayers,
+        maxPlayers: form.maxPlayers,
+        blindLevelDuration: form.blindLevelDuration,
+        tableShuffleInterval: form.tableShuffleInterval,
+        finalTableThreshold: form.finalTableThreshold,
+        platformRake: form.platformRake,
+        startTime: new Date(form.scheduledStartTime).toISOString(),
+        blindStructure,
+        prizeDistribution: form.prizeDistribution,
+      });
+    } else {
+      createMutation.mutate({
+        name: form.name,
+        entryFee: form.entryFee,
+        startingChips: form.startingChips,
+        totalRounds: form.totalRounds,
+        playersPerTable: form.playersPerTable,
+        minPlayers: form.minPlayers,
+        maxPlayers: form.maxPlayers,
+        blindLevelDuration: form.blindLevelDuration,
+        tableShuffleInterval: form.tableShuffleInterval,
+        finalTableThreshold: form.finalTableThreshold,
+        platformRake: form.platformRake,
+        startTime: new Date(form.scheduledStartTime).toISOString(),
+        blindStructure,
+        prizeDistribution: form.prizeDistribution,
+      });
+    }
+  };
+
+  const handleEdit = (t: any) => {
+    setEditingId(t.id);
+    setForm({
+      name: t.name,
+      entryFee: t.entryFee,
+      startingChips: t.startingChips,
+      totalRounds: t.totalRounds,
+      playersPerTable: t.playersPerTable,
+      minPlayers: t.minPlayers,
+      maxPlayers: t.maxPlayers,
+      blindLevelDuration: t.blindLevelDuration,
+      tableShuffleInterval: t.tableShuffleInterval,
+      finalTableThreshold: t.finalTableThreshold,
+      platformRake: t.platformRake,
+      scheduledStartTime: t.startTime ? new Date(t.startTime).toISOString().slice(0, 16) : "",
+      prizeDistribution: t.prizeDistribution || [{ rank: 1, percentage: 50 }, { rank: 2, percentage: 30 }, { rank: 3, percentage: 20 }],
+    });
+    setShowForm(true);
+  };
+
+  const statusColors: Record<string, string> = {
+    upcoming: "bg-blue-500/20 text-blue-400",
+    running: "bg-green-500/20 text-green-400",
+    finished: "bg-gray-500/20 text-gray-400",
+    cancelled: "bg-red-500/20 text-red-400",
+  };
+  const statusLabels: Record<string, string> = {
+    upcoming: "即将开始",
+    running: "进行中",
+    finished: "已结束",
+    cancelled: "已取消",
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold text-gold">锦标赛管理</h2>
+        <button
+          onClick={() => { resetForm(); setEditingId(null); setShowForm(true); }}
+          className="flex items-center gap-1 px-3 py-2 bg-gold text-black rounded-lg font-medium text-sm"
+        >
+          <Plus className="w-4 h-4" /> 创建比赛
+        </button>
+      </div>
+
+      {/* Create/Edit Form */}
+      {showForm && (
+        <div className="bg-card border border-border rounded-lg p-4 space-y-4">
+          <h3 className="font-bold text-foreground">{editingId ? "编辑比赛" : "创建新比赛"}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-muted-foreground">比赛名称</label>
+              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" placeholder="红色星期五锦标赛" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">开赛时间</label>
+              <input type="datetime-local" value={form.scheduledStartTime} onChange={e => setForm(f => ({ ...f, scheduledStartTime: e.target.value }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">报名费 (USDT)</label>
+              <input type="number" value={form.entryFee} onChange={e => setForm(f => ({ ...f, entryFee: e.target.value }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">初始比赛分 (报名费×1000)</label>
+              <input type="number" value={form.startingChips} onChange={e => setForm(f => ({ ...f, startingChips: parseInt(e.target.value) || 10000 }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">总局数</label>
+              <input type="number" value={form.totalRounds} onChange={e => setForm(f => ({ ...f, totalRounds: parseInt(e.target.value) || 60 }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">每桌人数</label>
+              <input type="number" value={form.playersPerTable} onChange={e => setForm(f => ({ ...f, playersPerTable: parseInt(e.target.value) || 9 }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">最低开赛人数</label>
+              <input type="number" value={form.minPlayers} onChange={e => setForm(f => ({ ...f, minPlayers: parseInt(e.target.value) || 10 }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">最大报名人数</label>
+              <input type="number" value={form.maxPlayers} onChange={e => setForm(f => ({ ...f, maxPlayers: parseInt(e.target.value) || 1000 }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">盲注升级间隔 (分钟)</label>
+              <input type="number" value={form.blindLevelDuration} onChange={e => setForm(f => ({ ...f, blindLevelDuration: parseInt(e.target.value) || 10 }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">洗桌间隔 (分钟，防串通)</label>
+              <input type="number" value={form.tableShuffleInterval} onChange={e => setForm(f => ({ ...f, tableShuffleInterval: parseInt(e.target.value) || 15 }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">决赛桌人数阈值</label>
+              <input type="number" value={form.finalTableThreshold} onChange={e => setForm(f => ({ ...f, finalTableThreshold: parseInt(e.target.value) || 9 }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">平台抽水 (%)</label>
+              <input type="number" value={form.platformRake} onChange={e => setForm(f => ({ ...f, platformRake: e.target.value }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-foreground" />
+            </div>
+          </div>
+
+          {/* Prize Distribution */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-2 block">奖金分配 (平台抽水后的奖池百分比)</label>
+            <div className="space-y-2">
+              {form.prizeDistribution.map((p, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground w-16">第{p.rank}名</span>
+                  <input type="number" value={p.percentage} onChange={e => {
+                    const newDist = [...form.prizeDistribution];
+                    newDist[i] = { ...newDist[i], percentage: parseInt(e.target.value) || 0 };
+                    setForm(f => ({ ...f, prizeDistribution: newDist }));
+                  }} className="w-20 bg-background border border-border rounded px-2 py-1 text-foreground text-sm" />
+                  <span className="text-sm text-muted-foreground">%</span>
+                  {i === form.prizeDistribution.length - 1 && (
+                    <button onClick={() => setForm(f => ({ ...f, prizeDistribution: [...f.prizeDistribution, { rank: f.prizeDistribution.length + 1, percentage: 0 }] }))}
+                      className="text-xs text-blue-400 hover:text-blue-300">+ 添加名次</button>
+                  )}
+                  {form.prizeDistribution.length > 1 && (
+                    <button onClick={() => setForm(f => ({ ...f, prizeDistribution: f.prizeDistribution.filter((_, idx) => idx !== i) }))}
+                      className="text-xs text-red-400 hover:text-red-300">删除</button>
+                  )}
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground">当前总计: {form.prizeDistribution.reduce((s, p) => s + p.percentage, 0)}% (应为100%)</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={handleSubmit} className="px-4 py-2 bg-gold text-black rounded-lg font-medium text-sm">
+              {editingId ? "保存修改" : "创建比赛"}
+            </button>
+            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 bg-muted text-foreground rounded-lg text-sm">取消</button>
+          </div>
+        </div>
+      )}
+
+      {/* Tournament List */}
+      <div className="space-y-3">
+        {listData?.map((t: any) => (
+          <div key={t.id} className="bg-card border border-border rounded-lg p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-foreground">{t.name}</h3>
+                  <span className={`text-xs px-2 py-0.5 rounded ${statusColors[t.status] || "bg-gray-500/20 text-gray-400"}`}>
+                    {statusLabels[t.status] || t.status}
+                  </span>
+                </div>
+                <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
+                  <p>报名费: {t.entryFee} USDT | 初始分: {t.startingChips} | 总局数: {t.totalRounds}</p>
+                  <p>人数: {t.minPlayers}-{t.maxPlayers} | 每桌: {t.playersPerTable}人 | 抽水: {t.platformRake}%</p>
+                  <p>开赛时间: {t.startTime ? new Date(t.startTime).toLocaleString() : "未设置"}</p>
+                  {t.prizeDistribution && (
+                    <p>奖金: {(t.prizeDistribution as Array<{rank:number;percentage:number}>).map((p: any) => `第${p.rank}名 ${p.percentage}%`).join(" | ")}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {(t.status === "draft" || t.status === "registration") && (
+                  <>
+                    <button onClick={() => handleEdit(t)} className="text-xs px-2 py-1 border border-blue-500 text-blue-400 rounded hover:bg-blue-500/10">编辑</button>
+                    <button onClick={() => { if (confirm("确定删除此比赛？")) deleteMutation.mutate({ id: t.id }); }}
+                      className="text-xs px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500/10">删除</button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+        {(!listData || listData.length === 0) && (
+          <div className="text-center text-muted-foreground py-8">暂无锦标赛</div>
+        )}
+      </div>
     </div>
   );
 }

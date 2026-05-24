@@ -354,3 +354,88 @@ export const banners = mysqlTable("banners", {
 
 export type Banner = typeof banners.$inferSelect;
 export type InsertBanner = typeof banners.$inferInsert;
+
+// ==================== TOURNAMENTS (锦标赛) ====================
+export const tournaments = mysqlTable("tournaments", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  description: text("description"),
+  // Status
+  status: mysqlEnum("status", ["draft", "registration", "running", "finished", "cancelled"]).default("draft").notNull(),
+  // Schedule
+  startTime: timestamp("startTime").notNull(), // Scheduled start time
+  registrationOpenTime: timestamp("registrationOpenTime"), // When registration opens (null = immediately)
+  // Entry
+  entryFee: decimal("entryFee", { precision: 12, scale: 2 }).notNull(), // Entry fee in USDT
+  startingChips: int("startingChips").notNull().default(10000), // Initial tournament chips
+  // Limits
+  minPlayers: int("minPlayers").notNull().default(10), // Min players to start (else cancel & refund)
+  maxPlayers: int("maxPlayers").notNull().default(1000), // Max registrations
+  playersPerTable: int("playersPerTable").notNull().default(9), // Players per table
+  // Game rules
+  totalRounds: int("totalRounds").notNull().default(60), // Total rounds (hands)
+  blindLevelDuration: int("blindLevelDuration").notNull().default(10), // Minutes per blind level
+  // Blind structure (JSON array of levels)
+  blindStructure: json("blindStructure").$type<Array<{ level: number; smallBlind: number; bigBlind: number; ante: number }>>().notNull(),
+  // Prize
+  platformRake: decimal("platformRake", { precision: 5, scale: 2 }).notNull().default("10.00"), // Platform rake percentage
+  prizeDistribution: json("prizeDistribution").$type<Array<{ rank: number; percentage: number }>>().notNull(), // e.g. [{rank:1, percentage:40}, {rank:2, percentage:25}...]
+  // Shuffle tables interval (minutes, 0 = no shuffle)
+  tableShuffleInterval: int("tableShuffleInterval").notNull().default(15),
+  // Final table threshold
+  finalTableThreshold: int("finalTableThreshold").notNull().default(9), // Merge to final table when <= this many players
+  // Stats (updated during/after tournament)
+  registeredCount: int("registeredCount").notNull().default(0),
+  totalPrizePool: decimal("totalPrizePool", { precision: 12, scale: 2 }).default("0.00"),
+  // Timestamps
+  actualStartTime: timestamp("actualStartTime"),
+  endTime: timestamp("endTime"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Tournament = typeof tournaments.$inferSelect;
+export type InsertTournament = typeof tournaments.$inferInsert;
+
+// ==================== TOURNAMENT REGISTRATIONS (报名记录) ====================
+export const tournamentRegistrations = mysqlTable("tournament_registrations", {
+  id: int("id").autoincrement().primaryKey(),
+  tournamentId: int("tournamentId").notNull(),
+  userId: int("userId").notNull(),
+  // Status
+  status: mysqlEnum("status", ["registered", "playing", "eliminated", "finished", "refunded"]).default("registered").notNull(),
+  // Tournament chips
+  currentChips: int("currentChips").notNull().default(0), // Current chip count (0 = eliminated)
+  // Table assignment
+  tableId: varchar("tableId", { length: 64 }), // Current table assignment
+  seatIndex: int("seatIndex"), // Seat at current table
+  // Results
+  finishRank: int("finishRank"), // Final ranking (1 = winner)
+  eliminatedAtRound: int("eliminatedAtRound"), // Which round they were eliminated
+  prizeAmount: decimal("prizeAmount", { precision: 12, scale: 2 }).default("0.00"), // Prize won
+  // Timestamps
+  registeredAt: timestamp("registeredAt").defaultNow().notNull(),
+  eliminatedAt: timestamp("eliminatedAt"),
+});
+
+export type TournamentRegistration = typeof tournamentRegistrations.$inferSelect;
+export type InsertTournamentRegistration = typeof tournamentRegistrations.$inferInsert;
+
+// ==================== TOURNAMENT RESULTS (比赛结果) ====================
+export const tournamentResults = mysqlTable("tournament_results", {
+  id: int("id").autoincrement().primaryKey(),
+  tournamentId: int("tournamentId").notNull(),
+  userId: int("userId").notNull(),
+  // Results
+  rank: int("rank").notNull(),
+  prizeAmount: decimal("prizeAmount", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  startingChips: int("startingChips").notNull(),
+  finalChips: int("finalChips").notNull().default(0),
+  roundsPlayed: int("roundsPlayed").notNull().default(0),
+  handsWon: int("handsWon").notNull().default(0),
+  // Timestamps
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TournamentResult = typeof tournamentResults.$inferSelect;
+export type InsertTournamentResult = typeof tournamentResults.$inferInsert;

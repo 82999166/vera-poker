@@ -1537,6 +1537,158 @@ Rules:
       return db.getActiveBanners();
     }),
   }),
+  // ==================== TOURNAMENTS ====================
+  tournaments: router({
+    // Public: list active tournaments
+    list: publicProcedure.query(async () => {
+      return db.getActiveTournaments();
+    }),
+    // Public: get tournament detail
+    detail: publicProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
+      const tournament = await db.getTournamentById(input.id);
+      if (!tournament) throw new TRPCError({ code: "NOT_FOUND" });
+      const registrations = await db.getTournamentRegistrations(input.id);
+      return { tournament, registrations };
+    }),
+    // Protected: register for tournament
+    register: protectedProcedure.input(z.object({ tournamentId: z.number() })).mutation(async ({ ctx, input }) => {
+      const tournament = await db.getTournamentById(input.tournamentId);
+      if (!tournament) throw new TRPCError({ code: "NOT_FOUND", message: "Tournament not found" });
+      if (tournament.status !== "registration") throw new TRPCError({ code: "BAD_REQUEST", message: "Registration not open" });
+      // Check if already registered
+      const existing = await db.getRegistration(input.tournamentId, ctx.user.id);
+      if (existing && existing.status !== "refunded") throw new TRPCError({ code: "CONFLICT", message: "Already registered" });
+      // Check max players
+      const count = await db.getRegistrationCount(input.tournamentId);
+      if (count >= tournament.maxPlayers) throw new TRPCError({ code: "BAD_REQUEST", message: "Tournament is full" });
+      // Deduct entry fee from balance
+      const user = await db.getUserById(ctx.user.id);
+      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      const entryFee = parseFloat(tournament.entryFee);
+      if (parseFloat(user.balance) < entryFee) throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
+      // Deduct balance
+      await db.updateUserBalance(ctx.user.id, String(-entryFee));
+      // Register
+      await db.registerForTournament(input.tournamentId, ctx.user.id, tournament.startingChips);
+      // Update registered count
+      await db.updateTournament(input.tournamentId, { registeredCount: count + 1 });
+      return { success: true };
+    }),
+    // Protected: cancel registration
+    cancelRegistration: protectedProcedure.input(z.object({ tournamentId: z.number() })).mutation(async ({ ctx, input }) => {
+      const tournament = await db.getTournamentById(input.tournamentId);
+      if (!tournament) throw new TRPCError({ code: "NOT_FOUND" });
+      if (tournament.status !== "registration") throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot cancel after tournament started" });
+      const reg = await db.getRegistration(input.tournamentId, ctx.user.id);
+      if (!reg || reg.status !== "registered") throw new TRPCError({ code: "BAD_REQUEST", message: "Not registered" });
+      // Refund entry fee
+      const entryFee = parseFloat(tournament.entryFee);
+      await db.updateUserBalance(ctx.user.id, String(entryFee));
+      await db.cancelRegistration(input.tournamentId, ctx.user.id);
+      // Update count
+      const count = await db.getRegistrationCount(input.tournamentId);
+      await db.updateTournament(input.tournamentId, { registeredCount: count });
+      return { success: true };
+    }),
+    // Protected: get my registration status
+    myRegistration: protectedProcedure.input(z.object({ tournamentId: z.number() })).query(async ({ ctx, input }) => {
+      return db.getRegistration(input.tournamentId, ctx.user.id);
+    }),
+    // Public: get results
+    results: publicProcedure.input(z.object({ tournamentId: z.number() })).query(async ({ input }) => {
+      return db.getTournamentResults(input.tournamentId);
+    }),
+  }),
+  // Admin Tournaments Management
+  adminTournaments: router({
+    list: staffProcedure.input(z.object({ status: z.string().optional() })).query(async ({ input }) => {
+      return db.listTournaments(input.status);
+    }),
+    detail: staffProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
+      const tournament = await db.getTournamentById(input.id);
+      if (!tournament) throw new TRPCError({ code: "NOT_FOUND" });
+      const registrations = await db.getTournamentRegistrations(input.id);
+      const results = await db.getTournamentResults(input.id);
+      return { tournament, registrations, results };
+    }),
+    create: adminProcedure.input(z.object({
+      name: z.string().min(1),
+      description: z.string().optional(),
+      startTime: z.string(), // ISO date string
+      registrationOpenTime: z.string().optional(),
+      entryFee: z.string(),
+      startingChips: z.number().default(10000),
+      minPlayers: z.number().default(10),
+      maxPlayers: z.number().default(1000),
+      playersPerTable: z.number().default(9),
+      totalRounds: z.number().default(60),
+      blindLevelDuration: z.number().default(10),
+      blindStructure: z.array(z.object({ level: z.number(), smallBlind: z.number(), bigBlind: z.number(), ante: z.number() })),
+      platformRake: z.string().default("10.00"),
+      prizeDistribution: z.array(z.object({ rank: z.number(), percentage: z.number() })),
+      tableShuffleInterval: z.number().default(15),
+      finalTableThreshold: z.number().default(9),
+    })).mutation(async ({ input }) => {
+      const id = await db.createTournament({
+        ...input,
+        startTime: new Date(input.startTime),
+        registrationOpenTime: input.registrationOpenTime ? new Date(input.registrationOpenTime) : undefined,
+      });
+      return { id };
+    }),
+    update: adminProcedure.input(z.object({
+      id: z.number(),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      status: z.enum(["draft", "registration", "running", "finished", "cancelled"]).optional(),
+      startTime: z.string().optional(),
+      registrationOpenTime: z.string().optional(),
+      entryFee: z.string().optional(),
+      startingChips: z.number().optional(),
+      minPlayers: z.number().optional(),
+      maxPlayers: z.number().optional(),
+      playersPerTable: z.number().optional(),
+      totalRounds: z.number().optional(),
+      blindLevelDuration: z.number().optional(),
+      blindStructure: z.array(z.object({ level: z.number(), smallBlind: z.number(), bigBlind: z.number(), ante: z.number() })).optional(),
+      platformRake: z.string().optional(),
+      prizeDistribution: z.array(z.object({ rank: z.number(), percentage: z.number() })).optional(),
+      tableShuffleInterval: z.number().optional(),
+      finalTableThreshold: z.number().optional(),
+    })).mutation(async ({ input }) => {
+      const { id, startTime, registrationOpenTime, ...rest } = input;
+      const updateData: any = { ...rest };
+      if (startTime) updateData.startTime = new Date(startTime);
+      if (registrationOpenTime) updateData.registrationOpenTime = new Date(registrationOpenTime);
+      await db.updateTournament(id, updateData);
+      return { success: true };
+    }),
+    delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      await db.deleteTournament(input.id);
+      return { success: true };
+    }),
+    // Open registration
+    openRegistration: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      await db.updateTournament(input.id, { status: "registration" });
+      return { success: true };
+    }),
+    // Cancel tournament and refund all
+    cancel: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const tournament = await db.getTournamentById(input.id);
+      if (!tournament) throw new TRPCError({ code: "NOT_FOUND" });
+      // Refund all registered players
+      const regs = await db.getTournamentRegistrations(input.id);
+      const entryFee = parseFloat(tournament.entryFee);
+      for (const r of regs) {
+        if (r.reg.status === "registered" || r.reg.status === "playing") {
+          await db.updateUserBalance(r.reg.userId, String(entryFee));
+          await db.cancelRegistration(input.id, r.reg.userId);
+        }
+      }
+      await db.updateTournament(input.id, { status: "cancelled" });
+      return { success: true };
+    }),
+  }),
   // Admin Banners Management
   adminBanners: router({
     list: staffProcedure.query(async () => {

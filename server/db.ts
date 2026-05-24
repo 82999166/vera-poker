@@ -1,6 +1,6 @@
 import { eq, and, desc, asc, sql, gte, lte, like, or, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, systemConfigs, rooms, roomPlayers, gameHands, handPlayers, transactions, agentRelationships, commissionRecords, riskEvents, csConversations, faqEntries, notifications, csMessages, banners } from "../drizzle/schema";
+import { InsertUser, users, systemConfigs, rooms, roomPlayers, gameHands, handPlayers, transactions, agentRelationships, commissionRecords, riskEvents, csConversations, faqEntries, notifications, csMessages, banners, tournaments, tournamentRegistrations, tournamentResults } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -940,4 +940,207 @@ export async function deleteBanner(id: number) {
   const dbInstance = await getDb();
   if (!dbInstance) return;
   await dbInstance.delete(banners).where(eq(banners.id, id));
+}
+
+// ==================== TOURNAMENT HELPERS ====================
+
+export async function createTournament(data: {
+  name: string;
+  description?: string;
+  startTime: Date;
+  registrationOpenTime?: Date;
+  entryFee: string;
+  startingChips: number;
+  minPlayers: number;
+  maxPlayers: number;
+  playersPerTable: number;
+  totalRounds: number;
+  blindLevelDuration: number;
+  blindStructure: Array<{ level: number; smallBlind: number; bigBlind: number; ante: number }>;
+  platformRake: string;
+  prizeDistribution: Array<{ rank: number; percentage: number }>;
+  tableShuffleInterval: number;
+  finalTableThreshold: number;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  const [result] = await db.insert(tournaments).values({
+    ...data,
+    status: "draft",
+  });
+  return result.insertId;
+}
+
+export async function updateTournament(id: number, data: Partial<{
+  name: string;
+  description: string;
+  status: "draft" | "registration" | "running" | "finished" | "cancelled";
+  startTime: Date;
+  registrationOpenTime: Date;
+  entryFee: string;
+  startingChips: number;
+  minPlayers: number;
+  maxPlayers: number;
+  playersPerTable: number;
+  totalRounds: number;
+  blindLevelDuration: number;
+  blindStructure: Array<{ level: number; smallBlind: number; bigBlind: number; ante: number }>;
+  platformRake: string;
+  prizeDistribution: Array<{ rank: number; percentage: number }>;
+  tableShuffleInterval: number;
+  finalTableThreshold: number;
+  registeredCount: number;
+  totalPrizePool: string;
+  actualStartTime: Date;
+  endTime: Date;
+}>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(tournaments).set(data).where(eq(tournaments.id, id));
+}
+
+export async function getTournamentById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [t] = await db.select().from(tournaments).where(eq(tournaments.id, id));
+  return t || null;
+}
+
+export async function listTournaments(status?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  if (status) {
+    return db.select().from(tournaments)
+      .where(eq(tournaments.status, status as any))
+      .orderBy(desc(tournaments.startTime));
+  }
+  return db.select().from(tournaments).orderBy(desc(tournaments.startTime));
+}
+
+export async function getActiveTournaments() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(tournaments)
+    .where(or(
+      eq(tournaments.status, "registration"),
+      eq(tournaments.status, "running")
+    ))
+    .orderBy(asc(tournaments.startTime));
+}
+
+export async function deleteTournament(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(tournaments).where(eq(tournaments.id, id));
+}
+
+// Registration helpers
+export async function registerForTournament(tournamentId: number, userId: number, startingChips: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [result] = await db.insert(tournamentRegistrations).values({
+    tournamentId,
+    userId,
+    status: "registered",
+    currentChips: startingChips,
+  });
+  return result.insertId;
+}
+
+export async function cancelRegistration(tournamentId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(tournamentRegistrations)
+    .set({ status: "refunded" })
+    .where(and(
+      eq(tournamentRegistrations.tournamentId, tournamentId),
+      eq(tournamentRegistrations.userId, userId),
+      eq(tournamentRegistrations.status, "registered")
+    ));
+}
+
+export async function getRegistration(tournamentId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [reg] = await db.select().from(tournamentRegistrations)
+    .where(and(
+      eq(tournamentRegistrations.tournamentId, tournamentId),
+      eq(tournamentRegistrations.userId, userId)
+    ));
+  return reg || null;
+}
+
+export async function getTournamentRegistrations(tournamentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    reg: tournamentRegistrations,
+    user: {
+      id: users.id,
+      nickname: users.nickname,
+      tgUsername: users.tgUsername,
+      avatar: users.avatar,
+    }
+  })
+    .from(tournamentRegistrations)
+    .leftJoin(users, eq(tournamentRegistrations.userId, users.id))
+    .where(and(
+      eq(tournamentRegistrations.tournamentId, tournamentId),
+      or(
+        eq(tournamentRegistrations.status, "registered"),
+        eq(tournamentRegistrations.status, "playing"),
+        eq(tournamentRegistrations.status, "finished"),
+        eq(tournamentRegistrations.status, "eliminated")
+      )
+    ))
+    .orderBy(asc(tournamentRegistrations.registeredAt));
+}
+
+export async function getRegistrationCount(tournamentId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [result] = await db.select({ count: sql<number>`count(*)` })
+    .from(tournamentRegistrations)
+    .where(and(
+      eq(tournamentRegistrations.tournamentId, tournamentId),
+      or(
+        eq(tournamentRegistrations.status, "registered"),
+        eq(tournamentRegistrations.status, "playing")
+      )
+    ));
+  return result?.count || 0;
+}
+
+// Results helpers
+export async function saveTournamentResult(data: {
+  tournamentId: number;
+  userId: number;
+  rank: number;
+  prizeAmount: string;
+  startingChips: number;
+  finalChips: number;
+  roundsPlayed: number;
+  handsWon: number;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(tournamentResults).values(data);
+}
+
+export async function getTournamentResults(tournamentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    result: tournamentResults,
+    user: {
+      id: users.id,
+      nickname: users.nickname,
+      tgUsername: users.tgUsername,
+      avatar: users.avatar,
+    }
+  })
+    .from(tournamentResults)
+    .leftJoin(users, eq(tournamentResults.userId, users.id))
+    .where(eq(tournamentResults.tournamentId, tournamentId))
+    .orderBy(asc(tournamentResults.rank));
 }
