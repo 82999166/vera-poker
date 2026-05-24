@@ -469,3 +469,8 @@
 - [x] 注册时自动分配邀请码（findOrCreateTelegramUser + upsertUser 中新用户自动生成 inviteCode）
 - [x] ref_ 链接注册后自动绑定上下级关系（TG bot 传递 ref_ 参数到 Mini App URL，Home.tsx 登录后自动调用 agent.register）
 - [x] 代理页面能正确显示下线列表（已有用户缺少 inviteCode 时自动补充）
+
+## CS Transfer + Lobby Online Count Fix (2026-05-24 Round 18)
+- [x] 修复人工客服按钮点击无反应（去除@前缀+TG Mini App中使用openTelegramLink）（检查 TG 号配置读取和跳转逻辑）
+- [x] 大厅房间卡片中 0/6 改为显示该房间的在线人数
+- [x] AI 客服连续3次无法解答时自动弹出"建议转人工"提示（金色高亮系统消息 + 转人工按钮闪烁）

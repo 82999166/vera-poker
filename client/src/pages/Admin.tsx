@@ -3053,7 +3053,7 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
           </button>
         </div>
         {csTgUsername && (
-          <p className="text-[10px] text-muted-foreground mt-2">t.me/{csTgUsername}</p>
+          <p className="text-[10px] text-muted-foreground mt-2">t.me/{csTgUsername.replace(/^@/, "")}</p>
         )}
       </div>
 

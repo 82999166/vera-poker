@@ -304,11 +304,11 @@ export default function Lobby() {
                       <span>{t("lobby.buyIn")}: ${room.minBuyIn}-${room.maxBuyIn}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1">
                       <Users className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="text-sm font-semibold text-foreground">{room.currentPlayers}</span>
-                      <span className="text-xs text-muted-foreground">/{room.maxPlayers}</span>
+                      <span className="text-xs text-muted-foreground">{t("lobby.onlineSuffix")}</span>
                     </div>
                     <button className={`font-semibold px-3 py-1.5 rounded-lg text-xs transition-opacity ${
                       isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"

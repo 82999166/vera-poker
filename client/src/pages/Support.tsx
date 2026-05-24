@@ -3,12 +3,12 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { t, getLocale } from "@/lib/i18n";
 import { useLocation } from "wouter";
-import { ArrowLeft, Send, Bot, User, Loader2, UserRound } from "lucide-react";
+import { ArrowLeft, Send, Bot, User, Loader2, UserRound, AlertCircle } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 
 interface Message {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
 }
@@ -26,9 +26,26 @@ export default function Support() {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [failCount, setFailCount] = useState(0);
+  const [showTransferHint, setShowTransferHint] = useState(false);
   const { data: publicConfigs } = trpc.config.getPublic.useQuery();
-  const csTgUsername = (publicConfigs as Record<string, string>)?.cs_tg_username || "";
+  const rawCsTg = (publicConfigs as Record<string, string>)?.cs_tg_username || "";
+  const csTgUsername = rawCsTg.replace(/^@/, "");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Detect if AI response indicates inability to answer
+  const isUnhelpfulResponse = (response: string): boolean => {
+    const unhelpfulPatterns = [
+      /抱歉.*无法/i, /sorry.*can't/i, /sorry.*cannot/i,
+      /不太确定/i, /not sure/i, /i don't know/i,
+      /无法回答/i, /cannot answer/i, /can't help/i,
+      /建议.*联系/i, /suggest.*contact/i,
+      /超出.*范围/i, /beyond.*scope/i,
+      /没有.*信息/i, /no information/i,
+      /无法.*帮助/i, /unable to help/i,
+    ];
+    return unhelpfulPatterns.some(p => p.test(response));
+  };
 
   const chatMutation = trpc.cs.chat.useMutation({
     onSuccess: (data) => {
@@ -39,6 +56,27 @@ export default function Support() {
         timestamp: new Date(),
       }]);
       setIsTyping(false);
+
+      // Check if AI couldn't help
+      if (isUnhelpfulResponse(data.response)) {
+        setFailCount(prev => {
+          const newCount = prev + 1;
+          if (newCount >= 3 && !showTransferHint) {
+            setShowTransferHint(true);
+            // Add system message suggesting transfer
+            setMessages(prev2 => [...prev2, {
+              id: `transfer-hint-${Date.now()}`,
+              role: "system",
+              content: t("cs.suggestTransfer"),
+              timestamp: new Date(),
+            }]);
+          }
+          return newCount;
+        });
+      } else {
+        // Reset fail count on successful answer
+        setFailCount(0);
+      }
     },
     onError: () => {
       setMessages(prev => [...prev, {
@@ -48,6 +86,19 @@ export default function Support() {
         timestamp: new Date(),
       }]);
       setIsTyping(false);
+      setFailCount(prev => {
+        const newCount = prev + 1;
+        if (newCount >= 3 && !showTransferHint) {
+          setShowTransferHint(true);
+          setMessages(prev2 => [...prev2, {
+            id: `transfer-hint-${Date.now()}`,
+            role: "system",
+            content: t("cs.suggestTransfer"),
+            timestamp: new Date(),
+          }]);
+        }
+        return newCount;
+      });
     },
   });
 
@@ -67,6 +118,16 @@ export default function Support() {
     setInput("");
     setIsTyping(true);
     chatMutation.mutate({ message: userMsg.content, language: getLocale() });
+  };
+
+  const handleTransferToHuman = () => {
+    const url = `https://t.me/${csTgUsername}`;
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(url);
+    } else {
+      window.open(url, "_blank");
+    }
   };
 
   return (
@@ -90,27 +151,37 @@ export default function Support() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-20">
         {messages.map(msg => (
-          <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
-              msg.role === "assistant" ? "bg-truth-blue/20" : "bg-gold/20"
-            }`}>
-              {msg.role === "assistant" ? (
-                <Bot className="w-3.5 h-3.5 text-truth-blue" />
-              ) : (
-                <User className="w-3.5 h-3.5 text-gold" />
-              )}
+          msg.role === "system" ? (
+            // System hint message (transfer suggestion)
+            <div key={msg.id} className="flex justify-center">
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gold/10 border border-gold/30 max-w-[85%]">
+                <AlertCircle className="w-4 h-4 text-gold flex-shrink-0" />
+                <p className="text-xs text-gold font-medium">{msg.content}</p>
+              </div>
             </div>
-            <div className={`max-w-[75%] rounded-xl px-3 py-2 ${
-              msg.role === "assistant"
-                ? "glass text-foreground"
-                : "bg-gold text-background"
-            }`}>
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              <p className={`text-[9px] mt-1 ${msg.role === "assistant" ? "text-muted-foreground" : "text-background/60"}`}>
-                {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </p>
+          ) : (
+            <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+                msg.role === "assistant" ? "bg-truth-blue/20" : "bg-gold/20"
+              }`}>
+                {msg.role === "assistant" ? (
+                  <Bot className="w-3.5 h-3.5 text-truth-blue" />
+                ) : (
+                  <User className="w-3.5 h-3.5 text-gold" />
+                )}
+              </div>
+              <div className={`max-w-[75%] rounded-xl px-3 py-2 ${
+                msg.role === "assistant"
+                  ? "glass text-foreground"
+                  : "bg-gold text-background"
+              }`}>
+                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                <p className={`text-[9px] mt-1 ${msg.role === "assistant" ? "text-muted-foreground" : "text-background/60"}`}>
+                  {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
             </div>
-          </div>
+          )
         ))}
 
         {isTyping && (
@@ -132,12 +203,16 @@ export default function Support() {
 
       {/* Input */}
       <div className="glass-strong border-t border-border px-4 py-3 z-10">
-        {/* Transfer to human CS button */}
+        {/* Transfer to human CS button - show always if configured, highlight if suggested */}
         {csTgUsername && (
           <div className="mb-2">
             <button
-              onClick={() => window.open(`https://t.me/${csTgUsername}`, "_blank")}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-truth-blue/10 border border-truth-blue/30 text-truth-blue text-xs font-medium hover:bg-truth-blue/20 transition-all active:scale-[0.98]"
+              onClick={handleTransferToHuman}
+              className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.98] ${
+                showTransferHint
+                  ? "bg-gold/20 border border-gold/50 text-gold animate-pulse"
+                  : "bg-truth-blue/10 border border-truth-blue/30 text-truth-blue hover:bg-truth-blue/20"
+              }`}
             >
               <UserRound className="w-3.5 h-3.5" />
               {t("cs.transferHuman")}
