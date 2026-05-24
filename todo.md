@@ -429,3 +429,7 @@
 - [x] 下注时添加筹码飞向底池的动画效果 - ChipStack 组件添加 chip-fly-to-pot CSS 动画
 - [x] 下注时增强音效 - bet/call/allIn 音效用 Web Audio API 合成金属碰撞声
 - [x] USDT充值自动确认到账 - processAddressMonitoring 扫描充值地址入账，txHash 改为可选
+
+## All-in Logic Fix (2026-05-24 Round 11)
+- [x] 修复3人局2人all-in后第3人被跳过的bug - 将 playersWhoCanAct.length<=1 改为 ===0，确保最后1人仍能行动
+- [x] 确保只有所有能行动的玩家都已行动后才结束下注轮 - 测试验证通过

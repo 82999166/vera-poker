@@ -286,11 +286,17 @@ export function isBettingRoundComplete(state: GameState): boolean {
   const activePlayers = state.players.filter(p => !p.isFolded && p.isActive);
   const playersWhoCanAct = activePlayers.filter(p => !p.isAllIn);
   
-  if (playersWhoCanAct.length <= 1) return true;
+  // No one can act (all are all-in or folded) → round is complete
+  if (playersWhoCanAct.length === 0) return true;
+  
+  // Only 1 active player total (everyone else folded) → hand is over
+  if (activePlayers.length <= 1) return true;
   
   // All active non-all-in players must have:
-  // 1. Matched the current bet
+  // 1. Matched the current bet (or gone all-in for less)
   // 2. Had at least one chance to act this round (hasActedThisRound)
+  // This ensures that when 2 of 3 players go all-in, the 3rd player
+  // still gets a chance to call/fold before the round ends.
   return playersWhoCanAct.every(p => p.currentBet === state.currentBet && p.hasActedThisRound);
 }
 
