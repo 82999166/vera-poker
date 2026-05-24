@@ -402,3 +402,7 @@
 - [x] 快速加入（一键开玩）移到 tab 筛选行旁边
 - [x] 整体布局按截图调整（header + 充值提现 + tabs + 筛选 + 房间列表）
 - [x] Wallet 页面支持 ?tab=deposit/withdraw URL 参数跳转
+
+## Bug Fixes (2026-05-24 Round 6)
+- [x] 安卓语音播报仍然无声 - 改用服务端 TTS 代理 + HTML5 Audio 播放（完全兼容 Android WebView）
+- [x] 新一局开始时上一把牌没有清空 - waitingForReady 时清空 communityCards/myCards/pot/其他玩家手牌

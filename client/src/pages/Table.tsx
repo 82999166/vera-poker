@@ -449,9 +449,10 @@ export default function Table() {
   const [demoMyCards] = useState(["As", "Kh"]);
 
   const displayPlayers = isDemoMode ? demoPlayers : players;
-  const displayCommunity = isDemoMode ? demoCommunity : communityCards;
-  const displayMyCards = isDemoMode ? demoMyCards : myCards;
-  const displayPot = isDemoMode ? 12.5 : pot;
+  // When waitingForReady (between hands), clear community cards and hand cards to avoid showing last hand's cards
+  const displayCommunity = isDemoMode ? demoCommunity : (waitingForReady ? [] : communityCards);
+  const displayMyCards = isDemoMode ? demoMyCards : (waitingForReady ? [] : myCards);
+  const displayPot = isDemoMode ? 12.5 : (waitingForReady ? 0 : pot);
   const displayPhase = isDemoMode ? "flop" : phase;
   const displayIsMyTurn = isDemoMode ? true : isMyTurn;
 
@@ -710,14 +711,14 @@ export default function Table() {
                       ))}
                     </div>
                   )}
-                  {!isHero && player.holeCards && player.holeCards.length > 0 && (
+                  {!isHero && player.holeCards && player.holeCards.length > 0 && !waitingForReady && (
                     <div className="flex gap-0.5 mb-0.5">
                       {player.holeCards.map((card, i) => (
                         <CardView key={i} card={card} className="!w-10 !h-[54px]" />
                       ))}
                     </div>
                   )}
-                  {!isHero && (!player.holeCards || player.holeCards.length === 0) && !player.isFolded && displayPhase !== "waiting" && (
+                  {!isHero && (!player.holeCards || player.holeCards.length === 0) && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && (
                     <div className="flex gap-0.5 mb-0.5">
                       <CardView faceDown className="!w-9 !h-[50px]" />
                       <CardView faceDown className="!w-9 !h-[50px]" />
