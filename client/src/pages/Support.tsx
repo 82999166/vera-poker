@@ -11,6 +11,7 @@ interface Message {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
+  showTransferButton?: boolean;
 }
 
 export default function Support() {
@@ -101,12 +102,13 @@ export default function Support() {
           const newCount = prev + 1;
           if (newCount >= 3 && !showTransferHint) {
             setShowTransferHint(true);
-            // Add system message suggesting transfer
+            // Add system message with transfer button
             setMessages(prev2 => [...prev2, {
               id: `transfer-hint-${Date.now()}`,
               role: "system",
               content: t("cs.suggestTransfer"),
               timestamp: new Date(),
+              showTransferButton: true,
             }]);
           }
           return newCount;
@@ -133,6 +135,7 @@ export default function Support() {
             role: "system",
             content: t("cs.suggestTransfer"),
             timestamp: new Date(),
+            showTransferButton: true,
           }]);
         }
         return newCount;
@@ -144,6 +147,17 @@ export default function Support() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
+  // Detect if user wants to transfer to human agent
+  const isTransferRequest = (text: string): boolean => {
+    const transferPatterns = [
+      /转人工/i, /人工客服/i, /真人客服/i, /找人工/i, /要人工/i,
+      /transfer.*human/i, /human.*agent/i, /real.*person/i,
+      /talk.*human/i, /speak.*agent/i, /live.*agent/i,
+      /人間/i, /オペレーター/i, /상담원/i,
+    ];
+    return transferPatterns.some(p => p.test(text));
+  };
+
   const handleSend = () => {
     if (!input.trim()) return;
     const userMsg: Message = {
@@ -153,9 +167,23 @@ export default function Support() {
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMsg]);
+    const msgText = input.trim();
     setInput("");
+
+    // If user explicitly asks for human agent, show transfer button immediately
+    if (isTransferRequest(msgText)) {
+      setMessages(prev => [...prev, {
+        id: `transfer-card-${Date.now()}`,
+        role: "system",
+        content: t("cs.transferPrompt"),
+        timestamp: new Date(),
+        showTransferButton: true,
+      }]);
+      return;
+    }
+
     setIsTyping(true);
-    chatMutation.mutate({ message: userMsg.content, language: getLocale() });
+    chatMutation.mutate({ message: msgText, language: getLocale() });
   };
 
   const handleTransferToHuman = () => {
@@ -224,11 +252,22 @@ export default function Support() {
 
         {messages.map(msg => (
           msg.role === "system" ? (
-            // System hint message (transfer suggestion)
+            // System hint message (transfer suggestion or transfer card with button)
             <div key={msg.id} className="flex justify-center">
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gold/10 border border-gold/30 max-w-[85%]">
-                <AlertCircle className="w-4 h-4 text-gold flex-shrink-0" />
-                <p className="text-xs text-gold font-medium">{msg.content}</p>
+              <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-gold/10 border border-gold/30 max-w-[85%]">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-gold flex-shrink-0" />
+                  <p className="text-xs text-gold font-medium">{msg.content}</p>
+                </div>
+                {msg.showTransferButton && csTgUsername && (
+                  <button
+                    onClick={handleTransferToHuman}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 mt-1 rounded-lg bg-truth-blue text-white text-sm font-medium transition-all active:scale-[0.97] hover:opacity-90"
+                  >
+                    <UserRound className="w-4 h-4" />
+                    {t("cs.goToHumanAgent")}
+                  </button>
+                )}
               </div>
             </div>
           ) : (
