@@ -220,6 +220,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.totalBalance": "平台总余额",
     "users.search": "搜索用户名 / TG ID / 用户ID...",
     "users.colUser": "用户",
+    "users.colIp": "IP / 地区",
     "users.colLastLogin": "最后登录",
     "users.colBalance": "余额",
     "users.colStatus": "状态",
@@ -567,6 +568,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.totalBalance": "平台總餘額",
     "users.search": "搜尋用戶名 / TG ID / 用戶ID...",
     "users.colUser": "用戶",
+    "users.colIp": "IP / 地區",
     "users.colLastLogin": "最後登入",
     "users.colBalance": "餘額",
     "users.colStatus": "狀態",
@@ -914,6 +916,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.totalBalance": "Platform Balance",
     "users.search": "Search username / TG ID / User ID...",
     "users.colUser": "User",
+    "users.colIp": "IP / Region",
     "users.colLastLogin": "Last Login",
     "users.colBalance": "Balance",
     "users.colStatus": "Status",
@@ -1615,8 +1618,9 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
         className="w-full glass rounded-lg px-3 py-2 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
       />
       {/* Column Header */}
-      <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-3 text-[10px] text-muted-foreground font-medium">
+      <div className="grid grid-cols-[1fr_minmax(140px,auto)_auto_auto_auto_auto] gap-2 px-3 text-[10px] text-muted-foreground font-medium">
         <span>{at("users.colUser")}</span>
+        <span className="text-center">{at("users.colIp")}</span>
         <span className="text-right w-28">{at("users.colLastLogin")}</span>
         <span className="text-right w-16">{at("users.colBalance")}</span>
         <span className="text-right w-20">{at("users.colStatus")}</span>
@@ -1630,7 +1634,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
             onClick={() => setSelectedUserId(u.id)}
           >
             {/* Single row layout */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-center">
+            <div className="grid grid-cols-[1fr_minmax(140px,auto)_auto_auto_auto_auto] gap-2 items-center">
               {/* User info */}
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-7 h-7 shrink-0 rounded-full bg-gradient-to-br from-gold/30 to-gold/10 flex items-center justify-center">
@@ -1645,11 +1649,19 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
                       }`}>{u.role}</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-muted-foreground">#{u.id}{u.tgUsername ? ` @${u.tgUsername}` : ""}</span>
-                    {u.lastIp && <span className="text-[9px] text-muted-foreground/60 font-mono">{u.lastIp}</span>}
-                  </div>
+                  <span className="text-[10px] text-muted-foreground">#{u.id}{u.tgUsername ? ` @${u.tgUsername}` : ""}</span>
                 </div>
+              </div>
+              {/* IP + Region column */}
+              <div className="text-center min-w-0">
+                {u.lastIp ? (
+                  <div className="flex flex-col items-center">
+                    <span className="text-[10px] font-mono text-yellow-400">{u.lastIp}</span>
+                    <span className="text-[9px] text-muted-foreground">{u.ipRegion || ""}</span>
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">-</span>
+                )}
               </div>
               {/* Last login - full date + time */}
               <span className="text-[10px] text-muted-foreground text-right w-28 shrink-0">

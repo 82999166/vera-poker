@@ -449,3 +449,7 @@
 - [x] 自动续买选项 - 玩家可预设“筹码低于X时自动从余额补充到Y”
 - [x] 前端续买弹窗 UI
 - [x] 前端自动续买设置 UI（localStorage 持久化）
+
+## Admin User List Layout Fix (2026-05-24 Round 15)
+- [x] 用户列表 IP 地址移到中间独立一列显示（整齐对齐）
+- [x] IP 地址后面显示 IP 所属地区（通过 ip-api.com 批量查询）

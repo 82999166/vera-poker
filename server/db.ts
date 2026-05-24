@@ -98,11 +98,33 @@ export async function getAllUsers(page = 1, limit = 20) {
     playerRoomMap.set(ap.userId, { roomId: ap.roomId, roomName: ap.roomName });
   }
   
+  // Batch IP geolocation lookup
+  const uniqueIps = [...new Set(data.map(u => u.lastIp).filter(Boolean))] as string[];
+  const ipRegionMap = new Map<string, string>();
+  if (uniqueIps.length > 0) {
+    try {
+      const resp = await fetch("http://ip-api.com/batch?fields=query,country,city,status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(uniqueIps.map(ip => ({ query: ip }))),
+      });
+      if (resp.ok) {
+        const results = await resp.json() as Array<{ query: string; country?: string; city?: string; status: string }>;
+        for (const r of results) {
+          if (r.status === "success" && r.country) {
+            ipRegionMap.set(r.query, r.city ? `${r.city}, ${r.country}` : r.country);
+          }
+        }
+      }
+    } catch {}
+  }
+
   const usersWithStatus = data.map(u => ({
     ...u,
     onlineStatus: playerRoomMap.has(u.id) 
       ? { online: true, roomId: playerRoomMap.get(u.id)!.roomId, roomName: playerRoomMap.get(u.id)!.roomName }
       : { online: false, roomId: null, roomName: null },
+    ipRegion: u.lastIp ? (ipRegionMap.get(u.lastIp) || "") : "",
   }));
   
   return { users: usersWithStatus, total: countResult[0]?.count ?? 0 };
