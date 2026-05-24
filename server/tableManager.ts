@@ -793,6 +793,9 @@ async function handleReadyTimeout(roomId: number) {
     }
   }
 
+  // Also remove unready players from in-memory gameState to keep it in sync
+  table.gameState.players = gs.players.filter(p => !unreadyPlayers.includes(p.id));
+
   // Update room player count
   const remaining = await db.getRoomPlayers(roomId);
   await db.updateRoom(roomId, { currentPlayers: remaining.length });

@@ -259,6 +259,14 @@ export const appRouter = router({
     myRooms: protectedProcedure.query(async ({ ctx }) => {
       return db.getUserRooms(ctx.user.id);
     }),
+    // Get player's currently active room (if seated somewhere)
+    myActiveRoom: protectedProcedure.query(async ({ ctx }) => {
+      const activeRoom = await db.getPlayerActiveRoom(ctx.user.id);
+      if (!activeRoom) return null;
+      const room = await db.getRoomById(activeRoom.roomId);
+      if (!room) return null;
+      return { roomId: activeRoom.roomId, seatIndex: activeRoom.seatIndex, roomName: room.name, blinds: `${room.smallBlind}/${room.bigBlind}` };
+    }),
   }),
 
   // ==================== WALLET / TRANSACTIONS ====================

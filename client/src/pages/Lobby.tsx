@@ -17,6 +17,7 @@ export default function Lobby() {
   const [privateRoomCode, setPrivateRoomCode] = useState("");
   const { data: rooms, isLoading } = trpc.rooms.list.useQuery();
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
+  const { data: activeRoom } = trpc.rooms.myActiveRoom.useQuery(undefined, { enabled: !!user });
 
   const filteredRooms = (rooms ?? []).filter(room => {
     // Filter by tab
@@ -108,6 +109,27 @@ export default function Lobby() {
           </div>
         </div>
       </header>
+
+      {/* Active Room Banner - show when player is still seated somewhere */}
+      {activeRoom && (
+        <div className="px-4 pt-3">
+          <button
+            onClick={() => navigate(`/table/${activeRoom.roomId}`)}
+            className="w-full glass rounded-xl p-3 flex items-center justify-between border border-gold/40 hover:border-gold/70 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-green-400" />
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-semibold text-foreground">{t("lobby.returnToTable")}</p>
+                <p className="text-[10px] text-muted-foreground">{activeRoom.roomName} · {t("lobby.blinds")}: ${activeRoom.blinds}</p>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gold" />
+          </button>
+        </div>
+      )}
 
       {/* Deposit / Withdraw Buttons */}
       <div className="px-4 pt-4">

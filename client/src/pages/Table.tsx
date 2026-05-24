@@ -398,7 +398,8 @@ export default function Table() {
   const [showAutoRebuySettings, setShowAutoRebuySettings] = useState(false);
 
   // Wallet balance for rebuy
-  const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user && showRebuyDialog });
+  const myChipsForWallet = (tableState?.players ?? []).find((p: any) => p.id === user?.id)?.chips;
+  const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user && (showRebuyDialog || myChipsForWallet === 0) });
 
   // Auto-rebuy settings from localStorage
   const getAutoRebuySettings = () => {
@@ -798,8 +799,14 @@ export default function Table() {
                       {t("table.noChips")}
                     </div>
                     <button
-                      onClick={() => navigate("/lobby")}
-                      className="px-4 py-1.5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-600 text-white text-xs font-bold shadow-lg active:scale-[0.97]"
+                      onClick={() => setShowRebuyDialog(true)}
+                      className="px-4 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold shadow-lg active:scale-[0.97]"
+                    >
+                      {t("rebuy.addChips")}
+                    </button>
+                    <button
+                      onClick={() => leaveMutation.mutate({ roomId })}
+                      className="px-3 py-1 rounded-full bg-black/40 border border-border/30 text-muted-foreground text-[10px] hover:text-foreground transition-colors active:scale-[0.97]"
                     >
                       {t("table.backToLobby")}
                     </button>
@@ -834,10 +841,11 @@ export default function Table() {
               </div>
             )}
           {/* Player Seats - positioned outside the table */}
-          {displayPlayers.map(player => {
-            // Rotate seats so hero is always at bottom (position 0)
-            const heroSeatIndex = displayPlayers.find(p => p.id === user?.id)?.seatIndex ?? 0;
-            const rotatedIndex = (player.seatIndex - heroSeatIndex + 6) % 6;
+          {(() => {
+            const maxSeats = room?.maxPlayers ?? 6;
+            const heroSeatIndex = displayPlayers.find(p => p.id === user?.id)?.seatIndex ?? displayPlayers[0]?.seatIndex ?? 0;
+            return displayPlayers.map(player => {
+            const rotatedIndex = ((player.seatIndex - heroSeatIndex + maxSeats) % maxSeats) % SEAT_POSITIONS.length;
             const pos = SEAT_POSITIONS[rotatedIndex];
             if (!pos) return null;
             const isHero = player.id === user?.id || (isDemoMode && player.seatIndex === 0);
@@ -934,7 +942,8 @@ export default function Table() {
                 </div>
               </div>
             );
-          })}
+          });
+          })()}
 
           {/* Join button overlay when not seated */}
           {!isSeated && !isDemoMode && (
