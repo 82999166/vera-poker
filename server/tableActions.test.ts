@@ -41,28 +41,14 @@ describe("Table Action Validation", () => {
 });
 
 describe("Deposit Address Generation", () => {
-  it("should generate consistent addresses", async () => {
+  it("should return configured wallet address from system config", async () => {
     const { generateDepositAddress } = await import("./db");
-    
-    // Same user, same chain = same address (deterministic)
+    // Returns configured address (unified wallet for all users)
     const addr1 = await generateDepositAddress(42, "TRC20");
     const addr2 = await generateDepositAddress(42, "TRC20");
-    expect(addr1).toBe(addr2);
-    
-    // TRC20 format
-    expect(addr1.startsWith("T")).toBe(true);
-    expect(addr1.length).toBe(34);
-    
-    // TON format
-    const tonAddr = await generateDepositAddress(42, "TON");
-    expect(tonAddr.startsWith("EQ")).toBe(true);
-    expect(tonAddr.length).toBe(48);
-    
-    // Different users get different addresses
+    expect(addr1).toBe(addr2); // Same call = same result
+    // Same address for different users (unified wallet)
     const addr3 = await generateDepositAddress(43, "TRC20");
-    expect(addr3).not.toBe(addr1);
-    
-    // Different chains get different addresses
-    expect(addr1).not.toBe(tonAddr);
+    expect(addr1).toBe(addr3);
   });
 });

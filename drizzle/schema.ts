@@ -155,7 +155,7 @@ export const transactions = mysqlTable("transactions", {
   balanceBefore: decimal("balanceBefore", { precision: 18, scale: 2 }).notNull(),
   balanceAfter: decimal("balanceAfter", { precision: 18, scale: 2 }).notNull(),
   // Chain info (for deposits/withdrawals)
-  chain: varchar("chain", { length: 32 }), // TRC20, TON
+  chain: varchar("chain", { length: 32 }), // TRC20, ERC20, BEP20, TON, Polygon
   txHash: varchar("txHash", { length: 256 }),
   walletAddress: varchar("walletAddress", { length: 256 }),
   // Status
@@ -298,3 +298,29 @@ export const adminUsers = mysqlTable("admin_users", {
 
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type InsertAdminUser = typeof adminUsers.$inferInsert;
+
+// ==================== ADMIN LOGS (Audit Trail) ====================
+export const adminLogs = mysqlTable("admin_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  // Who performed the action
+  operatorId: int("operatorId"), // admin_users.id
+  operatorName: varchar("operatorName", { length: 128 }),
+  operatorRole: varchar("operatorRole", { length: 32 }),
+  // What action was performed
+  action: varchar("action", { length: 128 }).notNull(), // e.g. "confirm_deposit", "reject_withdrawal", "update_config"
+  category: mysqlEnum("category", ["finance", "user", "room", "config", "agent", "system", "auth"]).default("system").notNull(),
+  // Details
+  targetType: varchar("targetType", { length: 64 }), // e.g. "transaction", "user", "room", "config"
+  targetId: varchar("targetId", { length: 64 }), // ID of the affected entity
+  detail: json("detail").$type<Record<string, any>>(), // Additional context
+  // Request info
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  userAgent: text("userAgent"),
+  // Result
+  status: mysqlEnum("status", ["success", "failed"]).default("success").notNull(),
+  errorMessage: text("errorMessage"),
+  // Timestamps
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AdminLog = typeof adminLogs.$inferSelect;
+export type InsertAdminLog = typeof adminLogs.$inferInsert;

@@ -9,6 +9,10 @@ export type NotificationType =
   | "turn_action"           // 轮到操作
   | "game_starting"         // 游戏即将开始
   | "balance_change"        // 余额变动
+  | "deposit_confirmed"     // 充值到账
+  | "withdrawal_approved"   // 提现已审批
+  | "withdrawal_rejected"   // 提现被拒绝
+  | "commission_earned"     // 佣金到账
   | "system_announcement";  // 系统公告
 
 interface NotificationPayload {
@@ -80,6 +84,14 @@ function formatNotification(payload: NotificationPayload): string {
       return `🎮 <b>${title}</b>\n\n${body}`;
     case "balance_change":
       return `💰 <b>${title}</b>\n\n${body}\n\n${data?.amount ? `金额: ${data.amount}` : ""}`;
+    case "deposit_confirmed":
+      return `✅ <b>${title}</b>\n\n${body}\n\n${data?.amount ? `金额: $${data.amount}` : ""}${data?.chain ? `\n链: ${data.chain}` : ""}`;
+    case "withdrawal_approved":
+      return `💸 <b>${title}</b>\n\n${body}\n\n${data?.amount ? `金额: $${data.amount}` : ""}${data?.txHash ? `\nTX: ${data.txHash}` : ""}`;
+    case "withdrawal_rejected":
+      return `❌ <b>${title}</b>\n\n${body}\n\n${data?.amount ? `金额: $${data.amount}` : ""}${data?.reason ? `\n原因: ${data.reason}` : ""}`;
+    case "commission_earned":
+      return `💵 <b>${title}</b>\n\n${body}\n\n${data?.amount ? `佣金: $${data.amount}` : ""}`;
     case "system_announcement":
       return `📢 <b>${title}</b>\n\n${body}`;
     default:
@@ -155,6 +167,67 @@ export async function notifyBalanceChange(userId: number, amount: string, reason
     title: "余额变动",
     body: reason,
     data: { amount },
+  });
+}
+
+// ==================== ADMIN NOTIFICATIONS ====================
+// Notify all admins about important events
+export async function notifyAdmins(title: string, body: string, data?: Record<string, any>): Promise<void> {
+  try {
+    // Get admin notification chat ID from config
+    const adminChatId = await db.getConfigValue("admin_tg_chat_id");
+    if (!adminChatId) {
+      console.warn("[Notifications] Admin TG chat ID not configured");
+      return;
+    }
+    const message = `🔔 <b>[Admin] ${title}</b>\n\n${body}${data ? `\n\n<pre>${JSON.stringify(data, null, 2)}</pre>` : ""}`;
+    await sendTelegramMessage(adminChatId, message);
+  } catch (e) {
+    console.error("[Notifications] Admin notify failed:", e);
+  }
+}
+
+// Notify user about deposit confirmation
+export async function notifyDepositConfirmed(userId: number, amount: string, chain?: string): Promise<boolean> {
+  return sendNotification({
+    type: "deposit_confirmed",
+    userId,
+    title: "充值到账",
+    body: `您的充值已确认到账`,
+    data: { amount, chain },
+  });
+}
+
+// Notify user about withdrawal approval
+export async function notifyWithdrawalApproved(userId: number, amount: string, txHash?: string): Promise<boolean> {
+  return sendNotification({
+    type: "withdrawal_approved",
+    userId,
+    title: "提现已审批",
+    body: `您的提现申请已通过并完成转账`,
+    data: { amount, txHash },
+  });
+}
+
+// Notify user about withdrawal rejection
+export async function notifyWithdrawalRejected(userId: number, amount: string, reason?: string): Promise<boolean> {
+  return sendNotification({
+    type: "withdrawal_rejected",
+    userId,
+    title: "提现被拒绝",
+    body: `您的提现申请未通过审核，资金已退回`,
+    data: { amount, reason },
+  });
+}
+
+// Notify agent about commission earned
+export async function notifyCommissionEarned(userId: number, amount: string, fromUser?: string): Promise<boolean> {
+  return sendNotification({
+    type: "commission_earned",
+    userId,
+    title: "佣金到账",
+    body: `您获得了一笔代理佣金`,
+    data: { amount, fromUser },
   });
 }
 

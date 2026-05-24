@@ -833,5 +833,8 @@ async function distributeAgentCommissions(totalRake: number, playerIds: number[]
     await dbInstance.update(agentRelationships)
       .set({ totalCommissionEarned: (currentEarned + commissionAmount).toFixed(2) })
       .where(eq(agentRelationships.id, rel.id));
+    // TG notification to agent about commission earned
+    const { notifyCommissionEarned } = await import("./notifications");
+    notifyCommissionEarned(rel.agentId, commissionAmount.toFixed(2)).catch(() => {});
   }
 }

@@ -28,13 +28,19 @@ export function registerOAuthRoutes(app: Express) {
         return;
       }
 
-      await db.upsertUser({
+      const { isNew } = await db.upsertUser({
         openId: userInfo.openId,
         name: userInfo.name || null,
         email: userInfo.email ?? null,
         loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
         lastSignedIn: new Date(),
       });
+      // Notify admin about new user registration
+      if (isNew) {
+        import("../notifications").then(({ notifyAdmins }) => {
+          notifyAdmins("新用户注册", `新用户: ${userInfo.name || "Unknown"}\n登录方式: ${userInfo.loginMethod || userInfo.platform || "OAuth"}`).catch(() => {});
+        }).catch(() => {});
+      }
 
       const sessionToken = await sdk.createSessionToken(userInfo.openId, {
         name: userInfo.name || "",

@@ -87,11 +87,11 @@ export const appRouter = router({
       description: z.string().optional(),
       isPublic: z.boolean().default(false),
     })).mutation(async ({ input }) => {
-      await db.upsertConfig(input.key, input.value, input.category, input.label, input.valueType, input.description, input.isPublic);
+            await db.upsertConfig(input.key, input.value, input.category, input.label, input.valueType, input.description, input.isPublic);
+      db.createAdminLog({ action: "update_config", category: "config", targetType: "config", targetId: input.key, detail: { value: input.value, category: input.category } });
       return { success: true };
     }),
   }),
-
   // ==================== ROOMS ====================
   rooms: router({
     list: publicProcedure.query(async () => {
@@ -188,10 +188,12 @@ export const appRouter = router({
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await db.updateRoom(id, data);
+      db.createAdminLog({ action: "update_room", category: "room", targetType: "room", targetId: String(id), detail: data });
       return { success: true };
     }),
     adminDelete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       await db.deleteRoom(input.id);
+      db.createAdminLog({ action: "delete_room", category: "room", targetType: "room", targetId: String(input.id) });
       return { success: true };
     }),
     adminCreate: adminProcedure.input(z.object({
@@ -225,6 +227,7 @@ export const appRouter = router({
         rakeCap: input.rakeCap ?? null,
         totalRounds: input.totalRounds ?? null,
       });
+      db.createAdminLog({ action: "create_room", category: "room", targetType: "room", targetId: String(roomId), detail: { name: input.name, type: input.type } });
       return { roomId, inviteCode };
     }),
     adminEdit: adminProcedure.input(z.object({
@@ -249,6 +252,7 @@ export const appRouter = router({
       const room = await db.getRoomById(id);
       if (!room) throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
       await db.updateRoom(id, data);
+      db.createAdminLog({ action: "edit_room", category: "room", targetType: "room", targetId: String(id), detail: data });
       return { success: true };
     }),
     // User's own rooms
@@ -264,14 +268,14 @@ export const appRouter = router({
       return { balance: user?.balance ?? "0.00", frozenBalance: user?.frozenBalance ?? "0.00" };
     }),
     depositAddress: protectedProcedure.input(z.object({
-      chain: z.enum(["TRC20", "TON"]),
+      chain: z.enum(["TRC20", "ERC20", "BEP20", "TON", "Polygon"]),
     })).query(async ({ ctx, input }) => {
       const address = await db.generateDepositAddress(ctx.user.id, input.chain);
       return { address, chain: input.chain };
     }),
     deposit: protectedProcedure.input(z.object({
       amount: z.string(),
-      chain: z.enum(["TRC20", "TON"]),
+      chain: z.enum(["TRC20", "ERC20", "BEP20", "TON", "Polygon"]),
       txHash: z.string(),
     })).mutation(async ({ ctx, input }) => {
       const user = await db.getUserById(ctx.user.id);
@@ -296,11 +300,14 @@ export const appRouter = router({
         txHash: input.txHash,
         status: "pending",
       });
+      // Notify admin about new deposit request
+      const { notifyAdmins: notifyAdminsDeposit } = await import("./notifications");
+      notifyAdminsDeposit("新充值申请", `用户#${ctx.user.id} (${user.name || "Unknown"}) 提交充值 $${input.amount}\n链: ${input.chain}\nTxHash: ${input.txHash}`).catch(() => {});
       return { success: true, message: "Deposit submitted, awaiting confirmation" };
     }),
     withdraw: protectedProcedure.input(z.object({
       amount: z.string(),
-      chain: z.enum(["TRC20", "TON"]),
+      chain: z.enum(["TRC20", "ERC20", "BEP20", "TON", "Polygon"]),
       walletAddress: z.string(),
     })).mutation(async ({ ctx, input }) => {
       const user = await db.getUserById(ctx.user.id);
@@ -352,6 +359,13 @@ export const appRouter = router({
         await dbInstance.update(usersTable).set({ frozenBalance: releasedFrozen }).where(eq(usersTable.id, ctx.user.id));
       }
 
+      // Notify admin about new withdrawal request
+      const { notifyAdmins: notifyAdminsWithdraw } = await import("./notifications");
+      if (isAutoApproved) {
+        notifyAdminsWithdraw("提现自动审批", `用户#${ctx.user.id} (${user.name || "Unknown"}) 提现 $${input.amount} 已自动审批\n链: ${input.chain}\n地址: ${input.walletAddress}`).catch(() => {});
+      } else {
+        notifyAdminsWithdraw("新提现申请", `用户#${ctx.user.id} (${user.name || "Unknown"}) 申请提现 $${input.amount}\n链: ${input.chain}\n地址: ${input.walletAddress}\n请登录后台审核`).catch(() => {});
+      }
       return { success: true, newBalance, autoApproved: isAutoApproved };
     }),
     transactions: protectedProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ ctx, input }) => {
@@ -380,6 +394,12 @@ export const appRouter = router({
       await dbInstance.update(users).set({ balance: newBalance }).where(eq(users.id, tx.userId));
       // Update transaction status
       await dbInstance.update(transactions).set({ status: "confirmed", balanceAfter: newBalance }).where(eq(transactions.id, input.transactionId));
+      // Log
+      db.createAdminLog({ action: "confirm_deposit", category: "finance", targetType: "transaction", targetId: String(input.transactionId), detail: { amount: tx.amount, userId: tx.userId, chain: tx.chain } });
+      // TG notifications
+      const { notifyDepositConfirmed, notifyAdmins } = await import("./notifications");
+      notifyDepositConfirmed(tx.userId, tx.amount, tx.chain ?? undefined).catch(() => {});
+      notifyAdmins("充值已确认", `用户#${tx.userId} 充值 $${tx.amount} (${tx.chain || "N/A"}) 已确认`).catch(() => {});
       return { success: true, newBalance };
     }),
     // Admin reject deposit/withdrawal
@@ -404,6 +424,13 @@ export const appRouter = router({
         }
       }
       await dbInstance.update(transactions).set({ status: "failed" }).where(eq(transactions.id, input.transactionId));
+      // Log
+      db.createAdminLog({ action: "reject_transaction", category: "finance", targetType: "transaction", targetId: String(input.transactionId), detail: { type: tx.type, amount: tx.amount, userId: tx.userId, reason: input.reason } });
+      // TG notification to user
+      if (tx.type === "withdraw") {
+        const { notifyWithdrawalRejected } = await import("./notifications");
+        notifyWithdrawalRejected(tx.userId, tx.amount, input.reason || "管理员拒绝").catch(() => {});
+      }
       return { success: true };
     }),
     // Admin confirm withdrawal
@@ -425,11 +452,16 @@ export const appRouter = router({
         const newFrozen = Math.max(0, parseFloat(user.frozenBalance ?? "0") - parseFloat(tx.amount)).toFixed(2);
         await dbInstance.update(users).set({ frozenBalance: newFrozen }).where(eq(users.id, tx.userId));
       }
-      await dbInstance.update(transactions).set({ status: "confirmed", txHash: input.txHash ?? tx.txHash }).where(eq(transactions.id, input.transactionId));
+            await dbInstance.update(transactions).set({ status: "confirmed", txHash: input.txHash ?? tx.txHash }).where(eq(transactions.id, input.transactionId));
+      // Log
+      db.createAdminLog({ action: "confirm_withdrawal", category: "finance", targetType: "transaction", targetId: String(input.transactionId), detail: { amount: tx.amount, userId: tx.userId, chain: tx.chain } });
+      // TG notifications
+      const { notifyWithdrawalApproved, notifyAdmins: notifyAdminsW } = await import("./notifications");
+      notifyWithdrawalApproved(tx.userId, tx.amount, input.txHash ?? tx.txHash ?? undefined).catch(() => {});
+      notifyAdminsW("提现已审批", `用户#${tx.userId} 提现 $${tx.amount} 已审批转账`).catch(() => {});
       return { success: true };
     }),
   }),
-
   // ==================== AGENT ====================
     agent: router({
     dashboard: protectedProcedure.query(async ({ ctx }) => {
@@ -1113,6 +1145,10 @@ Rules:
         operatorName: operatorName,
         createdAt: new Date(),
       });
+      // TG notification to user about manual top-up
+      const { notifyBalanceChange, notifyAdmins: notifyAdminsTopup } = await import("./notifications");
+      notifyBalanceChange(input.userId, `+$${input.amount.toFixed(2)}`, `管理员手动充值${input.note ? `: ${input.note}` : ""}`).catch(() => {});
+      notifyAdminsTopup("手动充值", `${operatorName} 为用户#${input.userId} 手动充值 $${input.amount.toFixed(2)}${input.note ? `\n备注: ${input.note}` : ""}`).catch(() => {});
       return { success: true, newBalance };
     }),
     // Stats
@@ -1312,6 +1348,40 @@ Rules:
       const [result] = await dbInstance.select({ count: sql<number>`count(*)` }).from(users)
         .where(inArray(users.role, ["admin", "cs", "finance", "tech"]));
       return { count: result?.count ?? 0 };
+    }),
+  }),
+  // Admin Logs
+  adminLogs: router({
+    list: staffProcedure.input(z.object({
+      page: z.number().default(1),
+      limit: z.number().default(50),
+      category: z.string().optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    })).query(async ({ input }) => {
+      return db.getAdminLogs(input.page, input.limit, {
+        category: input.category,
+        startDate: input.startDate,
+        endDate: input.endDate,
+      });
+    }),
+    stats: staffProcedure.query(async () => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { today: 0, total: 0, categories: {} };
+      const { adminLogs } = await import("../drizzle/schema");
+      const { sql, gte } = await import("drizzle-orm");
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const [totalResult] = await dbInstance.select({ count: sql<number>`count(*)` }).from(adminLogs);
+      const [todayResult] = await dbInstance.select({ count: sql<number>`count(*)` }).from(adminLogs)
+        .where(gte(adminLogs.createdAt, todayStart));
+      const catResults = await dbInstance.select({
+        category: adminLogs.category,
+        count: sql<number>`count(*)`
+      }).from(adminLogs).groupBy(adminLogs.category);
+      const categories: Record<string, number> = {};
+      catResults.forEach(r => { categories[r.category] = r.count; });
+      return { today: todayResult?.count ?? 0, total: totalResult?.count ?? 0, categories };
     }),
   }),
 });

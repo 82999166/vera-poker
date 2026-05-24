@@ -3,17 +3,26 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowDownToLine, ArrowUpFromLine, Clock, Copy, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ArrowDownToLine, ArrowUpFromLine, Clock, Copy, CheckCircle2, AlertCircle } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 
 type TabType = "deposit" | "withdraw" | "history";
+type ChainType = "TRC20" | "ERC20" | "BEP20" | "TON" | "Polygon";
+
+const CHAINS: { key: ChainType; label: string; network: string }[] = [
+  { key: "TRC20", label: "TRC-20", network: "Tron" },
+  { key: "ERC20", label: "ERC-20", network: "Ethereum" },
+  { key: "BEP20", label: "BEP-20", network: "BSC" },
+  { key: "TON", label: "TON", network: "TON" },
+  { key: "Polygon", label: "Polygon", network: "Polygon" },
+];
 
 export default function Wallet() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<TabType>("deposit");
-  const [chain, setChain] = useState<"TRC20" | "TON">("TRC20");
+  const [chain, setChain] = useState<ChainType>("TRC20");
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
   const [txHash, setTxHash] = useState("");
@@ -51,11 +60,30 @@ export default function Wallet() {
   };
 
   // Dynamic deposit address from backend
-  const { data: addrData } = trpc.wallet.depositAddress.useQuery(
+  const { data: addrData, isLoading: addrLoading } = trpc.wallet.depositAddress.useQuery(
     { chain },
     { enabled: !!user }
   );
-  const depositAddress = addrData?.address ?? (chain === "TRC20" ? "Loading..." : "Loading...");
+  const depositAddress = addrData?.address ?? "";
+
+  const statusLabels: Record<string, string> = {
+    pending: t("wallet.statusPending"),
+    confirmed: t("wallet.statusConfirmed"),
+    failed: t("wallet.statusFailed"),
+    cancelled: t("wallet.statusCancelled"),
+  };
+
+  const typeLabels: Record<string, string> = {
+    deposit: t("wallet.deposit"),
+    withdraw: t("wallet.withdraw"),
+    game_win: t("wallet.gameWin"),
+    game_loss: t("wallet.gameLoss"),
+    rake: t("wallet.rake"),
+    commission: t("wallet.commission"),
+    room_fee: t("wallet.roomFee"),
+    refund: t("wallet.refund"),
+    adjustment: t("wallet.adjustment"),
+  };
 
   return (
     <div className="min-h-screen bg-background particle-bg flex flex-col pb-20">
@@ -104,19 +132,20 @@ export default function Wallet() {
       <div className="px-4 pt-4 flex-1">
         {activeTab === "deposit" && (
           <div className="space-y-4">
-            {/* Chain selector */}
+            {/* Chain selector - scrollable */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.chain")}</label>
-              <div className="flex gap-2">
-                {(["TRC20", "TON"] as const).map(c => (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {CHAINS.map(c => (
                   <button
-                    key={c}
-                    onClick={() => setChain(c)}
-                    className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      chain === c ? "bg-gold text-background" : "glass text-muted-foreground"
+                    key={c.key}
+                    onClick={() => setChain(c.key)}
+                    className={`shrink-0 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                      chain === c.key ? "bg-gold text-background" : "glass text-muted-foreground"
                     }`}
                   >
-                    {c === "TRC20" ? "USDT (TRC-20)" : "USDT (TON)"}
+                    <div className="whitespace-nowrap">USDT</div>
+                    <div className="whitespace-nowrap text-[10px] opacity-80">{c.label}</div>
                   </button>
                 ))}
               </div>
@@ -125,20 +154,34 @@ export default function Wallet() {
             {/* Deposit address */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.depositAddress")}</label>
-              <div className="glass rounded-lg p-3 flex items-center justify-between">
-                <span className="text-xs text-foreground font-mono truncate flex-1">{depositAddress}</span>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(depositAddress); toast.success("Copied!"); }}
-                  className="text-gold ml-2"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-              </div>
+              {addrLoading ? (
+                <div className="glass rounded-lg p-3 text-center text-xs text-muted-foreground">
+                  {t("common.loading")}...
+                </div>
+              ) : depositAddress ? (
+                <div className="glass rounded-lg p-3 flex items-center justify-between">
+                  <span className="text-xs text-foreground font-mono truncate flex-1">{depositAddress}</span>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(depositAddress); toast.success(t("agent.copied")); }}
+                    className="text-gold ml-2"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="glass rounded-lg p-3 flex items-center gap-2 text-xs text-yellow-400">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{t("wallet.chainNotConfigured")}</span>
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {t("wallet.networkTip")}: {CHAINS.find(c => c.key === chain)?.network ?? chain}
+              </p>
             </div>
 
             {/* Amount */}
             <div>
-              <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.amount")}</label>
+              <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.amount")} (USDT)</label>
               <input
                 type="number"
                 value={amount}
@@ -162,7 +205,7 @@ export default function Wallet() {
 
             <button
               onClick={handleDeposit}
-              disabled={depositMutation.isPending}
+              disabled={depositMutation.isPending || !depositAddress}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-sm glow-gold disabled:opacity-50 active:scale-[0.97] transition-transform"
             >
               {depositMutation.isPending ? t("common.loading") : t("wallet.confirm")}
@@ -175,16 +218,17 @@ export default function Wallet() {
             {/* Chain selector */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.chain")}</label>
-              <div className="flex gap-2">
-                {(["TRC20", "TON"] as const).map(c => (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {CHAINS.map(c => (
                   <button
-                    key={c}
-                    onClick={() => setChain(c)}
-                    className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      chain === c ? "bg-gold text-background" : "glass text-muted-foreground"
+                    key={c.key}
+                    onClick={() => setChain(c.key)}
+                    className={`shrink-0 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                      chain === c.key ? "bg-gold text-background" : "glass text-muted-foreground"
                     }`}
                   >
-                    {c === "TRC20" ? "USDT (TRC-20)" : "USDT (TON)"}
+                    <div className="whitespace-nowrap">USDT</div>
+                    <div className="whitespace-nowrap text-[10px] opacity-80">{c.label}</div>
                   </button>
                 ))}
               </div>
@@ -192,7 +236,7 @@ export default function Wallet() {
 
             {/* Amount */}
             <div>
-              <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.amount")}</label>
+              <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.amount")} (USDT)</label>
               <input
                 type="number"
                 value={amount}
@@ -212,6 +256,9 @@ export default function Wallet() {
                 placeholder={t("wallet.addressPlaceholder")}
                 className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold font-mono text-xs"
               />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {t("wallet.networkTip")}: {CHAINS.find(c => c.key === chain)?.network ?? chain}
+              </p>
             </div>
 
             <button
@@ -236,22 +283,31 @@ export default function Wallet() {
                 <div key={i} className="glass rounded-lg p-3 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      tx.type === "deposit" ? "bg-success/20" : "bg-danger/20"
+                      tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund"
+                        ? "bg-success/20" : "bg-danger/20"
                     }`}>
-                      {tx.type === "deposit" ? (
+                      {tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund" ? (
                         <ArrowDownToLine className="w-4 h-4 text-success" />
                       ) : (
                         <ArrowUpFromLine className="w-4 h-4 text-danger" />
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium capitalize">{tx.type}</p>
-                      <p className="text-[10px] text-muted-foreground">{tx.chain} • {tx.status}</p>
+                      <p className="text-sm font-medium">{typeLabels[tx.type] ?? tx.type}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {tx.chain ? `${tx.chain} • ` : ""}{statusLabels[tx.status] ?? tx.status}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`text-sm font-semibold ${tx.type === "deposit" ? "text-success" : "text-danger"}`}>
-                      {tx.type === "deposit" ? "+" : "-"}${tx.amount}
+                    <p className={`text-sm font-semibold ${
+                      tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund"
+                        ? "text-success" : "text-danger"
+                    }`}>
+                      {tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund" ? "+" : "-"}${tx.amount}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(tx.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>

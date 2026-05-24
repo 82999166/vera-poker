@@ -18,10 +18,13 @@ export async function getDb() {
 }
 
 // ==================== USER QUERIES ====================
-export async function upsertUser(user: InsertUser): Promise<void> {
+export async function upsertUser(user: InsertUser): Promise<{ isNew: boolean }> {
   if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
-  if (!db) return;
+  if (!db) return { isNew: false };
+  // Check if user exists
+  const existing = await db.select({ id: users.id }).from(users).where(eq(users.openId, user.openId)).limit(1);
+  const isNew = existing.length === 0;
 
   const values: InsertUser = { openId: user.openId };
   const updateSet: Record<string, unknown> = {};
@@ -55,6 +58,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
 
   await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  return { isNew };
 }
 
 export async function getUserByOpenId(openId: string) {
@@ -384,21 +388,21 @@ import crypto from "crypto";
  * Generate a deterministic deposit address for a user based on their ID and chain
  * In production, this would integrate with a real blockchain wallet service
  */
-export async function generateDepositAddress(userId: number, chain: "TRC20" | "TON"): Promise<string> {
+export async function generateDepositAddress(userId: number, chain: "TRC20" | "ERC20" | "BEP20" | "TON" | "Polygon"): Promise<string> {
   // Try to get configured wallet address from system config
-  const configKey = chain === "TRC20" ? "deposit_wallet_trc20" : "deposit_wallet_ton";
+  const chainConfigMap: Record<string, string> = {
+    TRC20: "deposit_wallet_trc20",
+    ERC20: "deposit_wallet_erc20",
+    BEP20: "deposit_wallet_bep20",
+    TON: "deposit_wallet_ton",
+    Polygon: "deposit_wallet_polygon",
+  };
+  const configKey = chainConfigMap[chain] || "deposit_wallet_trc20";
   const configuredAddress = await getConfigValue(configKey);
   if (configuredAddress) return configuredAddress;
   
-  // Fallback: generate deterministic placeholder (should be replaced via admin config)
-  const seed = `vera-poker-deposit-${userId}-${chain}`;
-  const hash = crypto.createHash("sha256").update(seed).digest("hex");
-  
-  if (chain === "TRC20") {
-    return "T" + hash.substring(0, 33).replace(/[^a-zA-Z0-9]/g, "A");
-  } else {
-    return "EQ" + hash.substring(0, 46).replace(/[^a-zA-Z0-9]/g, "B");
-  }
+  // Return placeholder message if not configured
+  return "";
 }
 
 // ==================== HAND PLAYERS QUERIES ====================
@@ -668,4 +672,70 @@ export async function getUserGameHistory(userId: number, page = 1, limit = 20) {
     .where(eq(handPlayers.userId, userId));
 
   return { games, total: countResult[0]?.count ?? 0 };
+}
+
+// ==================== ADMIN LOGS ====================
+export async function createAdminLog(data: {
+  operatorId?: number;
+  operatorName?: string;
+  operatorRole?: string;
+  action: string;
+  category: "finance" | "user" | "room" | "config" | "agent" | "system" | "auth";
+  targetType?: string;
+  targetId?: string;
+  detail?: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+  status?: "success" | "failed";
+  errorMessage?: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  const { adminLogs } = await import("../drizzle/schema");
+  const result = await db.insert(adminLogs).values({
+    operatorId: data.operatorId ?? null,
+    operatorName: data.operatorName ?? null,
+    operatorRole: data.operatorRole ?? null,
+    action: data.action,
+    category: data.category,
+    targetType: data.targetType ?? null,
+    targetId: data.targetId ?? null,
+    detail: data.detail ?? null,
+    ipAddress: data.ipAddress ?? null,
+    userAgent: data.userAgent ?? null,
+    status: data.status ?? "success",
+    errorMessage: data.errorMessage ?? null,
+  });
+  return result[0].insertId;
+}
+
+export async function getAdminLogs(page: number = 1, limit: number = 50, filters?: {
+  category?: string;
+  action?: string;
+  operatorId?: number;
+  startDate?: string;
+  endDate?: string;
+}) {
+  const db = await getDb();
+  if (!db) return { logs: [], total: 0 };
+  const { adminLogs } = await import("../drizzle/schema");
+  const { desc, eq, and, gte, lte, sql } = await import("drizzle-orm");
+  
+  const conditions: any[] = [];
+  if (filters?.category) conditions.push(eq(adminLogs.category, filters.category as any));
+  if (filters?.operatorId) conditions.push(eq(adminLogs.operatorId, filters.operatorId));
+  if (filters?.startDate) conditions.push(gte(adminLogs.createdAt, new Date(filters.startDate)));
+  if (filters?.endDate) conditions.push(lte(adminLogs.createdAt, new Date(filters.endDate)));
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  
+  const logs = await db.select().from(adminLogs)
+    .where(whereClause)
+    .orderBy(desc(adminLogs.createdAt))
+    .limit(limit)
+    .offset((page - 1) * limit);
+  
+  const countResult = await db.select({ count: sql<number>`count(*)` }).from(adminLogs).where(whereClause);
+  
+  return { logs, total: countResult[0]?.count ?? 0 };
 }

@@ -33,6 +33,27 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.settings": "系统设置",
     "tab.stats": "数据统计",
     "tab.staff": "员工管理",
+    "tab.logs": "操作日志",
+    "logs.title": "操作日志",
+    "logs.noLogs": "暂无日志记录",
+    "logs.all": "全部",
+    "logs.finance": "财务",
+    "logs.user": "用户",
+    "logs.room": "房间",
+    "logs.config": "配置",
+    "logs.agent": "代理",
+    "logs.system": "系统",
+    "logs.auth": "认证",
+    "logs.today": "今日操作",
+    "logs.total": "总操作数",
+    "logs.operator": "操作人",
+    "logs.action": "操作",
+    "logs.target": "目标",
+    "logs.time": "时间",
+    "logs.status": "状态",
+    "logs.detail": "详情",
+    "logs.success": "成功",
+    "logs.failed": "失败",
     "staff.title": "员工管理",
     "staff.create": "创建员工账户",
     "staff.username": "登录用户名",
@@ -357,6 +378,27 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.settings": "系統設置",
     "tab.stats": "數據統計",
     "tab.staff": "員工管理",
+    "tab.logs": "操作日誌",
+    "logs.title": "操作日誌",
+    "logs.noLogs": "暫無日誌記錄",
+    "logs.all": "全部",
+    "logs.finance": "財務",
+    "logs.user": "用戶",
+    "logs.room": "房間",
+    "logs.config": "配置",
+    "logs.agent": "代理",
+    "logs.system": "系統",
+    "logs.auth": "認證",
+    "logs.today": "今日操作",
+    "logs.total": "總操作數",
+    "logs.operator": "操作人",
+    "logs.action": "操作",
+    "logs.target": "目標",
+    "logs.time": "時間",
+    "logs.status": "狀態",
+    "logs.detail": "詳情",
+    "logs.success": "成功",
+    "logs.failed": "失敗",
     "staff.title": "員工管理",
     "staff.create": "創建員工帳戶",
     "staff.username": "登入用戶名",
@@ -681,6 +723,27 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.settings": "System",
     "tab.stats": "Statistics",
     "tab.staff": "Staff",
+    "tab.logs": "Logs",
+    "logs.title": "Operation Logs",
+    "logs.noLogs": "No logs yet",
+    "logs.all": "All",
+    "logs.finance": "Finance",
+    "logs.user": "User",
+    "logs.room": "Room",
+    "logs.config": "Config",
+    "logs.agent": "Agent",
+    "logs.system": "System",
+    "logs.auth": "Auth",
+    "logs.today": "Today",
+    "logs.total": "Total",
+    "logs.operator": "Operator",
+    "logs.action": "Action",
+    "logs.target": "Target",
+    "logs.time": "Time",
+    "logs.status": "Status",
+    "logs.detail": "Detail",
+    "logs.success": "Success",
+    "logs.failed": "Failed",
     "staff.title": "Staff Management",
     "staff.create": "Create Staff Account",
     "staff.username": "Username",
@@ -1105,7 +1168,7 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // ==================== ADMIN TABS ====================
-type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff";
+type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs";
 
 // ==================== MAIN ADMIN COMPONENT ====================
 export default function Admin() {
@@ -1153,8 +1216,8 @@ export default function Admin() {
 
   // Role-based tab permissions
   const roleTabMap: Record<string, AdminTab[]> = {
-    super_admin: ["config", "users", "rooms", "finance", "agents", "risk", "faq", "settings", "stats", "staff"],
-    admin: ["config", "users", "rooms", "finance", "agents", "risk", "faq", "settings", "stats", "staff"],
+    super_admin: ["config", "users", "rooms", "finance", "agents", "risk", "faq", "settings", "stats", "staff", "logs"],
+    admin: ["config", "users", "rooms", "finance", "agents", "risk", "faq", "settings", "stats", "staff", "logs"],
     cs: ["users", "rooms", "faq", "stats"],
     finance: ["finance", "agents", "stats"],
     tech: ["config", "rooms", "risk", "settings", "stats"],
@@ -1172,6 +1235,7 @@ export default function Admin() {
     { key: "settings", icon: Settings, label: at("tab.settings") },
     { key: "stats", icon: BarChart3, label: at("tab.stats") },
     { key: "staff", icon: Shield, label: at("tab.staff") },
+    { key: "logs", icon: Eye, label: at("tab.logs") },
   ];
   const tabs = allTabs.filter(t => allowedTabs.includes(t.key));
 
@@ -1337,6 +1401,7 @@ function PanelContent({ tab, at, onNavigate }: { tab: AdminTab; at: (key: string
     case "settings": return <SystemSettingsPanel at={at} />;
     case "stats": return <StatsPanel at={at} onNavigate={onNavigate} />;
     case "staff": return <StaffPanel at={at} />;
+    case "logs": return <LogsPanel at={at} />;
     default: return null;
   }
 }
@@ -3336,6 +3401,140 @@ function CopyableUrl({ value, small }: { value: string; small?: boolean }) {
       >
         {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
       </button>
+    </div>
+  );
+}
+
+
+// ==================== LOGS PANEL ====================
+function LogsPanel({ at }: { at: (k: string) => string }) {
+  const [page, setPage] = useState(1);
+  const [category, setCategory] = useState<string | undefined>(undefined);
+  const logsQuery = trpc.adminLogs.list.useQuery({ page, limit: 50, category });
+  const statsQuery = trpc.adminLogs.stats.useQuery();
+  const categories = ["all", "finance", "user", "room", "config", "agent", "system", "auth"];
+
+  const actionLabels: Record<string, string> = {
+    confirm_deposit: "确认充值",
+    reject_transaction: "拒绝交易",
+    confirm_withdrawal: "确认提现",
+    update_config: "更新配置",
+    create_room: "创建房间",
+    edit_room: "编辑房间",
+    delete_room: "删除房间",
+    update_room: "更新房间状态",
+    manual_topup: "手动充值",
+    user_login: "用户登录",
+    user_register: "用户注册",
+    agent_commission: "代理佣金",
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold">{at("logs.title")}</h2>
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-card border border-border rounded-xl p-4 text-center">
+          <div className="text-xs text-muted-foreground">{at("logs.today")}</div>
+          <div className="text-xl font-bold text-cyan-400">{statsQuery.data?.today ?? 0}</div>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4 text-center">
+          <div className="text-xs text-muted-foreground">{at("logs.total")}</div>
+          <div className="text-xl font-bold text-emerald-400">{statsQuery.data?.total ?? 0}</div>
+        </div>
+      </div>
+      {/* Category filter */}
+      <div className="flex flex-wrap gap-2">
+        {categories.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setCategory(cat === "all" ? undefined : cat)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+              (cat === "all" && !category) || category === cat
+                ? "bg-gold/20 text-gold border border-gold/40"
+                : "bg-secondary/50 text-muted-foreground border border-border hover:border-gold/30"
+            }`}
+          >
+            {at(`logs.${cat}`)}
+          </button>
+        ))}
+      </div>
+      {/* Logs table */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-secondary/30">
+                <th className="px-3 py-2 text-left text-xs text-muted-foreground">{at("logs.time")}</th>
+                <th className="px-3 py-2 text-left text-xs text-muted-foreground">{at("logs.operator")}</th>
+                <th className="px-3 py-2 text-left text-xs text-muted-foreground">{at("logs.action")}</th>
+                <th className="px-3 py-2 text-left text-xs text-muted-foreground">{at("logs.target")}</th>
+                <th className="px-3 py-2 text-left text-xs text-muted-foreground">{at("logs.status")}</th>
+                <th className="px-3 py-2 text-left text-xs text-muted-foreground">{at("logs.detail")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logsQuery.data?.logs?.map((log: any) => (
+                <tr key={log.id} className="border-b border-border/50 hover:bg-secondary/20">
+                  <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
+                    {new Date(log.createdAt).toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    {log.operatorName || "System"}
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-xs">
+                      {actionLabels[log.action] || log.action}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                    {log.targetType && `${log.targetType} #${log.targetId}`}
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      log.status === "success" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                    }`}>
+                      {log.status === "success" ? at("logs.success") : at("logs.failed")}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground max-w-[200px] truncate">
+                    {log.detail ? JSON.stringify(log.detail) : "-"}
+                  </td>
+                </tr>
+              ))}
+              {(!logsQuery.data?.logs || logsQuery.data.logs.length === 0) && (
+                <tr>
+                  <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground text-sm">
+                    {at("logs.noLogs")}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {/* Pagination */}
+        {(logsQuery.data?.total ?? 0) > 50 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1 text-xs rounded bg-secondary/50 disabled:opacity-50"
+            >
+              ←
+            </button>
+            <span className="text-xs text-muted-foreground">
+              {page} / {Math.ceil((logsQuery.data?.total ?? 0) / 50)}
+            </span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={page >= Math.ceil((logsQuery.data?.total ?? 0) / 50)}
+              className="px-3 py-1 text-xs rounded bg-secondary/50 disabled:opacity-50"
+            >
+              →
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
