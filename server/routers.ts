@@ -1585,6 +1585,17 @@ Rules:
       await db.updateBanner(input.id, { isActive: input.isActive });
       return { success: true };
     }),
+    uploadImage: staffProcedure.input(z.object({
+      fileName: z.string(),
+      fileData: z.string(), // base64 encoded
+      contentType: z.string().default("image/png"),
+    })).mutation(async ({ input }) => {
+      const { storagePut } = await import("../server/storage");
+      const buffer = Buffer.from(input.fileData, "base64");
+      const key = `banners/${Date.now()}-${input.fileName}`;
+      const { url } = await storagePut(key, buffer, input.contentType);
+      return { url };
+    }),
   }),
   // Admin Logs
   adminLogs: router({

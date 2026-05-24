@@ -3483,6 +3483,8 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
   const updateMutation = trpc.adminBanners.update.useMutation({ onSuccess: () => bannersQuery.refetch() });
   const deleteMutation = trpc.adminBanners.delete.useMutation({ onSuccess: () => bannersQuery.refetch() });
   const toggleMutation = trpc.adminBanners.toggleActive.useMutation({ onSuccess: () => bannersQuery.refetch() });
+  const uploadMutation = trpc.adminBanners.uploadImage.useMutation();
+  const [uploading, setUploading] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [editingBanner, setEditingBanner] = useState<any>(null);
@@ -3553,14 +3555,51 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground">{at("banners.imageUrl") || "图片链接"}</label>
-              <input
-                type="text"
-                value={formData.imageUrl}
-                onChange={(e) => setFormData(p => ({ ...p, imageUrl: e.target.value }))}
-                placeholder="https://..."
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
-              />
+              <label className="text-xs text-muted-foreground">图片上传 <span className="text-muted-foreground/60">(建议尺寸: 750×250px)</span></label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast.error("图片不能超过 5MB");
+                      return;
+                    }
+                    setUploading(true);
+                    try {
+                      const reader = new FileReader();
+                      reader.onload = async () => {
+                        const base64 = (reader.result as string).split(",")[1];
+                        const result = await uploadMutation.mutateAsync({
+                          fileName: file.name,
+                          fileData: base64,
+                          contentType: file.type,
+                        });
+                        setFormData(p => ({ ...p, imageUrl: result.url }));
+                        setUploading(false);
+                        toast.success("图片上传成功");
+                      };
+                      reader.readAsDataURL(file);
+                    } catch {
+                      setUploading(false);
+                      toast.error("图片上传失败");
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-gold/20 file:text-gold"
+                />
+                {uploading && <span className="text-xs text-gold animate-pulse">上传中...</span>}
+              </div>
+              {formData.imageUrl && (
+                <input
+                  type="text"
+                  value={formData.imageUrl}
+                  onChange={(e) => setFormData(p => ({ ...p, imageUrl: e.target.value }))}
+                  placeholder="或直接输入图片 URL"
+                  className="w-full mt-2 px-3 py-2 rounded-lg border border-border bg-background text-sm text-muted-foreground"
+                />
+              )}
             </div>
             <div>
               <label className="text-xs text-muted-foreground">{at("banners.linkType") || "点击动作"}</label>
