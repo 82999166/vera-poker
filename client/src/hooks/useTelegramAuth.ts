@@ -198,10 +198,7 @@ export function useTelegramAuth() {
       if (typeof (webapp as any).setBackgroundColor === 'function') {
         (webapp as any).setBackgroundColor('#1a1a2e');
       }
-      // Request fullscreen on newer TG versions (7.8+)
-      if (typeof (webapp as any).requestFullscreen === 'function') {
-        try { (webapp as any).requestFullscreen(); } catch(e) { /* ignore if not supported */ }
-      }
+      // Note: Do NOT call requestFullscreen() - it causes content to be hidden behind TG header on older devices
     }
 
     return authenticateWithInitData();

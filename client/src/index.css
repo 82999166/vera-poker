@@ -300,17 +300,15 @@ html, body {
   user-select: none;
 }
 
-/* Mobile viewport height fix for Telegram WebView */
+/* Mobile viewport height fix */
 .h-screen {
   height: 100vh;
   height: 100dvh;
-  height: var(--tg-viewport-stable-height, 100dvh);
 }
 
-/* Telegram Mini App viewport height */
 html, body, #root {
-  height: var(--tg-viewport-stable-height, 100%);
-  min-height: var(--tg-viewport-stable-height, 100dvh);
+  height: 100%;
+  min-height: 100dvh;
 }
 
 /* Safe area padding for notch devices */
@@ -319,7 +317,7 @@ html, body, #root {
 }
 
 .safe-top {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: 0px;
 }
 
 /* Prevent horizontal overflow on mobile */
