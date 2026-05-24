@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, getLocale } from "@/lib/i18n";
 import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
@@ -251,17 +251,32 @@ export default function Table() {
         } else {
           playSound("win");
         }
-        // Announce winning hand type like a real casino dealer
+        // Announce winning hand type like a real casino dealer (follows system language)
         const primaryWinner = tableState.settlementDetail?.winners?.sort((a: any, b: any) => b.amount - a.amount)?.[0];
         if (primaryWinner && primaryWinner.handDescription && primaryWinner.handDescription !== "Last Standing") {
           const handKey = HAND_RANK_MAP[primaryWinner.handDescription];
           const handName = handKey ? t(handKey) : primaryWinner.handDescription;
+          const currentLang = getLocale();
+          const winText = currentLang.startsWith("zh") ? `${primaryWinner.name}, ${handName}赢`
+            : currentLang === "ja" ? `${primaryWinner.name}, ${handName}で勝ち`
+            : currentLang === "ko" ? `${primaryWinner.name}, ${handName} 승리`
+            : currentLang === "es" ? `${primaryWinner.name} gana con ${handName}`
+            : currentLang === "pt" ? `${primaryWinner.name} ganha com ${handName}`
+            : currentLang === "ru" ? `${primaryWinner.name} выиграл, ${handName}`
+            : currentLang === "vi" ? `${primaryWinner.name} thắng với ${handName}`
+            : currentLang === "th" ? `${primaryWinner.name} ชนะด้วย ${handName}`
+            : `${primaryWinner.name} wins with ${handName}`;
           setTimeout(() => {
-            speak(`${primaryWinner.name}, ${handName}赢`);
+            speak(winText);
           }, 800);
         } else if (primaryWinner && primaryWinner.handDescription === "Last Standing") {
+          const currentLang = getLocale();
+          const foldWinText = currentLang.startsWith("zh") ? `${primaryWinner.name}赢，其他玩家弃牌`
+            : currentLang === "ja" ? `${primaryWinner.name}の勝ち、他のプレイヤーがフォールド`
+            : currentLang === "ko" ? `${primaryWinner.name} 승리, 다른 플레이어 폴드`
+            : `${primaryWinner.name} wins, others folded`;
           setTimeout(() => {
-            speak(`${primaryWinner.name}赢，其他玩家弃牌`);
+            speak(foldWinText);
           }, 800);
         }
       }

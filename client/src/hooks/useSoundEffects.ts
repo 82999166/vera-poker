@@ -2,8 +2,10 @@
  * Sound Effects Hook for Poker Table
  * Uses Web Audio API for low-latency sound playback
  * Uses Audio element + server-side TTS proxy for voice announcements (Android WebView compatible)
+ * Voice announcements follow the system language setting
  */
 import { useCallback, useRef, useEffect } from "react";
+import { getLocale } from "@/lib/i18n";
 
 // Sound effect types
 export type SoundEffect =
@@ -123,13 +125,127 @@ const soundGenerators: Record<SoundEffect, (ctx: AudioContext) => void> = {
 };
 
 /**
+ * Multi-language action text templates
+ * Each language has templates for poker actions
+ */
+const ACTION_TEXTS: Record<string, Record<string, (name: string, amount: string) => string>> = {
+  "zh-CN": {
+    bet: (name, amount) => name ? `${name} 下注 ${amount}` : `下注 ${amount}`,
+    call: (name, amount) => name ? `${name} 跟注 ${amount}` : `跟注 ${amount}`,
+    raise: (name, amount) => name ? `${name} 加注到 ${amount}` : `加注到 ${amount}`,
+    all_in: (name, amount) => name ? `${name} All In ${amount}` : `All In ${amount}`,
+    fold: (name) => name ? `${name} 弃牌` : "弃牌",
+    check: (name) => name ? `${name} 过牌` : "过牌",
+  },
+  "zh-TW": {
+    bet: (name, amount) => name ? `${name} 下注 ${amount}` : `下注 ${amount}`,
+    call: (name, amount) => name ? `${name} 跟注 ${amount}` : `跟注 ${amount}`,
+    raise: (name, amount) => name ? `${name} 加注到 ${amount}` : `加注到 ${amount}`,
+    all_in: (name, amount) => name ? `${name} All In ${amount}` : `All In ${amount}`,
+    fold: (name) => name ? `${name} 棄牌` : "棄牌",
+    check: (name) => name ? `${name} 過牌` : "過牌",
+  },
+  "en": {
+    bet: (name, amount) => name ? `${name} bets ${amount}` : `Bet ${amount}`,
+    call: (name, amount) => name ? `${name} calls ${amount}` : `Call ${amount}`,
+    raise: (name, amount) => name ? `${name} raises to ${amount}` : `Raise to ${amount}`,
+    all_in: (name, amount) => name ? `${name} all in ${amount}` : `All in ${amount}`,
+    fold: (name) => name ? `${name} folds` : "Fold",
+    check: (name) => name ? `${name} checks` : "Check",
+  },
+  "ja": {
+    bet: (name, amount) => name ? `${name} ベット ${amount}` : `ベット ${amount}`,
+    call: (name, amount) => name ? `${name} コール ${amount}` : `コール ${amount}`,
+    raise: (name, amount) => name ? `${name} レイズ ${amount}` : `レイズ ${amount}`,
+    all_in: (name, amount) => name ? `${name} オールイン ${amount}` : `オールイン ${amount}`,
+    fold: (name) => name ? `${name} フォールド` : "フォールド",
+    check: (name) => name ? `${name} チェック` : "チェック",
+  },
+  "ko": {
+    bet: (name, amount) => name ? `${name} 베팅 ${amount}` : `베팅 ${amount}`,
+    call: (name, amount) => name ? `${name} 콜 ${amount}` : `콜 ${amount}`,
+    raise: (name, amount) => name ? `${name} 레이즈 ${amount}` : `레이즈 ${amount}`,
+    all_in: (name, amount) => name ? `${name} 올인 ${amount}` : `올인 ${amount}`,
+    fold: (name) => name ? `${name} 폴드` : "폴드",
+    check: (name) => name ? `${name} 체크` : "체크",
+  },
+  "es": {
+    bet: (name, amount) => name ? `${name} apuesta ${amount}` : `Apuesta ${amount}`,
+    call: (name, amount) => name ? `${name} iguala ${amount}` : `Iguala ${amount}`,
+    raise: (name, amount) => name ? `${name} sube a ${amount}` : `Sube a ${amount}`,
+    all_in: (name, amount) => name ? `${name} all in ${amount}` : `All in ${amount}`,
+    fold: (name) => name ? `${name} se retira` : "Se retira",
+    check: (name) => name ? `${name} pasa` : "Pasa",
+  },
+  "pt": {
+    bet: (name, amount) => name ? `${name} aposta ${amount}` : `Aposta ${amount}`,
+    call: (name, amount) => name ? `${name} paga ${amount}` : `Paga ${amount}`,
+    raise: (name, amount) => name ? `${name} aumenta para ${amount}` : `Aumenta para ${amount}`,
+    all_in: (name, amount) => name ? `${name} all in ${amount}` : `All in ${amount}`,
+    fold: (name) => name ? `${name} desiste` : "Desiste",
+    check: (name) => name ? `${name} passa` : "Passa",
+  },
+  "ru": {
+    bet: (name, amount) => name ? `${name} ставка ${amount}` : `Ставка ${amount}`,
+    call: (name, amount) => name ? `${name} колл ${amount}` : `Колл ${amount}`,
+    raise: (name, amount) => name ? `${name} рейз до ${amount}` : `Рейз до ${amount}`,
+    all_in: (name, amount) => name ? `${name} олл-ин ${amount}` : `Олл-ин ${amount}`,
+    fold: (name) => name ? `${name} фолд` : "Фолд",
+    check: (name) => name ? `${name} чек` : "Чек",
+  },
+  "vi": {
+    bet: (name, amount) => name ? `${name} đặt cược ${amount}` : `Đặt cược ${amount}`,
+    call: (name, amount) => name ? `${name} theo ${amount}` : `Theo ${amount}`,
+    raise: (name, amount) => name ? `${name} tăng lên ${amount}` : `Tăng lên ${amount}`,
+    all_in: (name, amount) => name ? `${name} all in ${amount}` : `All in ${amount}`,
+    fold: (name) => name ? `${name} bỏ bài` : "Bỏ bài",
+    check: (name) => name ? `${name} xem bài` : "Xem bài",
+  },
+  "th": {
+    bet: (name, amount) => name ? `${name} เดิมพัน ${amount}` : `เดิมพัน ${amount}`,
+    call: (name, amount) => name ? `${name} คอล ${amount}` : `คอล ${amount}`,
+    raise: (name, amount) => name ? `${name} เรส ${amount}` : `เรส ${amount}`,
+    all_in: (name, amount) => name ? `${name} ออลอิน ${amount}` : `ออลอิน ${amount}`,
+    fold: (name) => name ? `${name} หมอบ` : "หมอบ",
+    check: (name) => name ? `${name} เช็ค` : "เช็ค",
+  },
+  "id": {
+    bet: (name, amount) => name ? `${name} taruhan ${amount}` : `Taruhan ${amount}`,
+    call: (name, amount) => name ? `${name} ikut ${amount}` : `Ikut ${amount}`,
+    raise: (name, amount) => name ? `${name} naikkan ke ${amount}` : `Naikkan ke ${amount}`,
+    all_in: (name, amount) => name ? `${name} all in ${amount}` : `All in ${amount}`,
+    fold: (name) => name ? `${name} lipat` : "Lipat",
+    check: (name) => name ? `${name} cek` : "Cek",
+  },
+  "ar": {
+    bet: (name, amount) => name ? `${name} رهان ${amount}` : `رهان ${amount}`,
+    call: (name, amount) => name ? `${name} مجاراة ${amount}` : `مجاراة ${amount}`,
+    raise: (name, amount) => name ? `${name} رفع إلى ${amount}` : `رفع إلى ${amount}`,
+    all_in: (name, amount) => name ? `${name} أول إن ${amount}` : `أول إن ${amount}`,
+    fold: (name) => name ? `${name} انسحاب` : "انسحاب",
+    check: (name) => name ? `${name} تمرير` : "تمرير",
+  },
+};
+
+/**
+ * Get action text in the current locale
+ */
+function getActionText(action: string, locale: string, name: string, amount: string): string {
+  const texts = ACTION_TEXTS[locale] || ACTION_TEXTS["en"];
+  const generator = texts[action];
+  if (!generator) return "";
+  return generator(name, amount);
+}
+
+/**
  * TTS via server-side proxy using Audio element
  * This works on ALL platforms including Android WebView / Telegram Mini App
  * because it uses standard HTML5 Audio which is universally supported.
+ * Now passes the current language to the TTS endpoint for correct pronunciation.
  */
-function playTTS(text: string, volume: number = 0.7): void {
+function playTTS(text: string, lang: string, volume: number = 0.7): void {
   try {
-    const url = `/api/tts?text=${encodeURIComponent(text)}`;
+    const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}`;
     const audio = new Audio(url);
     audio.volume = volume;
     // Play with error handling
@@ -137,31 +253,31 @@ function playTTS(text: string, volume: number = 0.7): void {
     if (playPromise) {
       playPromise.catch(() => {
         // If autoplay blocked, try speechSynthesis as fallback (works on iOS/desktop)
-        fallbackSpeechSynthesis(text, volume);
+        fallbackSpeechSynthesis(text, lang, volume);
       });
     }
   } catch {
-    fallbackSpeechSynthesis(text, volume);
+    fallbackSpeechSynthesis(text, lang, volume);
   }
 }
 
 /**
  * Fallback: use Web Speech API for platforms that support it (iOS, desktop browsers)
  */
-function fallbackSpeechSynthesis(text: string, volume: number = 0.7): void {
+function fallbackSpeechSynthesis(text: string, lang: string, volume: number = 0.7): void {
   if (!window.speechSynthesis) return;
   try {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1.1;
     utterance.volume = volume;
-    utterance.lang = "zh-CN";
+    utterance.lang = lang;
     const voices = window.speechSynthesis.getVoices();
-    const zhVoice = voices.find(v => v.lang.startsWith("zh-CN"))
-      || voices.find(v => v.lang.startsWith("zh"));
-    if (zhVoice) {
-      utterance.voice = zhVoice;
-      utterance.lang = zhVoice.lang;
+    const matchVoice = voices.find(v => v.lang.startsWith(lang))
+      || voices.find(v => v.lang.startsWith(lang.split("-")[0]));
+    if (matchVoice) {
+      utterance.voice = matchVoice;
+      utterance.lang = matchVoice.lang;
     }
     window.speechSynthesis.speak(utterance);
   } catch {
@@ -265,42 +381,24 @@ export function useSoundEffects() {
   }, []);
 
   // Voice announcement using server-side TTS proxy (works on Android WebView)
+  // Now follows system language setting
   const speak = useCallback((text: string) => {
     if (!enabledRef.current) return;
-    playTTS(text, volumeRef.current);
+    const currentLang = getLocale();
+    playTTS(text, currentLang, volumeRef.current);
   }, []);
 
-  // Announce a poker action with amount
+  // Announce a poker action with amount - text follows system language
   const announceAction = useCallback((action: string, amount?: number, playerName?: string) => {
     if (!enabledRef.current) return;
-    let text = "";
+    const currentLang = getLocale();
     const amountStr = amount ? `$${amount}` : "";
     const name = playerName || "";
-    
-    switch (action) {
-      case "bet":
-        text = name ? `${name} 下注 ${amountStr}` : `下注 ${amountStr}`;
-        break;
-      case "call":
-        text = name ? `${name} 跟注 ${amountStr}` : `跟注 ${amountStr}`;
-        break;
-      case "raise":
-        text = name ? `${name} 加注到 ${amountStr}` : `加注到 ${amountStr}`;
-        break;
-      case "all_in":
-        text = name ? `${name} All In ${amountStr}` : `All In ${amountStr}`;
-        break;
-      case "fold":
-        text = name ? `${name} 弃牌` : "弃牌";
-        break;
-      case "check":
-        text = name ? `${name} 过牌` : "过牌";
-        break;
-      default:
-        return;
+    const text = getActionText(action, currentLang, name, amountStr);
+    if (text) {
+      playTTS(text, currentLang, volumeRef.current);
     }
-    speak(text);
-  }, [speak]);
+  }, []);
 
   return {
     play,

@@ -412,3 +412,8 @@
 - [x] 结算框显示时间缩短 - 从7秒减到3.5秒
 - [x] 修复换桌逻辑 - 移除 fold 后自动换桌 + 移除 getPlayerView 中 auto-recover 自动开局
 - [x] 全面审查游戏流程 - 游戏只通过 playerReady 或 joinTable 启动，不再有隐式自动开局
+
+## Voice Language Fix (2026-05-24 Round 8)
+- [x] TTS 语音播报跟随系统语言 - 后端 TTS 代理支持 lang 参数，前端传入 getLocale() 当前语言
+- [x] announceAction 文本跟随系统语言 - 12种语言的操作播报模板（中/英/日/韩/西/葡/俄/越/泰/印尼/阿拉伯）
+- [x] 结算语音播报跟随系统语言 - 赢家牌型播报文本多语言化

@@ -61,10 +61,18 @@ async function startServer() {
   app.get("/api/tts", async (req, res) => {
     try {
       const text = req.query.text as string;
+      const lang = (req.query.lang as string) || "zh-CN";
       if (!text || text.length > 200) {
         return res.status(400).json({ error: "Invalid text" });
       }
-      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=zh-CN&client=tw-ob&q=${encodeURIComponent(text)}`;
+      // Map locale codes to Google TTS language codes
+      const ttsLangMap: Record<string, string> = {
+        "en": "en", "zh-CN": "zh-CN", "zh-TW": "zh-TW",
+        "ja": "ja", "ko": "ko", "es": "es", "pt": "pt-BR",
+        "ru": "ru", "ar": "ar", "vi": "vi", "th": "th", "id": "id",
+      };
+      const ttsLang = ttsLangMap[lang] || lang;
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${ttsLang}&client=tw-ob&q=${encodeURIComponent(text)}`;
       const response = await fetch(ttsUrl, {
         headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
       });
