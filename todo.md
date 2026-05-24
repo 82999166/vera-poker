@@ -474,3 +474,12 @@
 - [x] 修复人工客服按钮点击无反应（去除@前缀+TG Mini App中使用openTelegramLink）（检查 TG 号配置读取和跳转逻辑）
 - [x] 大厅房间卡片中 0/6 改为显示该房间的在线人数
 - [x] AI 客服连续3次无法解答时自动弹出"建议转人工"提示（金色高亮系统消息 + 转人工按钮闪烁）
+
+## Lobby Refresh + CS Chat History (2026-05-24 Round 19)
+- [x] 大厅在线人数刷新间隔缩短到 3 秒（rooms.list refetchInterval: 3000）
+- [x] 客服聊天历史持久化到数据库（新建 cs_messages 表）
+- [x] 后端 DB helpers: getCsMessages / saveCsMessage / clearCsMessages
+- [x] 后端 tRPC procedures: cs.getHistory / cs.clearHistory（自动保存在 cs.chat 中）
+- [x] 前端 Support.tsx 加载历史消息 + 清除历史按钮
+- [x] AI 对话上下文：发送最近 10 条历史消息给 LLM，使 AI 能记住上下文
+- [x] i18n: 添加 cs.clearHistory 翻译键（5种语言）

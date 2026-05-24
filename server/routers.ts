@@ -725,9 +725,19 @@ export const appRouter = router({
       message: z.string().min(1).max(2000),
       language: z.string().default("en"),
     })).mutation(async ({ ctx, input }) => {
+      // Save user message to DB
+      await db.saveCsMessage(ctx.user.id, "user", input.message);
+
       // Get FAQ knowledge base for context
       const faqs = await db.getActiveFaqs(input.language);
       const faqContext = faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n");
+
+      // Get recent chat history for context (last 10 messages)
+      const recentHistory = await db.getCsMessages(ctx.user.id, 10);
+      const historyContext = recentHistory.slice(-10).map(m => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
 
       const systemPrompt = `You are Vera Poker's AI customer service assistant. You help players with questions about the game, their accounts, deposits, withdrawals, and general poker rules.
 
@@ -742,18 +752,42 @@ Rules:
 - For account-specific queries, inform the user you can help with general questions but specific account issues need human support`;
 
       try {
-        const response = await invokeLLM({
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: input.message },
-          ],
-        });
+        const messages: Array<{role: "system" | "user" | "assistant"; content: string}> = [
+          { role: "system" as const, content: systemPrompt },
+          ...historyContext.filter(m => m.role === "user" || m.role === "assistant").map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+        ];
+        // Ensure the last message is the current user message (already in history)
+        // If history doesn't include it yet (race condition), add it
+        if (messages[messages.length - 1]?.content !== input.message) {
+          messages.push({ role: "user", content: input.message });
+        }
+
+        const response = await invokeLLM({ messages });
         const rawContent = response.choices?.[0]?.message?.content;
         const aiResponse = typeof rawContent === "string" ? rawContent : (rawContent ? JSON.stringify(rawContent) : "I'm sorry, I couldn't process your request. Please try again.");
+
+        // Save AI response to DB
+        await db.saveCsMessage(ctx.user.id, "assistant", aiResponse);
+
         return { response: aiResponse, resolvedBy: "ai" as const };
       } catch (error) {
-        return { response: "I'm experiencing technical difficulties. Please try again later or contact human support.", resolvedBy: "ai" as const };
+        const errorMsg = "I'm experiencing technical difficulties. Please try again later or contact human support.";
+        await db.saveCsMessage(ctx.user.id, "assistant", errorMsg);
+        return { response: errorMsg, resolvedBy: "ai" as const };
       }
+    }),
+    getHistory: protectedProcedure.query(async ({ ctx }) => {
+      const messages = await db.getCsMessages(ctx.user.id, 100);
+      return messages.map(m => ({
+        id: m.id,
+        role: m.role as "user" | "assistant" | "system",
+        content: m.content,
+        createdAt: m.createdAt,
+      }));
+    }),
+    clearHistory: protectedProcedure.mutation(async ({ ctx }) => {
+      await db.clearCsMessages(ctx.user.id);
+      return { success: true };
     }),
     faqs: publicProcedure.input(z.object({ language: z.string().default("en") })).query(async ({ input }) => {
       return db.getActiveFaqs(input.language);

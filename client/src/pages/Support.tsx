@@ -3,7 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { t, getLocale } from "@/lib/i18n";
 import { useLocation } from "wouter";
-import { ArrowLeft, Send, Bot, User, Loader2, UserRound, AlertCircle } from "lucide-react";
+import { ArrowLeft, Send, Bot, User, Loader2, UserRound, AlertCircle, Trash2 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 
 interface Message {
@@ -16,14 +16,8 @@ interface Message {
 export default function Support() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content: t("cs.welcome"),
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [failCount, setFailCount] = useState(0);
@@ -32,6 +26,50 @@ export default function Support() {
   const rawCsTg = (publicConfigs as Record<string, string>)?.cs_tg_username || "";
   const csTgUsername = rawCsTg.replace(/^@/, "");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load chat history from DB
+  const { data: historyData, isLoading: historyLoading } = trpc.cs.getHistory.useQuery(undefined, {
+    enabled: !!user,
+  });
+
+  // Clear history mutation
+  const clearHistoryMutation = trpc.cs.clearHistory.useMutation({
+    onSuccess: () => {
+      setMessages([{
+        id: "welcome",
+        role: "assistant",
+        content: t("cs.welcome"),
+        timestamp: new Date(),
+      }]);
+      setFailCount(0);
+      setShowTransferHint(false);
+    },
+  });
+
+  // Initialize messages from history
+  useEffect(() => {
+    if (historyLoaded) return;
+    if (historyLoading) return;
+
+    if (historyData && historyData.length > 0) {
+      const loadedMessages: Message[] = historyData.map(m => ({
+        id: `db-${m.id}`,
+        role: m.role,
+        content: m.content,
+        timestamp: new Date(m.createdAt),
+      }));
+      setMessages(loadedMessages);
+    } else {
+      // No history — show welcome message
+      setMessages([{
+        id: "welcome",
+        role: "assistant",
+        content: t("cs.welcome"),
+        timestamp: new Date(),
+      }]);
+    }
+    setHistoryLoaded(true);
+  }, [historyData, historyLoading, historyLoaded]);
 
   // Detect if AI response indicates inability to answer
   const isUnhelpfulResponse = (response: string): boolean => {
@@ -130,6 +168,10 @@ export default function Support() {
     }
   };
 
+  const handleClearHistory = () => {
+    clearHistoryMutation.mutate();
+  };
+
   return (
     <div className="h-screen bg-background flex flex-col">
       {/* Header */}
@@ -137,7 +179,7 @@ export default function Support() {
         <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1">
           <div className="w-8 h-8 rounded-full bg-truth-blue/20 flex items-center justify-center">
             <Bot className="w-4 h-4 text-truth-blue" />
           </div>
@@ -146,10 +188,26 @@ export default function Support() {
             <p className="text-[10px] text-success">Online 24/7</p>
           </div>
         </div>
+        {/* Clear history button */}
+        {messages.length > 1 && (
+          <button
+            onClick={handleClearHistory}
+            className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/50 transition-colors"
+            title={t("cs.clearHistory")}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
       </header>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-20">
+        {historyLoading && (
+          <div className="flex justify-center py-4">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
         {messages.map(msg => (
           msg.role === "system" ? (
             // System hint message (transfer suggestion)

@@ -15,7 +15,7 @@ export default function Lobby() {
   const [activeTab, setActiveTab] = useState<"cash" | "tourneys" | "private">("cash");
   const [filterLevel, setFilterLevel] = useState<FilterLevel>("all");
   const [privateRoomCode, setPrivateRoomCode] = useState("");
-  const { data: rooms, isLoading } = trpc.rooms.list.useQuery();
+  const { data: rooms, isLoading } = trpc.rooms.list.useQuery(undefined, { refetchInterval: 3000 });
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
   const { data: activeRoom } = trpc.rooms.myActiveRoom.useQuery(undefined, { enabled: !!user });
 

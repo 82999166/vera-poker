@@ -1,6 +1,6 @@
 import { eq, and, desc, asc, sql, gte, lte, like, or, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, systemConfigs, rooms, roomPlayers, gameHands, handPlayers, transactions, agentRelationships, commissionRecords, riskEvents, csConversations, faqEntries, notifications } from "../drizzle/schema";
+import { InsertUser, users, systemConfigs, rooms, roomPlayers, gameHands, handPlayers, transactions, agentRelationships, commissionRecords, riskEvents, csConversations, faqEntries, notifications, csMessages } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -851,4 +851,44 @@ export async function confirmDepositById(transactionId: number) {
   }
   
   return tx;
+}
+
+// ==================== CS MESSAGES (Chat History) ====================
+
+/**
+ * Get CS chat history for a user (last 100 messages)
+ */
+export async function getCsMessages(userId: number, limit = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  const messages = await db.select()
+    .from(csMessages)
+    .where(eq(csMessages.userId, userId))
+    .orderBy(desc(csMessages.createdAt))
+    .limit(limit);
+  // Return in chronological order (oldest first)
+  return messages.reverse();
+}
+
+/**
+ * Save a CS message to the database
+ */
+export async function saveCsMessage(userId: number, role: "user" | "assistant" | "system", content: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const [inserted] = await db.insert(csMessages).values({
+    userId,
+    role,
+    content,
+  });
+  return inserted;
+}
+
+/**
+ * Clear CS chat history for a user (optional: for "new conversation" feature)
+ */
+export async function clearCsMessages(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(csMessages).where(eq(csMessages.userId, userId));
 }

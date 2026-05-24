@@ -324,3 +324,15 @@ export const adminLogs = mysqlTable("admin_logs", {
 });
 export type AdminLog = typeof adminLogs.$inferSelect;
 export type InsertAdminLog = typeof adminLogs.$inferInsert;
+
+// ==================== CS MESSAGES (Chat History) ====================
+export const csMessages = mysqlTable("cs_messages", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["user", "assistant", "system"]).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CsMessage = typeof csMessages.$inferSelect;
+export type InsertCsMessage = typeof csMessages.$inferInsert;
