@@ -188,6 +188,20 @@ export default function Support() {
             <p className="text-[10px] text-success">Online 24/7</p>
           </div>
         </div>
+        {/* Transfer to human CS button in header */}
+        {csTgUsername && (
+          <button
+            onClick={handleTransferToHuman}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-[0.97] ${
+              showTransferHint
+                ? "bg-gold/20 border border-gold/50 text-gold animate-pulse"
+                : "bg-truth-blue/10 border border-truth-blue/30 text-truth-blue hover:bg-truth-blue/20"
+            }`}
+          >
+            <UserRound className="w-3.5 h-3.5" />
+            {t("cs.transferHuman")}
+          </button>
+        )}
         {/* Clear history button */}
         {messages.length > 1 && (
           <button
@@ -261,22 +275,6 @@ export default function Support() {
 
       {/* Input */}
       <div className="glass-strong border-t border-border px-4 py-3 z-10">
-        {/* Transfer to human CS button - show always if configured, highlight if suggested */}
-        {csTgUsername && (
-          <div className="mb-2">
-            <button
-              onClick={handleTransferToHuman}
-              className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.98] ${
-                showTransferHint
-                  ? "bg-gold/20 border border-gold/50 text-gold animate-pulse"
-                  : "bg-truth-blue/10 border border-truth-blue/30 text-truth-blue hover:bg-truth-blue/20"
-              }`}
-            >
-              <UserRound className="w-3.5 h-3.5" />
-              {t("cs.transferHuman")}
-            </button>
-          </div>
-        )}
         <div className="flex items-center gap-2">
           <input
             type="text"
