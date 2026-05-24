@@ -406,3 +406,9 @@
 ## Bug Fixes (2026-05-24 Round 6)
 - [x] 安卓语音播报仍然无声 - 改用服务端 TTS 代理 + HTML5 Audio 播放（完全兼容 Android WebView）
 - [x] 新一局开始时上一把牌没有清空 - waitingForReady 时清空 communityCards/myCards/pot/其他玩家手牌
+
+## Game Flow Logic Overhaul (2026-05-24 Round 7)
+- [x] "开始"按钮应在结算完成后才显示 - 后端延迟4s设置 waitingForReady + 前端添加 !showWinner 条件
+- [x] 结算框显示时间缩短 - 从7秒减到3.5秒
+- [x] 修复换桌逻辑 - 移除 fold 后自动换桌 + 移除 getPlayerView 中 auto-recover 自动开局
+- [x] 全面审查游戏流程 - 游戏只通过 playerReady 或 joinTable 启动，不再有隐式自动开局

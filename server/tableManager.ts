@@ -29,6 +29,7 @@ interface ActiveTable {
   readyPlayers: Set<number>; // player IDs who clicked ready
   readyDeadline?: number; // timestamp when unready players get kicked
   waitingForReady: boolean; // true when in between hands waiting for ready clicks
+  settlementStartedAt?: number; // timestamp when settlement started (for delayed ready)
 }
 
 // In-memory store of active tables
@@ -48,34 +49,27 @@ export function getTable(roomId: number): ActiveTable | undefined {
 export async function getPlayerView(roomId: number, playerId: number) {
   let table = activeTables.get(roomId);
   if (!table) {
-    // Auto-recover: if 2+ active players exist but no game running, start one
-    const activePlayers = await db.getRoomPlayers(roomId);
-    if (activePlayers.length >= 2) {
-      await startNewHand(roomId);
-      table = activeTables.get(roomId);
+    // No active game - return seated players with avatar info
+    // Do NOT auto-start here; game should only start via playerReady or joinTable
+    const seatedPlayers = await db.getRoomPlayers(roomId);
+    const waitingPlayers = [];
+    for (const sp of seatedPlayers) {
+      const user = await db.getUserById(sp.userId);
+      waitingPlayers.push({
+        id: sp.userId,
+        seatIndex: sp.seatIndex,
+        chips: parseFloat(sp.chipCount || "0"),
+        currentBet: 0,
+        totalBet: 0,
+        isFolded: false,
+        isAllIn: false,
+        isActive: true,
+        name: user?.nickname || user?.name || `Player ${sp.seatIndex + 1}`,
+        avatar: user?.avatar || null,
+        holeCards: [],
+      });
     }
-    if (!table) {
-      // Return seated players with avatar info even when no game is active
-      const seatedPlayers = await db.getRoomPlayers(roomId);
-      const waitingPlayers = [];
-      for (const sp of seatedPlayers) {
-        const user = await db.getUserById(sp.userId);
-        waitingPlayers.push({
-          id: sp.userId,
-          seatIndex: sp.seatIndex,
-          chips: parseFloat(sp.chipCount || "0"),
-          currentBet: 0,
-          totalBet: 0,
-          isFolded: false,
-          isAllIn: false,
-          isActive: true,
-          name: user?.nickname || user?.name || `Player ${sp.seatIndex + 1}`,
-          avatar: user?.avatar || null,
-          holeCards: [],
-        });
-      }
-      return { phase: "waiting", players: waitingPlayers, communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [] };
-    }
+    return { phase: "waiting", players: waitingPlayers, communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [] };
   }
 
   const gs = table.gameState;
@@ -603,11 +597,20 @@ async function settleHand(roomId: number) {
     }
   }
 
-  // After settlement, wait for players to click "ready" instead of auto-starting
-  // Set a 30-second deadline for players to ready up
-  table.waitingForReady = true;
+  // After settlement, delay showing the "ready" button so settlement UI displays first
+  // Settlement display takes ~3.5s on frontend, so we delay 4s before enabling ready state
+  table.waitingForReady = false;
   table.readyPlayers = new Set();
-  table.readyDeadline = Date.now() + 30000; // 30 seconds to ready up
+  table.settlementStartedAt = Date.now();
+  
+  // Delay enabling ready state by 4 seconds (after settlement animation completes)
+  setTimeout(() => {
+    const currentTable = activeTables.get(roomId);
+    if (currentTable && currentTable.settlementStartedAt === table.settlementStartedAt) {
+      currentTable.waitingForReady = true;
+      currentTable.readyDeadline = Date.now() + 30000; // 30 seconds to ready up
+    }
+  }, 4000);
 }
 
 /**

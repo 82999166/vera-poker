@@ -265,7 +265,7 @@ export default function Table() {
           }, 800);
         }
       }
-      setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); }, 7000);
+      setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); }, 3500);
     }
     
     prevPhaseRef.current = currentPhase;
@@ -312,8 +312,7 @@ export default function Table() {
     onError: (err) => toast.error(err.message),
   });
 
-  // Fetch available rooms for auto-switch after fold
-  const { data: allRooms } = trpc.rooms.list.useQuery(undefined, { enabled: isValidRoom });
+  // allRooms query removed - auto-switch after fold disabled
 
   const actionMutation = trpc.game.action.useMutation({
     onSuccess: (_, variables) => {
@@ -328,24 +327,8 @@ export default function Table() {
         else if (action === "raise" || action === "bet") { playSound("bet"); announceAction("raise", amount); }
         else if (action === "all_in" || action === "allin") { playSound("allIn"); announceAction("all_in", amount); }
       }
-      // Auto-switch table after fold
-      if ((variables as any)?.action === "fold" && allRooms) {
-        const currentBB = room ? parseFloat(room.bigBlind) : 0;
-        // Find another room at same blind level with available seats
-        const candidates = allRooms.filter((r: any) =>
-          r.id !== roomId &&
-          r.status !== "closed" &&
-          r.currentPlayers < r.maxPlayers &&
-          parseFloat(r.bigBlind) === currentBB
-        );
-        if (candidates.length > 0) {
-          // Pick the one with most players (more action)
-          const target = candidates.sort((a: any, b: any) => b.currentPlayers - a.currentPlayers)[0];
-          toast.info(t("table.switchingTable"));
-          // Pass autoJoin flag so the new table auto-seats without buy-in dialog
-          setTimeout(() => navigate(`/table/${target.id}?autoJoin=true`), 1500);
-        }
-      }
+      // Note: Auto-switch after fold removed to prevent players being split across tables
+      // Players stay at their current table and can manually switch if desired
     },
     onError: (err) => toast.error(err.message),
   });
@@ -409,7 +392,7 @@ export default function Table() {
     { enabled: isValidRoom && !!user }
   );
 
-  // Check URL for autoJoin flag (same-stakes table switch)
+  // Check URL for autoJoin flag (direct entry from lobby quick-join)
   const autoJoinRef = useRef(false);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -663,8 +646,8 @@ export default function Table() {
               ))}
             </div>
 
-            {/* Start Next Hand button in center of table */}
-            {waitingForReady && !isDemoMode && (
+            {/* Start Next Hand button in center of table - only show after settlement overlay dismissed */}
+            {waitingForReady && !isDemoMode && !showWinner && (
               <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
                 {!amIReady ? (
                   <button
