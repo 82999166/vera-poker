@@ -5,7 +5,7 @@ import { useLocation } from "wouter";
 import { ArrowLeft, Copy, Users, TrendingUp, Unlock, Lock, Share2, Image, Download, X } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 export default function Agent() {
   const { user } = useAuth();
@@ -336,7 +336,7 @@ function PosterModal({ inviteLink, inviteCode, userName, onClose, t }: {
   }, [inviteLink, inviteCode, userName, t]);
 
   // Auto-generate on mount
-  useState(() => { generatePoster(); });
+  useEffect(() => { generatePoster(); }, [generatePoster]);
 
   const downloadPoster = () => {
     const canvas = canvasRef.current;

@@ -346,7 +346,20 @@ function BannerCarousel() {
     return () => clearInterval(timer);
   }, [bannerList]);
 
-  if (!bannerList || bannerList.length === 0) return null;
+  if (!bannerList || bannerList.length === 0) {
+    return (
+      <div className="px-4 pt-3">
+        <div className="relative rounded-xl overflow-hidden glass border border-gold/20" style={{ aspectRatio: "3/1" }}>
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="text-center">
+              <span className="text-gold text-lg font-bold">★ Vera Poker</span>
+              <p className="text-xs text-muted-foreground mt-1">{t("lobby.tourneysSoon") || "活动即将开始"}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleClick = (banner: typeof bannerList[0]) => {
     if (banner.linkType === "url" && banner.linkUrl) {
