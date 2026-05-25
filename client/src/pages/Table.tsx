@@ -3,6 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useI18n, getLocale } from "@/lib/i18n";
+import { fmtAmt, formatAmount } from "@/lib/utils";
 import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users, Plus, AlertTriangle, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
@@ -120,7 +121,7 @@ function ChipStack({ amount, size = "sm", animate = false }: { amount: number; s
         <div className={`${size === "sm" ? "w-4 h-4" : "w-5 h-5"} rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border border-yellow-600/80 flex items-center justify-center shadow-[0_0_4px_rgba(234,179,8,0.5)]`}>
           <span className={`${size === "sm" ? "text-[7px]" : "text-[8px]"} font-black text-yellow-900`}>$</span>
         </div>
-        <span className={`${size === "sm" ? "text-[11px]" : "text-sm"} text-yellow-300 font-bold drop-shadow-[0_0_3px_rgba(234,179,8,0.4)]`}>{amount.toFixed(2)}</span>
+        <span className={`${size === "sm" ? "text-[11px]" : "text-sm"} text-yellow-300 font-bold drop-shadow-[0_0_3px_rgba(234,179,8,0.4)]`}>{fmtAmt(amount)}</span>
       </div>
     </div>
   );
@@ -155,7 +156,7 @@ function AnimatedPot({ amount }: { amount: number }) {
         <span className="text-[10px] font-black text-yellow-900">$</span>
       </div>
       <span className={`text-base font-black text-yellow-300 drop-shadow-[0_0_6px_rgba(234,179,8,0.5)] transition-all duration-300 ${amount > prevAmount.current ? "scale-110" : ""}`}>
-        ${displayAmount.toFixed(2)}
+        {fmtAmt(displayAmount)}
       </span>
     </div>
   );
@@ -737,7 +738,7 @@ export default function Table() {
               <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-gold/10 animate-ping" />
             </div>
             <p className="text-base font-bold text-gold drop-shadow-[0_0_4px_rgba(234,179,8,0.4)]">{showWinner.name} {t("table.won")}</p>
-            <p className="text-2xl font-black text-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)] mt-1">${showWinner.amount.toFixed(2)}</p>
+            <p className="text-2xl font-black text-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)] mt-1">{fmtAmt(showWinner.amount)}</p>
             {showWinner.handDescription && showWinner.handDescription !== "Last Standing" && (
               <p className="text-sm text-gold/80 mt-1 font-medium">{HAND_RANK_MAP[showWinner.handDescription] ? t(HAND_RANK_MAP[showWinner.handDescription]) : showWinner.handDescription}</p>
             )}
@@ -747,7 +748,7 @@ export default function Table() {
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t("table.sidePots")}</p>
                 {showSettlement.sidePots.map((sp: any, i: number) => (
                   <p key={i} className="text-xs text-foreground/80">
-                    {t("table.potNumber", { n: i + 1 })}: ${sp.amount.toFixed(2)} → {sp.winnerName}
+                    {t("table.potNumber", { n: i + 1 })}: {fmtAmt(sp.amount)} → {sp.winnerName}
                   </p>
                 ))}
               </div>
@@ -909,7 +910,7 @@ export default function Table() {
                     <p className={`text-[11px] font-bold leading-tight ${
                       player.isAllIn ? "text-red-400" : player.isFolded ? "text-muted-foreground" : "text-foreground"
                     }`}>
-                      {player.isAllIn ? t("table.allIn") : player.isFolded ? t("table.fold") : `$${player.chips.toFixed(1)}`}
+                      {player.isAllIn ? t("table.allIn") : player.isFolded ? t("table.fold") : fmtAmt(player.chips)}
                     </p>
                   </div>
 
@@ -935,7 +936,7 @@ export default function Table() {
                       </div>
                       {/* Win amount */}
                       <div className="animate-amount-pop flex items-center justify-center gap-1 bg-black/70 rounded-full px-3 py-1 border border-gold/50 shadow-[0_0_12px_rgba(234,179,8,0.4)]">
-                        <span className="text-base font-black text-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]">+${showWinner.amount.toFixed(2)}</span>
+                        <span className="text-base font-black text-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]">+{fmtAmt(showWinner.amount)}</span>
                       </div>
                     </div>
                   )}
@@ -1059,17 +1060,17 @@ export default function Table() {
             <>
               {/* Raise slider */}
               <div className="flex items-center gap-2 mb-2.5">
-                <span className="text-[10px] text-muted-foreground min-w-[36px]">${(currentBet * 2) < 1 ? (currentBet * 2).toFixed(2) : (currentBet * 2).toFixed(0)}</span>
+                <span className="text-[10px] text-muted-foreground min-w-[36px]">{fmtAmt(currentBet * 2)}</span>
                 <input
                   type="range"
                   min={currentBet * 2}
                   max={myPlayer ? myPlayer.chips + myPlayer.currentBet : 100}
-                  step={0.5}
+                  step={room ? (parseFloat(room.bigBlind) < 1 ? 0.01 : parseFloat(room.bigBlind) < 10 ? 0.1 : 0.5) : 0.5}
                   value={raiseAmount}
                   onChange={(e) => setRaiseAmount(parseFloat(e.target.value))}
                   className="flex-1 h-1.5 bg-secondary rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-gold [&::-webkit-slider-thumb]:to-gold-dim [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gold/50"
                 />
-                <span className="text-[10px] text-gold font-bold min-w-[40px] text-right">${raiseAmount < 1 ? raiseAmount.toFixed(2) : raiseAmount.toFixed(0)}</span>
+                <span className="text-[10px] text-gold font-bold min-w-[40px] text-right">{fmtAmt(raiseAmount)}</span>
               </div>
 
               {/* Action buttons */}
@@ -1095,7 +1096,7 @@ export default function Table() {
                     disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
                     className="flex-1 py-2.5 rounded-xl bg-truth-blue text-white font-semibold text-xs hover:bg-truth-blue/80 transition-all glow-blue active:scale-[0.97] disabled:opacity-40"
                   >
-                    {t("table.call")} ${currentBet < 1 ? currentBet.toFixed(2) : currentBet.toFixed(0)}
+                    {t("table.call")} {fmtAmt(currentBet)}
                   </button>
                 )}
                 <button
@@ -1103,7 +1104,7 @@ export default function Table() {
                   disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
                   className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-xs hover:opacity-90 transition-all glow-gold active:scale-[0.97] disabled:opacity-40"
                 >
-                  {t("table.raise")} ${raiseAmount < 1 ? raiseAmount.toFixed(2) : raiseAmount.toFixed(0)}
+                  {t("table.raise")} {fmtAmt(raiseAmount)}
                 </button>
               </div>
 
@@ -1113,7 +1114,7 @@ export default function Table() {
                 disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
                 className="w-full mt-1.5 py-2 rounded-xl border border-red-500/40 text-red-400 font-bold text-[11px] hover:bg-red-500/10 transition-all active:scale-[0.97] disabled:opacity-40 uppercase tracking-wider"
               >
-                {t("table.allIn")} {myPlayer ? `$${myPlayer.chips < 1 ? myPlayer.chips.toFixed(2) : myPlayer.chips.toFixed(0)}` : ""}
+                {t("table.allIn")} {myPlayer ? fmtAmt(myPlayer.chips) : ""}
               </button>
             </>
           )}
@@ -1141,7 +1142,7 @@ export default function Table() {
             
             {/* Current chips & balance info */}
             <div className="flex justify-between text-[11px] text-muted-foreground mb-3">
-              <span>{t("rebuy.currentChips")}: <span className="text-yellow-300 font-semibold">${myPlayer?.chips.toFixed(2) ?? "0"}</span></span>
+              <span>{t("rebuy.currentChips")}: <span className="text-yellow-300 font-semibold">{myPlayer ? fmtAmt(myPlayer.chips) : "$0"}</span></span>
               <span>{t("wallet.balance")}: <span className="text-green-400 font-semibold">${walletData?.balance ?? "0.00"}</span></span>
             </div>
 

@@ -3514,8 +3514,16 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
   };
 
   const handleSubmit = () => {
-    if (!formData.title || !formData.imageUrl) {
-      toast.error("标题和图片链接不能为空");
+    if (uploading) {
+      toast.error("图片正在上传中，请稍候...");
+      return;
+    }
+    if (!formData.title) {
+      toast.error("请填写标题");
+      return;
+    }
+    if (!formData.imageUrl) {
+      toast.error("请上传图片或输入图片 URL");
       return;
     }
     if (editingBanner) {
@@ -3565,7 +3573,7 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={async (e) => {
+                  onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
                     if (file.size > 5 * 1024 * 1024) {
@@ -3573,9 +3581,9 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
                       return;
                     }
                     setUploading(true);
-                    try {
-                      const reader = new FileReader();
-                      reader.onload = async () => {
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                      try {
                         const base64 = (reader.result as string).split(",")[1];
                         const result = await uploadMutation.mutateAsync({
                           fileName: file.name,
@@ -3583,27 +3591,32 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
                           contentType: file.type,
                         });
                         setFormData(p => ({ ...p, imageUrl: result.url }));
+                        toast.success("图片上传成功，可点击创建");
+                      } catch (err) {
+                        toast.error("图片上传失败：" + (err instanceof Error ? err.message : "请重试"));
+                      } finally {
                         setUploading(false);
-                        toast.success("图片上传成功");
-                      };
-                      reader.readAsDataURL(file);
-                    } catch {
+                      }
+                    };
+                    reader.onerror = () => {
                       setUploading(false);
-                      toast.error("图片上传失败");
-                    }
+                      toast.error("读取文件失败");
+                    };
+                    reader.readAsDataURL(file);
                   }}
                   className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-gold/20 file:text-gold"
                 />
                 {uploading && <span className="text-xs text-gold animate-pulse">上传中...</span>}
               </div>
+              <input
+                type="text"
+                value={formData.imageUrl}
+                onChange={(e) => setFormData(p => ({ ...p, imageUrl: e.target.value }))}
+                placeholder="或直接输入图片 URL（如 CDN 地址）"
+                className="w-full mt-2 px-3 py-2 rounded-lg border border-border bg-background text-sm"
+              />
               {formData.imageUrl && (
-                <input
-                  type="text"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData(p => ({ ...p, imageUrl: e.target.value }))}
-                  placeholder="或直接输入图片 URL"
-                  className="w-full mt-2 px-3 py-2 rounded-lg border border-border bg-background text-sm text-muted-foreground"
-                />
+                <img src={formData.imageUrl} alt="preview" className="mt-2 h-16 rounded-lg object-cover w-full" onError={(e) => (e.currentTarget.style.display='none')} />
               )}
             </div>
             <div>
