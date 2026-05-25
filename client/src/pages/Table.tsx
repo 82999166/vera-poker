@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -168,12 +168,12 @@ const DEFAULT_AVATAR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691
 // Player seat positions for 6-max table (oval layout)
 // Seats positioned outside the table oval, but within screen bounds
 const SEAT_POSITIONS = [
-  { top: "96%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
-  { top: "72%", left: "4%", transform: "translate(0, -50%)" },      // Left bottom
-  { top: "26%", left: "4%", transform: "translate(0, -50%)" },      // Left top
-  { top: "2%", left: "50%", transform: "translate(-50%, 0)" },       // Top
-  { top: "26%", left: "96%", transform: "translate(-100%, -50%)" }, // Right top
-  { top: "72%", left: "96%", transform: "translate(-100%, -50%)" }, // Right bottom
+  { top: "82%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
+  { top: "68%", left: "4%", transform: "translate(0, -50%)" },      // Left bottom
+  { top: "28%", left: "4%", transform: "translate(0, -50%)" },      // Left top
+  { top: "5%", left: "50%", transform: "translate(-50%, 0)" },       // Top
+  { top: "28%", left: "96%", transform: "translate(-100%, -50%)" }, // Right top
+  { top: "68%", left: "96%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
 
 // Hand rank translation helper - maps English server descriptions to i18n keys
@@ -208,6 +208,33 @@ export default function Table() {
   const [showSettlement, setShowSettlement] = useState<any>(null);
   const [winnerPlayerIds, setWinnerPlayerIds] = useState<number[]>([]);
   const prevHandRef = useRef<number>(0);
+
+  // Dynamic table scaling for mobile viewport
+  const [tableScale, setTableScale] = useState(1);
+  const tableAreaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const updateScale = () => {
+      const vh = window.visualViewport?.height || window.innerHeight;
+      // Estimate fixed UI: top bar ~44px, phase indicator ~32px, action panel ~140px, safe areas
+      const topBar = 44;
+      const phaseBar = 32;
+      const actionPanel = 140;
+      const safeTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0') || 0;
+      const safeBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0') || 0;
+      const fixedUI = topBar + phaseBar + actionPanel + safeTop + safeBottom;
+      const available = vh - fixedUI;
+      const idealTableHeight = 420; // design target height for the table area
+      const scale = Math.min(1, Math.max(0.65, available / idealTableHeight));
+      setTableScale(scale);
+    };
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    window.visualViewport?.addEventListener('resize', updateScale);
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      window.visualViewport?.removeEventListener('resize', updateScale);
+    };
+  }, []);
 
   const roomId = parseInt(id || "0");
   const isValidRoom = roomId > 0;
@@ -602,7 +629,7 @@ export default function Table() {
   }, [waitingForReady, autoRebuySettings, myPlayer?.chips, tableState?.handNumber]);
 
   return (
-    <div className="h-screen bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col overflow-hidden">
+    <div className="h-screen bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col overflow-hidden" style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       {/* Top Bar */}
       <div className="glass-strong px-3 py-2 flex items-center justify-between z-10 border-b border-border/30">
         <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground transition-colors active:scale-95">
@@ -769,12 +796,12 @@ export default function Table() {
       )}
 
       {/* Table Area */}
-      <div className="flex-1 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
-        {/* Game content overlay */}
-        <div className="absolute inset-0">
+      <div ref={tableAreaRef} className="flex-1 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
+        {/* Game content overlay - scaled to fit viewport */}
+        <div className="absolute inset-0" style={{ transform: `scale(${tableScale})`, transformOrigin: 'top center' }}>
             
             {/* Pot display */}
-            <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+            <div className="absolute top-[28%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
               <AnimatedPot amount={displayPot} />
               {displayPlayers.length > 0 && (
                 <div className="flex items-center justify-center gap-1 mt-1">
@@ -785,7 +812,7 @@ export default function Table() {
             </div>
 
             {/* Community Cards - no placeholders, background has card slots */}
-            <div className="absolute top-[44%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2">
+            <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2">
               {displayCommunity.map((card, i) => (
                 <CardView key={`${card}-${i}`} card={card} className="!w-[52px] !h-[72px]" animate={animateCards} delay={i * 150} />
               ))}
@@ -793,7 +820,7 @@ export default function Table() {
 
             {/* Start Next Hand button in center of table - only show after settlement overlay dismissed */}
             {waitingForReady && !isDemoMode && !showWinner && (
-              <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
+              <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
                 {myPlayer && myPlayer.chips <= 0 ? (
                   <div className="flex flex-col items-center gap-2">
                     <div className="px-4 py-2 rounded-full bg-black/60 border border-red-500/50 text-red-400 text-xs font-semibold">
@@ -864,7 +891,7 @@ export default function Table() {
                   {isHero && displayMyCards.length > 0 && (
                     <div className="flex gap-1 mb-0.5">
                       {displayMyCards.map((card, i) => (
-                        <CardView key={i} card={card} className="!w-14 !h-[76px]" animate delay={i * 200} />
+                        <CardView key={i} card={card} className="!w-12 !h-[64px]" animate delay={i * 200} />
                       ))}
                     </div>
                   )}
