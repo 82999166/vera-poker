@@ -1672,6 +1672,19 @@ Rules:
       await db.updateTournament(input.id, { status: "registration" });
       return { success: true };
     }),
+    // Start tournament manually
+    start: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const tournament = await db.getTournamentById(input.id);
+      if (!tournament) throw new TRPCError({ code: "NOT_FOUND" });
+      if (tournament.status !== "registration") throw new TRPCError({ code: "BAD_REQUEST", message: "只有报名中的比赛才能开始" });
+      const regs = await db.getTournamentRegistrations(input.id);
+      const playerCount = regs.filter(r => r.reg.status === "registered").length;
+      if (playerCount < tournament.minPlayers) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `报名人数不足，最少需要${tournament.minPlayers}人，当前${playerCount}人` });
+      }
+      await db.updateTournament(input.id, { status: "running" });
+      return { success: true, playerCount };
+    }),
     // Cancel tournament and refund all
     cancel: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       const tournament = await db.getTournamentById(input.id);

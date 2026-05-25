@@ -3741,6 +3741,7 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
   const updateMutation = trpc.adminTournaments.update.useMutation({ onSuccess: () => { refetch(); setShowForm(false); setEditingId(null); toast.success("更新成功"); } });
   const deleteMutation = trpc.adminTournaments.delete.useMutation({ onSuccess: () => { refetch(); toast.success("删除成功"); } });
   const openRegMutation = trpc.adminTournaments.openRegistration.useMutation({ onSuccess: () => { refetch(); toast.success("已开放报名，前端大厅现在可见"); } });
+  const startMutation = trpc.adminTournaments.start.useMutation({ onSuccess: () => { refetch(); toast.success("比赛已开始，系统已自动分桌"); } });
   const cancelMutation = trpc.adminTournaments.cancel.useMutation({ onSuccess: () => { refetch(); toast.success("比赛已取消，已退款"); } });
 
   // Form state
@@ -3965,12 +3966,37 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button onClick={handleSubmit} className="px-4 py-2 bg-gold text-black rounded-lg font-medium text-sm">
               {editingId ? "保存修改" : "创建比赛"}
             </button>
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 bg-muted text-foreground rounded-lg text-sm">取消</button>
           </div>
+
+          {/* Status action buttons when editing */}
+          {editingId && (() => {
+            const currentTourney = listData?.find((t: any) => t.id === editingId);
+            if (!currentTourney) return null;
+            return (
+              <div className="pt-4 border-t border-border">
+                <p className="text-xs text-muted-foreground mb-2">当前状态: <span className={`font-bold ${statusColors[currentTourney.status]?.split(' ')[1] || ''}`}>{statusLabels[currentTourney.status] || currentTourney.status}</span></p>
+                <div className="flex flex-wrap gap-2">
+                  {currentTourney.status === "draft" && (
+                    <button onClick={() => { if (confirm("开放报名后，比赛将在前端大厅显示，玩家可以报名。确定开放？")) openRegMutation.mutate({ id: editingId }); }}
+                      className="px-4 py-2 border border-green-500 text-green-400 rounded-lg text-sm hover:bg-green-500/10">🟢 开放报名</button>
+                  )}
+                  {currentTourney.status === "registration" && (
+                    <button onClick={() => { if (confirm("确定手动开始比赛？系统将自动分桌并开始。")) startMutation.mutate({ id: editingId }); }}
+                      className="px-4 py-2 border border-emerald-500 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/10">🚀 开始比赛</button>
+                  )}
+                  {(currentTourney.status === "registration" || currentTourney.status === "running") && (
+                    <button onClick={() => { if (confirm("取消比赛将退还所有报名费，确定取消？")) cancelMutation.mutate({ id: editingId }); }}
+                      className="px-4 py-2 border border-red-500 text-red-400 rounded-lg text-sm hover:bg-red-500/10">❌ 取消比赛</button>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -4006,6 +4032,10 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
                     <button onClick={() => { if (confirm("确定删除此比赛？")) deleteMutation.mutate({ id: t.id }); }}
                       className="text-xs px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500/10">删除</button>
                   </>
+                )}
+                {t.status === "registration" && (
+                  <button onClick={() => { if (confirm("确定手动开始比赛？")) startMutation.mutate({ id: t.id }); }}
+                    className="text-xs px-2 py-1 border border-emerald-500 text-emerald-400 rounded hover:bg-emerald-500/10">🚀 开始比赛</button>
                 )}
                 {(t.status === "registration" || t.status === "running") && (
                   <button onClick={() => { if (confirm(`取消比赛将退还所有报名费，确定取消？`)) cancelMutation.mutate({ id: t.id }); }}
