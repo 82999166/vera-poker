@@ -3618,18 +3618,16 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
                 <option value="page">内部页面</option>
               </select>
             </div>
-            {formData.linkType !== "none" && (
-              <div>
-                <label className="text-xs text-muted-foreground">{at("banners.linkUrl") || "链接地址"}</label>
-                <input
-                  type="text"
-                  value={formData.linkUrl}
-                  onChange={(e) => setFormData(p => ({ ...p, linkUrl: e.target.value }))}
-                  placeholder={formData.linkType === "url" ? "https://..." : "/wallet"}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
-                />
-              </div>
-            )}
+            <div>
+              <label className="text-xs text-muted-foreground">{at("banners.linkUrl") || "链接地址"}</label>
+              <input
+                type="text"
+                value={formData.linkUrl}
+                onChange={(e) => setFormData(p => ({ ...p, linkUrl: e.target.value }))}
+                placeholder={formData.linkType === "url" ? "https://..." : formData.linkType === "page" ? "/lobby" : "可选，留空则无跳转"}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+              />
+            </div>
             <div>
               <label className="text-xs text-muted-foreground">{at("banners.sortOrder") || "排序（小的在前）"}</label>
               <input
