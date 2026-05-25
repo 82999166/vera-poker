@@ -1059,7 +1059,7 @@ export default function Table() {
             <>
               {/* Raise slider */}
               <div className="flex items-center gap-2 mb-2.5">
-                <span className="text-[10px] text-muted-foreground min-w-[36px]">${(currentBet * 2).toFixed(0)}</span>
+                <span className="text-[10px] text-muted-foreground min-w-[36px]">${(currentBet * 2) < 1 ? (currentBet * 2).toFixed(2) : (currentBet * 2).toFixed(0)}</span>
                 <input
                   type="range"
                   min={currentBet * 2}
@@ -1069,7 +1069,7 @@ export default function Table() {
                   onChange={(e) => setRaiseAmount(parseFloat(e.target.value))}
                   className="flex-1 h-1.5 bg-secondary rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-gold [&::-webkit-slider-thumb]:to-gold-dim [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gold/50"
                 />
-                <span className="text-[10px] text-gold font-bold min-w-[40px] text-right">${raiseAmount.toFixed(0)}</span>
+                <span className="text-[10px] text-gold font-bold min-w-[40px] text-right">${raiseAmount < 1 ? raiseAmount.toFixed(2) : raiseAmount.toFixed(0)}</span>
               </div>
 
               {/* Action buttons */}
@@ -1095,7 +1095,7 @@ export default function Table() {
                     disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
                     className="flex-1 py-2.5 rounded-xl bg-truth-blue text-white font-semibold text-xs hover:bg-truth-blue/80 transition-all glow-blue active:scale-[0.97] disabled:opacity-40"
                   >
-                    {t("table.call")} ${currentBet.toFixed(0)}
+                    {t("table.call")} ${currentBet < 1 ? currentBet.toFixed(2) : currentBet.toFixed(0)}
                   </button>
                 )}
                 <button
@@ -1103,7 +1103,7 @@ export default function Table() {
                   disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
                   className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-xs hover:opacity-90 transition-all glow-gold active:scale-[0.97] disabled:opacity-40"
                 >
-                  {t("table.raise")} ${raiseAmount.toFixed(0)}
+                  {t("table.raise")} ${raiseAmount < 1 ? raiseAmount.toFixed(2) : raiseAmount.toFixed(0)}
                 </button>
               </div>
 
@@ -1113,7 +1113,7 @@ export default function Table() {
                 disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
                 className="w-full mt-1.5 py-2 rounded-xl border border-red-500/40 text-red-400 font-bold text-[11px] hover:bg-red-500/10 transition-all active:scale-[0.97] disabled:opacity-40 uppercase tracking-wider"
               >
-                {t("table.allIn")} {myPlayer ? `$${myPlayer.chips.toFixed(0)}` : ""}
+                {t("table.allIn")} {myPlayer ? `$${myPlayer.chips < 1 ? myPlayer.chips.toFixed(2) : myPlayer.chips.toFixed(0)}` : ""}
               </button>
             </>
           )}
