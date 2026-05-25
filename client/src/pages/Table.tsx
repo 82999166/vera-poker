@@ -1105,7 +1105,7 @@ export default function Table() {
                 <button
                   onClick={handleFold}
                   disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
-                  className="flex-1 py-2.5 rounded-xl bg-secondary text-muted-foreground font-semibold text-xs hover:bg-secondary/80 transition-all active:scale-[0.97] disabled:opacity-40"
+                  className="flex-1 py-2.5 rounded-xl bg-red-500/20 text-red-400 border border-red-500/40 font-semibold text-xs hover:bg-red-500/30 transition-all active:scale-[0.97] disabled:opacity-40"
                 >
                   {t("table.fold")}
                 </button>
