@@ -106,6 +106,37 @@ async function startServer() {
     }
   });
 
+  // Dedicated file upload REST endpoint (bypasses tRPC batch link for large files)
+  app.post("/api/upload/banner", async (req, res) => {
+    try {
+      // Auth: accept both admin session and game user admin
+      let isAuthorized = false;
+      const cookies = req.headers.cookie || "";
+      const adminCookieMatch = cookies.match(/vera_admin_session=([^;]+)/);
+      if (adminCookieMatch) {
+        const { verifyAdminSession } = await import("../staffAuth");
+        const decoded = verifyAdminSession(decodeURIComponent(adminCookieMatch[1]));
+        if (decoded) isAuthorized = true;
+      }
+      if (!isAuthorized) {
+        const user = await sdk.authenticateRequest(req).catch(() => null);
+        if (user && ["admin", "super_admin"].includes((user as any).role)) isAuthorized = true;
+      }
+      if (!isAuthorized) return res.status(403).json({ error: "Forbidden" });
+
+      const { fileName, fileData, contentType } = req.body;
+      if (!fileName || !fileData) return res.status(400).json({ error: "fileName and fileData required" });
+      const { storagePut } = await import("../storage");
+      const buffer = Buffer.from(fileData, "base64");
+      const key = `banners/${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { url } = await storagePut(key, buffer, contentType || "image/jpeg");
+      res.json({ url });
+    } catch (err: any) {
+      console.error("[upload/banner]", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

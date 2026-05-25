@@ -1022,6 +1022,7 @@ export async function getActiveTournaments() {
   if (!db) return [];
   return db.select().from(tournaments)
     .where(or(
+      eq(tournaments.status, "draft"),
       eq(tournaments.status, "registration"),
       eq(tournaments.status, "running")
     ))

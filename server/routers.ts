@@ -1742,10 +1742,13 @@ Rules:
       fileData: z.string(), // base64 encoded
       contentType: z.string().default("image/png"),
     })).mutation(async ({ input }) => {
+      console.log("[uploadImage] start, fileName:", input.fileName, "size:", input.fileData.length);
       const { storagePut } = await import("../server/storage");
       const buffer = Buffer.from(input.fileData, "base64");
       const key = `banners/${Date.now()}-${input.fileName}`;
+      console.log("[uploadImage] calling storagePut, key:", key);
       const { url } = await storagePut(key, buffer, input.contentType);
+      console.log("[uploadImage] done, url:", url);
       return { url };
     }),
   }),

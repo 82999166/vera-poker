@@ -518,3 +518,6 @@
 - [x] 优化：抽取 formatAmount(n)/fmtAmt(n) 全局金额格式化工具函数，统一所有金额显示
 - [x] 优化：滑块步进值根据盲注大小动态调整（盲注<1时step=0.01，<10时step=0.1，否则step=0.5）
 - [x] 修复：Banner创建表单上传错误处理和图片URL直接输入功能改善
+- [x] 修复：前端大厅锦标赛Tab不显示已创建的比赛（getActiveTournaments 现在也包含 draft 状态）
+- [x] 修复：管理后台锦标赛列表添加"开放报名"按钮（草稿状态可一键开放，前端立即可见）
+- [x] 修复：Banner图片上传卡住（改用专用REST接口/api/upload/banner，绕过tRPC批处理问题）

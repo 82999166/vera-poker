@@ -3585,11 +3585,18 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
                     reader.onload = async () => {
                       try {
                         const base64 = (reader.result as string).split(",")[1];
-                        const result = await uploadMutation.mutateAsync({
-                          fileName: file.name,
-                          fileData: base64,
-                          contentType: file.type,
+                        // Use REST endpoint directly to avoid tRPC batch link issues
+                        const resp = await fetch("/api/upload/banner", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          credentials: "include",
+                          body: JSON.stringify({ fileName: file.name, fileData: base64, contentType: file.type }),
                         });
+                        if (!resp.ok) {
+                          const errData = await resp.json().catch(() => ({}));
+                          throw new Error(errData.error || `HTTP ${resp.status}`);
+                        }
+                        const result = await resp.json();
                         setFormData(p => ({ ...p, imageUrl: result.url }));
                         toast.success("图片上传成功，可点击创建");
                       } catch (err) {
@@ -3733,6 +3740,8 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
   const createMutation = trpc.adminTournaments.create.useMutation({ onSuccess: () => { refetch(); setShowForm(false); toast.success("创建成功"); } });
   const updateMutation = trpc.adminTournaments.update.useMutation({ onSuccess: () => { refetch(); setShowForm(false); setEditingId(null); toast.success("更新成功"); } });
   const deleteMutation = trpc.adminTournaments.delete.useMutation({ onSuccess: () => { refetch(); toast.success("删除成功"); } });
+  const openRegMutation = trpc.adminTournaments.openRegistration.useMutation({ onSuccess: () => { refetch(); toast.success("已开放报名，前端大厅现在可见"); } });
+  const cancelMutation = trpc.adminTournaments.cancel.useMutation({ onSuccess: () => { refetch(); toast.success("比赛已取消，已退款"); } });
 
   // Form state
   const [form, setForm] = useState({
@@ -3836,13 +3845,15 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
   };
 
   const statusColors: Record<string, string> = {
-    upcoming: "bg-blue-500/20 text-blue-400",
+    draft: "bg-yellow-500/20 text-yellow-400",
+    registration: "bg-blue-500/20 text-blue-400",
     running: "bg-green-500/20 text-green-400",
     finished: "bg-gray-500/20 text-gray-400",
     cancelled: "bg-red-500/20 text-red-400",
   };
   const statusLabels: Record<string, string> = {
-    upcoming: "即将开始",
+    draft: "草稿（未公开）",
+    registration: "报名中",
     running: "进行中",
     finished: "已结束",
     cancelled: "已取消",
@@ -3984,13 +3995,21 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
                   )}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {t.status === "draft" && (
+                  <button onClick={() => { if (confirm("开放报名后，比赛将在前端大厅显示，玩家可以报名。确定开放？")) openRegMutation.mutate({ id: t.id }); }}
+                    className="text-xs px-2 py-1 border border-green-500 text-green-400 rounded hover:bg-green-500/10">开放报名</button>
+                )}
                 {(t.status === "draft" || t.status === "registration") && (
                   <>
                     <button onClick={() => handleEdit(t)} className="text-xs px-2 py-1 border border-blue-500 text-blue-400 rounded hover:bg-blue-500/10">编辑</button>
                     <button onClick={() => { if (confirm("确定删除此比赛？")) deleteMutation.mutate({ id: t.id }); }}
                       className="text-xs px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500/10">删除</button>
                   </>
+                )}
+                {(t.status === "registration" || t.status === "running") && (
+                  <button onClick={() => { if (confirm(`取消比赛将退还所有报名费，确定取消？`)) cancelMutation.mutate({ id: t.id }); }}
+                    className="text-xs px-2 py-1 border border-orange-500 text-orange-400 rounded hover:bg-orange-500/10">取消比赛</button>
                 )}
               </div>
             </div>
