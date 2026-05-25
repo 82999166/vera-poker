@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -209,32 +209,7 @@ export default function Table() {
   const [winnerPlayerIds, setWinnerPlayerIds] = useState<number[]>([]);
   const prevHandRef = useRef<number>(0);
 
-  // Dynamic table scaling for mobile viewport
-  const [tableScale, setTableScale] = useState(1);
   const tableAreaRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const updateScale = () => {
-      const vh = window.visualViewport?.height || window.innerHeight;
-      // Estimate fixed UI: top bar ~44px, phase indicator ~32px, action panel ~140px, safe areas
-      const topBar = 44;
-      const phaseBar = 32;
-      const actionPanel = 140;
-      const safeTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0') || 0;
-      const safeBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0') || 0;
-      const fixedUI = topBar + phaseBar + actionPanel + safeTop + safeBottom;
-      const available = vh - fixedUI;
-      const idealTableHeight = 420; // design target height for the table area
-      const scale = Math.min(1, Math.max(0.65, available / idealTableHeight));
-      setTableScale(scale);
-    };
-    updateScale();
-    window.addEventListener('resize', updateScale);
-    window.visualViewport?.addEventListener('resize', updateScale);
-    return () => {
-      window.removeEventListener('resize', updateScale);
-      window.visualViewport?.removeEventListener('resize', updateScale);
-    };
-  }, []);
 
   const roomId = parseInt(id || "0");
   const isValidRoom = roomId > 0;
@@ -629,7 +604,7 @@ export default function Table() {
   }, [waitingForReady, autoRebuySettings, myPlayer?.chips, tableState?.handNumber]);
 
   return (
-    <div className="h-screen bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col overflow-hidden" style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+    <div className="h-screen bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
       {/* Top Bar */}
       <div className="glass-strong px-3 py-2 flex items-center justify-between z-10 border-b border-border/30">
         <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground transition-colors active:scale-95">
@@ -797,8 +772,8 @@ export default function Table() {
 
       {/* Table Area */}
       <div ref={tableAreaRef} className="flex-1 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
-        {/* Game content overlay - scaled to fit viewport */}
-        <div className="absolute inset-0" style={{ transform: `scale(${tableScale})`, transformOrigin: 'top center' }}>
+        {/* Game content overlay */}
+        <div className="absolute inset-0">
             
             {/* Pot display */}
             <div className="absolute top-[28%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
