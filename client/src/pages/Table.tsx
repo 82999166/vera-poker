@@ -211,6 +211,32 @@ export default function Table() {
 
   const tableAreaRef = useRef<HTMLDivElement>(null);
 
+  // Use Telegram WebApp viewport height if available (accounts for TG top bar)
+  const [containerHeight, setContainerHeight] = useState<string>('100dvh');
+  useEffect(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg && tg.viewportStableHeight) {
+      setContainerHeight(`${tg.viewportStableHeight}px`);
+      // Listen for viewport changes
+      const handler = () => {
+        if (tg.viewportStableHeight) {
+          setContainerHeight(`${tg.viewportStableHeight}px`);
+        }
+      };
+      tg.onEvent?.('viewportChanged', handler);
+      return () => tg.offEvent?.('viewportChanged', handler);
+    } else {
+      // Fallback: use visualViewport for non-TG browsers
+      const update = () => {
+        const h = window.visualViewport?.height || window.innerHeight;
+        setContainerHeight(`${h}px`);
+      };
+      update();
+      window.visualViewport?.addEventListener('resize', update);
+      return () => window.visualViewport?.removeEventListener('resize', update);
+    }
+  }, []);
+
   const roomId = parseInt(id || "0");
   const isValidRoom = roomId > 0;
 
@@ -604,7 +630,7 @@ export default function Table() {
   }, [waitingForReady, autoRebuySettings, myPlayer?.chips, tableState?.handNumber]);
 
   return (
-    <div className="h-screen bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
+    <div className="bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col overflow-hidden" style={{ height: containerHeight }}>
       {/* Top Bar */}
       <div className="glass-strong px-3 py-2 flex items-center justify-between z-10 border-b border-border/30">
         <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground transition-colors active:scale-95">
