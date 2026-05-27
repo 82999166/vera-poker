@@ -70,7 +70,10 @@ export async function getPlayerView(roomId: number, playerId: number) {
         holeCards: [],
       });
     }
-    return { phase: "waiting", players: waitingPlayers, communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [] };
+    // Check if room is closed (e.g. totalRounds reached after settlement)
+    const roomInfo = await db.getRoomById(roomId);
+    const roomClosed = roomInfo?.status === "closed";
+    return { phase: "waiting", players: waitingPlayers, communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [], roomClosed };
   }
 
   const gs = table.gameState;

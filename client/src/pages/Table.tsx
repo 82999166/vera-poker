@@ -209,6 +209,8 @@ export default function Table() {
   const [showSettlement, setShowSettlement] = useState<any>(null);
   const [winnerPlayerIds, setWinnerPlayerIds] = useState<number[]>([]);
   const prevHandRef = useRef<number>(0);
+  // Prevent roomPlayers re-query from triggering showBuyIn after leave/navigate
+  const isLeavingRef = useRef(false);
 
   const tableAreaRef = useRef<HTMLDivElement>(null);
 
@@ -253,8 +255,13 @@ export default function Table() {
   const { data: tableState, error: tableError } = trpc.game.tableState.useQuery(
     { roomId },
     {
-      enabled: isValidRoom && !!user && isSeated,
-      refetchInterval: 2000,
+      // Poll when seated OR when we just became unseated (to detect roomClosed)
+      enabled: isValidRoom && !!user && (isSeated || (!isSeated && !isLeavingRef.current)),
+      refetchInterval: (data) => {
+        // Stop polling if room is closed and we've already started navigating
+        if ((data as any)?.roomClosed && isLeavingRef.current) return false;
+        return 2000;
+      },
       retry: 3,
       retryDelay: 1000,
     }
@@ -365,6 +372,19 @@ export default function Table() {
   useEffect(() => {
     if (!isSeated || !user || !tableState) return;
 
+    // If room is closed (e.g. totalRounds reached), navigate to lobby directly without calling leave
+    if ((tableState as any).roomClosed) {
+      if (!kickDetectedRef.current) {
+        kickDetectedRef.current = true;
+        isLeavingRef.current = true;
+        toast.info(t("table.roomClosed") || "游戏结束，返回大厅");
+        setIsSeated(false);
+        utils.wallet.balance.invalidate();
+        setTimeout(() => navigate("/lobby"), 2000);
+      }
+      return;
+    }
+
     // Check if player was kicked (seated but not in player list)
     const myPlayerInState = tableState.players?.find((p: any) => p.id === user.id);
     if (!myPlayerInState && !kickDetectedRef.current) {
@@ -372,6 +392,7 @@ export default function Table() {
       // Return chips are handled server-side; just navigate back
       toast.info(t("table.kickedToLobby"));
       setIsSeated(false);
+      isLeavingRef.current = true;
       utils.wallet.balance.invalidate();
       setTimeout(() => navigate("/lobby"), 1500);
       return;
@@ -430,6 +451,7 @@ export default function Table() {
 
   const leaveMutation = trpc.game.leave.useMutation({
     onSuccess: () => {
+      isLeavingRef.current = true; // prevent roomPlayers re-query from triggering showBuyIn
       setIsSeated(false);
       toast.success(t("table.left"));
       utils.wallet.balance.invalidate();
@@ -578,14 +600,18 @@ export default function Table() {
     if (roomPlayers && user) {
       const seated = roomPlayers.some((p: any) => p.userId === user.id);
       setIsSeated(seated);
+      // If leaving or navigating away, skip buy-in dialog
+      if (isLeavingRef.current) return;
       // If autoJoin (same-stakes switch), auto-join with min buy-in
       if (!seated && isValidRoom && autoJoinRef.current && room) {
         autoJoinRef.current = false;
         const minBuyIn = parseFloat(room.minBuyIn);
         joinMutation.mutate({ roomId, buyIn: minBuyIn });
       } else if (!seated && isValidRoom && !autoJoinRef.current) {
-        // Normal entry - show buy-in dialog
-        setShowBuyIn(true);
+        // Normal entry - show buy-in dialog (only if room is valid and not closed)
+        if (room && room.status !== "closed") {
+          setShowBuyIn(true);
+        }
       }
     }
   }, [roomPlayers, user, isValidRoom, room]);

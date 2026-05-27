@@ -38,3 +38,12 @@
 - [x] Add room.generatePoster i18n key for all 12 languages
 - [x] TypeScript type errors resolved
 - [x] All 103 tests passing
+
+## Bug Fix: Game Flow - Settlement/Leave Crash
+- [x] Fix "cannot read properties of undefined (reading id)" after settlement
+- [x] Add isLeavingRef to prevent roomPlayers re-query triggering showBuyIn after leave
+- [x] Add roomClosed field to tableState response when room status=closed (totalRounds reached)
+- [x] Detect roomClosed in kickDetected logic, navigate directly without calling leaveMutation
+- [x] Guard showBuyIn trigger: skip when room.status=closed or isLeavingRef=true
+- [x] Continue polling tableState briefly after unseated to detect roomClosed
+- [x] All 103 tests passing
