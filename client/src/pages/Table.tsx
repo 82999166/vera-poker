@@ -4,9 +4,10 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useI18n, getLocale } from "@/lib/i18n";
 import { fmtAmt, formatAmount, formatBalance } from "@/lib/utils";
-import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users, Plus, AlertTriangle, Settings } from "lucide-react";
+import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users, Plus, AlertTriangle, Settings, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
+import RoomInvitePoster from "@/components/RoomInvitePoster";
 
 // Card rendering with animation support
 const SUITS: Record<string, { symbol: string; color: string }> = {
@@ -471,6 +472,7 @@ export default function Table() {
   const [showRebuyDialog, setShowRebuyDialog] = useState(false);
   const [rebuyAmount, setRebuyAmount] = useState("");
   const [showAutoRebuySettings, setShowAutoRebuySettings] = useState(false);
+  const [showRoomPoster, setShowRoomPoster] = useState(false);
 
   // Wallet balance for rebuy
   const myChipsForWallet = (tableState?.players ?? []).find((p: any) => p.id === user?.id)?.chips;
@@ -677,6 +679,14 @@ export default function Table() {
 
   return (
     <div className="bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col overflow-hidden" style={{ height: containerHeight }}>
+      {/* Room Invite Poster Overlay */}
+      {showRoomPoster && room && room.inviteCode && (
+        <RoomInvitePoster
+          room={room}
+          inviteCode={room.inviteCode}
+          onClose={() => setShowRoomPoster(false)}
+        />
+      )}
       {/* Top Bar */}
       <div className="glass-strong px-3 py-2 flex items-center justify-between z-10 border-b border-border/30">
         <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground transition-colors active:scale-95">
@@ -696,6 +706,12 @@ export default function Table() {
           {isSeated && !isDemoMode && (
             <button onClick={handleLeave} className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all active:scale-95" title={t("table.leave")}>
               <LogOut className="w-4 h-4" />
+            </button>
+          )}
+          {/* Share poster button - only for private rooms with invite code */}
+          {room?.type === "private" && room?.inviteCode && (
+            <button onClick={() => setShowRoomPoster(true)} className="p-1.5 rounded-lg text-gold/70 hover:text-gold hover:bg-gold/10 transition-all active:scale-95" title={t("room.generatePoster")}>
+              <ImageIcon className="w-4 h-4" />
             </button>
           )}
           <button onClick={() => navigate(`/history/${id}`)} className="p-1.5 rounded-lg text-gold hover:text-gold/80 hover:bg-gold/10 transition-all active:scale-95" title={t("table.handHistory")}>

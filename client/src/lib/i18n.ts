@@ -351,6 +351,7 @@ const en: Record<string, string> = {
   "room.created": "Room Created!",
   "room.createdHint": "Share the invite link with your friends",
   "room.inviteLink": "Invite Link",
+  "room.generatePoster": "Generate Invite Poster",
   "room.enterRoom": "Enter Room",
   "room.createdSuccess": "Room created successfully!",
   "room.nameRequired": "Please enter a room name",
@@ -773,7 +774,7 @@ const zhCN: Record<string, string> = {
   // CreateRoom extra
   "room.created": "房间已创建！",
   "room.createdHint": "把邀请链接分享给你的朋友",
-  "room.inviteLink": "邀请链接",
+  "room.inviteLink": "邀请链接", "room.generatePoster": "生成邀请海报",
   "room.enterRoom": "进入房间",
   "room.createdSuccess": "房间创建成功！",
   "room.nameRequired": "请输入房间名称",
@@ -1171,7 +1172,7 @@ const zhTW: Record<string, string> = {
   // CreateRoom extra
   "room.created": "房間已建立！",
   "room.createdHint": "把邀請連結分享給你的朋友",
-  "room.inviteLink": "邀請連結",
+  "room.inviteLink": "邀請連結", "room.generatePoster": "生成邀請海報",
   "room.enterRoom": "進入房間",
   "room.createdSuccess": "房間建立成功！",
   "room.nameRequired": "請輸入房間名稱",
@@ -1498,7 +1499,7 @@ const ja: Record<string, string> = {
   "home.feature3Title": "多言語対応", "home.feature3Desc": "10以上の言語",
   "home.feature4Title": "プライベートルーム", "home.feature4Desc": "友達と遊ぶ",
   "room.created": "ルーム作成完了！", "room.createdHint": "招待リンクを友達に共有してください",
-  "room.inviteLink": "招待リンク", "room.enterRoom": "ルームに入る",
+  "room.inviteLink": "招待リンク", "room.generatePoster": "招待ポスター生成", "room.enterRoom": "ルームに入る",
   "room.createdSuccess": "ルームが作成されました！", "room.nameRequired": "ルーム名を入力してください",
   "room.roundUnit": "ラウンド", "room.roundsUnit": "ラウンド",
   "room.billingRakeDesc": "ポットの5%（上限$3）", "room.billingFlatDesc": "固定料金、レーキなし",
@@ -1815,7 +1816,7 @@ const ko: Record<string, string> = {
   "home.feature3Title": "다국어 지원", "home.feature3Desc": "10개 이상 언어",
   "home.feature4Title": "프라이빗 룸", "home.feature4Desc": "친구들과 플레이",
   "room.created": "방 생성 완료!", "room.createdHint": "초대 링크를 친구들과 공유하세요",
-  "room.inviteLink": "초대 링크", "room.enterRoom": "방 입장",
+  "room.inviteLink": "초대 링크", "room.generatePoster": "초대 포스터 생성", "room.enterRoom": "방 입장",
   "room.createdSuccess": "방이 생성되었습니다!", "room.nameRequired": "방 이름을 입력하세요",
   "room.roundUnit": "라운드", "room.roundsUnit": "라운드",
   "room.billingRakeDesc": "팟의 5% (최대 $3)", "room.billingFlatDesc": "고정 수수료, 레이크 없음",
@@ -1961,7 +1962,7 @@ const es: Record<string, string> = {
   "home.feature2Title": "Sin Comisiones", "home.feature2Desc": "Transacciones en juego",
   "home.feature3Title": "Multiidioma", "home.feature3Desc": "10+ idiomas",
   "home.feature4Title": "Salas Privadas", "home.feature4Desc": "Juega con amigos",
-  "common.loading": "Cargando...", "common.error": "Algo salió mal", "common.retry": "Reintentar", "common.cancel": "Cancelar", "common.save": "Guardar", "common.back": "Atrás", "common.online": "En línea", "common.language": "Idioma", "common.comingSoon": "Próximamente",
+  "common.loading": "Cargando...", "common.error": "Algo salió mal", "common.retry": "Reintentar", "common.cancel": "Cancelar", "common.save": "Guardar", "common.back": "Atrás", "common.online": "En línea", "common.language": "Idioma", "common.comingSoon": "Próximamente", "room.generatePoster": "Generar Póster de Invitación"
 };
 
 const pt: Record<string, string> = {
@@ -2019,7 +2020,7 @@ const pt: Record<string, string> = {
   "home.feature2Title": "Sem Taxas", "home.feature2Desc": "Transações no jogo",
   "home.feature3Title": "Multilíngue", "home.feature3Desc": "10+ idiomas",
   "home.feature4Title": "Salas Privadas", "home.feature4Desc": "Jogue com amigos",
-  "common.loading": "Carregando...", "common.error": "Algo deu errado", "common.retry": "Tentar novamente", "common.cancel": "Cancelar", "common.save": "Salvar", "common.back": "Voltar", "common.online": "Online", "common.language": "Idioma", "common.comingSoon": "Em breve",
+  "common.loading": "Carregando...", "common.error": "Algo deu errado", "common.retry": "Tentar novamente", "common.cancel": "Cancelar", "common.save": "Salvar", "common.back": "Voltar", "common.online": "Online", "common.language": "Idioma", "common.comingSoon": "Em breve", "room.generatePoster": "Gerar Pôster de Convite"
 };
 
 const ru: Record<string, string> = {
@@ -2077,7 +2078,7 @@ const ru: Record<string, string> = {
   "home.feature2Title": "Без Комиссий", "home.feature2Desc": "Внутриигровые транзакции",
   "home.feature3Title": "Мультиязычный", "home.feature3Desc": "10+ языков",
   "home.feature4Title": "Приватные Комнаты", "home.feature4Desc": "Играй с друзьями",
-  "common.loading": "Загрузка...", "common.error": "Что-то пошло не так", "common.retry": "Повторить", "common.cancel": "Отмена", "common.save": "Сохранить", "common.back": "Назад", "common.online": "Онлайн", "common.language": "Язык", "common.comingSoon": "Скоро",
+  "common.loading": "Загрузка...", "common.error": "Что-то пошло не так", "common.retry": "Повторить", "common.cancel": "Отмена", "common.save": "Сохранить", "common.back": "Назад", "common.online": "Онлайн", "common.language": "Язык", "common.comingSoon": "Скоро", "room.generatePoster": "Создать постер-приглашение"
 };
 
 const ar: Record<string, string> = {
@@ -2135,7 +2136,7 @@ const ar: Record<string, string> = {
   "home.feature2Title": "بدون رسوم", "home.feature2Desc": "معاملات داخل اللعبة",
   "home.feature3Title": "متعدد اللغات", "home.feature3Desc": "أكثر من 10 لغات",
   "home.feature4Title": "غرف خاصة", "home.feature4Desc": "العب مع الأصدقاء",
-  "common.loading": "جار التحميل...", "common.error": "حدث خطأ", "common.retry": "إعادة المحاولة", "common.cancel": "إلغاء", "common.save": "حفظ", "common.back": "رجوع", "common.online": "متصل", "common.language": "اللغة", "common.comingSoon": "قريباً",
+  "common.loading": "جار التحميل...", "common.error": "حدث خطأ", "common.retry": "إعادة المحاولة", "common.cancel": "إلغاء", "common.save": "حفظ", "common.back": "رجوع", "common.online": "متصل", "common.language": "اللغة", "common.comingSoon": "قريباً", "room.generatePoster": "إنشاء ملصق الدعوة"
 };
 
 const vi: Record<string, string> = {
@@ -2193,7 +2194,7 @@ const vi: Record<string, string> = {
   "home.feature2Title": "Không Phí", "home.feature2Desc": "Giao dịch trong game",
   "home.feature3Title": "Đa Ngôn Ngữ", "home.feature3Desc": "10+ ngôn ngữ",
   "home.feature4Title": "Phòng Riêng", "home.feature4Desc": "Chơi với bạn bè",
-  "common.loading": "Đang tải...", "common.error": "Đã xảy ra lỗi", "common.retry": "Thử lại", "common.cancel": "Hủy", "common.save": "Lưu", "common.back": "Quay lại", "common.online": "Trực tuyến", "common.language": "Ngôn ngữ", "common.comingSoon": "Sắp ra mắt",
+  "common.loading": "Đang tải...", "common.error": "Đã xảy ra lỗi", "common.retry": "Thử lại", "common.cancel": "Hủy", "common.save": "Lưu", "common.back": "Quay lại", "common.online": "Trực tuyến", "common.language": "Ngôn ngữ", "common.comingSoon": "Sắp ra mắt", "room.generatePoster": "Tạo Poster Mời"
 };
 
 const th: Record<string, string> = {
@@ -2251,7 +2252,7 @@ const th: Record<string, string> = {
   "home.feature2Title": "ไม่มีค่าธรรมเนียม", "home.feature2Desc": "ธุรกรรมในเกม",
   "home.feature3Title": "หลายภาษา", "home.feature3Desc": "10+ ภาษา",
   "home.feature4Title": "ห้องส่วนตัว", "home.feature4Desc": "เล่นกับเพื่อน",
-  "common.loading": "กำลังโหลด...", "common.error": "เกิดข้อผิดพลาด", "common.retry": "ลองอีกครั้ง", "common.cancel": "ยกเลิก", "common.save": "บันทึก", "common.back": "กลับ", "common.online": "ออนไลน์", "common.language": "ภาษา", "common.comingSoon": "เร็วๆ นี้",
+  "common.loading": "กำลังโหลด...", "common.error": "เกิดข้อผิดพลาด", "common.retry": "ลองอีกครั้ง", "common.cancel": "ยกเลิก", "common.save": "บันทึก", "common.back": "กลับ", "common.online": "ออนไลน์", "common.language": "ภาษา", "common.comingSoon": "เร็วๆ นี้", "room.generatePoster": "สร้างโปสเตอร์เชิญ"
 };
 
 const id: Record<string, string> = {
@@ -2309,7 +2310,7 @@ const id: Record<string, string> = {
   "home.feature2Title": "Tanpa Biaya", "home.feature2Desc": "Transaksi dalam game",
   "home.feature3Title": "Multi-Bahasa", "home.feature3Desc": "10+ bahasa",
   "home.feature4Title": "Ruang Privat", "home.feature4Desc": "Bermain dengan teman",
-  "common.loading": "Memuat...", "common.error": "Terjadi kesalahan", "common.retry": "Coba lagi", "common.cancel": "Batal", "common.save": "Simpan", "common.back": "Kembali", "common.online": "Online", "common.language": "Bahasa", "common.comingSoon": "Segera hadir",
+  "common.loading": "Memuat...", "common.error": "Terjadi kesalahan", "common.retry": "Coba lagi", "common.cancel": "Batal", "common.save": "Simpan", "common.back": "Kembali", "common.online": "Online", "common.language": "Bahasa", "common.comingSoon": "Segera hadir", "room.generatePoster": "Buat Poster Undangan"
 };
 
 const translations: Record<Locale, Record<string, string>> = {

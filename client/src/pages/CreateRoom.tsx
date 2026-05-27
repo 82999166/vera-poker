@@ -3,8 +3,23 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
 import { useLocation } from "wouter";
-import { ArrowLeft, Copy, Share2 } from "lucide-react";
+import { ArrowLeft, Copy, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
+import RoomInvitePoster from "@/components/RoomInvitePoster";
+
+interface CreatedRoomInfo {
+  id?: number;
+  roomId: number | null;
+  inviteCode: string;
+  name: string;
+  smallBlind: string;
+  bigBlind: string;
+  minBuyIn: string;
+  maxBuyIn: string;
+  maxPlayers: number;
+  totalRounds: number;
+  billingMode: string;
+}
 
 export default function CreateRoom() {
   const { user } = useAuth();
@@ -15,11 +30,22 @@ export default function CreateRoom() {
   const [maxPlayers, setMaxPlayers] = useState(6);
   const [totalRounds, setTotalRounds] = useState(20);
   const [billingMode, setBillingMode] = useState<"standard_rake" | "per_round_fee">("standard_rake");
-  const [createdRoom, setCreatedRoom] = useState<{ roomId: number | null; inviteCode: string } | null>(null);
+  const [createdRoom, setCreatedRoom] = useState<CreatedRoomInfo | null>(null);
+  const [showPoster, setShowPoster] = useState(false);
 
   const createMutation = trpc.rooms.create.useMutation({
     onSuccess: (data) => {
-      setCreatedRoom(data);
+      setCreatedRoom({
+        ...data,
+        name: name.trim(),
+        smallBlind,
+        bigBlind,
+        minBuyIn: (parseFloat(bigBlind) * 20).toFixed(2),
+        maxBuyIn: (parseFloat(bigBlind) * 100).toFixed(2),
+        maxPlayers,
+        totalRounds,
+        billingMode,
+      });
       toast.success(t("room.createdSuccess"));
     },
     onError: (err) => toast.error(err.message),
@@ -56,13 +82,22 @@ export default function CreateRoom() {
     const inviteLink = `https://t.me/VeraPokerBot?start=room_${createdRoom.inviteCode}`;
     return (
       <div className="min-h-screen bg-background particle-bg flex flex-col items-center justify-center px-4">
+        {/* Poster overlay */}
+        {showPoster && (
+          <RoomInvitePoster
+            room={{ ...createdRoom, id: createdRoom.roomId ?? 0 }}
+            inviteCode={createdRoom.inviteCode}
+            onClose={() => setShowPoster(false)}
+          />
+        )}
+
         <div className="gradient-border rounded-2xl p-6 w-full max-w-sm text-center">
           <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">🎉</span>
           </div>
           <h2 className="text-xl font-bold mb-2">{t("room.created")}</h2>
           <p className="text-sm text-muted-foreground mb-4">{t("room.createdHint")}</p>
-          
+
           <div className="glass rounded-lg p-3 mb-4">
             <p className="text-xs text-muted-foreground mb-1">{t("room.inviteCode")}</p>
             <p className="text-lg font-bold text-gold font-mono">{createdRoom.inviteCode}</p>
@@ -73,7 +108,7 @@ export default function CreateRoom() {
             <p className="text-[10px] text-foreground font-mono break-all">{inviteLink}</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 mb-2">
             <button
               onClick={() => { navigator.clipboard.writeText(inviteLink); toast.success(t("agent.copied")); }}
               className="flex-1 py-2.5 rounded-lg bg-gold text-background font-semibold text-sm flex items-center justify-center gap-1"
@@ -87,6 +122,15 @@ export default function CreateRoom() {
               {t("room.enterRoom")}
             </button>
           </div>
+
+          {/* Generate Poster Button */}
+          <button
+            onClick={() => setShowPoster(true)}
+            className="w-full py-2.5 rounded-lg glass border border-gold/30 text-gold font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform"
+          >
+            <ImageIcon className="w-4 h-4" />
+            {t("room.generatePoster")}
+          </button>
         </div>
       </div>
     );

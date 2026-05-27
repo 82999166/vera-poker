@@ -25,3 +25,16 @@
 ## Feature: Home Page Feature Cards i18n
 - [x] i18n.ts: Add home.feature.* keys for all 12 languages
 - [x] Home.tsx: Replace hardcoded English feature card text with t() calls
+
+## Feature: Private Room Invite Poster
+- [x] Install qrcode + html2canvas dependencies
+- [x] Create RoomInvitePoster component (Canvas-based, 750x1200, dark poker theme)
+- [x] QR code generation pointing to TG bot invite link
+- [x] Room info cards (blinds, buy-in, players) displayed on poster
+- [x] Download button (saves PNG to device)
+- [x] Share to TG button (opens TG share dialog)
+- [x] Integrate poster button into CreateRoom.tsx success screen
+- [x] Integrate poster icon button into Table.tsx header (private rooms only)
+- [x] Add room.generatePoster i18n key for all 12 languages
+- [x] TypeScript type errors resolved
+- [x] All 103 tests passing
