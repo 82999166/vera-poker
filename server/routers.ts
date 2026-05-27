@@ -1,4 +1,5 @@
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -59,6 +60,83 @@ export const appRouter = router({
           throw new TRPCError({ code: "CONFLICT", message: "Telegram account already bound to another user" });
         }
         return { success: true };
+      }),
+
+    // ==================== PASSWORD BACKUP LOGIN ====================
+    // Check if user has a backup password set
+    hasPassword: protectedProcedure.query(async ({ ctx }) => {
+      const hash = await db.getUserPasswordHash(ctx.user.id);
+      return { hasPassword: !!hash };
+    }),
+
+    // Set or update backup password
+    setPassword: protectedProcedure
+      .input(z.object({
+        newPassword: z.string().min(6).max(64),
+        currentPassword: z.string().optional(), // required if already has password
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const existingHash = await db.getUserPasswordHash(ctx.user.id);
+        // If user already has a password, verify current password first
+        if (existingHash) {
+          if (!input.currentPassword) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Current password required" });
+          }
+          const valid = await bcrypt.compare(input.currentPassword, existingHash);
+          if (!valid) {
+            throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password incorrect" });
+          }
+        }
+        const hash = await bcrypt.hash(input.newPassword, 10);
+        await db.setUserPasswordHash(ctx.user.id, hash);
+        return { success: true };
+      }),
+
+    // Remove backup password
+    removePassword: protectedProcedure
+      .input(z.object({ currentPassword: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const existingHash = await db.getUserPasswordHash(ctx.user.id);
+        if (!existingHash) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "No password set" });
+        }
+        const valid = await bcrypt.compare(input.currentPassword, existingHash);
+        if (!valid) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Password incorrect" });
+        }
+        await db.setUserPasswordHash(ctx.user.id, "");
+        return { success: true };
+      }),
+
+    // Password login - user provides tgId/nickname + password
+    passwordLogin: publicProcedure
+      .input(z.object({
+        identifier: z.string(), // tgId, tgUsername, or nickname
+        password: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const user = await db.getUserByTgIdOrNickname(input.identifier);
+        if (!user) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        }
+        const hash = await db.getUserPasswordHash(user.id);
+        if (!hash) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Password login not set up for this account" });
+        }
+        const valid = await bcrypt.compare(input.password, hash);
+        if (!valid) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Incorrect password" });
+        }
+        // Create session token using the same SDK method as OAuth login
+        const { sdk } = await import("./_core/sdk");
+        const { ONE_YEAR_MS } = await import("@shared/const");
+        const sessionToken = await sdk.createSessionToken(user.openId, {
+          name: user.name || user.nickname || "",
+          expiresInMs: ONE_YEAR_MS,
+        });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        return { success: true, user: { id: user.id, name: user.name, nickname: user.nickname, tgId: user.tgId } };
       }),
   }),
 

@@ -5,7 +5,7 @@ import { getLoginUrl } from "@/const";
 import { useTelegramAuth, isTelegramMiniApp, getTelegramStartParam } from "@/hooks/useTelegramAuth";
 import { trpc } from "@/lib/trpc";
 import { useI18n, detectLocale, setLocale, applyLocale } from "@/lib/i18n";
-import { Shield, Zap, Globe, Users, ArrowRight, Loader2 } from "lucide-react";
+import { Shield, Zap, Globe, Users, ArrowRight, Loader2, Lock, Eye, EyeOff } from "lucide-react";
 
 // Storage key for pending referral code
 const PENDING_REF_KEY = "vera_pending_ref_code";
@@ -13,7 +13,7 @@ const PENDING_REF_KEY = "vera_pending_ref_code";
 export default function Home() {
   const { user, loading, isAuthenticated, refresh } = useAuth();
   const [, navigate] = useLocation();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const {
     isTelegramMiniApp: isTgApp,
     isAuthenticating,
@@ -23,6 +23,31 @@ export default function Home() {
   } = useTelegramAuth();
   const [tgLoginAttempted, setTgLoginAttempted] = useState(false);
   const [tgLoginSuccess, setTgLoginSuccess] = useState(false);
+
+  // Password login state
+  const [showPasswordLogin, setShowPasswordLogin] = useState(false);
+  const [pwdIdentifier, setPwdIdentifier] = useState("");
+  const [pwdPassword, setPwdPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const passwordLoginMutation = trpc.auth.passwordLogin.useMutation({
+    onSuccess: () => {
+      refresh();
+      navigate("/lobby");
+    },
+    onError: (err) => {
+      // Show user-friendly error messages
+      const msg = err.message;
+      if (msg.includes("not found") || msg.includes("NOT_FOUND")) {
+        alert(locale.startsWith("zh") ? "用户不存在，请检查昵称" : "User not found, please check your nickname");
+      } else if (msg.includes("not set up") || msg.includes("BAD_REQUEST")) {
+        alert(locale.startsWith("zh") ? "该账号未设置备用密码" : "This account has no backup password set");
+      } else if (msg.includes("Incorrect") || msg.includes("UNAUTHORIZED")) {
+        alert(locale.startsWith("zh") ? "密码错误" : "Incorrect password");
+      } else {
+        alert(msg);
+      }
+    },
+  });
 
   // Use ref to ensure deep link is only processed once per session
   const deepLinkHandled = useRef(false);
@@ -211,6 +236,60 @@ export default function Home() {
             </button>
           )}
         </div>
+
+        {/* Password Login Link */}
+        {!isTgApp && (
+          <div className="mt-2 text-center">
+            <button
+              onClick={() => setShowPasswordLogin(!showPasswordLogin)}
+              className="text-xs text-muted-foreground hover:text-gold/70 transition-colors flex items-center gap-1 mx-auto"
+            >
+              <Lock className="w-3 h-3" />
+              {locale.startsWith("zh") ? "备用密码登录" : "Login with backup password"}
+            </button>
+          </div>
+        )}
+
+        {/* Password Login Form */}
+        {showPasswordLogin && (
+          <div className="w-full max-w-xs mt-3 glass rounded-xl p-4 space-y-3">
+            <p className="text-xs text-muted-foreground text-center">
+              {locale.startsWith("zh") ? "输入昵称和备用密码登录" : "Enter your nickname and backup password"}
+            </p>
+            <input
+              type="text"
+              value={pwdIdentifier}
+              onChange={(e) => setPwdIdentifier(e.target.value)}
+              placeholder={locale.startsWith("zh") ? "昵称 / TG用户名" : "Nickname / TG username"}
+              className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+            <div className="relative">
+              <input
+                type={showPwd ? "text" : "password"}
+                value={pwdPassword}
+                onChange={(e) => setPwdPassword(e.target.value)}
+                placeholder={locale.startsWith("zh") ? "备用密码" : "Backup password"}
+                className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold pr-10"
+              />
+              <button onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {showPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            <button
+              onClick={() => {
+                if (!pwdIdentifier || !pwdPassword) return;
+                passwordLoginMutation.mutate({ identifier: pwdIdentifier, password: pwdPassword });
+              }}
+              disabled={passwordLoginMutation.isPending || !pwdIdentifier || !pwdPassword}
+              className="w-full py-2.5 rounded-lg bg-gold/20 text-gold text-sm font-medium hover:bg-gold/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {passwordLoginMutation.isPending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Lock className="w-4 h-4" />}
+              {locale.startsWith("zh") ? "登录" : "Login"}
+            </button>
+          </div>
+        )}
 
         {/* Features */}
         <div className="grid grid-cols-2 gap-3 mt-12 w-full max-w-sm">

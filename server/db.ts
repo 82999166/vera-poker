@@ -1223,3 +1223,32 @@ export async function getTournamentResults(tournamentId: number) {
     .where(eq(tournamentResults.tournamentId, tournamentId))
     .orderBy(asc(tournamentResults.rank));
 }
+
+// ==================== PASSWORD BACKUP LOGIN ====================
+export async function setUserPasswordHash(userId: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) return false;
+  await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+  return true;
+}
+
+export async function getUserPasswordHash(userId: number): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, userId)).limit(1);
+  return result.length > 0 ? (result[0].passwordHash ?? null) : null;
+}
+
+export async function getUserByTgIdOrNickname(identifier: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  // Try tgId first, then tgUsername, then nickname
+  const result = await db.select().from(users).where(
+    or(
+      eq(users.tgId, identifier),
+      eq(users.tgUsername, identifier),
+      eq(users.nickname, identifier)
+    )
+  ).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}

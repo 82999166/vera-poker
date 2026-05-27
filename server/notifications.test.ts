@@ -10,7 +10,7 @@ vi.mock("./db", async (importOriginal) => {
   return {
     ...actual,
     getConfigValue: vi.fn().mockImplementation(async (key: string) => {
-      if (key === "telegram_bot_token") return "test_bot_token_123";
+      if (key === "tg_bot_token" || key === "telegram_bot_token") return "test_bot_token_123";
       if (key === "admin_tg_chat_id") return "123456789";
       return null;
     }),

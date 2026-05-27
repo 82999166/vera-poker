@@ -10,7 +10,7 @@ import { useSoundEffects } from "@/hooks/useSoundEffects";
 import {
   User, Trophy, TrendingUp, Gamepad2, Edit2, Check, X,
   Link2, Unlink, ArrowLeft, Shield, Coins, Award, Globe, ChevronRight,
-  Volume2, Users, ChevronRight as ArrowRight
+  Volume2, Users, ChevronRight as ArrowRight, Lock, Eye, EyeOff
 } from "lucide-react";
 
 export default function Profile() {
@@ -59,6 +59,39 @@ export default function Profile() {
     onSuccess: () => { toast.success(t("profile.tgUnbindSuccess")); refetch(); },
     onError: (err) => toast.error(err.message),
   });
+
+  // Password backup login state
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [pwdCurrentPwd, setPwdCurrentPwd] = useState("");
+  const [pwdNewPwd, setPwdNewPwd] = useState("");
+  const [pwdConfirm, setPwdConfirm] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const { data: hasPasswordData, refetch: refetchHasPassword } = trpc.auth.hasPassword.useQuery(undefined, { enabled: !!user });
+  const setPasswordMutation = trpc.auth.setPassword.useMutation({
+    onSuccess: () => {
+      toast.success(locale === "zh-CN" || locale === "zh-TW" ? "备用密码设置成功" : "Backup password set successfully");
+      setPwdCurrentPwd(""); setPwdNewPwd(""); setPwdConfirm(""); setShowPasswordSection(false);
+      refetchHasPassword();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const removePasswordMutation = trpc.auth.removePassword.useMutation({
+    onSuccess: () => {
+      toast.success(locale === "zh-CN" || locale === "zh-TW" ? "备用密码已移除" : "Backup password removed");
+      setPwdCurrentPwd(""); setShowPasswordSection(false);
+      refetchHasPassword();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const handleSetPassword = () => {
+    if (pwdNewPwd.length < 6) {
+      toast.error(locale === "zh-CN" || locale === "zh-TW" ? "密码至少6位" : "Password must be at least 6 characters"); return;
+    }
+    if (pwdNewPwd !== pwdConfirm) {
+      toast.error(locale === "zh-CN" || locale === "zh-TW" ? "两次密码不一致" : "Passwords do not match"); return;
+    }
+    setPasswordMutation.mutate({ newPassword: pwdNewPwd, currentPassword: hasPasswordData?.hasPassword ? pwdCurrentPwd : undefined });
+  };
 
   if (loading || profileLoading) {
     return (
@@ -395,6 +428,110 @@ export default function Profile() {
                 <Link2 className="w-3 h-3" />
                 {t("profile.tgBind")}
               </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Password Backup Login */}
+      <div className="px-4 pb-3">
+        <div className="glass rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Lock className="w-4 h-4 text-gold" />
+              {locale === "zh-CN" || locale === "zh-TW" ? "备用密码登录" : "Backup Password Login"}
+            </h3>
+            <button
+              onClick={() => setShowPasswordSection(!showPasswordSection)}
+              className="text-xs text-gold/70 hover:text-gold transition-colors"
+            >
+              {showPasswordSection ? (locale === "zh-CN" || locale === "zh-TW" ? "收起" : "Collapse") : (locale === "zh-CN" || locale === "zh-TW" ? "展开" : "Expand")}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            {locale === "zh-CN" || locale === "zh-TW"
+              ? "设置备用密码后，即使丢失 TG 账号也可通过 昵称+密码 登录找回账号"
+              : "Set a backup password to recover your account using nickname + password if you lose access to Telegram"}
+          </p>
+          <div className="flex items-center gap-2 mb-3">
+            <div className={`w-2 h-2 rounded-full ${hasPasswordData?.hasPassword ? "bg-green-400" : "bg-muted-foreground"}`} />
+            <span className="text-xs">
+              {hasPasswordData?.hasPassword
+                ? (locale === "zh-CN" || locale === "zh-TW" ? "备用密码已设置" : "Backup password is set")
+                : (locale === "zh-CN" || locale === "zh-TW" ? "未设置备用密码" : "No backup password set")}
+            </span>
+          </div>
+          {showPasswordSection && (
+            <div className="space-y-3 mt-3 border-t border-border pt-3">
+              {hasPasswordData?.hasPassword && (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">
+                    {locale === "zh-CN" || locale === "zh-TW" ? "当前密码" : "Current Password"}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPwd ? "text" : "password"}
+                      value={pwdCurrentPwd}
+                      onChange={(e) => setPwdCurrentPwd(e.target.value)}
+                      className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold pr-10"
+                      placeholder="••••••"
+                    />
+                    <button onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      {showPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">
+                  {locale === "zh-CN" || locale === "zh-TW" ? "新密码（至6位）" : "New Password (min 6 chars)"}
+                </label>
+                <input
+                  type={showPwd ? "text" : "password"}
+                  value={pwdNewPwd}
+                  onChange={(e) => setPwdNewPwd(e.target.value)}
+                  className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                  placeholder="••••••"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">
+                  {locale === "zh-CN" || locale === "zh-TW" ? "确认新密码" : "Confirm New Password"}
+                </label>
+                <input
+                  type={showPwd ? "text" : "password"}
+                  value={pwdConfirm}
+                  onChange={(e) => setPwdConfirm(e.target.value)}
+                  className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                  placeholder="••••••"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSetPassword}
+                  disabled={setPasswordMutation.isPending}
+                  className="flex-1 py-2 rounded-lg bg-gold/20 text-gold text-sm font-medium hover:bg-gold/30 transition-colors disabled:opacity-50"
+                >
+                  {setPasswordMutation.isPending
+                    ? (locale === "zh-CN" || locale === "zh-TW" ? "设置中..." : "Saving...")
+                    : (hasPasswordData?.hasPassword
+                      ? (locale === "zh-CN" || locale === "zh-TW" ? "更改密码" : "Change Password")
+                      : (locale === "zh-CN" || locale === "zh-TW" ? "设置密码" : "Set Password"))}
+                </button>
+                {hasPasswordData?.hasPassword && (
+                  <button
+                    onClick={() => {
+                      if (confirm(locale === "zh-CN" || locale === "zh-TW" ? "确认移除备用密码？" : "Remove backup password?")) {
+                        removePasswordMutation.mutate({ currentPassword: pwdCurrentPwd });
+                      }
+                    }}
+                    disabled={removePasswordMutation.isPending || !pwdCurrentPwd}
+                    className="px-4 py-2 rounded-lg bg-red-500/10 text-red-400 text-sm hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                  >
+                    {locale === "zh-CN" || locale === "zh-TW" ? "移除" : "Remove"}
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>

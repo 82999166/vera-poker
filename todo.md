@@ -569,16 +569,16 @@
 - [x] Frontend: Fission tab - campaign list, create campaign, stats (clicks/registers/conversion rate)
 
 ## Bug Fix: Bot Notifications Not Working
-- [ ] Investigate why all Bot notifications are not being sent (check TELEGRAM_BOT_TOKEN env, sendMessage function, error logs)
-- [ ] Fix Bot notification sending (ensure token is injected, sendMessage works correctly)
-- [ ] Test: action notifications (player turn), invite notifications, broadcast notifications
+- [x] Investigate why all Bot notifications are not being sent (check TELEGRAM_BOT_TOKEN env, sendMessage function, error logs)
+- [x] Fix Bot notification sending: root cause was key mismatch - admin panel saves as tg_bot_token but code read telegram_bot_token. Fixed in notifications.ts, marketing.ts, telegram.ts
+- [x] Admin panel: tg_mini_app_url configurable field added to Mini App configuration section
+- [ ] Test: action notifications (player turn), invite notifications, broadcast notifications (requires real bot token in production)
 
 ## Feature #2: Password Backup Login
-- [ ] DB: Add passwordHash field to users table
-- [ ] Backend: auth.setPassword procedure (set/change password, requires current TG session)
-- [ ] Backend: auth.loginWithPassword procedure (username/TG ID + password login)
-- [ ] Backend: Rate limiting on password login (max 5 attempts, 15min lockout)
-- [ ] Frontend: Profile page - "Set Password" entry in settings section
-- [ ] Frontend: SetPassword dialog (new password + confirm, strength indicator)
-- [ ] Frontend: Home/Login page - "Login with Password" tab alongside TG login
-- [ ] Frontend: Password login form (TG username or user ID + password)
+- [x] DB: Add passwordHash field to users table (ALTER TABLE users ADD COLUMN passwordHash varchar(256) NULL)
+- [x] Backend: auth.setPassword procedure (set/change password, requires current TG session)
+- [x] Backend: auth.passwordLogin procedure (nickname/TG username + password login)
+- [ ] Backend: Rate limiting on password login (max 5 attempts, 15min lockout) - deferred
+- [x] Frontend: Profile page - "Backup Password Login" section with set/change/remove password
+- [x] Frontend: Home/Login page - "Login with backup password" link + expandable form
+- [x] Frontend: Password login form (nickname or TG username + password)

@@ -11,6 +11,8 @@ export const users = mysqlTable("users", {
   // Staff login credentials (for admin/cs/finance/tech)
   staffUsername: varchar("staffUsername", { length: 64 }).unique(),
   staffPasswordHash: varchar("staffPasswordHash", { length: 256 }),
+  // Backup password login (for users who want password as backup to TG login)
+  passwordHash: varchar("passwordHash", { length: 256 }),
   // Telegram specific
   tgId: varchar("tgId", { length: 64 }).unique(),
   tgUsername: varchar("tgUsername", { length: 128 }),
