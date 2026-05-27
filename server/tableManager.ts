@@ -94,10 +94,14 @@ export async function getPlayerView(roomId: number, playerId: number) {
     isActive: p.isActive,
     name: playerInfo.get(p.id)?.name || `P${p.seatIndex + 1}`,
     avatar: playerInfo.get(p.id)?.avatar || null,
-    // Only reveal cards in showdown or for the requesting player
-    holeCards: (gs.phase === "showdown" || gs.phase === "completed" || p.id === playerId)
-      ? p.holeCards
-      : [],
+    // SECURITY: Only reveal opponent hole cards during showdown/completed phase.
+    // During preflop/flop/turn/river, opponents must only see face-down cards.
+    // The requesting player always sees their own cards.
+    holeCards: (p.id === playerId)
+      ? p.holeCards  // Always show own cards
+      : (gs.phase === "showdown" || gs.phase === "completed")
+        ? p.holeCards  // Show opponent cards only at showdown
+        : [],          // Hide opponent cards during active betting rounds
   }));
 
   return {

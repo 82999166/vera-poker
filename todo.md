@@ -531,3 +531,8 @@
 - [x] Backend: tableManager.joinTable rejects (instead of auto-switching) if same account is already in another game
 - [x] Frontend: joinMutation onError shows localized "already in game" message and redirects to lobby
 - [x] i18n: Added table.alreadyInGame translation in all 5 locales (en, zh-CN, zh-TW, ja, ko)
+
+## Critical Bug Fixes (Round 2)
+- [x] Fix #16: Opponent hole cards visible during game - backend must never send holeCards for non-hero players except in showdown/completed phase
+- [x] Fix #4: After timeout kick, UI should auto-navigate back to lobby; also auto-exit if no match for X minutes
+- [x] Fix #3: Auto-detect TG system language (Telegram.WebApp.initDataUnsafe.user.language_code) and apply on first load; Bot welcome message also sent in user's TG language

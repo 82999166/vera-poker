@@ -76,6 +76,8 @@ const en: Record<string, string> = {
   "table.reconnecting": "Connection lost - reconnecting...",
 "table.switchingTable": "Switching to another table...",
   "table.alreadyInGame": "You are already in a game. Please leave your current table first.",
+  "table.kickedToLobby": "You were removed from the table. Returning to lobby...",
+  "table.noMatchTimeout": "No match found. Returning to lobby...",
    "table.startNextHand": "Start Next Hand",
    "table.readyWaiting": "Ready! Waiting for others...",
    "table.noChips": "No chips left",
@@ -432,6 +434,8 @@ const zhCN: Record<string, string> = {
   "table.reconnecting": "连接中断 - 正在重连...",
 "table.switchingTable": "正在切换到另一桌...",
   "table.alreadyInGame": "您已在游戏中，请先离开当前牌桌。",
+  "table.kickedToLobby": "您已被移出牌桌，正在返回大厅...",
+  "table.noMatchTimeout": "长时间未匹配到玩家，正在返回大厅...",
    "table.startNextHand": "开始下一局",
    "table.readyWaiting": "已准备！等待其他玩家...",
    "table.noChips": "筹码不足",
@@ -787,6 +791,8 @@ const zhTW: Record<string, string> = {
   "table.reconnecting": "連接中斷 - 正在重連...",
 "table.switchingTable": "正在切換到另一桌...",
   "table.alreadyInGame": "您已在遊戲中，請先離開當前牌桌。",
+  "table.kickedToLobby": "您已被移出牌桌，正在返回大廳...",
+  "table.noMatchTimeout": "長時間未匹配到玩家，正在返回大廳...",
    "table.startNextHand": "開始下一局",
    "table.readyWaiting": "已準備！等待其他玩家...",
    "table.noChips": "籌碼不足",
@@ -1138,6 +1144,8 @@ const ja: Record<string, string> = {
   "table.reconnecting": "接続切断 - 再接続中...",
 "table.switchingTable": "別のテーブルに移動中...",
   "table.alreadyInGame": "すでにゲームに参加しています。現在のテーブルを離れてください。",
+  "table.kickedToLobby": "テーブルから除外されました。ロビーに戻ります...",
+  "table.noMatchTimeout": "マッチングできませんでした。ロビーに戻ります...",
    "table.startNextHand": "次のハンドを開始",
    "table.readyWaiting": "準備完了！他のプレイヤーを待っています...",
    "table.noChips": "チップがありません",
@@ -1400,6 +1408,8 @@ const ko: Record<string, string> = {
   "table.reconnecting": "연결 끊김 - 재연결 중...",
 "table.switchingTable": "다른 테이블로 이동 중...",
   "table.alreadyInGame": "이미 게임에 참여 중입니다. 현재 테이블을 먼저 떠나주세요.",
+  "table.kickedToLobby": "테이블에서 제거되었습니다. 로비로 돌아갑니다...",
+  "table.noMatchTimeout": "매칭이 되지 않았습니다. 로비로 돌아갑니다...",
    "table.startNextHand": "다음 핸드 시작",
    "table.readyWaiting": "준비 완료! 다른 플레이어 대기 중...",
    "table.noChips": "칩이 부족합니다",
@@ -1742,18 +1752,31 @@ let currentLocale: Locale = "en";
 const listeners: Set<() => void> = new Set();
 
 export function detectLocale(): Locale {
-  // Try to detect from saved preference first
+  // 1. User's saved preference takes highest priority
   const saved = localStorage.getItem("vera-locale") as Locale | null;
   if (saved && translations[saved]) return saved;
-  
-  // Try to detect from TG WebApp or browser
-  const browserLang = navigator.language || "en";
+
   const langMap: Record<string, Locale> = {
-    "en": "en", "zh": "zh-CN", "zh-CN": "zh-CN", "zh-TW": "zh-TW",
+    "en": "en", "zh": "zh-CN", "zh-cn": "zh-CN", "zh-tw": "zh-TW",
+    "zh-hans": "zh-CN", "zh-hant": "zh-TW",
     "ja": "ja", "ko": "ko", "es": "es", "pt": "pt", "ru": "ru",
     "ar": "ar", "vi": "vi", "th": "th", "id": "id",
   };
-  return langMap[browserLang] || langMap[browserLang.split("-")[0]] || "en";
+
+  // 2. Try Telegram WebApp language (most accurate for TG Mini App users)
+  try {
+    const tgLang = (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
+    if (tgLang) {
+      const normalized = tgLang.toLowerCase();
+      const matched = langMap[normalized] || langMap[normalized.split("-")[0]];
+      if (matched) return matched;
+    }
+  } catch {}
+
+  // 3. Fallback to browser language
+  const browserLang = navigator.language || "en";
+  const normalized = browserLang.toLowerCase();
+  return langMap[normalized] || langMap[normalized.split("-")[0]] || "en";
 }
 
 export function setLocale(locale: Locale) {

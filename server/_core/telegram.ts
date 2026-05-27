@@ -11,6 +11,7 @@ const TelegramUpdateSchema = z.object({
       id: z.number(),
       is_bot: z.boolean(),
       first_name: z.string(),
+      language_code: z.string().optional(), // e.g. "zh", "en", "ru"
     }),
     chat: z.object({
       id: z.number(),
@@ -19,6 +20,55 @@ const TelegramUpdateSchema = z.object({
     text: z.string().optional(),
   }).optional(),
 }).passthrough();
+
+// Bot welcome messages in multiple languages
+function getBotWelcomeText(langCode: string | undefined): { welcome: string; button: string; ref: string; room: string } {
+  const lang = (langCode || "en").toLowerCase().split("-")[0];
+  const messages: Record<string, { welcome: string; button: string; ref: string; room: string }> = {
+    "zh": {
+      welcome: "欢迎来到 Vera Poker！🎰\n\n全球首个可验证公平的扑克平台。\n\n点击下方按钮开始游戏！",
+      button: "🃏 打开 Vera Poker",
+      ref: "欢迎来到 Vera Poker！🎰\n\n您的好友邀请您加入。点击下方开始游戏并赚取奖励！",
+      room: "🎰 您已被邀请进入私人房间！\n\n点击下方按钮加入游戏：",
+    },
+    "ja": {
+      welcome: "Vera Pokerへようこそ！🎰\n\n世界初の証明可能なフェアポーカープラットフォーム。\n\n下のボタンをタップしてゲームを始めましょう！",
+      button: "🃏 Vera Pokerを開く",
+      ref: "Vera Pokerへようこそ！🎰\n\n友達に招待されました。タップしてゲームを始め、報酬を獲得しましょう！",
+      room: "🎰 プライベートルームに招待されました！\n\n下のボタンをタップしてゲームに参加：",
+    },
+    "ko": {
+      welcome: "Vera Poker에 오신 것을 환영합니다！🎰\n\n세계 최초 증명 가능한 공정 포커 플랫폼.\n\n아래 버튼을 눌러 게임을 시작하세요！",
+      button: "🃏 Vera Poker 열기",
+      ref: "Vera Poker에 오신 것을 환영합니다！🎰\n\n친구의 초대를 받으셨습니다. 탭하여 게임을 시작하고 보상을 받으세요！",
+      room: "🎰 프라이빗 룸에 초대되었습니다！\n\n아래 버튼을 눌러 게임에 참여하세요：",
+    },
+    "ru": {
+      welcome: "Добро пожаловать в Vera Poker！🎰\n\nПервая в мире платформа для покера с доказуемой честностью.\n\nНажмите кнопку ниже, чтобы начать игру！",
+      button: "🃏 Открыть Vera Poker",
+      ref: "Добро пожаловать в Vera Poker！🎰\n\nВас пригласил друг. Нажмите, чтобы начать играть и получать награды！",
+      room: "🎰 Вас пригласили в приватную комнату！\n\nНажмите кнопку ниже, чтобы присоединиться：",
+    },
+    "vi": {
+      welcome: "Chào mừng đến với Vera Poker！🎰\n\nNền tảng poker công bằng có thể kiểm chứng đầu tiên trên thế giới.\n\nNhấn nút bên dưới để bắt đầu chơi！",
+      button: "🃏 Mở Vera Poker",
+      ref: "Chào mừng đến với Vera Poker！🎰\n\nBạn được bạn bè mời. Nhấn để bắt đầu chơi và nhận phần thưởng！",
+      room: "🎰 Bạn được mời vào phòng riêng！\n\nNhấn nút bên dưới để tham gia：",
+    },
+    "th": {
+      welcome: "ยินดีต้อนรับสู่ Vera Poker！🎰\n\nแพลตฟอร์มโป๊กเกอร์ที่ยุติธรรมและตรวจสอบได้แห่งแรกของโลก\n\nกดปุ่มด้านล่างเพื่อเริ่มเล่น！",
+      button: "🃏 เปิด Vera Poker",
+      ref: "ยินดีต้อนรับสู่ Vera Poker！🎰\n\nเพื่อนของคุณเชิญคุณมา กดเพื่อเริ่มเล่นและรับรางวัล！",
+      room: "🎰 คุณได้รับเชิญเข้าห้องส่วนตัว！\n\nกดปุ่มด้านล่างเพื่อเข้าร่วม：",
+    },
+  };
+  return messages[lang] || {
+    welcome: "Welcome to Vera Poker！🎰\n\nThe world's first provably fair poker platform.\n\nTap the button below to start playing！",
+    button: "🃏 Open Vera Poker",
+    ref: "Welcome to Vera Poker！🎰\n\nYou were referred by a friend. Tap below to start playing and earn rewards！",
+    room: "🎰 You've been invited to a private room！\n\nTap the button below to join the game：",
+  };
+}
 
 export function registerTelegramRoutes(app: Express) {
   app.post("/api/telegram/webhook", async (req: Request, res: Response) => {
@@ -40,6 +90,8 @@ export function registerTelegramRoutes(app: Express) {
       }
 
       const text = message.text.toLowerCase().trim();
+      const userLang = message.from?.language_code; // TG user's language code
+      const botTexts = getBotWelcomeText(userLang);
       let replyText = "";
 
       // Handle bot commands
@@ -50,7 +102,7 @@ export function registerTelegramRoutes(app: Express) {
         
         if (param.startsWith("room_")) {
           const inviteCode = param.replace("room_", "");
-          replyText = `🎰 You've been invited to a private room!\n\nTap the button below to join the game:`;
+          replyText = botTexts.room;
           // Send with inline keyboard to open Mini App with room param
           const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;
           await fetch(telegramApiUrl2, {
@@ -61,7 +113,7 @@ export function registerTelegramRoutes(app: Express) {
               text: replyText,
               reply_markup: {
                 inline_keyboard: [[
-                  { text: "🃏 Join Room", web_app: { url: miniAppUrl ? `${miniAppUrl}?startapp=room_${inviteCode}` : "" } }
+                  { text: botTexts.button, web_app: { url: miniAppUrl ? `${miniAppUrl}?startapp=room_${inviteCode}` : "" } }
                 ]]
               }
             }),
@@ -70,7 +122,7 @@ export function registerTelegramRoutes(app: Express) {
           return;
         } else if (param.startsWith("ref_")) {
           const refCode = param.replace("ref_", "");
-          replyText = `Welcome to Vera Poker! 🎰\n\nYou were referred by a friend. Tap below to start playing and earn rewards!`;
+          replyText = botTexts.ref;
           if (miniAppUrl) {
             const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;
             // web_app.url does NOT support startapp= param; pass ref code as URL hash fragment
@@ -84,7 +136,7 @@ export function registerTelegramRoutes(app: Express) {
                 text: replyText,
                 reply_markup: {
                   inline_keyboard: [[
-                    { text: "🎰 Play Now", web_app: { url: webAppUrl } }
+                    { text: botTexts.button, web_app: { url: webAppUrl } }
                   ]]
                 }
               }),
@@ -93,7 +145,7 @@ export function registerTelegramRoutes(app: Express) {
             return;
           }
         } else {
-          replyText = "Welcome to Vera Poker! 🎰\n\nThe world's first provably fair poker platform.\n\nUse /help to see available commands.";
+          replyText = botTexts.welcome;
           if (miniAppUrl) {
             const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;
             await fetch(telegramApiUrl2, {
@@ -104,7 +156,7 @@ export function registerTelegramRoutes(app: Express) {
                 text: replyText,
                 reply_markup: {
                   inline_keyboard: [[
-                    { text: "🃏 Open Vera Poker", web_app: { url: miniAppUrl } }
+                    { text: botTexts.button, web_app: { url: miniAppUrl } }
                   ]]
                 }
               }),

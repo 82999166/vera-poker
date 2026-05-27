@@ -354,6 +354,44 @@ export default function Table() {
     }
   }, [tableState?.phase, tableState?.handNumber, tableState?.lastWinner, tableState?.settlementDetail, muted, playSound, user]);
 
+  // === Auto-return to lobby logic ===
+  // 1. If player is kicked (not in tableState.players while isSeated), auto-navigate to lobby
+  // 2. If table stays in 'waiting' phase for > 3 minutes with only 1 or 0 players, auto-navigate to lobby
+  const kickDetectedRef = useRef(false);
+  const waitingStartRef = useRef<number | null>(null);
+  const WAITING_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+
+  useEffect(() => {
+    if (!isSeated || !user || !tableState) return;
+
+    // Check if player was kicked (seated but not in player list)
+    const myPlayerInState = tableState.players?.find((p: any) => p.id === user.id);
+    if (!myPlayerInState && !kickDetectedRef.current) {
+      kickDetectedRef.current = true;
+      // Return chips are handled server-side; just navigate back
+      toast.info(t("table.kickedToLobby"));
+      setIsSeated(false);
+      utils.wallet.balance.invalidate();
+      setTimeout(() => navigate("/lobby"), 1500);
+      return;
+    }
+    if (myPlayerInState) kickDetectedRef.current = false;
+
+    // Check waiting timeout (no match found)
+    const phase = tableState.phase;
+    const playerCount = tableState.players?.length ?? 0;
+    if (phase === "waiting" && playerCount < 2) {
+      if (!waitingStartRef.current) waitingStartRef.current = Date.now();
+      const elapsed = Date.now() - waitingStartRef.current;
+      if (elapsed > WAITING_TIMEOUT_MS) {
+        toast.info(t("table.noMatchTimeout"));
+        leaveMutation.mutate({ roomId });
+      }
+    } else {
+      waitingStartRef.current = null;
+    }
+  }, [tableState, isSeated, user?.id]);
+
   // Detect other players' actions for voice announcement
   const lastActionInfoRef = useRef<any>(null);
   useEffect(() => {
@@ -904,14 +942,16 @@ export default function Table() {
                       ))}
                     </div>
                   )}
-                  {!isHero && player.holeCards && player.holeCards.length > 0 && !waitingForReady && (
+                  {/* Opponent cards: only show face-up in showdown/completed phase (security: never reveal during active betting) */}
+                  {!isHero && (displayPhase === "showdown" || displayPhase === "completed") && player.holeCards && player.holeCards.length > 0 && !waitingForReady && (
                     <div className="flex gap-0.5 mb-0.5">
                       {player.holeCards.map((card, i) => (
                         <CardView key={i} card={card} className="!w-10 !h-[54px]" />
                       ))}
                     </div>
                   )}
-                  {!isHero && (!player.holeCards || player.holeCards.length === 0) && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && (
+                  {/* Show face-down cards for opponents during active hand (preflop/flop/turn/river) */}
+                  {!isHero && displayPhase !== "showdown" && displayPhase !== "completed" && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && (
                     <div className="flex gap-0.5 mb-0.5">
                       <CardView faceDown className="!w-9 !h-[50px]" />
                       <CardView faceDown className="!w-9 !h-[50px]" />
