@@ -366,6 +366,10 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tg.setWebhookCmd": "设置 Webhook 命令",
     "tg.botUsernameHint": "填写 Bot 的用户名（如 VeraPokerBot），不含 @",
     "tg.botTokenHint": "完整 Token（如 123456789:ABCxxx），Bot ID 会自动提取",
+    "settings.adminTgChatId": "管理员通知 TG Chat ID",
+    "settings.adminTgChatIdDesc": "填写后，充值/提现/新用户注册等事件将通过 Bot 推送给您。发送任意消息给 @userinfobot 可获取您的 Chat ID",
+    "settings.adminTgChatIdSet": "✓ 已配置，管理员将收到充值/提现/注册等 Bot 通知",
+    "settings.adminTgChatIdUnset": "⚠ 未配置，管理员将无法收到 Bot 通知。发送任意消息给 @userinfobot 可获取您的 Chat ID",
     "config.catGame": "游戏设置",
     "config.catAgent": "代理系统",
     "config.catFinance": "财务设置",
@@ -3070,6 +3074,7 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
   const [tgClientSecret, setTgClientSecret] = useState("");
   const [csTgUsername, setCsTgUsername] = useState("");
   const [tgMiniAppUrl, setTgMiniAppUrl] = useState("");
+  const [adminTgChatId, setAdminTgChatId] = useState("");
 
   useEffect(() => {
     if (configs) {
@@ -3082,6 +3087,7 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
       setTgClientSecret(configMap.get("tg_client_secret") ?? "");
       setCsTgUsername(configMap.get("cs_tg_username") ?? "");
       setTgMiniAppUrl(configMap.get("tg_mini_app_url") ?? "");
+      setAdminTgChatId(configMap.get("admin_tg_chat_id") ?? "");
     }
   }, [configs]);
 
@@ -3174,13 +3180,34 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
                 <Save className="w-3.5 h-3.5" />
               </button>
             </div>
-            {tgBotToken && tgBotToken.includes(":") && (
+                        {tgBotToken && tgBotToken.includes(":") && (
               <p className="text-[10px] text-gold/70 mt-1">Bot ID: {tgBotToken.split(":")[0]}</p>
+            )}
+          </div>
+          {/* Admin TG Chat ID */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.adminTgChatId")}</label>
+            <p className="text-[10px] text-muted-foreground/60 mb-1">{at("settings.adminTgChatIdDesc")}</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={adminTgChatId}
+                onChange={(e) => setAdminTgChatId(e.target.value)}
+                placeholder="123456789"
+                className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+              />
+              <button onClick={() => saveSystemSetting("admin_tg_chat_id", adminTgChatId)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
+                <Save className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {adminTgChatId ? (
+              <p className="text-[10px] text-emerald-400 mt-1">{at("settings.adminTgChatIdSet")}</p>
+            ) : (
+              <p className="text-[10px] text-amber-400 mt-1">{at("settings.adminTgChatIdUnset")}</p>
             )}
           </div>
         </div>
       </div>
-
       {/* Telegram OIDC Login Config */}
       <div className="glass rounded-xl p-4">
         <h3 className="text-sm font-semibold mb-3">{at("tg.oidcTitle")}</h3>
