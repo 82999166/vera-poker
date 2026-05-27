@@ -42,14 +42,33 @@ export default function Home() {
   // Step 1: On first load, capture the start_param into localStorage BEFORE auth
   // This ensures we don't lose the param during the auth redirect flow
   useEffect(() => {
-    const startParam = getTelegramStartParam();
-    if (startParam && startParam.startsWith("ref_")) {
-      const refCode = startParam.replace("ref_", "");
-      if (refCode) {
-        console.log("[DeepLink] Saving pending ref code:", refCode);
-        localStorage.setItem(PENDING_REF_KEY, refCode);
+    // Read from multiple sources in priority order
+    const captureRefCode = () => {
+      // 1. TG SDK start_param (most reliable when SDK is ready)
+      const sdkParam = (window.Telegram?.WebApp as any)?.initDataUnsafe?.start_param;
+      // 2. URL hash fragment (web_app button injects #tgWebAppStartParam=xxx)
+      const hash = window.location.hash;
+      const hashParams = hash ? new URLSearchParams(hash.replace(/^#/, "")) : null;
+      const hashParam = hashParams?.get("tgWebAppStartParam") || hashParams?.get("startapp");
+      // 3. URL query params
+      const queryParams = new URLSearchParams(window.location.search);
+      const queryParam = queryParams.get("startapp") || queryParams.get("tgWebAppStartParam");
+
+      const startParam = sdkParam || hashParam || queryParam;
+      if (startParam && startParam.startsWith("ref_")) {
+        const refCode = startParam.replace("ref_", "");
+        if (refCode) {
+          console.log("[DeepLink] Saving pending ref code:", refCode, "(source:", sdkParam ? "sdk" : hashParam ? "hash" : "query", ")");
+          localStorage.setItem(PENDING_REF_KEY, refCode);
+        }
       }
-    }
+    };
+
+    // Run immediately
+    captureRefCode();
+    // Also run after a short delay to catch late TG SDK initialization
+    const timer = setTimeout(captureRefCode, 500);
+    return () => clearTimeout(timer);
   }, []); // Run once on mount
 
   // Step 2: Auto-authenticate in Telegram Mini App
@@ -74,30 +93,36 @@ export default function Home() {
     if (deepLinkHandled.current) return;
     deepLinkHandled.current = true;
 
-    const startParam = getTelegramStartParam();
+    // Wait 600ms to ensure Step 1's delayed capture (500ms) has completed
+    const handleDeepLink = () => {
+      const startParam = getTelegramStartParam();
 
-    // Handle room deep link
-    if (startParam && startParam.startsWith("room_")) {
-      const inviteCode = startParam.replace("room_", "");
-      fetch(`/api/trpc/rooms.resolveInviteCode?input=${encodeURIComponent(JSON.stringify({ inviteCode }))}`)
-        .then(r => r.json())
-        .then(data => {
-          const room = data?.result?.data;
-          navigate(room?.id ? `/table/${room.id}` : "/lobby");
-        })
-        .catch(() => navigate("/lobby"));
-      return;
-    }
+      // Handle room deep link
+      if (startParam && startParam.startsWith("room_")) {
+        const inviteCode = startParam.replace("room_", "");
+        fetch(`/api/trpc/rooms.resolveInviteCode?input=${encodeURIComponent(JSON.stringify({ inviteCode }))}`)
+          .then(r => r.json())
+          .then(data => {
+            const room = data?.result?.data;
+            navigate(room?.id ? `/table/${room.id}` : "/lobby");
+          })
+          .catch(() => navigate("/lobby"));
+        return;
+      }
 
-    // Handle pending referral code (saved before auth)
-    const pendingRefCode = localStorage.getItem(PENDING_REF_KEY);
-    if (pendingRefCode) {
-      console.log("[DeepLink] Processing pending ref code:", pendingRefCode);
-      registerMutation.mutate({ inviteCode: pendingRefCode });
-    }
+      // Handle pending referral code (saved before auth)
+      const pendingRefCode = localStorage.getItem(PENDING_REF_KEY);
+      if (pendingRefCode) {
+        console.log("[DeepLink] Processing pending ref code:", pendingRefCode);
+        registerMutation.mutate({ inviteCode: pendingRefCode });
+      }
 
-    // Always navigate to lobby
-    navigate("/lobby");
+      // Always navigate to lobby
+      navigate("/lobby");
+    };
+
+    const timer = setTimeout(handleDeepLink, 600);
+    return () => clearTimeout(timer);
   }, [isAuthenticated, loading, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle Telegram Login Widget callback

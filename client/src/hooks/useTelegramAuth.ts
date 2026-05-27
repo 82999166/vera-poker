@@ -79,16 +79,25 @@ export function getTelegramWebApp() {
 }
 
 /**
- * Get start_param from Telegram Mini App deep link or URL query
+ * Get start_param from Telegram Mini App deep link or URL query or URL hash
  * e.g. /start room_XXXXX -> startapp=room_XXXXX
+ * web_app button URL: https://...#tgWebAppStartParam=ref_XXXXX
  */
 export function getTelegramStartParam(): string | null {
-  // Try Telegram WebApp start_param first
+  // 1. Try Telegram WebApp start_param first (most reliable)
   const webapp = getTelegramWebApp();
   if (webapp && (webapp as any).initDataUnsafe?.start_param) {
     return (webapp as any).initDataUnsafe.start_param;
   }
-  // Fallback: check URL query params (for web_app_data links)
+  // 2. Check URL hash (web_app button passes params as hash fragment)
+  // TG injects #tgWebAppStartParam=xxx into the URL hash
+  const hash = window.location.hash;
+  if (hash) {
+    const hashParams = new URLSearchParams(hash.replace(/^#/, ""));
+    const hashParam = hashParams.get("tgWebAppStartParam") || hashParams.get("startapp");
+    if (hashParam) return hashParam;
+  }
+  // 3. Fallback: check URL query params
   const params = new URLSearchParams(window.location.search);
   return params.get("startapp") || params.get("tgWebAppStartParam") || null;
 }
@@ -115,11 +124,16 @@ export function useTelegramAuth() {
     setAuthError(null);
 
     try {
-      // Extract start_param (ref code) from initDataUnsafe or URL params
-      const startParam = (webapp as any).initDataUnsafe?.start_param ||
+      // Extract start_param (ref code) from initDataUnsafe, URL hash, URL params, or localStorage
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const pendingRefCode = localStorage.getItem("vera_pending_ref_code");
+      const startParam: string | null =
+        (webapp as any).initDataUnsafe?.start_param ||
+        hashParams.get("tgWebAppStartParam") ||
+        hashParams.get("startapp") ||
         new URLSearchParams(window.location.search).get("startapp") ||
         new URLSearchParams(window.location.search).get("tgWebAppStartParam") ||
-        null;
+        (pendingRefCode ? `ref_${pendingRefCode}` : null);
       const refCode = startParam?.startsWith("ref_") ? startParam.replace("ref_", "") : null;
 
       // Save to localStorage as backup

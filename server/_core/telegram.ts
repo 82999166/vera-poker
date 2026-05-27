@@ -73,6 +73,9 @@ export function registerTelegramRoutes(app: Express) {
           replyText = `Welcome to Vera Poker! 🎰\n\nYou were referred by a friend. Tap below to start playing and earn rewards!`;
           if (miniAppUrl) {
             const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;
+            // web_app.url does NOT support startapp= param; pass ref code as URL hash fragment
+            // Frontend reads location.hash or #tgWebAppStartParam from TG SDK
+            const webAppUrl = `${miniAppUrl}#tgWebAppStartParam=ref_${refCode}`;
             await fetch(telegramApiUrl2, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -81,7 +84,7 @@ export function registerTelegramRoutes(app: Express) {
                 text: replyText,
                 reply_markup: {
                   inline_keyboard: [[
-                    { text: "🎰 Play Now", web_app: { url: `${miniAppUrl}?startapp=ref_${refCode}` } }
+                    { text: "🎰 Play Now", web_app: { url: webAppUrl } }
                   ]]
                 }
               }),
