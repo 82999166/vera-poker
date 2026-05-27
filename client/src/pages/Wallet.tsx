@@ -370,9 +370,9 @@ export default function Wallet() {
                 const isReturn = tx.type === "leave_table";
                 const isBuyIn = tx.type === "buy_in";
                 const isRebuy = tx.type === "rebuy";
-                const iconColor = isReturn ? "text-success" : "text-orange-400";
-                const bgColor = isReturn ? "bg-success/20" : "bg-orange-400/20";
-                const amountColor = isReturn ? "text-success" : "text-orange-400";
+                const iconColor = isReturn ? "text-success" : isBuyIn ? "text-red-400" : "text-orange-400";
+                const bgColor = isReturn ? "bg-success/20" : isBuyIn ? "bg-red-400/20" : "bg-orange-400/20";
+                const amountColor = isReturn ? "text-success" : isBuyIn ? "text-red-400" : "text-orange-400";
                 const sign = isReturn ? "+" : "-";
                 return (
                   <div key={i} className="glass rounded-lg p-3 flex items-center justify-between">

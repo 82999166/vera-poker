@@ -1957,6 +1957,10 @@ const es: Record<string, string> = {
   "verify.highStakes": "Altas Apuestas (VIP)", "verify.highStakesMethod": "Cada Carta On-chain",
   "verify.handNotFoundMsg": "Mano no encontrada. Verifica el ID e inténtalo de nuevo.",
   "verify.allFieldsRequired": "Todos los campos son requeridos", "verify.requestFailedMsg": "Error en la solicitud", "verify.verificationFailed": "Verificación fallida",
+  "home.feature1Title": "Juego Justo", "home.feature1Desc": "Cada carta en cadena",
+  "home.feature2Title": "Sin Comisiones", "home.feature2Desc": "Transacciones en juego",
+  "home.feature3Title": "Multiidioma", "home.feature3Desc": "10+ idiomas",
+  "home.feature4Title": "Salas Privadas", "home.feature4Desc": "Juega con amigos",
   "common.loading": "Cargando...", "common.error": "Algo salió mal", "common.retry": "Reintentar", "common.cancel": "Cancelar", "common.save": "Guardar", "common.back": "Atrás", "common.online": "En línea", "common.language": "Idioma", "common.comingSoon": "Próximamente",
 };
 
@@ -2011,6 +2015,10 @@ const pt: Record<string, string> = {
   "verify.highStakes": "Altas Apostas (VIP)", "verify.highStakesMethod": "Cada Carta On-chain",
   "verify.handNotFoundMsg": "Mão não encontrada. Verifique o ID e tente novamente.",
   "verify.allFieldsRequired": "Todos os campos são obrigatórios", "verify.requestFailedMsg": "Falha na solicitação", "verify.verificationFailed": "Verificação falhou",
+  "home.feature1Title": "Jogo Justo", "home.feature1Desc": "Cada carta na blockchain",
+  "home.feature2Title": "Sem Taxas", "home.feature2Desc": "Transações no jogo",
+  "home.feature3Title": "Multilíngue", "home.feature3Desc": "10+ idiomas",
+  "home.feature4Title": "Salas Privadas", "home.feature4Desc": "Jogue com amigos",
   "common.loading": "Carregando...", "common.error": "Algo deu errado", "common.retry": "Tentar novamente", "common.cancel": "Cancelar", "common.save": "Salvar", "common.back": "Voltar", "common.online": "Online", "common.language": "Idioma", "common.comingSoon": "Em breve",
 };
 
@@ -2065,6 +2073,10 @@ const ru: Record<string, string> = {
   "verify.highStakes": "Высокие ставки (VIP)", "verify.highStakesMethod": "Каждая карта ончейн",
   "verify.handNotFoundMsg": "Раздача не найдена. Проверьте ID и повторите.",
   "verify.allFieldsRequired": "Заполните все поля", "verify.requestFailedMsg": "Ошибка запроса", "verify.verificationFailed": "Проверка не удалась",
+  "home.feature1Title": "Честная Игра", "home.feature1Desc": "Каждая карта в блокчейне",
+  "home.feature2Title": "Без Комиссий", "home.feature2Desc": "Внутриигровые транзакции",
+  "home.feature3Title": "Мультиязычный", "home.feature3Desc": "10+ языков",
+  "home.feature4Title": "Приватные Комнаты", "home.feature4Desc": "Играй с друзьями",
   "common.loading": "Загрузка...", "common.error": "Что-то пошло не так", "common.retry": "Повторить", "common.cancel": "Отмена", "common.save": "Сохранить", "common.back": "Назад", "common.online": "Онлайн", "common.language": "Язык", "common.comingSoon": "Скоро",
 };
 
@@ -2119,6 +2131,10 @@ const ar: Record<string, string> = {
   "verify.highStakes": "رهانات عالية (VIP)", "verify.highStakesMethod": "كل بطاقة على السلسلة",
   "verify.handNotFoundMsg": "الجولة غير موجودة. تحقق من المعرف وحاول مجدداً.",
   "verify.allFieldsRequired": "جميع الحقول مطلوبة", "verify.requestFailedMsg": "فشل طلب التحقق", "verify.verificationFailed": "فشل التحقق",
+  "home.feature1Title": "لعب عادل", "home.feature1Desc": "كل بطاقة على البلوكتشين",
+  "home.feature2Title": "بدون رسوم", "home.feature2Desc": "معاملات داخل اللعبة",
+  "home.feature3Title": "متعدد اللغات", "home.feature3Desc": "أكثر من 10 لغات",
+  "home.feature4Title": "غرف خاصة", "home.feature4Desc": "العب مع الأصدقاء",
   "common.loading": "جار التحميل...", "common.error": "حدث خطأ", "common.retry": "إعادة المحاولة", "common.cancel": "إلغاء", "common.save": "حفظ", "common.back": "رجوع", "common.online": "متصل", "common.language": "اللغة", "common.comingSoon": "قريباً",
 };
 
@@ -2173,6 +2189,10 @@ const vi: Record<string, string> = {
   "verify.highStakes": "Cược Cao (VIP)", "verify.highStakesMethod": "Mọi Bài On-chain",
   "verify.handNotFoundMsg": "Không tìm thấy ván bài. Kiểm tra ID và thử lại.",
   "verify.allFieldsRequired": "Tất cả các trường là bắt buộc", "verify.requestFailedMsg": "Yêu cầu xác minh thất bại", "verify.verificationFailed": "Xác minh thất bại",
+  "home.feature1Title": "Công Bằng", "home.feature1Desc": "Mọi lá bài trên chuỗi",
+  "home.feature2Title": "Không Phí", "home.feature2Desc": "Giao dịch trong game",
+  "home.feature3Title": "Đa Ngôn Ngữ", "home.feature3Desc": "10+ ngôn ngữ",
+  "home.feature4Title": "Phòng Riêng", "home.feature4Desc": "Chơi với bạn bè",
   "common.loading": "Đang tải...", "common.error": "Đã xảy ra lỗi", "common.retry": "Thử lại", "common.cancel": "Hủy", "common.save": "Lưu", "common.back": "Quay lại", "common.online": "Trực tuyến", "common.language": "Ngôn ngữ", "common.comingSoon": "Sắp ra mắt",
 };
 
@@ -2227,6 +2247,10 @@ const th: Record<string, string> = {
   "verify.highStakes": "เดิมพันสูง (VIP)", "verify.highStakesMethod": "ทุกใบ On-chain",
   "verify.handNotFoundMsg": "ไม่พบไพ่. ตรวจสอบ ID และลองอีกครั้ง",
   "verify.allFieldsRequired": "กรอกข้อมูลทุกช่อง", "verify.requestFailedMsg": "คำขอตรวจสอบล้มเหลว", "verify.verificationFailed": "การตรวจสอบล้มเหลว",
+  "home.feature1Title": "ยุติธรรม", "home.feature1Desc": "ทุกใบบนบล็อกเชน",
+  "home.feature2Title": "ไม่มีค่าธรรมเนียม", "home.feature2Desc": "ธุรกรรมในเกม",
+  "home.feature3Title": "หลายภาษา", "home.feature3Desc": "10+ ภาษา",
+  "home.feature4Title": "ห้องส่วนตัว", "home.feature4Desc": "เล่นกับเพื่อน",
   "common.loading": "กำลังโหลด...", "common.error": "เกิดข้อผิดพลาด", "common.retry": "ลองอีกครั้ง", "common.cancel": "ยกเลิก", "common.save": "บันทึก", "common.back": "กลับ", "common.online": "ออนไลน์", "common.language": "ภาษา", "common.comingSoon": "เร็วๆ นี้",
 };
 
@@ -2281,6 +2305,10 @@ const id: Record<string, string> = {
   "verify.highStakes": "Taruhan Tinggi (VIP)", "verify.highStakesMethod": "Setiap Kartu On-chain",
   "verify.handNotFoundMsg": "Tangan tidak ditemukan. Periksa ID dan coba lagi.",
   "verify.allFieldsRequired": "Semua kolom wajib diisi", "verify.requestFailedMsg": "Permintaan verifikasi gagal", "verify.verificationFailed": "Verifikasi gagal",
+  "home.feature1Title": "Adil", "home.feature1Desc": "Setiap kartu di blockchain",
+  "home.feature2Title": "Tanpa Biaya", "home.feature2Desc": "Transaksi dalam game",
+  "home.feature3Title": "Multi-Bahasa", "home.feature3Desc": "10+ bahasa",
+  "home.feature4Title": "Ruang Privat", "home.feature4Desc": "Bermain dengan teman",
   "common.loading": "Memuat...", "common.error": "Terjadi kesalahan", "common.retry": "Coba lagi", "common.cancel": "Batal", "common.save": "Simpan", "common.back": "Kembali", "common.online": "Online", "common.language": "Bahasa", "common.comingSoon": "Segera hadir",
 };
 
