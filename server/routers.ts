@@ -1722,6 +1722,11 @@ Rules:
       await db.registerForTournament(input.tournamentId, ctx.user.id, tournament.startingChips);
       // Update registered count
       await db.updateTournament(input.tournamentId, { registeredCount: count + 1 });
+      // Notify player and admins about successful registration
+      const { notifyTournamentRegistered, notifyAdmins: notifyAdminsTournament } = await import("./notifications");
+      const startTimeStr = tournament.startTime ? new Date(tournament.startTime).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "待定";
+      notifyTournamentRegistered(ctx.user.id, tournament.name, tournament.entryFee, startTimeStr).catch(() => {});
+      notifyAdminsTournament("新比赛报名", `用户#${ctx.user.id} (${user.name || user.nickname || "Unknown"}) 报名参加「${tournament.name}」\n报名费: $${tournament.entryFee}\n当前报名: ${count + 1}/${tournament.maxPlayers}`).catch(() => {});
       return { success: true };
     }),
     // Protected: cancel registration
@@ -1738,6 +1743,9 @@ Rules:
       // Update count
       const count = await db.getRegistrationCount(input.tournamentId);
       await db.updateTournament(input.tournamentId, { registeredCount: count });
+      // Notify player that registration was cancelled and refunded
+      const { notifyTournamentCancelled } = await import("./notifications");
+      notifyTournamentCancelled(ctx.user.id, tournament.name, tournament.entryFee).catch(() => {});
       return { success: true };
     }),
     // Protected: get my registration status

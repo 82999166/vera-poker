@@ -81,6 +81,9 @@ export default function Wallet() {
 
   const handleWithdraw = () => {
     if (!amount || !address) return toast.error(t("wallet.fillAll"));
+    if (isNaN(Number(amount)) || Number(amount) < 20) {
+      return toast.error(t("wallet.minWithdraw") || "最低提现金额为 20 USDT");
+    }
     withdrawMutation.mutate({ amount, chain, walletAddress: address });
   };
 
@@ -283,6 +286,12 @@ export default function Wallet() {
                 placeholder="0.00"
                 className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold"
               />
+              {/* Minimum withdrawal hint */}
+              <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2.5">
+                <p className="text-sm font-bold text-gold">
+                  {t("wallet.minWithdrawHint") || "最低提现 20 USDT"}
+                </p>
+              </div>
             </div>
 
             <div>

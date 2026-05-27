@@ -47,3 +47,22 @@
 - [x] Guard showBuyIn trigger: skip when room.status=closed or isLeavingRef=true
 - [x] Continue polling tableState briefly after unseated to detect roomClosed
 - [x] All 103 tests passing
+
+## Feature: Tournament Bot Notifications
+- [x] notifications.ts: Add notifyTournamentRegistered() - notify player on successful registration
+- [x] notifications.ts: Add notifyTournamentCancelled() - notify player on cancellation + refund
+- [x] notifications.ts: Add notifyTournamentStartingSoon() - notify registered players before start
+- [x] notifications.ts: Add notifyTournamentResult() - notify player of final ranking + prize
+- [x] routers.ts: Call notifyTournamentRegistered + notifyAdmins in tournaments.register
+- [x] routers.ts: Call notifyTournamentCancelled in tournaments.cancelRegistration
+
+## Feature: Multi-Admin Chat ID Support
+- [x] notifications.ts: notifyAdmins() already supports comma-separated Chat IDs (split + send to all)
+- [x] Admin.tsx: Update adminTgChatIdDesc to explain comma-separated format (e.g. 123456789,987654321)
+- [x] Admin.tsx: Update adminTgChatIdUnset hint to mention comma-separated support
+
+## Feature: Withdrawal Minimum Limit (20 USDT)
+- [x] Wallet.tsx: handleWithdraw validates amount >= 20 USDT before submitting
+- [x] Wallet.tsx: Add gold hint box below withdraw amount input showing minimum 20 USDT
+- [x] i18n.ts: Add wallet.minWithdraw key for all 12 languages
+- [x] i18n.ts: Add wallet.minWithdrawHint key for all 12 languages

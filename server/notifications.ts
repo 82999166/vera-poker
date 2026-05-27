@@ -176,17 +176,21 @@ export async function notifyBalanceChange(userId: number, amount: string, reason
 }
 
 // ==================== ADMIN NOTIFICATIONS ====================
-// Notify all admins about important events
+// Notify all admins about important events (supports comma-separated multiple Chat IDs)
 export async function notifyAdmins(title: string, body: string, data?: Record<string, any>): Promise<void> {
   try {
-    // Get admin notification chat ID from config
-    const adminChatId = await db.getConfigValue("admin_tg_chat_id");
-    if (!adminChatId) {
+    // Get admin notification chat IDs from config (supports comma-separated multiple IDs)
+    const adminChatIdRaw = await db.getConfigValue("admin_tg_chat_id");
+    if (!adminChatIdRaw) {
       console.warn("[Notifications] Admin TG chat ID not configured");
       return;
     }
+    // Parse comma-separated IDs, trim whitespace
+    const adminChatIds = adminChatIdRaw.split(",").map((id: string) => id.trim()).filter(Boolean);
+    if (adminChatIds.length === 0) return;
     const message = `🔔 <b>[Admin] ${title}</b>\n\n${body}${data ? `\n\n<pre>${JSON.stringify(data, null, 2)}</pre>` : ""}`;
-    await sendTelegramMessage(adminChatId, message);
+    // Send to all admins concurrently
+    await Promise.allSettled(adminChatIds.map((chatId: string) => sendTelegramMessage(chatId, message)));
   } catch (e) {
     console.error("[Notifications] Admin notify failed:", e);
   }
@@ -277,6 +281,54 @@ export async function notifyNewDownline(agentId: number, downlineName: string): 
     title: "新下线绑定成功",
     body: `${downlineName} 已通过您的邀请码成功注册并绑定，开始为您产生佣金`,
     data: { downlineName },
+  });
+}
+
+// ==================== TOURNAMENT NOTIFICATIONS ====================
+// Notify user that tournament registration was successful
+export async function notifyTournamentRegistered(userId: number, tournamentName: string, entryFee: string, startTime: string): Promise<boolean> {
+  return sendNotification({
+    type: "system_announcement",
+    userId,
+    title: "比赛报名成功",
+    body: `您已成功报名参加「${tournamentName}」\n报名费: $${entryFee}\n开赛时间: ${startTime}\n请准时参赛，祝您好运！`,
+    data: { tournamentName, entryFee, startTime },
+  });
+}
+
+// Notify user that tournament registration was cancelled (refunded)
+export async function notifyTournamentCancelled(userId: number, tournamentName: string, entryFee: string): Promise<boolean> {
+  return sendNotification({
+    type: "balance_change",
+    userId,
+    title: "比赛报名已取消",
+    body: `您已取消报名「${tournamentName}」\n报名费 $${entryFee} 已退回到您的账户`,
+    data: { tournamentName, entryFee },
+  });
+}
+
+// Notify all registered users that tournament is starting soon
+export async function notifyTournamentStartingSoon(userId: number, tournamentName: string, minutesLeft: number): Promise<boolean> {
+  return sendNotification({
+    type: "game_starting",
+    userId,
+    title: "比赛即将开始",
+    body: `「${tournamentName}」将在 ${minutesLeft} 分钟后开始，请做好准备！`,
+    data: { tournamentName, minutesLeft },
+  });
+}
+
+// Notify user of their tournament result
+export async function notifyTournamentResult(userId: number, tournamentName: string, rank: number, prize: string): Promise<boolean> {
+  const isWinner = rank <= 3;
+  return sendNotification({
+    type: "balance_change",
+    userId,
+    title: isWinner ? `🏆 比赛获奖 - 第${rank}名` : `比赛结束 - 第${rank}名`,
+    body: isWinner
+      ? `恭喜您在「${tournamentName}」中获得第${rank}名！\n奖金 $${prize} 已发放到您的账户`
+      : `「${tournamentName}」已结束，您的最终排名为第${rank}名${parseFloat(prize) > 0 ? `\n奖金 $${prize} 已发放到您的账户` : ""}`,
+    data: { tournamentName, rank, prize },
   });
 }
 
