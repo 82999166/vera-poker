@@ -1,15 +1,17 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getLoginUrl } from "@/const";
 import { useTelegramAuth, isTelegramMiniApp, getTelegramStartParam } from "@/hooks/useTelegramAuth";
 import { trpc } from "@/lib/trpc";
 import { useI18n } from "@/lib/i18n";
 import { Shield, Zap, Globe, Users, ArrowRight, Loader2 } from "lucide-react";
 
+// Storage key for pending referral code
+const PENDING_REF_KEY = "vera_pending_ref_code";
+
 export default function Home() {
   const { user, loading, isAuthenticated, refresh } = useAuth();
-  const registerMutation = trpc.agent.register.useMutation();
   const [, navigate] = useLocation();
   const { t } = useI18n();
   const {
@@ -22,7 +24,35 @@ export default function Home() {
   const [tgLoginAttempted, setTgLoginAttempted] = useState(false);
   const [tgLoginSuccess, setTgLoginSuccess] = useState(false);
 
-  // Auto-authenticate in Telegram Mini App
+  // Use ref to ensure deep link is only processed once per session
+  const deepLinkHandled = useRef(false);
+
+  // tRPC mutation for referral registration
+  const registerMutation = trpc.agent.register.useMutation({
+    onSuccess: () => {
+      console.log("[DeepLink] Referral registration successful");
+      localStorage.removeItem(PENDING_REF_KEY);
+    },
+    onError: (error: any) => {
+      console.error("[DeepLink] Referral registration failed:", error);
+      localStorage.removeItem(PENDING_REF_KEY);
+    },
+  });
+
+  // Step 1: On first load, capture the start_param into localStorage BEFORE auth
+  // This ensures we don't lose the param during the auth redirect flow
+  useEffect(() => {
+    const startParam = getTelegramStartParam();
+    if (startParam && startParam.startsWith("ref_")) {
+      const refCode = startParam.replace("ref_", "");
+      if (refCode) {
+        console.log("[DeepLink] Saving pending ref code:", refCode);
+        localStorage.setItem(PENDING_REF_KEY, refCode);
+      }
+    }
+  }, []); // Run once on mount
+
+  // Step 2: Auto-authenticate in Telegram Mini App
   useEffect(() => {
     if (!isTgApp) return;
     if (tgLoginAttempted) return;
@@ -33,61 +63,51 @@ export default function Home() {
       if (result?.success) {
         setTgLoginSuccess(true);
         localStorage.setItem("vera_auth_method", "telegram");
-        // Refresh auth state to pick up the new session
         refresh();
       }
     });
   }, [isTgApp, tgLoginAttempted, isAuthenticated, autoAuthenticate, refresh]);
 
-  // Auto-redirect authenticated users - handle deep link params
+  // Step 3: After authenticated, handle deep link navigation
   useEffect(() => {
     if (!isAuthenticated || loading) return;
+    if (deepLinkHandled.current) return;
+    deepLinkHandled.current = true;
+
     const startParam = getTelegramStartParam();
+
+    // Handle room deep link
     if (startParam && startParam.startsWith("room_")) {
       const inviteCode = startParam.replace("room_", "");
-      // Resolve invite code to room ID then navigate
       fetch(`/api/trpc/rooms.resolveInviteCode?input=${encodeURIComponent(JSON.stringify({ inviteCode }))}`)
         .then(r => r.json())
         .then(data => {
           const room = data?.result?.data;
-          if (room && room.id) {
-            navigate(`/table/${room.id}`);
-          } else {
-            navigate("/lobby");
-          }
+          navigate(room?.id ? `/table/${room.id}` : "/lobby");
         })
         .catch(() => navigate("/lobby"));
-    } else if (startParam && startParam.startsWith("ref_")) {
-      const refCode = startParam.replace("ref_", "");
-      // Auto-register as downline of the referrer via tRPC
-      registerMutation.mutate(
-        { inviteCode: refCode },
-        {
-          onSuccess: () => {
-            console.log("[DeepLink] Referral registration successful");
-            navigate("/lobby");
-          },
-          onError: (error: any) => {
-            console.error("[DeepLink] Referral registration failed:", error);
-            navigate("/lobby");
-          },
-        }
-      );
-    } else {
-      navigate("/lobby");
+      return;
     }
-  }, [isAuthenticated, loading, navigate, registerMutation]);
+
+    // Handle pending referral code (saved before auth)
+    const pendingRefCode = localStorage.getItem(PENDING_REF_KEY);
+    if (pendingRefCode) {
+      console.log("[DeepLink] Processing pending ref code:", pendingRefCode);
+      registerMutation.mutate({ inviteCode: pendingRefCode });
+    }
+
+    // Always navigate to lobby
+    navigate("/lobby");
+  }, [isAuthenticated, loading, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle Telegram Login Widget callback
   const handleTelegramLogin = useCallback(async (widgetData: Record<string, unknown>) => {
-    // If we got a success signal from widget-callback (server already set the cookie)
     if (widgetData.success === true) {
       setTgLoginSuccess(true);
       localStorage.setItem("vera_auth_method", "telegram");
       refresh();
       return;
     }
-    // Otherwise, try to authenticate with full widget data (has hash, auth_date, etc.)
     if (widgetData.hash && widgetData.auth_date) {
       const result = await authenticateWithWidget(widgetData);
       if (result.success) {
@@ -147,10 +167,7 @@ export default function Home() {
 
         {/* Login Buttons */}
         <div className="flex flex-col gap-3 w-full max-w-xs">
-          {/* Telegram Login Button */}
           <TelegramLoginButton onLogin={handleTelegramLogin} />
-
-          {/* Manus OAuth Login (fallback for non-TG environments) */}
           {!isTgApp && (
             <button
               onClick={() => (window.location.href = getLoginUrl())}
@@ -194,7 +211,6 @@ function TelegramLoginButton({ onLogin }: { onLogin: (data: Record<string, unkno
   const [isLoading, setIsLoading] = useState(false);
   const { t } = useI18n();
 
-  // In TG Mini App, we don't need the widget button (auto-login handles it)
   if (isTelegramMiniApp()) {
     return null;
   }
@@ -202,7 +218,6 @@ function TelegramLoginButton({ onLogin }: { onLogin: (data: Record<string, unkno
   const handleClick = async () => {
     setIsLoading(true);
     try {
-      // Use OIDC flow directly
       await openTelegramLogin("", onLogin);
     } catch {
       window.location.href = getLoginUrl();
@@ -231,30 +246,20 @@ function TelegramIcon({ className }: { className?: string }) {
   );
 }
 
-/**
- * Open Telegram Login using the new OIDC flow.
- * 1. Fetch auth URL from /api/telegram/oidc-start
- * 2. Open popup to Telegram's OIDC authorization page
- * 3. After user authorizes, Telegram redirects to our oidc-callback
- * 4. Callback sets session cookie and posts success message back
- */
 async function openTelegramLogin(_botIdOrUsername: string, onLogin: (data: Record<string, unknown>) => void) {
   try {
-    // Get the OIDC authorization URL from our server
     const res = await fetch(`/api/telegram/oidc-start?origin=${encodeURIComponent(window.location.origin)}`, {
       credentials: "include",
     });
     const json = await res.json();
 
     if (!res.ok || !json.authUrl) {
-      // Fallback: try legacy widget approach
       console.error("[TG Login] OIDC start failed:", json.error);
       window.location.href = getLoginUrl();
       return;
     }
 
     const authUrl = json.authUrl;
-
     const width = 550;
     const height = 650;
     const left = window.screenX + (window.outerWidth - width) / 2;
@@ -272,7 +277,6 @@ async function openTelegramLogin(_botIdOrUsername: string, onLogin: (data: Recor
       return;
     }
 
-    // Listen for success message from popup
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if (event.data?.type === "telegram_login_success") {
@@ -283,8 +287,6 @@ async function openTelegramLogin(_botIdOrUsername: string, onLogin: (data: Recor
     };
 
     window.addEventListener("message", handleMessage);
-
-    // Cleanup after 5 minutes
     setTimeout(() => {
       window.removeEventListener("message", handleMessage);
       popup?.close();
