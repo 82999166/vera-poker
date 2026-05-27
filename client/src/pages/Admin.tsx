@@ -85,6 +85,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "config.privateRoom": "私人房设置",
     "config.walletAddress": "收款钱包地址",
     "config.blockchainApi": "区块链 API 配置",
+    "config.tonOnchain": "TON 上链钱包配置",
     "config.addNew": "新增配置",
     "config.key": "键名",
     "config.value": "值",
@@ -439,6 +440,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "config.privateRoom": "私人房設置",
     "config.walletAddress": "收款錢包地址",
     "config.blockchainApi": "區塊鏈 API 配置",
+    "config.tonOnchain": "TON 上鏈錢包配置",
     "config.addNew": "新增配置",
     "config.key": "鍵名",
     "config.value": "值",
@@ -793,6 +795,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "config.privateRoom": "Private Room",
     "config.walletAddress": "Wallet Addresses",
     "config.blockchainApi": "Blockchain API Config",
+    "config.tonOnchain": "TON On-Chain Wallet Config",
     "config.addNew": "Add New Configuration",
     "config.key": "Key",
     "config.value": "Value",
@@ -1454,6 +1457,7 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
 
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [newConfig, setNewConfig] = useState({ key: "", value: "", category: "game", label: "", valueType: "string" as const, isPublic: false });
+  const [showSensitiveFields, setShowSensitiveFields] = useState<Record<string, boolean>>({});
 
   // Chinese labels for config keys
   const configLabels: Record<string, string> = {
@@ -1496,6 +1500,8 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
     polygonscan_api_key: "PolygonScan API Key",
     auto_confirm_enabled: "自动确认充值 (true/false)",
     auto_confirm_min_confirmations: "最少确认数",
+    ton_onchain_wallet_address: "TON 上链钱包地址（用于写入区块链）",
+    ton_onchain_wallet_mnemonic: "TON 上链钱包助记词（24个单词，空格分隔）",
   };
 
   const configGroups: Record<string, string[]> = {
@@ -1506,6 +1512,7 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
     [at("config.privateRoom")]: ["room_fee_micro", "room_fee_low", "room_fee_mid", "room_fee_high", "room_fee_premium", "discount_5_rounds", "discount_10_rounds", "discount_20_rounds", "discount_50_rounds"],
     [at("config.walletAddress")]: ["deposit_wallet_trc20", "deposit_wallet_erc20", "deposit_wallet_bep20", "deposit_wallet_ton", "deposit_wallet_polygon"],
     [at("config.blockchainApi")]: ["trongrid_api_key", "etherscan_api_key", "bscscan_api_key", "polygonscan_api_key", "auto_confirm_enabled", "auto_confirm_min_confirmations"],
+    [at("config.tonOnchain")]: ["ton_onchain_wallet_address", "ton_onchain_wallet_mnemonic"],
   };
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
@@ -1523,16 +1530,27 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
             {keys.map(key => {
               const config = configMap.get(key) as any;
               const currentValue = editValues[key] ?? config?.value ?? "";
+              const isSensitive = key.includes("mnemonic") || key.includes("private_key") || key.includes("secret") || key.includes("token");
+              const isVisible = showSensitiveFields[key] ?? false;
               return (
                 <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
                   <label className="text-xs text-muted-foreground sm:w-48 shrink-0">{configLabels[key] || config?.label || key}</label>
                   <div className="flex items-center gap-2 flex-1">
                     <input
-                      type="text"
+                      type={isSensitive && !isVisible ? "password" : "text"}
                       value={currentValue}
                       onChange={(e) => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
                       className="flex-1 glass rounded-lg px-3 py-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-gold"
                     />
+                    {isSensitive && (
+                      <button
+                        onClick={() => setShowSensitiveFields(prev => ({ ...prev, [key]: !isVisible }))}
+                        className="p-1.5 rounded-lg bg-white/5 text-muted-foreground hover:text-foreground transition-colors"
+                        title={isVisible ? "隐藏" : "显示"}
+                      >
+                        {isVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
                     <button
                       onClick={() => upsertMutation.mutate({ key, value: editValues[key] ?? currentValue, category: config?.category ?? "game", label: config?.label ?? key, valueType: config?.valueType ?? "string", isPublic: config?.isPublic ?? false })}
                       className="p-1.5 rounded-lg bg-gold/10 text-gold hover:bg-gold/20 transition-colors"
