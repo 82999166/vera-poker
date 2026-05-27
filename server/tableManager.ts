@@ -144,18 +144,11 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
     return { success: true, seatIndex: alreadySeated.seatIndex, message: "Already seated" };
   }
 
-  // Check if player is already seated at ANOTHER table - prevent multi-tabling
+  // Check if player is already seated at ANOTHER table - one account, one active game at a time
   const activeRoom = await db.getPlayerActiveRoom(userId);
   if (activeRoom && activeRoom.roomId !== roomId) {
-    // Auto-leave the other table first and return chips to balance
-    const leaveResult = await leaveTable(activeRoom.roomId, userId);
-    if (leaveResult.remainingChips > 0) {
-      const currentUser = await db.getUserById(userId);
-      if (currentUser) {
-        const updatedBalance = (parseFloat(currentUser.balance) + leaveResult.remainingChips).toFixed(2);
-        await db.updateUserBalance(userId, updatedBalance);
-      }
-    }
+    // Reject: same account cannot be in two different games simultaneously
+    return { success: false, seatIndex: -1, message: "Already in another game. Please leave your current table first." };
   }
 
   // Check max players

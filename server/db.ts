@@ -248,7 +248,10 @@ export async function updateRoom(id: number, data: Partial<typeof rooms.$inferIn
 export async function getRoomPlayers(roomId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(roomPlayers).where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.status, "active")));
+  // ORDER BY joinedAt ASC to ensure consistent join-order seat assignment across all devices
+  return db.select().from(roomPlayers)
+    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.status, "active")))
+    .orderBy(asc(roomPlayers.joinedAt));
 }
 
 // ==================== TRANSACTION QUERIES ====================

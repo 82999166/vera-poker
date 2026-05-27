@@ -378,7 +378,15 @@ export default function Table() {
       utils.rooms.getPlayers.invalidate({ roomId });
       utils.wallet.balance.invalidate();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => {
+      // If already in another game, show localized message and redirect to lobby
+      if (err.message?.includes("Already in another game")) {
+        toast.error(t("table.alreadyInGame"));
+        setTimeout(() => navigate("/lobby"), 1500);
+      } else {
+        toast.error(err.message);
+      }
+    },
   });
 
   const leaveMutation = trpc.game.leave.useMutation({

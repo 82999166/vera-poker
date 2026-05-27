@@ -525,3 +525,9 @@
 - [x] 修复：TG 分享链接用 ref_code 打开，绑定推荐关系失败的问题（使用正确的 tRPC mutation 而不是 fetch）
 - [x] 修复：TG 分享代理链接打开后自动绑定代理关系失败（彻底排查 start_param 读取时机）
 - [x] 功能：管理后台用户管理页面添加代理下线树详情（展示每个用户的完整上下级关系）
+
+## Seat Order & Single-Game Session Fix
+- [x] Backend: getRoomPlayers now ORDER BY joinedAt ASC - ensures consistent join-order seat assignment across all devices
+- [x] Backend: tableManager.joinTable rejects (instead of auto-switching) if same account is already in another game
+- [x] Frontend: joinMutation onError shows localized "already in game" message and redirects to lobby
+- [x] i18n: Added table.alreadyInGame translation in all 5 locales (en, zh-CN, zh-TW, ja, ko)
