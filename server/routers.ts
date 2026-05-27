@@ -1112,6 +1112,9 @@ Rules:
     userGameHistory: adminProcedure.input(z.object({ userId: z.number(), page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       return db.getUserGameHistory(input.userId, input.page, input.limit);
     }),
+    userDownlines: adminProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
+      return db.getAdminUserDownlines(input.userId);
+    }),
     riskEvents: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       return db.getRiskEvents(input.page, input.limit);
     }),

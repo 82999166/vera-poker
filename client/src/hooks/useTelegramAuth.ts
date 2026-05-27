@@ -115,17 +115,35 @@ export function useTelegramAuth() {
     setAuthError(null);
 
     try {
+      // Extract start_param (ref code) from initDataUnsafe or URL params
+      const startParam = (webapp as any).initDataUnsafe?.start_param ||
+        new URLSearchParams(window.location.search).get("startapp") ||
+        new URLSearchParams(window.location.search).get("tgWebAppStartParam") ||
+        null;
+      const refCode = startParam?.startsWith("ref_") ? startParam.replace("ref_", "") : null;
+
+      // Save to localStorage as backup
+      if (refCode) {
+        localStorage.setItem("vera_pending_ref_code", refCode);
+        console.log("[TG Auth] Captured ref code during auth:", refCode);
+      }
+
       const response = await fetch("/api/telegram/auth/webapp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ initData: webapp.initData }),
+        body: JSON.stringify({ initData: webapp.initData, refCode }),
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
         setIsAuthenticating(false);
+        // If backend bound the referral, clear localStorage
+        if (data.refBound) {
+          localStorage.removeItem("vera_pending_ref_code");
+          console.log("[TG Auth] Referral bound by backend during auth");
+        }
         return { success: true, user: data.user };
       } else {
         const errorMsg = data.error || "Authentication failed";

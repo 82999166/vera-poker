@@ -289,6 +289,81 @@ export async function getAgentDownlines(agentId: number) {
   return db.select().from(agentRelationships).where(eq(agentRelationships.agentId, agentId));
 }
 
+/**
+ * Get all downlines for a user with detailed user info (for admin panel)
+ */
+export async function getAdminUserDownlines(userId: number) {
+  const db = await getDb();
+  if (!db) return { level1: [], level2: [] };
+
+  // Get level 1 downlines (direct)
+  const level1Rels = await db.select().from(agentRelationships)
+    .where(and(eq(agentRelationships.agentId, userId), eq(agentRelationships.level, 1)));
+
+  // Get level 2 downlines
+  const level2Rels = await db.select().from(agentRelationships)
+    .where(and(eq(agentRelationships.agentId, userId), eq(agentRelationships.level, 2)));
+
+  // Fetch user details for all downlines
+  const allUserIds = [...new Set([
+    ...level1Rels.map(r => r.downlineId),
+    ...level2Rels.map(r => r.downlineId),
+  ])];
+
+  if (allUserIds.length === 0) return { level1: [], level2: [] };
+
+  const userDetails = await db.select({
+    id: users.id,
+    name: users.name,
+    nickname: users.nickname,
+    tgUsername: users.tgUsername,
+    balance: users.balance,
+    createdAt: users.createdAt,
+    lastSignedIn: users.lastSignedIn,
+    inviteCode: users.inviteCode,
+    agentLevel: users.agentLevel,
+  }).from(users).where(inArray(users.id, allUserIds));
+
+  const userMap = Object.fromEntries(userDetails.map(u => [u.id, u]));
+
+  // Get commission earned from each downline
+  const commissionData = await db.select({
+    downlineId: commissionRecords.downlineId,
+    total: sql<string>`COALESCE(SUM(${commissionRecords.commissionAmount}), '0.00')`,
+  }).from(commissionRecords)
+    .where(and(eq(commissionRecords.agentId, userId), inArray(commissionRecords.downlineId, allUserIds)))
+    .groupBy(commissionRecords.downlineId);
+
+  const commissionMap = Object.fromEntries(commissionData.map(c => [c.downlineId, c.total]));
+
+  // Get each level1 downline's own downline count
+  const level1DownlineCounts = level1Rels.length > 0
+    ? await db.select({
+        agentId: agentRelationships.agentId,
+        count: sql<number>`count(*)`,
+      }).from(agentRelationships)
+        .where(and(inArray(agentRelationships.agentId, level1Rels.map(r => r.downlineId)), eq(agentRelationships.level, 1)))
+        .groupBy(agentRelationships.agentId)
+    : [];
+
+  const level1DownlineCountMap = Object.fromEntries(level1DownlineCounts.map(c => [c.agentId, c.count]));
+
+  const enrichLevel1 = level1Rels.map(rel => ({
+    ...rel,
+    user: userMap[rel.downlineId] || null,
+    commissionEarned: commissionMap[rel.downlineId] || "0.00",
+    ownDownlineCount: level1DownlineCountMap[rel.downlineId] || 0,
+  }));
+
+  const enrichLevel2 = level2Rels.map(rel => ({
+    ...rel,
+    user: userMap[rel.downlineId] || null,
+    commissionEarned: commissionMap[rel.downlineId] || "0.00",
+  }));
+
+  return { level1: enrichLevel1, level2: enrichLevel2 };
+}
+
 export async function createAgentRelationship(agentId: number, downlineId: number, level: number) {
   const db = await getDb();
   if (!db) return;

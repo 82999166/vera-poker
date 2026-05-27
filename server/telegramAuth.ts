@@ -136,7 +136,7 @@ export function registerTelegramAuthRoutes(app: Express) {
    */
   app.post("/api/telegram/auth/webapp", async (req: Request, res: Response) => {
     try {
-      const { initData } = req.body;
+      const { initData, refCode } = req.body;
       if (!initData || typeof initData !== "string") {
         res.status(400).json({ error: "initData is required" });
         return;
@@ -195,8 +195,43 @@ export function registerTelegramAuthRoutes(app: Express) {
         maxAge: ONE_YEAR_MS,
       });
 
+      // If refCode provided, bind referral relationship atomically during auth
+      let refBound = false;
+      if (refCode && typeof refCode === "string" && refCode.length > 0) {
+        try {
+          const { users } = await import("../drizzle/schema");
+          const { eq } = await import("drizzle-orm");
+          const dbInstance = await db.getDb();
+          if (dbInstance) {
+            // Only bind if user has no inviter yet
+            const [currentUser] = await dbInstance.select().from(users).where(eq(users.id, user.id)).limit(1);
+            if (!currentUser?.invitedBy) {
+              const [inviter] = await dbInstance.select().from(users).where(eq(users.inviteCode, refCode)).limit(1);
+              if (inviter && inviter.id !== user.id) {
+                // Create level 1 relationship
+                await db.createAgentRelationship(inviter.id, user.id, 1);
+                // If inviter was also invited, create level 2 relationship
+                if (inviter.invitedBy) {
+                  await db.createAgentRelationship(inviter.invitedBy, user.id, 2);
+                }
+                // Update user's invitedBy
+                await dbInstance.update(users).set({ invitedBy: inviter.id }).where(eq(users.id, user.id));
+                refBound = true;
+                console.log(`[TG Auth] Referral bound: user ${user.id} -> inviter ${inviter.id}`);
+              }
+            } else {
+              refBound = true; // Already bound, treat as success
+            }
+          }
+        } catch (refErr) {
+          console.error("[TG Auth] Referral bind error:", refErr);
+          // Non-fatal: auth still succeeds even if ref binding fails
+        }
+      }
+
       res.json({
         success: true,
+        refBound,
         user: {
           id: user.id,
           name: user.name,

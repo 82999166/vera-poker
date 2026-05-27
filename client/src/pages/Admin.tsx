@@ -1735,7 +1735,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
 
 // ==================== USER DETAIL PANEL ====================
 function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () => void; at: (k: string) => string }) {
-  const [activeTab, setActiveTab] = useState<"info" | "deposits" | "withdrawals" | "games">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "deposits" | "withdrawals" | "games" | "downlines">("info");
   // Fix: stabilize query inputs to prevent infinite re-fetch loop
   const [stableUserId] = useState(userId);
   const { data: user, isLoading, error: userError, refetch: refetchUser } = trpc.admin.userDetail.useQuery(
@@ -1749,6 +1749,10 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
   const { data: gameData } = trpc.admin.userGameHistory.useQuery(
     { userId: stableUserId, page: 1, limit: 50 },
     { enabled: activeTab === "games", staleTime: 30_000 }
+  );
+  const { data: downlinesData, isLoading: downlinesLoading } = trpc.admin.userDownlines.useQuery(
+    { userId: stableUserId },
+    { enabled: activeTab === "downlines", staleTime: 30_000 }
   );
   const updateMutation = trpc.admin.updateUser.useMutation({
     onSuccess: () => { toast.success(at("users.updated")); refetchUser(); },
@@ -1781,6 +1785,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
     { key: "deposits" as const, label: at("users.depositsTab") },
     { key: "withdrawals" as const, label: at("users.withdrawalsTab") },
     { key: "games" as const, label: at("users.gamesTab") },
+    { key: "downlines" as const, label: "下线" },
   ];
 
   return (
@@ -2016,6 +2021,123 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
             ))
           ) : (
             <p className="text-sm text-muted-foreground text-center py-8">{at("users.noGames")}</p>
+          )}
+        </div>
+      )}
+
+      {/* Downlines Tab */}
+      {activeTab === "downlines" && (
+        <div className="space-y-4">
+          {downlinesLoading ? (
+            <div className="flex items-center justify-center h-32"><RefreshCw className="w-5 h-5 animate-spin text-gold" /></div>
+          ) : (
+            <>
+              {/* Summary */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="glass rounded-xl p-3 text-center">
+                  <div className="text-[10px] text-muted-foreground mb-0.5">直接下线（一级）</div>
+                  <div className="text-lg font-bold text-emerald-400">{(downlinesData as any)?.level1?.length ?? 0}</div>
+                </div>
+                <div className="glass rounded-xl p-3 text-center">
+                  <div className="text-[10px] text-muted-foreground mb-0.5">间接下线（二级）</div>
+                  <div className="text-lg font-bold text-blue-400">{(downlinesData as any)?.level2?.length ?? 0}</div>
+                </div>
+              </div>
+
+              {/* Level 1 downlines */}
+              {(downlinesData as any)?.level1?.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-emerald-400 mb-2 flex items-center gap-1">
+                    <span className="w-4 h-4 rounded-full bg-emerald-400/20 flex items-center justify-center text-[9px]">1</span>
+                    直接下线 ({(downlinesData as any).level1.length})
+                  </h4>
+                  <div className="space-y-1.5">
+                    {(downlinesData as any).level1.map((rel: any) => (
+                      <div key={rel.downlineId} className="glass rounded-xl px-3 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400/30 to-emerald-400/10 flex items-center justify-center shrink-0">
+                              <span className="text-[10px] font-bold text-emerald-400">
+                                {(rel.user?.name || rel.user?.nickname || "?").charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium">{rel.user?.name || rel.user?.nickname || "Anonymous"}</div>
+                              <div className="text-[10px] text-muted-foreground">
+                                #{rel.downlineId}{rel.user?.tgUsername ? ` @${rel.user.tgUsername}` : ""}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-mono text-gold">${rel.user?.balance ?? "0.00"}</div>
+                            <div className="text-[10px] text-muted-foreground">余额</div>
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-border/30 grid grid-cols-3 gap-2 text-center">
+                          <div>
+                            <div className="text-[10px] text-muted-foreground">贡献佣金</div>
+                            <div className="text-xs font-mono text-amber-400">${rel.commissionEarned}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-muted-foreground">自己下线</div>
+                            <div className="text-xs font-mono text-blue-400">{rel.ownDownlineCount} 人</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-muted-foreground">注册时间</div>
+                            <div className="text-[10px] text-muted-foreground">
+                              {rel.user?.createdAt ? new Date(rel.user.createdAt).toLocaleDateString("zh-CN") : "-"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Level 2 downlines */}
+              {(downlinesData as any)?.level2?.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-blue-400 mb-2 flex items-center gap-1">
+                    <span className="w-4 h-4 rounded-full bg-blue-400/20 flex items-center justify-center text-[9px]">2</span>
+                    间接下线 ({(downlinesData as any).level2.length})
+                  </h4>
+                  <div className="space-y-1.5">
+                    {(downlinesData as any).level2.map((rel: any) => (
+                      <div key={rel.downlineId} className="glass rounded-xl px-3 py-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400/30 to-blue-400/10 flex items-center justify-center shrink-0">
+                              <span className="text-[9px] font-bold text-blue-400">
+                                {(rel.user?.name || rel.user?.nickname || "?").charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="text-xs font-medium">{rel.user?.name || rel.user?.nickname || "Anonymous"}</div>
+                              <div className="text-[10px] text-muted-foreground">
+                                #{rel.downlineId}{rel.user?.tgUsername ? ` @${rel.user.tgUsername}` : ""}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs font-mono text-gold">${rel.user?.balance ?? "0.00"}</div>
+                            <div className="text-[10px] text-muted-foreground">余额</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {(downlinesData as any)?.level1?.length === 0 && (downlinesData as any)?.level2?.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 gap-2">
+                  <Users className="w-8 h-8 text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground">暂无下线</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
