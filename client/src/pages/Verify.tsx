@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
@@ -6,8 +6,12 @@ import { ArrowLeft, Shield, CheckCircle2, XCircle, Search, ExternalLink } from "
 import { toast } from "sonner";
 
 export default function Verify() {
-  const [, navigate] = useLocation();
-  const [handId, setHandId] = useState("");
+  const [location, navigate] = useLocation();
+  // Parse handId from URL query string (?handId=xxx)
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialHandId = searchParams.get("handId") || "";
+
+  const [handId, setHandId] = useState(initialHandId);
   const [serverSeed, setServerSeed] = useState("");
   const [clientSeed, setClientSeed] = useState("");
   const [serverSeedHash, setServerSeedHash] = useState("");
@@ -15,49 +19,67 @@ export default function Verify() {
   const [mode, setMode] = useState<"quick" | "manual">("quick");
   const [result, setResult] = useState<null | { isValid: boolean; message: string }>(null);
   const [chainTxHash, setChainTxHash] = useState<string | null>(null);
+  const [autoVerifying, setAutoVerifying] = useState(false);
 
-  const lookupMutation = trpc.game.lookupHand.useQuery(
+  const lookupQuery = trpc.game.lookupHand.useQuery(
     { handId: handId ? parseInt(handId) : undefined, txHash: handId && isNaN(parseInt(handId)) ? handId : undefined },
     { enabled: false }
   );
 
+  const runVerify = useCallback(async (hid: string) => {
+    if (!hid.trim()) return;
+    try {
+      const res = await lookupQuery.refetch();
+      if (res.data) {
+        const hand = res.data;
+        if (hand.serverSeed && hand.clientSeed && hand.serverSeedHash && hand.deckHash) {
+          setServerSeed(hand.serverSeed);
+          setClientSeed(hand.clientSeed);
+          setServerSeedHash(hand.serverSeedHash);
+          setDeckHash(hand.deckHash);
+          setChainTxHash(hand.txHash ?? null);
+          const response = await fetch(`/api/trpc/game.verify?input=${encodeURIComponent(JSON.stringify({
+            serverSeed: hand.serverSeed,
+            clientSeed: hand.clientSeed,
+            serverSeedHash: hand.serverSeedHash,
+            deckHash: hand.deckHash
+          }))}`);
+          const json = await response.json();
+          const verifyResult = json?.result?.data;
+          if (verifyResult) {
+            setResult(verifyResult);
+          } else {
+            setResult({ isValid: true, message: `Hand #${hand.id} - ${t("verify.passed")}` });
+          }
+        } else {
+          setResult({ isValid: false, message: t("verify.failed") + " - Seeds not yet revealed (game may still be in progress)" });
+        }
+      }
+    } catch (err: any) {
+      if (err?.data?.code === "NOT_FOUND") {
+        toast.error(t("verify.handNotFoundMsg"));
+      } else {
+        toast.error(t("verify.requestFailedMsg"));
+      }
+    }
+  }, [lookupQuery]);
+
+  // Auto-verify when handId is pre-filled from URL
+  useEffect(() => {
+    if (initialHandId && !autoVerifying) {
+      setAutoVerifying(true);
+      // Small delay to let the query stabilize
+      const timer = setTimeout(() => {
+        runVerify(initialHandId);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleVerify = async () => {
     if (mode === "quick") {
       if (!handId.trim()) return toast.error(t("verify.handIdPlaceholder"));
-      try {
-        const res = await lookupMutation.refetch();
-        if (res.data) {
-          const hand = res.data;
-          if (hand.serverSeed && hand.clientSeed && hand.serverSeedHash && hand.deckHash) {
-            setServerSeed(hand.serverSeed);
-            setClientSeed(hand.clientSeed);
-            setServerSeedHash(hand.serverSeedHash);
-            setDeckHash(hand.deckHash);
-            setChainTxHash(hand.txHash ?? null);
-            const response = await fetch(`/api/trpc/game.verify?input=${encodeURIComponent(JSON.stringify({
-              serverSeed: hand.serverSeed,
-              clientSeed: hand.clientSeed,
-              serverSeedHash: hand.serverSeedHash,
-              deckHash: hand.deckHash
-            }))}`);
-            const json = await response.json();
-            const verifyResult = json?.result?.data;
-            if (verifyResult) {
-              setResult(verifyResult);
-            } else {
-              setResult({ isValid: true, message: `Hand #${hand.id} - ${t("verify.passed")}` });
-            }
-          } else {
-            setResult({ isValid: false, message: t("verify.failed") + " - Seeds not yet revealed (game may still be in progress)" });
-          }
-        }
-      } catch (err: any) {
-        if (err?.data?.code === "NOT_FOUND") {
-          toast.error(t("verify.handNotFoundMsg"));
-        } else {
-          toast.error(t("verify.requestFailedMsg"));
-        }
-      }
+      await runVerify(handId);
       return;
     }
 
@@ -128,15 +150,20 @@ export default function Verify() {
               <input
                 type="text"
                 value={handId}
-                onChange={(e) => setHandId(e.target.value)}
+                onChange={(e) => { setHandId(e.target.value); setResult(null); }}
                 placeholder={t("verify.handIdPlaceholder2")}
                 className="flex-1 glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-truth-blue font-mono text-xs"
               />
               <button
                 onClick={handleVerify}
-                className="px-4 py-3 rounded-lg bg-truth-blue text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+                disabled={lookupQuery.isFetching}
+                className="px-4 py-3 rounded-lg bg-truth-blue text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-60"
               >
-                <Search className="w-4 h-4" />
+                {lookupQuery.isFetching ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
               </button>
             </div>
           </div>
@@ -188,6 +215,14 @@ export default function Verify() {
             >
               <Shield className="w-4 h-4" /> {t("verify.check")}
             </button>
+          </div>
+        )}
+
+        {/* Auto-verifying spinner */}
+        {autoVerifying && lookupQuery.isFetching && !result && (
+          <div className="flex items-center justify-center gap-2 py-4 text-truth-blue text-xs">
+            <div className="w-4 h-4 border-2 border-truth-blue border-t-transparent rounded-full animate-spin" />
+            {t("verify.quickLookup")}...
           </div>
         )}
 

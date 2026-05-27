@@ -109,6 +109,15 @@ export default function HandHistory() {
                       <span className={`text-xs font-medium ${getStatusColor(hand.status)}`}>
                         {getStatusText(hand.status)}
                       </span>
+                      {hand.serverSeedHash && hand.status === "completed" && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/verify?handId=${hand.id}`); }}
+                          className="p-1 rounded-md bg-truth-blue/15 hover:bg-truth-blue/30 transition-colors"
+                          title={t("verify.title")}
+                        >
+                          <Shield className="w-3.5 h-3.5 text-truth-blue" />
+                        </button>
+                      )}
                       {isExpanded ? (
                         <ChevronUp className="w-4 h-4 text-muted-foreground" />
                       ) : (
@@ -193,7 +202,7 @@ export default function HandHistory() {
                         {handDetail.serverSeedHash && (
                           <div className="mt-3 pt-3 border-t border-border/20">
                             <button
-                              onClick={() => navigate("/verify")}
+                              onClick={() => navigate(`/verify?handId=${hand.id}`)}
                               className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-truth-blue/10 text-truth-blue text-xs font-medium hover:bg-truth-blue/20 transition-colors"
                             >
                               <Shield className="w-3.5 h-3.5" />
