@@ -390,6 +390,9 @@ export const appRouter = router({
       const { notifyAdmins: notifyAdminsDeposit } = await import("./notifications");
       const hashInfo = input.txHash ? `TxHash: ${input.txHash}` : "等待链上自动检测";
       notifyAdminsDeposit("新充值申请", `用户#${ctx.user.id} (${user.name || "Unknown"}) 提交充值 $${input.amount}\n链: ${input.chain}\n${hashInfo}`).catch(() => {});
+      // Notify player that deposit request was received
+      const { notifyDepositReceived } = await import("./notifications");
+      notifyDepositReceived(ctx.user.id, input.amount, input.chain).catch(() => {});
       return { success: true, message: input.txHash ? "Deposit submitted, awaiting confirmation" : "Deposit submitted, auto-detecting transfer..." };
     }),
     withdraw: protectedProcedure.input(z.object({
@@ -453,6 +456,9 @@ export const appRouter = router({
       } else {
         notifyAdminsWithdraw("新提现申请", `用户#${ctx.user.id} (${user.name || "Unknown"}) 申请提现 $${input.amount}\n链: ${input.chain}\n地址: ${input.walletAddress}\n请登录后台审核`).catch(() => {});
       }
+      // Notify player that withdrawal request was received
+      const { notifyWithdrawalReceived } = await import("./notifications");
+      notifyWithdrawalReceived(ctx.user.id, input.amount, input.chain).catch(() => {});
       return { success: true, newBalance, autoApproved: isAutoApproved };
     }),
     transactions: protectedProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), category: z.enum(['finance', 'game']).optional() })).query(async ({ ctx, input }) => {
@@ -517,6 +523,9 @@ export const appRouter = router({
       if (tx.type === "withdraw") {
         const { notifyWithdrawalRejected } = await import("./notifications");
         notifyWithdrawalRejected(tx.userId, tx.amount, input.reason || "管理员拒绝").catch(() => {});
+      } else if (tx.type === "deposit") {
+        const { notifyDepositRejected } = await import("./notifications");
+        notifyDepositRejected(tx.userId, tx.amount, input.reason || "管理员拒绝").catch(() => {});
       }
       return { success: true };
     }),
@@ -610,6 +619,11 @@ export const appRouter = router({
 
       // Update user's invitedBy
       await dbInstance.update(users).set({ invitedBy: inviter.id }).where(eq(users.id, ctx.user.id));
+
+      // Notify agent that a new downline has bound their invite code
+      const downlineName = currentUser?.nickname || currentUser?.name || `用户#${ctx.user.id}`;
+      const { notifyNewDownline } = await import("./notifications");
+      notifyNewDownline(inviter.id, downlineName).catch(() => {});
 
       return { success: true };
     }),

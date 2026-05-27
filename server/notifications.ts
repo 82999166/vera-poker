@@ -236,4 +236,48 @@ export async function notifyCommissionEarned(userId: number, amount: string, fro
   });
 }
 
+// Notify user that deposit request was received (pending review)
+export async function notifyDepositReceived(userId: number, amount: string, chain?: string): Promise<boolean> {
+  return sendNotification({
+    type: "deposit_confirmed",
+    userId,
+    title: "充值申请已收到",
+    body: `您的充值申请 $${amount}${chain ? ` (${chain})` : ""} 已提交，请等待管理员确认到账`,
+    data: { amount, chain },
+  });
+}
+
+// Notify user that deposit was rejected
+export async function notifyDepositRejected(userId: number, amount: string, reason?: string): Promise<boolean> {
+  return sendNotification({
+    type: "deposit_confirmed",
+    userId,
+    title: "充值申请被拒绝",
+    body: `您的充值申请 $${amount} 未通过审核${reason ? `，原因：${reason}` : "，请联系客服确认"}`,
+    data: { amount, reason },
+  });
+}
+
+// Notify user that withdrawal request was received (pending review)
+export async function notifyWithdrawalReceived(userId: number, amount: string, chain?: string): Promise<boolean> {
+  return sendNotification({
+    type: "withdrawal_approved",
+    userId,
+    title: "提现申请已收到",
+    body: `您的提现申请 $${amount}${chain ? ` (${chain})` : ""} 已提交，请等待管理员审核处理`,
+    data: { amount, chain },
+  });
+}
+
+// Notify agent that a new downline has bound their invite code
+export async function notifyNewDownline(agentId: number, downlineName: string): Promise<boolean> {
+  return sendNotification({
+    type: "commission_earned",
+    userId: agentId,
+    title: "新下线绑定成功",
+    body: `${downlineName} 已通过您的邀请码成功注册并绑定，开始为您产生佣金`,
+    data: { downlineName },
+  });
+}
+
 export { sendTelegramMessage, getUserTgId, isNotificationEnabled };
