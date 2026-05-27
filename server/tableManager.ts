@@ -5,6 +5,7 @@
 import * as gameEngine from "./gameEngine";
 import * as db from "./db";
 import { notifyTurnAction } from "./notifications";
+import { onHandCompleted } from "./tonChain";
 import type { GameState, PlayerAction, Card } from "./gameEngine";
 
 interface SettlementDetail {
@@ -626,6 +627,21 @@ async function settleHand(roomId: number) {
       await distributeAgentCommissions(totalRake, gs.players.map(p => p.id), table.handId);
     } catch (e) {
       console.error("[Commission] Error distributing commissions:", e);
+    }
+  }
+
+  // TON On-Chain: write hand hash for high-fairness rooms (fire-and-forget)
+  if (table.handId) {
+    const room = await db.getRoomById(roomId);
+    if (room) {
+      onHandCompleted({
+        handId: table.handId,
+        roomId,
+        fairnessLevel: room.fairnessLevel ?? "basic",
+        serverSeed: gs.serverSeed ?? null,
+        clientSeed: gs.clientSeed ?? null,
+        deckHash: gs.deckHash ?? null,
+      }).catch(e => console.error("[TON] onHandCompleted error:", e));
     }
   }
 

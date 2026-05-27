@@ -14,6 +14,7 @@ export default function Verify() {
   const [deckHash, setDeckHash] = useState("");
   const [mode, setMode] = useState<"quick" | "manual">("quick");
   const [result, setResult] = useState<null | { isValid: boolean; message: string }>(null);
+  const [chainTxHash, setChainTxHash] = useState<string | null>(null);
 
   const lookupMutation = trpc.game.lookupHand.useQuery(
     { handId: handId ? parseInt(handId) : undefined, txHash: handId && isNaN(parseInt(handId)) ? handId : undefined },
@@ -32,6 +33,7 @@ export default function Verify() {
             setClientSeed(hand.clientSeed);
             setServerSeedHash(hand.serverSeedHash);
             setDeckHash(hand.deckHash);
+            setChainTxHash(hand.txHash ?? null);
             const response = await fetch(`/api/trpc/game.verify?input=${encodeURIComponent(JSON.stringify({
               serverSeed: hand.serverSeed,
               clientSeed: hand.clientSeed,
@@ -220,10 +222,24 @@ export default function Verify() {
               </div>
             )}
 
+            {result.isValid && chainTxHash && (
+              <div className="mt-3 space-y-1">
+                <p className="text-[10px] text-muted-foreground">{t("verify.chainTxHash")}</p>
+                <p className="text-xs font-mono text-truth-blue break-all">{chainTxHash}</p>
+              </div>
+            )}
             {result.isValid && (
-              <button className="mt-4 w-full py-2 rounded-lg glass text-xs text-truth-blue flex items-center justify-center gap-1 hover:bg-truth-blue/10 transition-colors">
-                <ExternalLink className="w-3 h-3" /> {t("verify.viewOnChain")}
-              </button>
+              <a
+                href={chainTxHash ? `https://tonscan.org/tx/${chainTxHash}` : "https://tonscan.org"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`mt-4 w-full py-2 rounded-lg glass text-xs flex items-center justify-center gap-1 transition-colors ${
+                  chainTxHash ? "text-truth-blue hover:bg-truth-blue/10" : "text-muted-foreground opacity-50 pointer-events-none"
+                }`}
+              >
+                <ExternalLink className="w-3 h-3" />
+                {chainTxHash ? t("verify.viewOnChain") : t("verify.chainPending")}
+              </a>
             )}
           </div>
         )}
