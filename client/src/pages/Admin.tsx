@@ -2998,6 +2998,7 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
   const [tgClientId, setTgClientId] = useState("");
   const [tgClientSecret, setTgClientSecret] = useState("");
   const [csTgUsername, setCsTgUsername] = useState("");
+  const [tgMiniAppUrl, setTgMiniAppUrl] = useState("");
 
   useEffect(() => {
     if (configs) {
@@ -3009,6 +3010,7 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
       setTgClientId(configMap.get("tg_client_id") ?? "");
       setTgClientSecret(configMap.get("tg_client_secret") ?? "");
       setCsTgUsername(configMap.get("cs_tg_username") ?? "");
+      setTgMiniAppUrl(configMap.get("tg_mini_app_url") ?? "");
     }
   }, [configs]);
 
@@ -3165,6 +3167,22 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
             <label className="text-xs text-muted-foreground mb-1 block">{at("tg.miniAppUrl")}</label>
             <CopyableUrl value={window.location.origin} />
             <p className="text-[10px] text-muted-foreground mt-1">{at("tg.miniAppUrlHint")}</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Bot 跳转 URL（tg_mini_app_url）</label>
+            <p className="text-[10px] text-muted-foreground mb-1">Bot /start 按钮跳转地址，通常与上方 Mini App URL 相同</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tgMiniAppUrl}
+                onChange={(e) => setTgMiniAppUrl(e.target.value)}
+                placeholder={window.location.origin}
+                className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+              />
+              <button onClick={() => saveSystemSetting("tg_mini_app_url", tgMiniAppUrl || window.location.origin)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
+                <Save className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">{at("tg.webhookUrl")}</label>

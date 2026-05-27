@@ -567,3 +567,18 @@
 - [x] Frontend: Broadcast tab - create task form (content, image, button, target, schedule), task list with progress bars
 - [x] Frontend: Auto-Reply tab - rules list, create/edit rule dialog (keyword, match type, reply content)
 - [x] Frontend: Fission tab - campaign list, create campaign, stats (clicks/registers/conversion rate)
+
+## Bug Fix: Bot Notifications Not Working
+- [ ] Investigate why all Bot notifications are not being sent (check TELEGRAM_BOT_TOKEN env, sendMessage function, error logs)
+- [ ] Fix Bot notification sending (ensure token is injected, sendMessage works correctly)
+- [ ] Test: action notifications (player turn), invite notifications, broadcast notifications
+
+## Feature #2: Password Backup Login
+- [ ] DB: Add passwordHash field to users table
+- [ ] Backend: auth.setPassword procedure (set/change password, requires current TG session)
+- [ ] Backend: auth.loginWithPassword procedure (username/TG ID + password login)
+- [ ] Backend: Rate limiting on password login (max 5 attempts, 15min lockout)
+- [ ] Frontend: Profile page - "Set Password" entry in settings section
+- [ ] Frontend: SetPassword dialog (new password + confirm, strength indicator)
+- [ ] Frontend: Home/Login page - "Login with Password" tab alongside TG login
+- [ ] Frontend: Password login form (TG username or user ID + password)

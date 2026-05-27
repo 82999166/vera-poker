@@ -26,9 +26,9 @@ interface NotificationPayload {
 // Send a Telegram message to a user by their tgId
 async function sendTelegramMessage(tgChatId: string, text: string, parseMode: "HTML" | "Markdown" = "HTML"): Promise<boolean> {
   try {
-    const botToken = await db.getConfigValue("telegram_bot_token");
+    const botToken = await db.getConfigValue("tg_bot_token");
     if (!botToken) {
-      console.warn("[Notifications] Bot token not configured");
+      console.warn("[Notifications] Bot token not configured (key: tg_bot_token)");
       return false;
     }
 

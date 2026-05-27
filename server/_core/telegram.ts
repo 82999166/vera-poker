@@ -98,8 +98,9 @@ export function registerTelegramRoutes(app: Express) {
   app.post("/api/telegram/webhook", async (req: Request, res: Response) => {
     try {
       // Validate webhook signature (optional but recommended)
-      const botToken = await db.getConfigValue("telegram_bot_token");
+      const botToken = await db.getConfigValue("tg_bot_token");
       if (!botToken) {
+        console.warn("[Telegram] Bot token not configured (key: tg_bot_token)");
         res.status(400).json({ error: "Bot token not configured" });
         return;
       }
@@ -122,7 +123,7 @@ export function registerTelegramRoutes(app: Express) {
       if (text.startsWith("/start")) {
         // Parse deep link parameter: /start room_XXXXX or /start ref_XXXXX
         const param = message.text!.split(" ")[1] || "";
-        const miniAppUrl = await db.getConfigValue("telegram_mini_app_url") || "";
+        const miniAppUrl = await db.getConfigValue("tg_mini_app_url") || "";
         
         if (param.startsWith("room_")) {
           const inviteCode = param.replace("room_", "");

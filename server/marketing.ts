@@ -106,7 +106,7 @@ export async function executeBroadcast(taskId: number): Promise<void> {
   const task = await getBroadcastTask(taskId);
   if (!task || !["pending", "draft"].includes(task.status)) return;
 
-  const botToken = await db.getConfigValue("telegram_bot_token");
+  const botToken = await db.getConfigValue("tg_bot_token");
   if (!botToken) {
     await updateBroadcastTask(taskId, { status: "failed" });
     return;
