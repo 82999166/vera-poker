@@ -318,6 +318,17 @@ export async function notifyTournamentStartingSoon(userId: number, tournamentNam
   });
 }
 
+// Notify user that tournament has officially started (admin manually triggered)
+export async function notifyTournamentStarted(userId: number, tournamentName: string, playerCount: number, startingChips: number): Promise<boolean> {
+  return sendNotification({
+    type: "game_starting",
+    userId,
+    title: "🚀 比赛正式开始！",
+    body: `「${tournamentName}」已正式开始！\n参赛人数: ${playerCount} 人 | 初始筹码: ${startingChips.toLocaleString()}\n请立即进入游戏大厅参赛，祝您好运！`,
+    data: { tournamentName, playerCount, startingChips },
+  });
+}
+
 // Notify user of their tournament result
 export async function notifyTournamentResult(userId: number, tournamentName: string, rank: number, prize: string): Promise<boolean> {
   const isWinner = rank <= 3;

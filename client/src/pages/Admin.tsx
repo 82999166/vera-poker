@@ -3986,6 +3986,18 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
   const openRegMutation = trpc.adminTournaments.openRegistration.useMutation({ onSuccess: () => { refetch(); toast.success("已开放报名，前端大厅现在可见"); } });
   const startMutation = trpc.adminTournaments.start.useMutation({ onSuccess: () => { refetch(); toast.success("比赛已开始，系统已自动分桌"); } });
   const cancelMutation = trpc.adminTournaments.cancel.useMutation({ onSuccess: () => { refetch(); toast.success("比赛已取消，已退款"); } });
+  const distributePrizesMutation = trpc.adminTournaments.distributePrizes.useMutation({
+    onSuccess: (data) => {
+      refetch();
+      setShowDistributeModal(false);
+      setDistributeResults([]);
+      toast.success(`奖金发放完成！共发放 ${data.distributed} 人，比赛已结束`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const [showDistributeModal, setShowDistributeModal] = useState(false);
+  const [distributeTargetId, setDistributeTargetId] = useState<number | null>(null);
+  const [distributeResults, setDistributeResults] = useState<Array<{ userId: number; rank: number; prizeAmount: string; finalChips: number; nickname: string }>>([]);
 
   // Form state
   const [form, setForm] = useState({
@@ -4236,6 +4248,21 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
                     <button onClick={() => { if (confirm("取消比赛将退还所有报名费，确定取消？")) cancelMutation.mutate({ id: editingId }); }}
                       className="px-4 py-2 border border-red-500 text-red-400 rounded-lg text-sm hover:bg-red-500/10">❌ 取消比赛</button>
                   )}
+                  {currentTourney.status === "running" && (
+                    <button onClick={() => {
+                      setDistributeTargetId(editingId);
+                      // Pre-populate with registered players
+                      const regs = (currentTourney as any).registrations ?? [];
+                      setDistributeResults(regs.map((r: any, i: number) => ({
+                        userId: r.reg?.userId ?? r.userId,
+                        rank: i + 1,
+                        prizeAmount: "0",
+                        finalChips: 0,
+                        nickname: r.user?.nickname ?? r.nickname ?? `玩家${i + 1}`,
+                      })));
+                      setShowDistributeModal(true);
+                    }} className="px-4 py-2 border border-yellow-500 text-yellow-400 rounded-lg text-sm hover:bg-yellow-500/10">🏆 发放奖金</button>
+                  )}
                 </div>
               </div>
             );
@@ -4284,6 +4311,13 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
                   <button onClick={() => { if (confirm(`取消比赛将退还所有报名费，确定取消？`)) cancelMutation.mutate({ id: t.id }); }}
                     className="text-xs px-2 py-1 border border-orange-500 text-orange-400 rounded hover:bg-orange-500/10">取消比赛</button>
                 )}
+                {t.status === "running" && (
+                  <button onClick={() => {
+                    setDistributeTargetId(t.id);
+                    setDistributeResults([]);
+                    setShowDistributeModal(true);
+                  }} className="text-xs px-2 py-1 border border-yellow-500 text-yellow-400 rounded hover:bg-yellow-500/10">🏆 发放奖金</button>
+                )}
               </div>
             </div>
           </div>
@@ -4292,6 +4326,54 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
           <div className="text-center text-muted-foreground py-8">暂无锦标赛</div>
         )}
       </div>
+
+      {/* Distribute Prizes Modal */}
+      {showDistributeModal && distributeTargetId && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-bold text-foreground">🏆 发放奖金 - 比赛 #{distributeTargetId}</h3>
+              <button onClick={() => { setShowDistributeModal(false); setDistributeResults([]); }} className="text-muted-foreground hover:text-foreground text-lg">✕</button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 space-y-3">
+              <p className="text-xs text-muted-foreground">为每位参赛玩家填写用户ID、最终排名和奖金金额（USDT）。奖金 &gt; 0 将自动发放到玩家账户并发送 TG 通知。确认后比赛状态变为「已结束」。</p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground px-2">
+                  <span className="w-6">#</span>
+                  <span className="w-20">用户ID</span>
+                  <span className="flex-1">昵称(备注)</span>
+                  <span className="w-16">排名</span>
+                  <span className="w-20">奖金(USDT)</span>
+                  <span className="w-4"></span>
+                </div>
+                {distributeResults.map((r, i) => (
+                  <div key={i} className="flex items-center gap-1 bg-muted/30 rounded-lg p-2">
+                    <span className="text-xs text-muted-foreground w-6 shrink-0">{i + 1}</span>
+                    <input type="number" value={r.userId || ""} onChange={e => setDistributeResults(prev => prev.map((x, j) => j === i ? { ...x, userId: Number(e.target.value) } : x))} placeholder="用户ID" className="w-20 bg-background border border-border rounded px-2 py-1 text-xs" />
+                    <input type="text" value={r.nickname} onChange={e => setDistributeResults(prev => prev.map((x, j) => j === i ? { ...x, nickname: e.target.value } : x))} placeholder="昵称" className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs" />
+                    <input type="number" value={r.rank} onChange={e => setDistributeResults(prev => prev.map((x, j) => j === i ? { ...x, rank: Number(e.target.value) } : x))} placeholder="排名" className="w-16 bg-background border border-border rounded px-2 py-1 text-xs" />
+                    <input type="number" value={r.prizeAmount} onChange={e => setDistributeResults(prev => prev.map((x, j) => j === i ? { ...x, prizeAmount: e.target.value } : x))} placeholder="奖金" className="w-20 bg-background border border-border rounded px-2 py-1 text-xs text-yellow-400 font-bold" />
+                    <button onClick={() => setDistributeResults(prev => prev.filter((_, j) => j !== i))} className="text-red-400 text-xs hover:text-red-300 w-4">✕</button>
+                  </div>
+                ))}
+                <button onClick={() => setDistributeResults(prev => [...prev, { userId: 0, rank: prev.length + 1, prizeAmount: "0", finalChips: 0, nickname: "" }])} className="text-xs px-3 py-1.5 border border-border text-muted-foreground rounded hover:bg-muted/30 w-full">+ 添加玩家</button>
+              </div>
+            </div>
+            <div className="p-4 border-t border-border flex gap-3">
+              <button onClick={() => { setShowDistributeModal(false); setDistributeResults([]); }} className="flex-1 py-2 border border-border text-muted-foreground rounded-lg text-sm hover:bg-muted/30">取消</button>
+              <button
+                disabled={distributePrizesMutation.isPending || distributeResults.length === 0 || distributeResults.some(r => !r.userId)}
+                onClick={() => {
+                  if (!confirm(`确定发放奖金给 ${distributeResults.length} 位玩家？此操作不可撤销，比赛将标记为已结束。`)) return;
+                  distributePrizesMutation.mutate({ id: distributeTargetId, results: distributeResults.map(r => ({ userId: r.userId, rank: r.rank, prizeAmount: r.prizeAmount, finalChips: r.finalChips, roundsPlayed: 0, handsWon: 0 })) });
+                }}
+                className="flex-1 py-2 bg-yellow-500/20 border border-yellow-500 text-yellow-400 rounded-lg text-sm font-bold hover:bg-yellow-500/30 disabled:opacity-50">
+                {distributePrizesMutation.isPending ? "发放中..." : "✅ 确认发放奖金"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

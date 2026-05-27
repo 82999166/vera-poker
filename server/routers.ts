@@ -1841,6 +1841,14 @@ Rules:
         throw new TRPCError({ code: "BAD_REQUEST", message: `报名人数不足，最少需要${tournament.minPlayers}人，当前${playerCount}人` });
       }
       await db.updateTournament(input.id, { status: "running" });
+      // Batch notify all registered players that the tournament has started
+      const { notifyTournamentStarted } = await import("./notifications");
+      const registeredPlayers = regs.filter(r => r.reg.status === "registered");
+      await Promise.allSettled(
+        registeredPlayers.map(r =>
+          notifyTournamentStarted(r.reg.userId, tournament.name, playerCount, tournament.startingChips)
+        )
+      );
       return { success: true, playerCount };
     }),
     // Cancel tournament and refund all
@@ -1858,6 +1866,48 @@ Rules:
       }
       await db.updateTournament(input.id, { status: "cancelled" });
       return { success: true };
+    }),
+    // Distribute prizes and notify each player of their result
+    distributePrizes: adminProcedure.input(z.object({
+      id: z.number(),
+      results: z.array(z.object({
+        userId: z.number(),
+        rank: z.number(),
+        prizeAmount: z.string(),
+        finalChips: z.number().default(0),
+        roundsPlayed: z.number().default(0),
+        handsWon: z.number().default(0),
+      })),
+    })).mutation(async ({ input }) => {
+      const tournament = await db.getTournamentById(input.id);
+      if (!tournament) throw new TRPCError({ code: "NOT_FOUND" });
+      if (tournament.status !== "running") throw new TRPCError({ code: "BAD_REQUEST", message: "只有进行中的比赛才能发放奖金" });
+      const { notifyTournamentResult } = await import("./notifications");
+      let distributed = 0;
+      for (const r of input.results) {
+        // Credit prize to player balance if > 0
+        const prizeAmt = parseFloat(r.prizeAmount);
+        if (prizeAmt > 0) {
+          await db.updateUserBalance(r.userId, r.prizeAmount);
+          distributed++;
+        }
+        // Save result record
+        await db.saveTournamentResult({
+          tournamentId: input.id,
+          userId: r.userId,
+          rank: r.rank,
+          prizeAmount: r.prizeAmount,
+          startingChips: tournament.startingChips,
+          finalChips: r.finalChips,
+          roundsPlayed: r.roundsPlayed,
+          handsWon: r.handsWon,
+        });
+        // Notify player of result
+        await notifyTournamentResult(r.userId, tournament.name, r.rank, r.prizeAmount).catch(() => {});
+      }
+      // Mark tournament as finished
+      await db.updateTournament(input.id, { status: "finished" });
+      return { success: true, distributed, totalPlayers: input.results.length };
     }),
   }),
   // Admin Banners Management

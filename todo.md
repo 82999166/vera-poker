@@ -66,3 +66,15 @@
 - [x] Wallet.tsx: Add gold hint box below withdraw amount input showing minimum 20 USDT
 - [x] i18n.ts: Add wallet.minWithdraw key for all 12 languages
 - [x] i18n.ts: Add wallet.minWithdrawHint key for all 12 languages
+
+## Feature: Tournament Start & Prize Notifications
+- [x] routers.ts: adminTournaments.start - batch notify all registered players "tournament starting"
+- [x] routers.ts: adminTournaments.distributePrizes - new route: calculate prizes, credit balances, save results, notify each player with rank + prize
+- [x] Admin.tsx: Add "发放奖金" button for running tournaments that calls distributePrizes
+- [x] Admin.tsx: distributePrizeMutation wired to new backend route
+
+## Feature: Tournament Start & Prize Notifications
+- [x] routers.ts: adminTournaments.start - batch notify all registered players "tournament starting"
+- [x] routers.ts: adminTournaments.distributePrizes - new route: calculate prizes, credit balances, save results, notify each player with rank + prize
+- [x] Admin.tsx: Add "发放奖金" button for running tournaments that calls distributePrizes
+- [x] Admin.tsx: distributePrizeMutation wired to new backend route
