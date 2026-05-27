@@ -9,6 +9,7 @@ import { Shield, Zap, Globe, Users, ArrowRight, Loader2 } from "lucide-react";
 
 export default function Home() {
   const { user, loading, isAuthenticated, refresh } = useAuth();
+  const registerMutation = trpc.agent.register.useMutation();
   const [, navigate] = useLocation();
   const { t } = useI18n();
   const {
@@ -58,17 +59,24 @@ export default function Home() {
         .catch(() => navigate("/lobby"));
     } else if (startParam && startParam.startsWith("ref_")) {
       const refCode = startParam.replace("ref_", "");
-      // Auto-register as downline of the referrer via tRPC batch endpoint
-      fetch(`/api/trpc/agent.register?batch=1`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ "0": { json: { inviteCode: refCode } } }),
-      }).catch(() => {});
-      navigate("/lobby");
+      // Auto-register as downline of the referrer via tRPC
+      registerMutation.mutate(
+        { inviteCode: refCode },
+        {
+          onSuccess: () => {
+            console.log("[DeepLink] Referral registration successful");
+            navigate("/lobby");
+          },
+          onError: (error: any) => {
+            console.error("[DeepLink] Referral registration failed:", error);
+            navigate("/lobby");
+          },
+        }
+      );
     } else {
       navigate("/lobby");
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, loading, navigate, registerMutation]);
 
   // Handle Telegram Login Widget callback
   const handleTelegramLogin = useCallback(async (widgetData: Record<string, unknown>) => {
@@ -248,40 +256,39 @@ async function openTelegramLogin(_botIdOrUsername: string, onLogin: (data: Recor
     const authUrl = json.authUrl;
 
     const width = 550;
-    const height = 600;
-    const left = (window.innerWidth - width) / 2 + window.screenX;
-    const top = (window.innerHeight - height) / 2 + window.screenY;
+    const height = 650;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
 
     const popup = window.open(
       authUrl,
       "telegram_login",
-      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=no,resizable=no`
+      `width=${width},height=${height},left=${left},top=${top}`
     );
 
-    // Listen for postMessage from our oidc-callback page
+    if (!popup) {
+      console.error("[TG Login] Popup blocked");
+      window.location.href = getLoginUrl();
+      return;
+    }
+
+    // Listen for success message from popup
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
-      
-      if (event.data && typeof event.data === "object" && event.data.success) {
+      if (event.data?.type === "telegram_login_success") {
         window.removeEventListener("message", handleMessage);
-        if (popup) popup.close();
-        onLogin(event.data);
+        popup?.close();
+        onLogin(event.data.data || { success: true });
       }
     };
 
     window.addEventListener("message", handleMessage);
 
-    // Poll for popup closure
-    const checkClosed = setInterval(() => {
-      if (popup && popup.closed) {
-        clearInterval(checkClosed);
-        window.removeEventListener("message", handleMessage);
-        // After popup closes, try refreshing auth in case cookie was set
-        setTimeout(() => {
-          onLogin({ success: true, fromPopupClose: true });
-        }, 500);
-      }
-    }, 500);
+    // Cleanup after 5 minutes
+    setTimeout(() => {
+      window.removeEventListener("message", handleMessage);
+      popup?.close();
+    }, 5 * 60 * 1000);
   } catch (error) {
     console.error("[TG Login] Error:", error);
     window.location.href = getLoginUrl();
