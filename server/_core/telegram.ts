@@ -61,6 +61,30 @@ function getBotWelcomeText(langCode: string | undefined): { welcome: string; but
       ref: "ยินดีต้อนรับสู่ Vera Poker！🎰\n\nเพื่อนของคุณเชิญคุณมา กดเพื่อเริ่มเล่นและรับรางวัล！",
       room: "🎰 คุณได้รับเชิญเข้าห้องส่วนตัว！\n\nกดปุ่มด้านล่างเพื่อเข้าร่วม：",
     },
+    "es": {
+      welcome: "¡Bienvenido a Vera Poker！🎰\n\nLa primera plataforma de póker con equidad verificable del mundo.\n\n¡Toca el botón de abajo para empezar a jugar！",
+      button: "🃏 Abrir Vera Poker",
+      ref: "¡Bienvenido a Vera Poker！🎰\n\nTu amigo te ha invitado. ¡Toca para empezar a jugar y ganar recompensas！",
+      room: "🎰 ¡Has sido invitado a una sala privada！\n\nToca el botón de abajo para unirte：",
+    },
+    "pt": {
+      welcome: "Bem-vindo ao Vera Poker！🎰\n\nA primeira plataforma de poker com equidade verificável do mundo.\n\nToque no botão abaixo para começar a jogar！",
+      button: "🃏 Abrir Vera Poker",
+      ref: "Bem-vindo ao Vera Poker！🎰\n\nSeu amigo te convidou. Toque para começar a jogar e ganhar recompensas！",
+      room: "🎰 Você foi convidado para uma sala privada！\n\nToque no botão abaixo para entrar：",
+    },
+    "id": {
+      welcome: "Selamat datang di Vera Poker！🎰\n\nPlatform poker adil yang dapat diverifikasi pertama di dunia.\n\nKetuk tombol di bawah untuk mulai bermain！",
+      button: "🃏 Buka Vera Poker",
+      ref: "Selamat datang di Vera Poker！🎰\n\nTeman Anda mengundang Anda. Ketuk untuk mulai bermain dan dapatkan hadiah！",
+      room: "🎰 Anda diundang ke ruangan privat！\n\nKetuk tombol di bawah untuk bergabung：",
+    },
+    "ar": {
+      welcome: "مرحباً بك في Vera Poker！🎰\n\nأول منصة بوكر عادلة وقابلة للتحقق في العالم.\n\nاضغط على الزر أدناه للبدء في اللعب！",
+      button: "🃏 فتح Vera Poker",
+      ref: "مرحباً بك في Vera Poker！🎰\n\nدعاك صديقك. اضغط للبدء في اللعب وكسب المكافآت！",
+      room: "🎰 تمت دعوتك إلى غرفة خاصة！\n\nاضغط على الزر أدناه للانضمام：",
+    },
   };
   return messages[lang] || {
     welcome: "Welcome to Vera Poker！🎰\n\nThe world's first provably fair poker platform.\n\nTap the button below to start playing！",

@@ -115,24 +115,50 @@ export default function Agent() {
       {/* Unlock Requirements */}
       <div className="px-4 pt-4">
         <div className="glass rounded-xl p-4">
-          <h3 className="text-sm font-semibold mb-3">{t("agent.unlockRequirements")}</h3>
-          <div className="space-y-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-gold" />
-              <span>{t("agent.unlockReq1")}</span>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold">{t("agent.unlockRequirements")}</h3>
+            <span className="text-[10px] text-muted-foreground">{t("agent.unlockReqNote")}</span>
+          </div>
+          <div className="space-y-2.5">
+            <div className="flex gap-2.5">
+              <div className="w-5 h-5 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-[9px] font-bold text-gold">1</span>
+              </div>
+              <div>
+                <p className="text-xs font-medium">{t("agent.unlockReq1")}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{t("agent.unlockReq1Detail")}</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-gold" />
-              <span>{t("agent.unlockReq2")}</span>
+            <div className="flex gap-2.5">
+              <div className="w-5 h-5 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-[9px] font-bold text-gold">2</span>
+              </div>
+              <div>
+                <p className="text-xs font-medium">{t("agent.unlockReq2")}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{t("agent.unlockReq2Detail")}</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-gold" />
-              <span>{t("agent.unlockReq3")}</span>
+            <div className="flex gap-2.5">
+              <div className="w-5 h-5 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-[9px] font-bold text-gold">3</span>
+              </div>
+              <div>
+                <p className="text-xs font-medium">{t("agent.unlockReq3")}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{t("agent.unlockReq3Detail")}</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-gold" />
-              <span>{t("agent.unlockReq4")}</span>
+            <div className="flex gap-2.5">
+              <div className="w-5 h-5 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-[9px] font-bold text-gold">4</span>
+              </div>
+              <div>
+                <p className="text-xs font-medium">{t("agent.unlockReq4")}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{t("agent.unlockReq4Detail")}</p>
+              </div>
             </div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-border/50">
+            <p className="text-[10px] text-muted-foreground">{t("agent.unlockReqHint")}</p>
           </div>
         </div>
       </div>

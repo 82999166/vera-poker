@@ -1046,9 +1046,11 @@ export default function Table() {
                       <button
                         onClick={handleJoin}
                         disabled={joinMutation.isPending}
-                        className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-truth-blue to-truth-blue-bright text-white text-sm font-semibold hover:opacity-90 transition-opacity active:scale-[0.97] disabled:opacity-50"
+                        className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-truth-blue to-truth-blue-bright text-white text-sm font-semibold hover:opacity-90 transition-opacity active:scale-[0.97] disabled:opacity-50 flex items-center justify-center gap-1.5"
                       >
-                        {joinMutation.isPending ? "..." : t("table.sitDown")}
+                        {joinMutation.isPending ? (
+                          <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /><span>{t("table.joining") || "..."}</span></>
+                        ) : t("table.sitDown")}
                       </button>
                     </div>
                   </div>

@@ -6,17 +6,24 @@ import { useI18n, LOCALE_NAMES, LOCALE_FLAGS, type Locale } from "@/lib/i18n";
 import { formatBalance } from "@/lib/utils";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 import {
   User, Trophy, TrendingUp, Gamepad2, Edit2, Check, X,
-  Link2, Unlink, ArrowLeft, Shield, Coins, Award, Globe, ChevronRight
+  Link2, Unlink, ArrowLeft, Shield, Coins, Award, Globe, ChevronRight,
+  Volume2, Users, ChevronRight as ArrowRight
 } from "lucide-react";
 
 export default function Profile() {
   const { user, loading } = useAuth();
   const [, navigate] = useLocation();
-  const { t, locale } = useI18n();
+  const { t, locale, changeLocale } = useI18n();
   const [editingNickname, setEditingNickname] = useState(false);
   const [newNickname, setNewNickname] = useState("");
+  const [showLangPicker, setShowLangPicker] = useState(false);
+
+  // Sound settings
+  const { toggle: toggleSound, voiceMode, setVoiceMode } = useSoundEffects();
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem("vera-sound-enabled") !== "false");
 
   const { data: profile, isLoading: profileLoading, refetch } = trpc.profile.get.useQuery(undefined, {
     enabled: !!user,
@@ -75,18 +82,65 @@ export default function Profile() {
     return d.toLocaleDateString(locale === "zh-CN" ? "zh-CN" : locale === "zh-TW" ? "zh-TW" : locale);
   };
 
+  const handleSoundToggle = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    localStorage.setItem("vera-sound-enabled", next ? "true" : "false");
+    toggleSound();
+  };
+
+  const handleVoiceCycle = () => {
+    const modes: Array<"off" | "winner_only" | "all"> = ["off", "winner_only", "all"];
+    const currentIdx = modes.indexOf(voiceMode);
+    const nextMode = modes[(currentIdx + 1) % 3];
+    setVoiceMode(nextMode);
+  };
+
+  const voiceLabel = voiceMode === "off" ? t("sound.voiceOff") : voiceMode === "winner_only" ? t("sound.voiceWinnerOnly") : t("sound.voiceAll");
+
   return (
     <div className="min-h-screen bg-deep-space pb-20">
-      {/* Header */}
+      {/* Header with language switcher */}
       <div className="sticky top-0 z-40 glass-strong border-b border-border px-4 py-3 flex items-center gap-3">
         <button onClick={() => navigate("/lobby")} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-base font-bold">{t("profile.title")}</h1>
+        <h1 className="text-base font-bold flex-1">{t("profile.title")}</h1>
+        {/* Language quick-switch in header */}
+        <button
+          onClick={() => setShowLangPicker(!showLangPicker)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg glass border border-border/60 hover:border-gold/40 transition-all text-xs"
+        >
+          <Globe className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="text-muted-foreground">{LOCALE_FLAGS[locale as Locale]}</span>
+          <ChevronRight className={`w-3 h-3 text-muted-foreground transition-transform ${showLangPicker ? "rotate-90" : ""}`} />
+        </button>
       </div>
 
+      {/* Language picker dropdown */}
+      {showLangPicker && (
+        <div className="mx-4 mt-2 glass rounded-2xl p-3 border border-gold/20 z-30">
+          <div className="grid grid-cols-4 gap-1.5">
+            {(Object.keys(LOCALE_NAMES) as Locale[]).map((loc) => (
+              <button
+                key={loc}
+                onClick={() => { changeLocale(loc); setShowLangPicker(false); }}
+                className={`flex flex-col items-center gap-0.5 px-1.5 py-2 rounded-lg text-xs transition-colors ${
+                  locale === loc
+                    ? "bg-gold/20 text-gold border border-gold/30"
+                    : "hover:bg-secondary text-muted-foreground"
+                }`}
+              >
+                <span className="text-base">{LOCALE_FLAGS[loc]}</span>
+                <span className="text-[9px] truncate w-full text-center">{LOCALE_NAMES[loc].split("/")[0].trim()}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Avatar & Name Section */}
-      <div className="px-4 pt-6 pb-4">
+      <div className="px-4 pt-4 pb-3">
         <div className="glass rounded-2xl p-6 text-center">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gold/30 to-gold/10 mx-auto flex items-center justify-center border-2 border-gold/30 overflow-hidden">
             {profile.avatar ? (
@@ -150,6 +204,23 @@ export default function Profile() {
         </div>
       </div>
 
+      {/* Quick Links: Agent Center */}
+      <div className="px-4 pb-3">
+        <button
+          onClick={() => navigate("/agent")}
+          className="w-full glass rounded-2xl p-4 flex items-center gap-3 hover:border-gold/30 border border-transparent transition-all active:scale-[0.98]"
+        >
+          <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center">
+            <Users className="w-5 h-5 text-gold" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-semibold">{t("profile.agentEntry")}</p>
+            <p className="text-xs text-muted-foreground">{t("profile.agentEntryDesc")}</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+        </button>
+      </div>
+
       {/* Account Info */}
       <div className="px-4 pb-3">
         <div className="glass rounded-2xl p-4">
@@ -198,7 +269,6 @@ export default function Profile() {
           {achievementsData && achievementsData.all.length > 0 ? (
             <div className="grid grid-cols-4 gap-2">
               {achievementsData.all.map((a: any) => {
-                // Use locale-aware achievement name
                 const achName = locale === "zh-CN" ? a.nameZh : locale === "zh-TW" ? (a.nameZhTW || a.nameZh) : (a.nameEn || a.nameZh);
                 return (
                   <div
@@ -229,6 +299,49 @@ export default function Profile() {
           ) : (
             <p className="text-xs text-muted-foreground text-center py-4">{t("profile.noAchievements")}</p>
           )}
+        </div>
+      </div>
+
+      {/* Sound & Voice Settings (#12) */}
+      <div className="px-4 pb-3">
+        <div className="glass rounded-2xl p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Volume2 className="w-4 h-4 text-cyan-400" />
+            {t("sound.title")}
+          </h3>
+          {/* Sound Effects toggle */}
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <p className="text-sm font-medium">{t("sound.effects")}</p>
+              <p className="text-xs text-muted-foreground">{t("sound.effectsDesc")}</p>
+            </div>
+            <button
+              onClick={handleSoundToggle}
+              className={`relative w-11 h-6 rounded-full transition-colors ${soundOn ? "bg-gold" : "bg-muted"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${soundOn ? "translate-x-5" : "translate-x-0"}`} />
+            </button>
+          </div>
+          <div className="h-px bg-border/50 my-1" />
+          {/* Voice mode cycle */}
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <p className="text-sm font-medium">{t("sound.voice")}</p>
+              <p className="text-xs text-muted-foreground">{t("sound.voiceDesc")}</p>
+            </div>
+            <button
+              onClick={handleVoiceCycle}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                voiceMode === "off"
+                  ? "border-border text-muted-foreground hover:border-gold/40"
+                  : voiceMode === "winner_only"
+                  ? "border-gold/40 text-gold bg-gold/10"
+                  : "border-green-500/40 text-green-400 bg-green-500/10"
+              }`}
+            >
+              {voiceLabel}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -287,10 +400,8 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Language Switcher */}
-      <div className="px-4 pb-24">
-        <LanguageSwitcherSection />
-      </div>
+      {/* Bottom padding for BottomNav */}
+      <div className="h-6" />
 
       <BottomNav active="profile" />
     </div>
@@ -321,49 +432,5 @@ function TelegramIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
     </svg>
-  );
-}
-
-function LanguageSwitcherSection() {
-  const { locale, changeLocale, t } = useI18n();
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="glass rounded-2xl p-4">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between"
-      >
-        <div className="flex items-center gap-2">
-          <Globe className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm font-semibold">{t("profile.language")}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">{LOCALE_FLAGS[locale]} {LOCALE_NAMES[locale]}</span>
-          <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${expanded ? "rotate-90" : ""}`} />
-        </div>
-      </button>
-      {expanded && (
-        <div className="grid grid-cols-3 gap-1.5 mt-3 pt-3 border-t border-border/50">
-          {(Object.keys(LOCALE_NAMES) as Locale[]).map((loc) => (
-            <button
-              key={loc}
-              onClick={() => {
-                changeLocale(loc);
-                setExpanded(false);
-              }}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                locale === loc
-                  ? "bg-gold/20 text-gold border border-gold/30"
-                  : "hover:bg-secondary text-muted-foreground"
-              }`}
-            >
-              <span>{LOCALE_FLAGS[loc]}</span>
-              <span className="truncate">{LOCALE_NAMES[loc]}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }

@@ -542,3 +542,12 @@
 - [x] Replace all raw chip/amount number displays in Table.tsx with formatChips
 - [x] Replace all raw chip/amount number displays in Lobby.tsx, Wallet.tsx, Admin.tsx, Profile.tsx, HandHistory.tsx, Leaderboard.tsx with formatChips
 - [x] Backend: round all chip arithmetic results to avoid floating point drift (gameEngine.ts r6 helper)
+
+## Batch 2 Requirements (Week 2)
+- [x] #3/#10: Language auto-detect from TG WebApp.initDataUnsafe.user.language_code (already partial - verify completeness)
+- [x] #10: Bot /start command sends localized welcome message with inline button to open Mini App (added es/pt/id/ar 4 new languages)
+- [x] #9: Fairness verification page - full i18n translation for all 12 languages (es/pt/ru/ar/vi/th/id ~20 keys each added)
+- [x] #12: Sound effects toggle moved to settings/profile page, persisted in localStorage
+- [x] #14: Language switcher moved to top of Profile page; Agent entry added to Profile page
+- [x] #15: Agent unlock conditions text made more detailed (specific downline count + volume requirements)
+- [x] #8: Remove redundant loading screens on game entry; compress table background to WebP format (bg already WebP; improved joinMutation spinner)
