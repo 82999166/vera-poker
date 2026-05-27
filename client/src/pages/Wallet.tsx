@@ -68,8 +68,15 @@ export default function Wallet() {
   });
 
   const handleDeposit = () => {
-    if (!amount) return toast.error(t("wallet.fillAll"));
-    depositMutation.mutate({ amount, chain });
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      return toast.error(t("wallet.enterAmountFirst") || "请先输入充值金额");
+    }
+    if (Number(amount) < 10) {
+      return toast.error(t("wallet.minDeposit") || "最低充值金额为 10 USDT");
+    }
+    // Use the exact amount with unique suffix for auto-matching
+    const exactAmount = `${Number(amount).toFixed(0)}.${amountSuffix}`;
+    depositMutation.mutate({ amount: exactAmount, chain });
   };
 
   const handleWithdraw = () => {
@@ -216,18 +223,25 @@ export default function Wallet() {
                 placeholder="0.00"
                 className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold"
               />
-              {amount && !isNaN(Number(amount)) && Number(amount) > 0 && (
-                <div className="mt-2 glass rounded-lg px-3 py-2 flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-gold shrink-0" />
-                  <div>
-                    <p className="text-[11px] text-gold font-medium">{t("wallet.suggestedAmount")}</p>
-                    <p className="text-sm font-bold text-foreground">
+              {/* Always show the unique suffix tip below the input */}
+              <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2.5">
+                {amount && !isNaN(Number(amount)) && Number(amount) > 0 ? (
+                  <>
+                    <p className="text-[11px] text-gold/80 mb-1">{t("wallet.suggestedAmount")}</p>
+                    <p className="text-base font-black text-gold tracking-wide">
                       {Number(amount).toFixed(0)}.{amountSuffix} USDT
                     </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{t("wallet.uniqueSuffixTip")}</p>
-                  </div>
-                </div>
-              )}
+                    <p className="text-[10px] text-gold/70 mt-1 font-semibold">{t("wallet.uniqueSuffixTip")}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-gold">{t("wallet.enterAmountFirst") || "请先输入充值金额"}</p>
+                    <p className="text-[11px] text-gold/70 mt-0.5 font-semibold">
+                      {t("wallet.minDepositHint") || "最低充值 10 USDT，系统将为您生成专属标识码"}
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
 
             <button
