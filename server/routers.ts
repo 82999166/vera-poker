@@ -455,8 +455,8 @@ export const appRouter = router({
       }
       return { success: true, newBalance, autoApproved: isAutoApproved };
     }),
-    transactions: protectedProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ ctx, input }) => {
-      return db.getUserTransactions(ctx.user.id, input.page, input.limit);
+    transactions: protectedProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), category: z.enum(['finance', 'game']).optional() })).query(async ({ ctx, input }) => {
+      return db.getUserTransactions(ctx.user.id, input.page, input.limit, input.category);
     }),
     // Admin
     allTransactions: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), type: z.string().optional() })).query(async ({ input }) => {
@@ -639,18 +639,22 @@ export const appRouter = router({
       if (input.buyIn < minBuyIn || input.buyIn > maxBuyIn) {
         throw new TRPCError({ code: "BAD_REQUEST", message: `Buy-in must be between ${minBuyIn} and ${maxBuyIn}` });
       }
-      // Check user balance
+      // Check user balance (pre-check for better error message)
       const user = await db.getUserById(ctx.user.id);
-      if (!user || parseFloat(user.balance) < input.buyIn) {
+      if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      if (parseFloat(user.balance) < input.buyIn) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
       }
-      // Deduct from balance
-      const newBalance = (parseFloat(user.balance) - input.buyIn).toFixed(2);
-      await db.updateUserBalance(ctx.user.id, newBalance);
+      // Atomically deduct balance (prevents race condition / negative balance)
+      const balanceBefore = user.balance;
+      const newBalance = await db.deductUserBalanceAtomic(ctx.user.id, input.buyIn);
+      if (newBalance === null) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
+      }
       const result = await tableManager.joinTable(input.roomId, ctx.user.id, input.buyIn);
       if (!result.success) {
-        // Refund
-        await db.updateUserBalance(ctx.user.id, user.balance);
+        // Refund atomically
+        await db.updateUserBalance(ctx.user.id, balanceBefore);
         throw new TRPCError({ code: "BAD_REQUEST", message: result.message || "Cannot join table" });
       }
       // Record buy-in transaction
@@ -658,7 +662,7 @@ export const appRouter = router({
         userId: ctx.user.id,
         type: "buy_in",
         amount: input.buyIn.toFixed(2),
-        balanceBefore: user.balance,
+        balanceBefore: balanceBefore,
         balanceAfter: newBalance,
         status: "confirmed",
         referenceType: "room",
@@ -732,12 +736,12 @@ export const appRouter = router({
       const room = await db.getRoomById(input.roomId);
       if (!room) throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
       
-      // Check user balance
+            // Check user balance (pre-check for better error message)
       const user = await db.getUserById(ctx.user.id);
-      if (!user || parseFloat(user.balance) < input.amount) {
+      if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      if (parseFloat(user.balance) < input.amount) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
       }
-      
       // Check rebuy limits
       const maxBuyIn = parseFloat(room.maxBuyIn);
       const currentChips = await tableManager.getPlayerChips(input.roomId, ctx.user.id);
@@ -754,16 +758,19 @@ export const appRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Can only rebuy between hands" });
       }
       
-      // Deduct from balance and add to chips
-      const newBalance = (parseFloat(user.balance) - input.amount).toFixed(2);
-      await db.updateUserBalance(ctx.user.id, newBalance);
+      // Atomically deduct from balance (prevents race condition / negative balance)
+      const rebuyBalanceBefore = user.balance;
+      const newBalance = await db.deductUserBalanceAtomic(ctx.user.id, input.amount);
+      if (newBalance === null) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
+      }
       await tableManager.addPlayerChips(input.roomId, ctx.user.id, input.amount);
       // Record rebuy transaction
       await db.createTransaction({
         userId: ctx.user.id,
         type: "rebuy",
         amount: input.amount.toFixed(2),
-        balanceBefore: user.balance,
+        balanceBefore: rebuyBalanceBefore,
         balanceAfter: newBalance,
         status: "confirmed",
         referenceType: "room",

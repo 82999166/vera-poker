@@ -180,6 +180,23 @@ export async function updateUserBalance(userId: number, amount: string) {
   await db.update(users).set({ balance: amount }).where(eq(users.id, userId));
 }
 
+/**
+ * Atomically deduct balance using SQL: UPDATE users SET balance = balance - deductAmount WHERE id = userId AND balance >= deductAmount
+ * Returns the new balance string if successful, or null if insufficient balance.
+ */
+export async function deductUserBalanceAtomic(userId: number, deductAmount: number): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  // Atomic conditional update: only deduct if balance >= deductAmount
+  const result = await db.execute(
+    sql`UPDATE users SET balance = ROUND(balance - ${deductAmount}, 2) WHERE id = ${userId} AND balance >= ${deductAmount}`
+  );
+  const affectedRows = (result as any)[0]?.affectedRows ?? 0;
+  if (affectedRows === 0) return null; // insufficient balance
+  const updated = await db.select({ balance: users.balance }).from(users).where(eq(users.id, userId)).limit(1);
+  return updated[0]?.balance ?? null;
+}
+
 // ==================== SYSTEM CONFIG QUERIES ====================
 export async function getConfig(key: string) {
   const db = await getDb();
@@ -262,13 +279,22 @@ export async function createTransaction(data: typeof transactions.$inferInsert) 
   return result[0].insertId;
 }
 
-export async function getUserTransactions(userId: number, page = 1, limit = 20) {
+export async function getUserTransactions(userId: number, page = 1, limit = 20, category?: 'finance' | 'game') {
   const db = await getDb();
   if (!db) return { transactions: [], total: 0 };
   const offset = (page - 1) * limit;
+  // finance: deposit/withdraw; game: buy_in/leave_table/rebuy
+  const gameTypes = ['buy_in', 'leave_table', 'rebuy'];
+  const financeTypes = ['deposit', 'withdrawal', 'refund', 'adjustment', 'commission'];
+  const typeFilter = category === 'game'
+    ? inArray(transactions.type, gameTypes as any)
+    : category === 'finance'
+    ? inArray(transactions.type, financeTypes as any)
+    : undefined;
+  const conditions = typeFilter ? and(eq(transactions.userId, userId), typeFilter) : eq(transactions.userId, userId);
   const [data, countResult] = await Promise.all([
-    db.select().from(transactions).where(eq(transactions.userId, userId)).orderBy(desc(transactions.createdAt)).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(transactions).where(eq(transactions.userId, userId)),
+    db.select().from(transactions).where(conditions).orderBy(desc(transactions.createdAt)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(transactions).where(conditions),
   ]);
   return { transactions: data, total: countResult[0]?.count ?? 0 };
 }

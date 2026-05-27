@@ -294,10 +294,10 @@ export default function Home() {
         {/* Features */}
         <div className="grid grid-cols-2 gap-3 mt-12 w-full max-w-sm">
           {[
-            { icon: Shield, title: "Provably Fair", desc: "Every card on-chain", color: "text-truth-blue" },
-            { icon: Zap, title: "Zero Gas Fee", desc: "In-game transactions", color: "text-gold" },
-            { icon: Globe, title: "Multi-Language", desc: "10+ languages", color: "text-success" },
-            { icon: Users, title: "Private Rooms", desc: "Play with friends", color: "text-purple-400" },
+            { icon: Shield, title: t("home.feature1Title"), desc: t("home.feature1Desc"), color: "text-truth-blue" },
+            { icon: Zap, title: t("home.feature2Title"), desc: t("home.feature2Desc"), color: "text-gold" },
+            { icon: Globe, title: t("home.feature3Title"), desc: t("home.feature3Desc"), color: "text-success" },
+            { icon: Users, title: t("home.feature4Title"), desc: t("home.feature4Desc"), color: "text-purple-400" },
           ].map((feat, i) => (
             <div key={i} className="glass rounded-xl p-3 text-center">
               <feat.icon className={`w-5 h-5 ${feat.color} mx-auto mb-1`} />

@@ -15,16 +15,13 @@ export function fixPrecision(n: number): number {
 /**
  * 统一筹码/金额格式化函数（内置精度修正）
  * - 金额 < 0.01：显示 4 位小数（如 $0.0050）
- * - 金额 < 1：显示 2 位小数（如 $0.20）
- * - 金额 >= 1：显示整数（如 $10）
+ * - 金额始终显示 2 位小数（如 $10.00, $0.20）
  * - 金额 >= 1000：显示 K 缩写（如 $1.5K）
  */
 export function formatAmount(n: number | string | null | undefined): string {
   const num = fixPrecision(parseFloat(String(n ?? 0)) || 0);
-  if (num >= 1000) return `${(num / 1000).toFixed(1).replace(/\.0$/, "")}K`;
-  if (num >= 1) return num.toFixed(0);
-  if (num >= 0.01) return num.toFixed(2);
-  return num.toFixed(4);
+  if (num >= 1000) return `${(num / 1000).toFixed(2).replace(/\.?0+$/, "")}K`;
+  return num.toFixed(2);
 }
 
 /**

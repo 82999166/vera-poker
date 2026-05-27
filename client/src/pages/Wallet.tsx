@@ -4,11 +4,11 @@ import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
 import { formatBalance } from "@/lib/utils";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowDownToLine, ArrowUpFromLine, Clock, Copy, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, ArrowDownToLine, ArrowUpFromLine, Clock, Copy, CheckCircle2, AlertCircle, Gamepad2 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 
-type TabType = "deposit" | "withdraw" | "history";
+type TabType = "deposit" | "withdraw" | "history" | "gameflow";
 type ChainType = "TRC20" | "ERC20" | "BEP20" | "TON" | "Polygon";
 
 const CHAINS: { key: ChainType; label: string; network: string }[] = [
@@ -22,7 +22,7 @@ const CHAINS: { key: ChainType; label: string; network: string }[] = [
 function getInitialTab(): TabType {
   const params = new URLSearchParams(window.location.search);
   const tab = params.get("tab");
-  if (tab === "deposit" || tab === "withdraw" || tab === "history") return tab;
+  if (tab === "deposit" || tab === "withdraw" || tab === "history" || tab === "gameflow") return tab;
   return "deposit";
 }
 
@@ -36,8 +36,16 @@ export default function Wallet() {
   const [txHash, setTxHash] = useState("");
 
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
-  const { data: txData } = trpc.wallet.transactions.useQuery({ page: 1, limit: 20 }, { enabled: !!user });
+  const { data: txData } = trpc.wallet.transactions.useQuery(
+    { page: 1, limit: 50, category: "finance" },
+    { enabled: !!user && activeTab === "history" }
+  );
+  const { data: gameFlowData } = trpc.wallet.transactions.useQuery(
+    { page: 1, limit: 50, category: "game" },
+    { enabled: !!user && activeTab === "gameflow" }
+  );
   const transactions = (txData as any)?.transactions ?? [];
+  const gameTransactions = (gameFlowData as any)?.transactions ?? [];
 
   const depositMutation = trpc.wallet.deposit.useMutation({
     onSuccess: () => {
@@ -59,7 +67,6 @@ export default function Wallet() {
 
   const handleDeposit = () => {
     if (!amount) return toast.error(t("wallet.fillAll"));
-    // txHash is now optional - if not provided, system will auto-detect
     depositMutation.mutate({ amount, chain, ...(txHash ? { txHash } : {}) });
   };
 
@@ -68,7 +75,6 @@ export default function Wallet() {
     withdrawMutation.mutate({ amount, chain, walletAddress: address });
   };
 
-  // Dynamic deposit address from backend
   const { data: addrData, isLoading: addrLoading } = trpc.wallet.depositAddress.useQuery(
     { chain },
     { enabled: !!user }
@@ -92,7 +98,19 @@ export default function Wallet() {
     room_fee: t("wallet.roomFee"),
     refund: t("wallet.refund"),
     adjustment: t("wallet.adjustment"),
+    buy_in: t("wallet.buyIn"),
+    leave_table: t("wallet.leaveTable"),
+    rebuy: t("wallet.rebuy"),
   };
+
+  // Game flow summary
+  const totalBuyIn = gameTransactions
+    .filter((tx: any) => tx.type === "buy_in" || tx.type === "rebuy")
+    .reduce((sum: number, tx: any) => sum + parseFloat(tx.amount), 0);
+  const totalReturn = gameTransactions
+    .filter((tx: any) => tx.type === "leave_table")
+    .reduce((sum: number, tx: any) => sum + parseFloat(tx.amount), 0);
+  const netGamePnl = totalReturn - totalBuyIn;
 
   return (
     <div className="min-h-screen bg-background particle-bg flex flex-col pb-20">
@@ -120,17 +138,18 @@ export default function Wallet() {
             { key: "deposit" as TabType, icon: ArrowDownToLine, label: t("wallet.deposit") },
             { key: "withdraw" as TabType, icon: ArrowUpFromLine, label: t("wallet.withdraw") },
             { key: "history" as TabType, icon: Clock, label: t("wallet.history") },
+            { key: "gameflow" as TabType, icon: Gamepad2, label: t("wallet.gameFlow") },
           ]).map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1 ${
+              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${
                 activeTab === tab.key
                   ? "bg-gold text-background"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <tab.icon className="w-4 h-4" />
+              <tab.icon className="w-3.5 h-3.5" />
               {tab.label}
             </button>
           ))}
@@ -141,7 +160,6 @@ export default function Wallet() {
       <div className="px-4 pt-4 flex-1">
         {activeTab === "deposit" && (
           <div className="space-y-4">
-            {/* Chain selector - scrollable */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.chain")}</label>
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -160,7 +178,6 @@ export default function Wallet() {
               </div>
             </div>
 
-            {/* Deposit address */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.depositAddress")}</label>
               {addrLoading ? (
@@ -188,7 +205,6 @@ export default function Wallet() {
               </p>
             </div>
 
-            {/* Amount */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.amount")} (USDT)</label>
               <input
@@ -200,7 +216,6 @@ export default function Wallet() {
               />
             </div>
 
-            {/* TX Hash - Optional */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">
                 {t("wallet.txHash")} <span className="text-gold/60">({t("common.optional")})</span>
@@ -230,7 +245,6 @@ export default function Wallet() {
 
         {activeTab === "withdraw" && (
           <div className="space-y-4">
-            {/* Chain selector */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.chain")}</label>
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -249,7 +263,6 @@ export default function Wallet() {
               </div>
             </div>
 
-            {/* Amount */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.amount")} (USDT)</label>
               <input
@@ -261,7 +274,6 @@ export default function Wallet() {
               />
             </div>
 
-            {/* Wallet address */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.address")}</label>
               <input
@@ -294,39 +306,107 @@ export default function Wallet() {
                 <p className="text-sm">{t("wallet.noHistory")}</p>
               </div>
             ) : (
-              transactions.map((tx: any, i: number) => (
-                <div key={i} className="glass rounded-lg p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund"
-                        ? "bg-success/20" : "bg-danger/20"
-                    }`}>
-                      {tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund" ? (
-                        <ArrowDownToLine className="w-4 h-4 text-success" />
-                      ) : (
-                        <ArrowUpFromLine className="w-4 h-4 text-danger" />
-                      )}
+              transactions.map((tx: any, i: number) => {
+                const isPositive = tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund";
+                return (
+                  <div key={i} className="glass rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isPositive ? "bg-success/20" : "bg-danger/20"}`}>
+                        {isPositive ? (
+                          <ArrowDownToLine className="w-4 h-4 text-success" />
+                        ) : (
+                          <ArrowUpFromLine className="w-4 h-4 text-danger" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{typeLabels[tx.type] ?? tx.type}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {tx.chain ? `${tx.chain} • ` : ""}{statusLabels[tx.status] ?? tx.status}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">{typeLabels[tx.type] ?? tx.type}</p>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${isPositive ? "text-success" : "text-danger"}`}>
+                        {isPositive ? "+" : "-"}${formatBalance(tx.amount)}
+                      </p>
                       <p className="text-[10px] text-muted-foreground">
-                        {tx.chain ? `${tx.chain} • ` : ""}{statusLabels[tx.status] ?? tx.status}
+                        {new Date(tx.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-semibold ${
-                      tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund"
-                        ? "text-success" : "text-danger"
-                    }`}>
-                      {tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund" ? "+" : "-"}${formatBalance(tx.amount)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {new Date(tx.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {activeTab === "gameflow" && (
+          <div className="space-y-3">
+            {/* Summary stats */}
+            {gameTransactions.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                <div className="glass rounded-lg p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground mb-1">{t("wallet.totalBuyIn")}</p>
+                  <p className="text-sm font-bold text-danger">-${formatBalance(totalBuyIn.toFixed(2))}</p>
                 </div>
-              ))
+                <div className="glass rounded-lg p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground mb-1">{t("wallet.totalReturn")}</p>
+                  <p className="text-sm font-bold text-success">+${formatBalance(totalReturn.toFixed(2))}</p>
+                </div>
+                <div className="glass rounded-lg p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground mb-1">{t("wallet.netPnl")}</p>
+                  <p className={`text-sm font-bold ${netGamePnl >= 0 ? "text-success" : "text-danger"}`}>
+                    {netGamePnl >= 0 ? "+" : ""}${formatBalance(netGamePnl.toFixed(2))}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Transaction list */}
+            {(gameTransactions.length === 0) ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Gamepad2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">{t("wallet.noGameFlow")}</p>
+              </div>
+            ) : (
+              gameTransactions.map((tx: any, i: number) => {
+                const isReturn = tx.type === "leave_table";
+                const isBuyIn = tx.type === "buy_in";
+                const isRebuy = tx.type === "rebuy";
+                const iconColor = isReturn ? "text-success" : "text-orange-400";
+                const bgColor = isReturn ? "bg-success/20" : "bg-orange-400/20";
+                const amountColor = isReturn ? "text-success" : "text-orange-400";
+                const sign = isReturn ? "+" : "-";
+                return (
+                  <div key={i} className="glass rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bgColor}`}>
+                        {isReturn ? (
+                          <ArrowDownToLine className={`w-4 h-4 ${iconColor}`} />
+                        ) : (
+                          <Gamepad2 className={`w-4 h-4 ${iconColor}`} />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {isBuyIn ? t("wallet.buyIn") : isRebuy ? t("wallet.rebuy") : t("wallet.leaveTable")}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(tx.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${amountColor}`}>
+                        {sign}${formatBalance(tx.amount)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {t("wallet.balance")}: ${formatBalance(tx.balanceAfter)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         )}

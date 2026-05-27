@@ -474,7 +474,7 @@ export default function Table() {
 
   // Wallet balance for rebuy
   const myChipsForWallet = (tableState?.players ?? []).find((p: any) => p.id === user?.id)?.chips;
-  const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user && (showRebuyDialog || myChipsForWallet === 0) });
+  const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user && (showRebuyDialog || showBuyIn || myChipsForWallet === 0) });
 
   // Auto-rebuy settings from localStorage
   const getAutoRebuySettings = () => {
@@ -1032,6 +1032,24 @@ export default function Table() {
                     <p className="text-[11px] text-muted-foreground">
                       ${room ? formatAmount(room.minBuyIn) : "0"} - ${room ? formatAmount(room.maxBuyIn) : "0"}
                     </p>
+                    {/* Balance display */}
+                    <div className="flex justify-between text-[11px] px-1">
+                      <span className="text-muted-foreground">{t("wallet.balance")}:</span>
+                      <span className="text-green-400 font-semibold">${formatBalance(walletData?.balance)}</span>
+                    </div>
+                    {/* Insufficient balance warning */}
+                    {walletData && room && parseFloat(walletData.balance) < parseFloat(room.minBuyIn) && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-500/15 border border-orange-500/30">
+                        <AlertTriangle className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+                        <p className="flex-1 text-[11px] text-orange-300 font-medium">{t("table.insufficientBalance")}</p>
+                        <button
+                          onClick={() => navigate("/wallet")}
+                          className="text-[10px] text-truth-blue underline whitespace-nowrap"
+                        >
+                          {t("table.goDeposit")}
+                        </button>
+                      </div>
+                    )}
                     <input
                       type="number"
                       value={buyInAmount}
@@ -1045,7 +1063,7 @@ export default function Table() {
                       </button>
                       <button
                         onClick={handleJoin}
-                        disabled={joinMutation.isPending}
+                        disabled={joinMutation.isPending || (!!walletData && !!room && parseFloat(walletData.balance) < parseFloat(room.minBuyIn))}
                         className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-truth-blue to-truth-blue-bright text-white text-sm font-semibold hover:opacity-90 transition-opacity active:scale-[0.97] disabled:opacity-50 flex items-center justify-center gap-1.5"
                       >
                         {joinMutation.isPending ? (
