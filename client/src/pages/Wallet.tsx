@@ -34,6 +34,8 @@ export default function Wallet() {
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
   const [txHash, setTxHash] = useState("");
+  // Generate a stable random suffix (1-99 cents) per session to help identify deposits
+  const [amountSuffix] = useState(() => String(Math.floor(Math.random() * 99) + 1).padStart(2, "0"));
 
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
   const { data: txData } = trpc.wallet.transactions.useQuery(
@@ -67,7 +69,7 @@ export default function Wallet() {
 
   const handleDeposit = () => {
     if (!amount) return toast.error(t("wallet.fillAll"));
-    depositMutation.mutate({ amount, chain, ...(txHash ? { txHash } : {}) });
+    depositMutation.mutate({ amount, chain });
   };
 
   const handleWithdraw = () => {
@@ -214,23 +216,18 @@ export default function Wallet() {
                 placeholder="0.00"
                 className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold"
               />
-            </div>
-
-            <div>
-              <label className="text-xs text-muted-foreground mb-2 block">
-                {t("wallet.txHash")} <span className="text-gold/60">({t("common.optional")})</span>
-              </label>
-              <input
-                type="text"
-                value={txHash}
-                onChange={(e) => setTxHash(e.target.value)}
-                placeholder={t("wallet.txHashPlaceholder")}
-                className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold font-mono text-xs"
-              />
-              <p className="text-[10px] text-gold/60 mt-1 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" />
-                {t("wallet.autoDetectTip")}
-              </p>
+              {amount && !isNaN(Number(amount)) && Number(amount) > 0 && (
+                <div className="mt-2 glass rounded-lg px-3 py-2 flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-gold shrink-0" />
+                  <div>
+                    <p className="text-[11px] text-gold font-medium">{t("wallet.suggestedAmount")}</p>
+                    <p className="text-sm font-bold text-foreground">
+                      {Number(amount).toFixed(0)}.{amountSuffix} USDT
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{t("wallet.uniqueSuffixTip")}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <button
