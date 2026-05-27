@@ -495,7 +495,7 @@ export const appRouter = router({
       const botUsername = await db.getConfigValue("tg_bot_username", "VeraPokerbot");
       return {
         inviteCode: user.inviteCode ?? "",
-        inviteLink: `https://t.me/${botUsername}?start=ref_${user.inviteCode ?? ""}`,
+        inviteLink: `https://t.me/${botUsername}/app?startapp=ref_${user.inviteCode ?? ""}`,
         totalDownlines: downlines.length,
         unlockedDownlines: unlockedCount,
         totalEarnings: totalEarnings.toFixed(2),
