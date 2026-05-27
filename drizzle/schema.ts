@@ -439,3 +439,98 @@ export const tournamentResults = mysqlTable("tournament_results", {
 
 export type TournamentResult = typeof tournamentResults.$inferSelect;
 export type InsertTournamentResult = typeof tournamentResults.$inferInsert;
+
+// ==================== BROADCAST TASKS (群发任务) ====================
+export const broadcastTasks = mysqlTable("broadcast_tasks", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 256 }).notNull(),
+  content: text("content").notNull(),
+  imageUrl: text("imageUrl"), // Optional image attachment
+  buttonText: varchar("buttonText", { length: 128 }), // Optional inline button text
+  buttonUrl: text("buttonUrl"), // Optional inline button URL
+  // Target: "all" = all users with tgId, "active" = users active in last 30 days, "custom" = specific user IDs
+  targetType: mysqlEnum("targetType", ["all", "active", "deposited", "custom"]).default("all").notNull(),
+  targetUserIds: json("targetUserIds").$type<number[]>(), // Used when targetType = "custom"
+  // Scheduling
+  scheduledAt: timestamp("scheduledAt"), // null = send immediately
+  // Status tracking
+  status: mysqlEnum("status", ["draft", "pending", "sending", "completed", "cancelled", "failed"]).default("draft").notNull(),
+  totalCount: int("totalCount").default(0).notNull(),
+  sentCount: int("sentCount").default(0).notNull(),
+  failCount: int("failCount").default(0).notNull(),
+  // Metadata
+  createdBy: int("createdBy").notNull(), // admin_users.id
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  startedAt: timestamp("startedAt"),
+  completedAt: timestamp("completedAt"),
+});
+export type BroadcastTask = typeof broadcastTasks.$inferSelect;
+export type InsertBroadcastTask = typeof broadcastTasks.$inferInsert;
+
+// ==================== AUTO REPLY RULES (关键词自动回复) ====================
+export const autoReplyRules = mysqlTable("auto_reply_rules", {
+  id: int("id").autoincrement().primaryKey(),
+  keyword: varchar("keyword", { length: 256 }).notNull(), // Trigger keyword or pattern
+  // Match type: "exact" = exact match, "contains" = substring match, "regex" = regex pattern
+  matchType: mysqlEnum("matchType", ["exact", "contains", "regex"]).default("contains").notNull(),
+  replyContent: text("replyContent").notNull(), // Reply message text
+  replyType: mysqlEnum("replyType", ["text", "text_button"]).default("text").notNull(),
+  buttonText: varchar("buttonText", { length: 128 }), // Optional button text
+  buttonUrl: text("buttonUrl"), // Optional button URL
+  isActive: boolean("isActive").default(true).notNull(),
+  priority: int("priority").default(0).notNull(), // Higher = matched first
+  triggerCount: int("triggerCount").default(0).notNull(), // How many times triggered
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type AutoReplyRule = typeof autoReplyRules.$inferSelect;
+export type InsertAutoReplyRule = typeof autoReplyRules.$inferInsert;
+
+// ==================== FISSION CAMPAIGNS (裂变活动) ====================
+export const fissionCampaigns = mysqlTable("fission_campaigns", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 256 }).notNull(),
+  description: text("description"),
+  // Reward config
+  rewardType: mysqlEnum("rewardType", ["balance", "none"]).default("balance").notNull(),
+  inviterReward: decimal("inviterReward", { precision: 10, scale: 2 }).default("0.00").notNull(), // Reward for inviter per new register
+  inviteeReward: decimal("inviteeReward", { precision: 10, scale: 2 }).default("0.00").notNull(), // Reward for new registrant
+  // Conditions
+  requireDeposit: boolean("requireDeposit").default(false).notNull(), // Reward only after first deposit
+  minDepositAmount: decimal("minDepositAmount", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  maxRewardPerUser: decimal("maxRewardPerUser", { precision: 10, scale: 2 }).default("0.00").notNull(), // 0 = unlimited
+  // Tracking
+  linkCode: varchar("linkCode", { length: 32 }).notNull().unique(), // Short code for tracking URL
+  clickCount: int("clickCount").default(0).notNull(),
+  registerCount: int("registerCount").default(0).notNull(),
+  rewardPaidCount: int("rewardPaidCount").default(0).notNull(),
+  totalRewardPaid: decimal("totalRewardPaid", { precision: 18, scale: 2 }).default("0.00").notNull(),
+  // Status
+  isActive: boolean("isActive").default(true).notNull(),
+  startTime: timestamp("startTime"),
+  endTime: timestamp("endTime"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type FissionCampaign = typeof fissionCampaigns.$inferSelect;
+export type InsertFissionCampaign = typeof fissionCampaigns.$inferInsert;
+
+// ==================== FISSION CLICKS (裂变点击追踪) ====================
+export const fissionClicks = mysqlTable("fission_clicks", {
+  id: int("id").autoincrement().primaryKey(),
+  campaignId: int("campaignId").notNull(),
+  linkCode: varchar("linkCode", { length: 32 }).notNull(),
+  // Who clicked (null if not logged in)
+  userId: int("userId"), // Registered user who clicked (if any)
+  inviterId: int("inviterId"), // The user who shared the link (from ref param)
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  userAgent: text("userAgent"),
+  // Conversion tracking
+  registered: boolean("registered").default(false).notNull(), // Did this click lead to registration?
+  deposited: boolean("deposited").default(false).notNull(), // Did this click lead to first deposit?
+  rewardPaid: boolean("rewardPaid").default(false).notNull(), // Was reward paid out?
+  convertedAt: timestamp("convertedAt"), // When they registered
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type FissionClick = typeof fissionClicks.$inferSelect;
+export type InsertFissionClick = typeof fissionClicks.$inferInsert;

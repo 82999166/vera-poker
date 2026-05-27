@@ -197,7 +197,31 @@ export function registerTelegramRoutes(app: Express) {
         const rooms = await db.getPublicRooms();
         replyText = `Active rooms: ${rooms.length}\n\nVisit the app to join a game!`;
       } else {
-        replyText = "I didn't understand that command. Use /help for available commands.";
+        // Check auto-reply rules first (keyword matching)
+        const { matchAutoReply } = await import("../marketing");
+        const autoRule = await matchAutoReply(message.text || text);
+        if (autoRule) {
+          replyText = autoRule.replyContent;
+          if (autoRule.replyType === "text_button" && autoRule.buttonText && autoRule.buttonUrl) {
+            const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;
+            await fetch(telegramApiUrl2, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: message.chat.id,
+                text: replyText,
+                parse_mode: "HTML",
+                reply_markup: {
+                  inline_keyboard: [[{ text: autoRule.buttonText, url: autoRule.buttonUrl }]]
+                }
+              }),
+            });
+            res.json({ ok: true });
+            return;
+          }
+        } else {
+          replyText = "I didn't understand that command. Use /help for available commands.";
+        }
       }
 
       // Send reply via Telegram API

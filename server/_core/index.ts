@@ -45,6 +45,42 @@ async function startServer() {
   registerTelegramAuthRoutes(app);
   app.use(staffRouter);
 
+  // Fission link click tracking: /api/ref/:code
+  app.get("/api/ref/:code", async (req, res) => {
+    try {
+      const { code } = req.params;
+      const { getFissionCampaignByCode, recordFissionClick } = await import("../marketing");
+      const campaign = await getFissionCampaignByCode(code);
+      const miniAppUrl = await import("../db").then(db => db.getConfigValue("telegram_mini_app_url")) || "/";
+      if (!campaign || !campaign.isActive) {
+        return res.redirect(miniAppUrl as string);
+      }
+      // Check if campaign has expired
+      const now = new Date();
+      if (campaign.endTime && new Date(campaign.endTime) < now) {
+        return res.redirect(miniAppUrl as string);
+      }
+      // Record click
+      const ipAddress = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "";
+      const userAgent = req.headers["user-agent"] || "";
+      const inviterIdStr = req.query.inv as string;
+      const inviterId = inviterIdStr ? parseInt(inviterIdStr, 10) : undefined;
+      await recordFissionClick({
+        campaignId: campaign.id,
+        linkCode: code,
+        inviterId: inviterId && !isNaN(inviterId) ? inviterId : undefined,
+        ipAddress,
+        userAgent,
+      });
+      // Redirect to Mini App with ref param
+      const redirectUrl = `${miniAppUrl}?startapp=fission_${code}`;
+      return res.redirect(redirectUrl as string);
+    } catch (err: any) {
+      console.error("[Fission] Click tracking error:", err);
+      res.redirect("/");
+    }
+  });
+
   // Scheduled task: auto-confirm deposits via blockchain verification
   app.post("/api/scheduled/autoConfirmDeposits", async (req, res) => {
     try {

@@ -551,3 +551,19 @@
 - [x] #14: Language switcher moved to top of Profile page; Agent entry added to Profile page
 - [x] #15: Agent unlock conditions text made more detailed (specific downline count + volume requirements)
 - [x] #8: Remove redundant loading screens on game entry; compress table background to WebP format (bg already WebP; improved joinMutation spinner)
+
+## TG Marketing System (#17)
+- [x] DB: broadcast_tasks table (id, title, content, imageUrl, buttonText, buttonUrl, targetType, targetUserIds, status, totalCount, sentCount, failCount, scheduledAt, createdAt, createdBy)
+- [x] DB: auto_reply_rules table (id, keyword, matchType, replyContent, replyType, isActive, priority, triggerCount, createdAt)
+- [x] DB: fission_campaigns table (id, name, description, rewardType, rewardAmount, targetCount, linkCode, clickCount, registerCount, isActive, startTime, endTime, createdAt)
+- [x] DB: fission_clicks table (id, campaignId, userId, ipAddress, userAgent, convertedAt, createdAt)
+- [x] Backend: broadcast.create / broadcast.list / broadcast.get / broadcast.cancel procedures
+- [x] Backend: broadcast send engine (batch 30/s, TG Bot API sendMessage, progress tracking)
+- [x] Backend: auto_reply.create / list / update / delete / toggle procedures
+- [x] Backend: Bot message handler: match incoming messages against auto_reply_rules
+- [x] Backend: fission.createCampaign / list / getStats procedures
+- [x] Backend: fission link click tracking (/api/ref/:code redirect + record)
+- [x] Frontend: Admin marketing panel with 3 tabs (Broadcast / Auto-Reply / Fission)
+- [x] Frontend: Broadcast tab - create task form (content, image, button, target, schedule), task list with progress bars
+- [x] Frontend: Auto-Reply tab - rules list, create/edit rule dialog (keyword, match type, reply content)
+- [x] Frontend: Fission tab - campaign list, create campaign, stats (clicks/registers/conversion rate)

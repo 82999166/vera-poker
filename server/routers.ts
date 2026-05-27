@@ -1802,6 +1802,142 @@ Rules:
       return { today: todayResult?.count ?? 0, total: totalResult?.count ?? 0, categories };
     }),
   }),
+
+  // ==================== MARKETING ====================
+  marketing: router({
+    // --- Broadcast ---
+    listBroadcasts: adminProcedure.query(async () => {
+      const { listBroadcastTasks } = await import("./marketing");
+      return listBroadcastTasks();
+    }),
+    getBroadcast: adminProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
+      const { getBroadcastTask } = await import("./marketing");
+      return getBroadcastTask(input.id);
+    }),
+    createBroadcast: adminProcedure.input(z.object({
+      title: z.string().min(1),
+      content: z.string().min(1),
+      imageUrl: z.string().optional(),
+      buttonText: z.string().optional(),
+      buttonUrl: z.string().optional(),
+      targetType: z.enum(["all", "active", "deposited", "custom"]),
+      targetUserIds: z.array(z.number()).optional(),
+      scheduledAt: z.date().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const { createBroadcastTask } = await import("./marketing");
+      const adminId = (ctx.user?.id) ?? 0;
+      const id = await createBroadcastTask({ ...input, createdBy: adminId });
+      return { id };
+    }),
+    sendBroadcast: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { updateBroadcastTask, executeBroadcast, getBroadcastTask } = await import("./marketing");
+      const task = await getBroadcastTask(input.id);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!['draft', 'pending'].includes(task.status)) throw new TRPCError({ code: "BAD_REQUEST", message: "Task already sent or cancelled" });
+      await updateBroadcastTask(input.id, { status: "pending" });
+      // Execute async (don't await - runs in background)
+      executeBroadcast(input.id).catch(e => console.error("[Broadcast] Error:", e));
+      return { ok: true };
+    }),
+    cancelBroadcast: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { cancelBroadcastTask } = await import("./marketing");
+      await cancelBroadcastTask(input.id);
+      return { ok: true };
+    }),
+
+    // --- Auto Reply ---
+    listAutoReplies: adminProcedure.query(async () => {
+      const { listAutoReplyRules } = await import("./marketing");
+      return listAutoReplyRules();
+    }),
+    createAutoReply: adminProcedure.input(z.object({
+      keyword: z.string().min(1),
+      matchType: z.enum(["exact", "contains", "regex"]),
+      replyContent: z.string().min(1),
+      replyType: z.enum(["text", "text_button"]),
+      buttonText: z.string().optional(),
+      buttonUrl: z.string().optional(),
+      isActive: z.boolean().default(true),
+      priority: z.number().default(0),
+    })).mutation(async ({ input }) => {
+      const { createAutoReplyRule } = await import("./marketing");
+      const id = await createAutoReplyRule(input);
+      return { id };
+    }),
+    updateAutoReply: adminProcedure.input(z.object({
+      id: z.number(),
+      keyword: z.string().min(1).optional(),
+      matchType: z.enum(["exact", "contains", "regex"]).optional(),
+      replyContent: z.string().min(1).optional(),
+      replyType: z.enum(["text", "text_button"]).optional(),
+      buttonText: z.string().optional(),
+      buttonUrl: z.string().optional(),
+      isActive: z.boolean().optional(),
+      priority: z.number().optional(),
+    })).mutation(async ({ input }) => {
+      const { updateAutoReplyRule } = await import("./marketing");
+      const { id, ...data } = input;
+      await updateAutoReplyRule(id, data);
+      return { ok: true };
+    }),
+    deleteAutoReply: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { deleteAutoReplyRule } = await import("./marketing");
+      await deleteAutoReplyRule(input.id);
+      return { ok: true };
+    }),
+    toggleAutoReply: adminProcedure.input(z.object({ id: z.number(), isActive: z.boolean() })).mutation(async ({ input }) => {
+      const { toggleAutoReplyRule } = await import("./marketing");
+      await toggleAutoReplyRule(input.id, input.isActive);
+      return { ok: true };
+    }),
+
+    // --- Fission Campaigns ---
+    listFissions: adminProcedure.query(async () => {
+      const { listFissionCampaigns } = await import("./marketing");
+      return listFissionCampaigns();
+    }),
+    getFission: adminProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
+      const { getFissionStats } = await import("./marketing");
+      return getFissionStats(input.id);
+    }),
+    getFissionClicks: adminProcedure.input(z.object({ id: z.number(), limit: z.number().default(50) })).query(async ({ input }) => {
+      const { getFissionClicks } = await import("./marketing");
+      return getFissionClicks(input.id, input.limit);
+    }),
+    createFission: adminProcedure.input(z.object({
+      name: z.string().min(1),
+      description: z.string().optional(),
+      rewardType: z.enum(["balance", "none"]),
+      inviterReward: z.string().default("0.00"),
+      inviteeReward: z.string().default("0.00"),
+      requireDeposit: z.boolean().default(false),
+      minDepositAmount: z.string().default("0.00"),
+      maxRewardPerUser: z.string().default("0.00"),
+      isActive: z.boolean().default(true),
+      startTime: z.date().optional(),
+      endTime: z.date().optional(),
+    })).mutation(async ({ input }) => {
+      const { createFissionCampaign } = await import("./marketing");
+      return createFissionCampaign(input);
+    }),
+    updateFission: adminProcedure.input(z.object({
+      id: z.number(),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      isActive: z.boolean().optional(),
+      endTime: z.date().optional(),
+    })).mutation(async ({ input }) => {
+      const { updateFissionCampaign } = await import("./marketing");
+      const { id, ...data } = input;
+      await updateFissionCampaign(id, data as any);
+      return { ok: true };
+    }),
+    deleteFission: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { deleteFissionCampaign } = await import("./marketing");
+      await deleteFissionCampaign(input.id);
+      return { ok: true };
+    }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 

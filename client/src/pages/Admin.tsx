@@ -6,10 +6,11 @@ import { useIsMobile } from "@/hooks/useMobile";
 import {
   Settings, Users, DollarSign, Shield, BarChart3, Save, RefreshCw,
   Plus, Trash2, ArrowLeft, UserCheck, Pause, Play, X, MessageSquare,
-  Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn, Pencil, Trophy
+  Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn, Pencil, Trophy, Megaphone
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatBalance, formatAmount } from "@/lib/utils";
+import { MarketingPanel } from "./MarketingPanel";
 
 // ==================== ADMIN I18N ====================
 type AdminLang = "zh-CN" | "zh-TW" | "en";
@@ -38,6 +39,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "tab.banners": "活动管理",
     "tab.tournaments": "锦标赛管理",
     "tab.logs": "操作日志",
+    "tab.marketing": "营销系统",
     "logs.title": "操作日志",
     "logs.noLogs": "暂无日志记录",
     "logs.all": "全部",
@@ -1193,7 +1195,7 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // ==================== ADMIN TABS ====================
-type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs" | "csRecords" | "banners" | "tournaments";
+type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs" | "csRecords" | "banners" | "tournaments" | "marketing";
 
 // ==================== MAIN ADMIN COMPONENT ====================
 export default function Admin() {
@@ -1241,8 +1243,8 @@ export default function Admin() {
 
   // Role-based tab permissions
   const roleTabMap: Record<string, AdminTab[]> = {
-    super_admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs"],
-    admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs"],
+    super_admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs", "marketing"],
+    admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs", "marketing"],
     cs: ["stats", "users", "rooms", "faq", "csRecords"],
     finance: ["stats", "finance", "agents"],
     tech: ["stats", "config", "rooms", "risk", "settings", "banners"],
@@ -1264,6 +1266,7 @@ export default function Admin() {
     { key: "tournaments", icon: Trophy, label: at("tab.tournaments") || "锦标赛" },
     { key: "csRecords", icon: MessageSquare, label: at("tab.csRecords") },
     { key: "logs", icon: Eye, label: at("tab.logs") },
+    { key: "marketing", icon: Megaphone, label: at("tab.marketing") || "营销系统" },
   ];
   const tabs = allTabs.filter(t => allowedTabs.includes(t.key));
 
@@ -1433,6 +1436,7 @@ function PanelContent({ tab, at, onNavigate }: { tab: AdminTab; at: (key: string
     case "csRecords": return <CsRecordsPanel at={at} />;
     case "banners": return <BannersPanel at={at} />;
     case "tournaments": return <TournamentsPanel at={at} />;
+    case "marketing": return <MarketingPanel at={at} />;
     default: return null;
   }
 }
