@@ -152,7 +152,7 @@ export const handPlayers = mysqlTable("hand_players", {
 export const transactions = mysqlTable("transactions", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  type: mysqlEnum("type", ["deposit", "withdraw", "game_win", "game_loss", "rake", "commission", "room_fee", "refund", "adjustment"]).notNull(),
+  type: mysqlEnum("type", ["deposit", "withdraw", "game_win", "game_loss", "rake", "commission", "room_fee", "refund", "adjustment", "buy_in", "leave_table", "rebuy"]).notNull(),
   amount: decimal("amount", { precision: 18, scale: 2 }).notNull(),
   balanceBefore: decimal("balanceBefore", { precision: 18, scale: 2 }).notNull(),
   balanceAfter: decimal("balanceAfter", { precision: 18, scale: 2 }).notNull(),

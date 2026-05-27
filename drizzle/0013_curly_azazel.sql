@@ -1,0 +1,1 @@
+ALTER TABLE `transactions` MODIFY COLUMN `type` enum('deposit','withdraw','game_win','game_loss','rake','commission','room_fee','refund','adjustment','buy_in','leave_table','rebuy') NOT NULL;

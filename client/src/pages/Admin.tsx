@@ -244,6 +244,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.depositsTab": "充值记录",
     "users.withdrawalsTab": "提现记录",
     "users.gamesTab": "游戏记录",
+    "users.gameFlowTab": "游戏流水",
     "users.balance": "余额",
     "users.totalHands": "总手数",
     "users.totalWins": "胜场",
@@ -597,6 +598,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.depositsTab": "充值記錄",
     "users.withdrawalsTab": "提現記錄",
     "users.gamesTab": "遊戲記錄",
+    "users.gameFlowTab": "遊戲流水",
     "users.balance": "餘額",
     "users.totalHands": "總手數",
     "users.totalWins": "勝場",
@@ -950,6 +952,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.depositsTab": "Deposits",
     "users.withdrawalsTab": "Withdrawals",
     "users.gamesTab": "Game History",
+    "users.gameFlowTab": "Game Flow",
     "users.balance": "Balance",
     "users.totalHands": "Total Hands",
     "users.totalWins": "Wins",
@@ -1740,7 +1743,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
 
 // ==================== USER DETAIL PANEL ====================
 function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () => void; at: (k: string) => string }) {
-  const [activeTab, setActiveTab] = useState<"info" | "deposits" | "withdrawals" | "games" | "downlines">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "deposits" | "withdrawals" | "gameflow" | "games" | "downlines">("info");
   // Fix: stabilize query inputs to prevent infinite re-fetch loop
   const [stableUserId] = useState(userId);
   const { data: user, isLoading, error: userError, refetch: refetchUser } = trpc.admin.userDetail.useQuery(
@@ -1750,6 +1753,10 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
   const { data: txData } = trpc.admin.userTransactions.useQuery(
     { userId: stableUserId, page: 1, limit: 50, type: activeTab === "deposits" ? "deposit" : activeTab === "withdrawals" ? "withdraw" : undefined },
     { enabled: activeTab === "deposits" || activeTab === "withdrawals", staleTime: 30_000 }
+  );
+  const { data: gameFlowData } = trpc.admin.userTransactions.useQuery(
+    { userId: stableUserId, page: 1, limit: 200 },
+    { enabled: activeTab === "gameflow", staleTime: 30_000 }
   );
   const { data: gameData } = trpc.admin.userGameHistory.useQuery(
     { userId: stableUserId, page: 1, limit: 50 },
@@ -1789,6 +1796,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
     { key: "info" as const, label: at("users.infoTab") },
     { key: "deposits" as const, label: at("users.depositsTab") },
     { key: "withdrawals" as const, label: at("users.withdrawalsTab") },
+    { key: "gameflow" as const, label: at("users.gameFlowTab") },
     { key: "games" as const, label: at("users.gamesTab") },
     { key: "downlines" as const, label: "下线" },
   ];
@@ -2003,6 +2011,51 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-8">{at("users.noTx")}</p>
           )}
+        </div>
+      )}
+
+      {/* Game Flow Tab - buy_in / leave_table / rebuy transactions */}
+      {activeTab === "gameflow" && (
+        <div className="space-y-2">
+          {(() => {
+            const flowTxs = ((gameFlowData as any)?.transactions ?? []).filter((t: any) => ["buy_in","leave_table","rebuy"].includes(t.type));
+            if (flowTxs.length === 0) return <p className="text-sm text-muted-foreground text-center py-8">暂无游戏流水记录</p>;
+            const totalBuyIn = flowTxs.filter((t: any) => t.type === "buy_in" || t.type === "rebuy").reduce((s: number, t: any) => s + parseFloat(t.amount), 0);
+            const totalReturn = flowTxs.filter((t: any) => t.type === "leave_table").reduce((s: number, t: any) => s + parseFloat(t.amount), 0);
+            const netPnl = totalReturn - totalBuyIn;
+            return (
+              <>
+                <div className="glass rounded-xl p-3 mb-1">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div><div className="text-[10px] text-muted-foreground">总买入</div><div className="text-xs font-mono text-red-400">-${formatBalance(totalBuyIn.toFixed(2))}</div></div>
+                    <div><div className="text-[10px] text-muted-foreground">总返还</div><div className="text-xs font-mono text-emerald-400">+${formatBalance(totalReturn.toFixed(2))}</div></div>
+                    <div><div className="text-[10px] text-muted-foreground">净盈亏</div><div className={`text-xs font-mono ${netPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>{netPnl >= 0 ? "+" : ""}${formatBalance(netPnl.toFixed(2))}</div></div>
+                  </div>
+                </div>
+                {flowTxs.map((tx: any) => (
+                  <div key={tx.id} className="glass rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                          tx.type === "buy_in" ? "bg-red-500/20 text-red-400" :
+                          tx.type === "rebuy" ? "bg-orange-500/20 text-orange-400" :
+                          "bg-emerald-500/20 text-emerald-400"
+                        }`}>{tx.type === "buy_in" ? "买入" : tx.type === "rebuy" ? "补码" : "离桌返还"}</span>
+                        <span className={`text-xs font-mono ${tx.type === "leave_table" ? "text-emerald-400" : "text-red-400"}`}>
+                          {tx.type === "leave_table" ? "+" : "-"}${formatBalance(tx.amount)}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">{tx.createdAt ? new Date(tx.createdAt).toLocaleString() : "-"}</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground flex justify-between">
+                      <span>{tx.note || "-"}</span>
+                      <span>余额: ${formatBalance(tx.balanceBefore)} → ${formatBalance(tx.balanceAfter)}</span>
+                    </div>
+                  </div>
+                ))}
+              </>
+            );
+          })()}
         </div>
       )}
 

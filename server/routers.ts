@@ -653,6 +653,18 @@ export const appRouter = router({
         await db.updateUserBalance(ctx.user.id, user.balance);
         throw new TRPCError({ code: "BAD_REQUEST", message: result.message || "Cannot join table" });
       }
+      // Record buy-in transaction
+      await db.createTransaction({
+        userId: ctx.user.id,
+        type: "buy_in",
+        amount: input.buyIn.toFixed(2),
+        balanceBefore: user.balance,
+        balanceAfter: newBalance,
+        status: "confirmed",
+        referenceType: "room",
+        referenceId: input.roomId,
+        note: `Buy-in: ${room.name}`,
+      });
       // For private rooms, notify other players that someone joined
       if (room.type === "private") {
         const { notifyPrivateRoomInvite } = await import("./notifications");
@@ -670,12 +682,37 @@ export const appRouter = router({
     leave: protectedProcedure.input(z.object({ roomId: z.number() })).mutation(async ({ ctx, input }) => {
       const result = await tableManager.leaveTable(input.roomId, ctx.user.id);
       // Return remaining chips to user balance
-      if (result.remainingChips > 0) {
-        const user = await db.getUserById(ctx.user.id);
-        if (user) {
-          const newBalance = (parseFloat(user.balance) + result.remainingChips).toFixed(2);
-          await db.updateUserBalance(ctx.user.id, newBalance);
-        }
+      const leaveUser = await db.getUserById(ctx.user.id);
+      if (result.remainingChips > 0 && leaveUser) {
+        const newBalance = (parseFloat(leaveUser.balance) + result.remainingChips).toFixed(2);
+        await db.updateUserBalance(ctx.user.id, newBalance);
+        // Record leave-table transaction
+        const room = await db.getRoomById(input.roomId);
+        await db.createTransaction({
+          userId: ctx.user.id,
+          type: "leave_table",
+          amount: result.remainingChips.toFixed(2),
+          balanceBefore: leaveUser.balance,
+          balanceAfter: newBalance,
+          status: "confirmed",
+          referenceType: "room",
+          referenceId: input.roomId,
+          note: `Leave table: ${room?.name ?? `Room #${input.roomId}`}`,
+        });
+      } else if (result.remainingChips === 0 && leaveUser) {
+        // Left with zero chips - still record it for full audit trail
+        const room = await db.getRoomById(input.roomId);
+        await db.createTransaction({
+          userId: ctx.user.id,
+          type: "leave_table",
+          amount: "0.00",
+          balanceBefore: leaveUser.balance,
+          balanceAfter: leaveUser.balance,
+          status: "confirmed",
+          referenceType: "room",
+          referenceId: input.roomId,
+          note: `Leave table (bust-out): ${room?.name ?? `Room #${input.roomId}`}`,
+        });
       }
       return { success: result.success };
     }),
@@ -721,7 +758,18 @@ export const appRouter = router({
       const newBalance = (parseFloat(user.balance) - input.amount).toFixed(2);
       await db.updateUserBalance(ctx.user.id, newBalance);
       await tableManager.addPlayerChips(input.roomId, ctx.user.id, input.amount);
-      
+      // Record rebuy transaction
+      await db.createTransaction({
+        userId: ctx.user.id,
+        type: "rebuy",
+        amount: input.amount.toFixed(2),
+        balanceBefore: user.balance,
+        balanceAfter: newBalance,
+        status: "confirmed",
+        referenceType: "room",
+        referenceId: input.roomId,
+        note: `Rebuy: ${room.name}`,
+      });
       return { success: true, newBalance, newChips: currentChips + input.amount };
     }),
     // Player action (fold/check/call/raise/all_in)
