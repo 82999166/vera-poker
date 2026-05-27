@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useI18n, LOCALE_NAMES, LOCALE_FLAGS, type Locale } from "@/lib/i18n";
+import { formatBalance } from "@/lib/utils";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 import {
@@ -137,7 +138,7 @@ export default function Profile() {
           
           <div className="flex items-center justify-center gap-4 mt-4">
             <div className="text-center">
-              <p className="text-lg font-bold text-gold">{profile.balance}</p>
+              <p className="text-lg font-bold text-gold">{formatBalance(profile.balance)}</p>
               <p className="text-[10px] text-muted-foreground">{t("profile.balance")}</p>
             </div>
             <div className="w-px h-8 bg-border" />
@@ -177,7 +178,7 @@ export default function Profile() {
             <StatCard icon={Gamepad2} label={t("profile.totalHands")} value={String(stats?.totalHands ?? 0)} color="text-truth-blue" />
             <StatCard icon={Trophy} label={t("profile.wins")} value={String(stats?.wins ?? 0)} color="text-gold" />
             <StatCard icon={TrendingUp} label={t("profile.winRate")} value={`${stats?.winRate ?? 0}%`} color="text-success" />
-            <StatCard icon={Coins} label={t("profile.totalProfit")} value={stats?.totalProfit ?? "0.00"} color={parseFloat(stats?.totalProfit ?? "0") >= 0 ? "text-success" : "text-red-400"} />
+            <StatCard icon={Coins} label={t("profile.totalProfit")} value={formatBalance(stats?.totalProfit)} color={parseFloat(stats?.totalProfit ?? "0") >= 0 ? "text-success" : "text-red-400"} />
           </div>
         </div>
       </div>

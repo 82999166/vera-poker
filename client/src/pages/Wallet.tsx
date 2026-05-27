@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
+import { formatBalance } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowDownToLine, ArrowUpFromLine, Clock, Copy, CheckCircle2, AlertCircle } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
@@ -107,8 +108,8 @@ export default function Wallet() {
       <div className="px-4 pt-4">
         <div className="gradient-border rounded-xl p-5 text-center">
           <p className="text-xs text-muted-foreground mb-1">{t("wallet.balance")}</p>
-          <p className="text-3xl font-bold text-gold glow-text-gold">${walletData?.balance ?? "0.00"}</p>
-          <p className="text-xs text-muted-foreground mt-1">{t("wallet.frozen")}: ${walletData?.frozenBalance ?? "0.00"}</p>
+          <p className="text-3xl font-bold text-gold glow-text-gold">${formatBalance(walletData?.balance)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("wallet.frozen")}: ${formatBalance(walletData?.frozenBalance)}</p>
         </div>
       </div>
 
@@ -318,7 +319,7 @@ export default function Wallet() {
                       tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund"
                         ? "text-success" : "text-danger"
                     }`}>
-                      {tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund" ? "+" : "-"}${tx.amount}
+                      {tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund" ? "+" : "-"}${formatBalance(tx.amount)}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
                       {new Date(tx.createdAt).toLocaleDateString()}

@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useI18n } from "@/lib/i18n";
+import { formatBalance } from "@/lib/utils";
 import BottomNav from "@/components/BottomNav";
 import { ArrowLeft, Trophy, TrendingUp, Gamepad2, Crown, Medal } from "lucide-react";
 
@@ -94,7 +95,7 @@ export default function Leaderboard() {
 
 function getDisplayValue(tab: TabKey, entry: any): string {
   switch (tab) {
-    case "profit": return `${parseFloat(entry.totalProfit) >= 0 ? "+" : ""}${parseFloat(entry.totalProfit).toFixed(2)}`;
+    case "profit": return `${parseFloat(entry.totalProfit) >= 0 ? "+" : ""}${formatBalance(entry.totalProfit)}`;
     case "winRate": return `${entry.winRate}%`;
     case "hands": return String(entry.totalHands);
   }

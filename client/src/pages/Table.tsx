@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useI18n, getLocale } from "@/lib/i18n";
-import { fmtAmt, formatAmount } from "@/lib/utils";
+import { fmtAmt, formatAmount, formatBalance } from "@/lib/utils";
 import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users, Plus, AlertTriangle, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
@@ -1030,7 +1030,7 @@ export default function Table() {
                   <div className="space-y-3">
                     <h3 className="text-sm font-bold text-foreground">{t("table.buyIn")}</h3>
                     <p className="text-[11px] text-muted-foreground">
-                      ${room ? parseFloat(room.minBuyIn).toFixed(0) : "0"} - ${room ? parseFloat(room.maxBuyIn).toFixed(0) : "0"}
+                      ${room ? formatAmount(room.minBuyIn) : "0"} - ${room ? formatAmount(room.maxBuyIn) : "0"}
                     </p>
                     <input
                       type="number"
@@ -1219,7 +1219,7 @@ export default function Table() {
             {/* Current chips & balance info */}
             <div className="flex justify-between text-[11px] text-muted-foreground mb-3">
               <span>{t("rebuy.currentChips")}: <span className="text-yellow-300 font-semibold">{myPlayer ? fmtAmt(myPlayer.chips) : "$0"}</span></span>
-              <span>{t("wallet.balance")}: <span className="text-green-400 font-semibold">${walletData?.balance ?? "0.00"}</span></span>
+              <span>{t("wallet.balance")}: <span className="text-green-400 font-semibold">${formatBalance(walletData?.balance)}</span></span>
             </div>
 
             {/* Amount input */}
@@ -1227,7 +1227,7 @@ export default function Table() {
               type="number"
               value={rebuyAmount}
               onChange={e => setRebuyAmount(e.target.value)}
-              placeholder={`${t("rebuy.amount")} (1 - ${room ? (parseFloat(room.maxBuyIn) - (myPlayer?.chips ?? 0)).toFixed(0) : "---"})`}
+              placeholder={`${t("rebuy.amount")} (1 - ${room ? formatAmount(parseFloat(room.maxBuyIn) - (myPlayer?.chips ?? 0)) : "---"})`}
               className="w-full px-3 py-2.5 rounded-xl bg-secondary text-foreground text-sm text-center border border-border/50 focus:border-gold/50 focus:outline-none transition-colors mb-2"
             />
 
@@ -1247,7 +1247,7 @@ export default function Table() {
                   if (room && myPlayer) {
                     const max = parseFloat(room.maxBuyIn) - myPlayer.chips;
                     const balance = parseFloat(walletData?.balance ?? "0");
-                    setRebuyAmount(String(Math.min(max, balance).toFixed(0)));
+                    setRebuyAmount(String(Math.round(Math.min(max, balance))));
                   }
                 }}
                 className="flex-1 py-1.5 rounded-lg bg-gold/20 text-[11px] text-gold font-medium hover:bg-gold/30 transition-colors active:scale-[0.97]"
@@ -1258,7 +1258,7 @@ export default function Table() {
 
             {/* Max buy-in info */}
             <p className="text-[10px] text-muted-foreground/60 text-center mb-3">
-              {t("rebuy.maxBuyIn")}: ${room ? parseFloat(room.maxBuyIn).toFixed(0) : "---"}
+              {t("rebuy.maxBuyIn")}: ${room ? formatAmount(room.maxBuyIn) : "---"}
             </p>
 
             {/* Action buttons */}
@@ -1309,7 +1309,7 @@ export default function Table() {
                       type="number"
                       value={autoRebuySettings.targetAmount || ""}
                       onChange={e => saveAutoRebuySettings({ ...autoRebuySettings, targetAmount: parseFloat(e.target.value) || 0 })}
-                      placeholder={room ? parseFloat(room.minBuyIn).toFixed(0) : "100"}
+                      placeholder={room ? formatAmount(room.minBuyIn) : "100"}
                       className="flex-1 px-2 py-1 rounded-lg bg-secondary text-[11px] text-foreground border border-border/50 focus:border-gold/50 focus:outline-none"
                     />
                   </div>

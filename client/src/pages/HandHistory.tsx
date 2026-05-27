@@ -1,5 +1,6 @@
 import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
+import { fmtAmt, formatAmount } from "@/lib/utils";
 import { useParams, useLocation } from "wouter";
 import { ArrowLeft, Trophy, Clock, Hash, Shield, ChevronDown, ChevronUp, User, DollarSign } from "lucide-react";
 import { useState } from "react";
@@ -132,7 +133,7 @@ export default function HandHistory() {
                       </span>
                       <span className="flex items-center gap-1">
                         <DollarSign className="w-3 h-3" />
-                        {hand.potSize}
+                        {fmtAmt(hand.potSize)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -176,11 +177,11 @@ export default function HandHistory() {
                               {renderPlayerCards(player.holeCards)}
                               <div className="text-right">
                                 <p className="text-[10px] text-muted-foreground">
-                                  {t("table.bet")}: ${player.betAmount || "0"}
+                                  {t("table.bet")}: {fmtAmt(player.betAmount || 0)}
                                 </p>
                                 {player.isWinner && (
                                   <p className="text-xs font-bold text-gold">
-                                    +${player.winAmount || "0"}
+                                    +{fmtAmt(player.winAmount || 0)}
                                   </p>
                                 )}
                               </div>

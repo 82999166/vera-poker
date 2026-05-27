@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
+import { formatAmount, formatBalance } from "@/lib/utils";
 import { useLocation } from "wouter";
 import React, { useState } from "react";
 import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, TrendingUp, TrendingDown, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
@@ -104,7 +105,7 @@ export default function Lobby() {
           <div className="glass rounded-full px-3 py-1.5 flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-gold" />
             <span className="text-sm font-semibold text-foreground">
-              {walletData?.balance ?? "0.00"}
+              {formatBalance(walletData?.balance)}
             </span>
           </div>
         </div>
@@ -297,8 +298,8 @@ export default function Lobby() {
                       )}
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>{t("lobby.blinds")}: ${room.smallBlind}/${room.bigBlind}</span>
-                      <span>{t("lobby.buyIn")}: ${room.minBuyIn}-${room.maxBuyIn}</span>
+                      <span>{t("lobby.blinds")}: ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)}</span>
+                      <span>{t("lobby.buyIn")}: ${formatAmount(room.minBuyIn)}-${formatAmount(room.maxBuyIn)}</span>
                     </div>
                   </div>
                     <div className="flex items-center gap-3">
@@ -558,8 +559,8 @@ function TournamentDetail({ id, onBack }: { id: number; onBack: () => void }) {
       <div className="glass rounded-xl p-4 space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <InfoItem label={t("tourney.entryFee")} value={`${tourney.entryFee} USDT`} />
-          <InfoItem label={t("tourney.startingChips")} value={`${tourney.startingChips.toLocaleString()}`} />
-          <InfoItem label={t("tourney.prizePool")} value={`${prizePool.toFixed(2)} USDT`} highlight />
+          <InfoItem label={t("tourney.startingChips")} value={`${formatAmount(tourney.startingChips)}`} />
+          <InfoItem label={t("tourney.prizePool")} value={`${formatBalance(prizePool)} USDT`} highlight />
           <InfoItem label={t("tourney.players")} value={`${tourney.registeredCount || 0}/${tourney.maxPlayers}`} />
           <InfoItem label={t("tourney.totalRounds")} value={`${tourney.totalRounds}`} />
           <InfoItem label={t("tourney.blindLevel")} value={`${tourney.blindLevelDuration} min`} />
@@ -589,7 +590,7 @@ function TournamentDetail({ id, onBack }: { id: number; onBack: () => void }) {
                 <span className="text-muted-foreground">
                   {p.rank === 1 ? "🥇" : p.rank === 2 ? "🥈" : p.rank === 3 ? "🥉" : `#${p.rank}`} {t("tourney.rank")} {p.rank}
                 </span>
-                <span className="text-gold font-medium">{p.percentage}% ({(prizePool * p.percentage / 100).toFixed(2)} USDT)</span>
+                <span className="text-gold font-medium">{p.percentage}% ({formatBalance(prizePool * p.percentage / 100)} USDT)</span>
               </div>
             ))}
           </div>

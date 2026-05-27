@@ -536,3 +536,9 @@
 - [x] Fix #16: Opponent hole cards visible during game - backend must never send holeCards for non-hero players except in showdown/completed phase
 - [x] Fix #4: After timeout kick, UI should auto-navigate back to lobby; also auto-exit if no match for X minutes
 - [x] Fix #3: Auto-detect TG system language (Telegram.WebApp.initDataUnsafe.user.language_code) and apply on first load; Bot welcome message also sent in user's TG language
+
+## Bug Fix #7 - Chips Display Precision
+- [x] Create unified formatChips(n) utility in client/src/lib/utils.ts
+- [x] Replace all raw chip/amount number displays in Table.tsx with formatChips
+- [x] Replace all raw chip/amount number displays in Lobby.tsx, Wallet.tsx, Admin.tsx, Profile.tsx, HandHistory.tsx, Leaderboard.tsx with formatChips
+- [x] Backend: round all chip arithmetic results to avoid floating point drift (gameEngine.ts r6 helper)

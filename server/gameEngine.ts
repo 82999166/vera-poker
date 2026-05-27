@@ -4,6 +4,12 @@
  */
 import crypto from "crypto";
 
+// ==================== PRECISION HELPER ====================
+/** Round to 6 decimal places to eliminate floating-point drift */
+function r6(n: number): number {
+  return Math.round(n * 1_000_000) / 1_000_000;
+}
+
 // ==================== TYPES ====================
 export type Suit = "h" | "d" | "c" | "s"; // hearts, diamonds, clubs, spades
 export type Rank = "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "T" | "J" | "Q" | "K" | "A";
@@ -147,21 +153,21 @@ export function postBlinds(state: GameState, smallBlind: number, bigBlind: numbe
   const sbPlayer = newState.players[newState.smallBlindIndex];
   const bbPlayer = newState.players[newState.bigBlindIndex];
 
-  const sbAmount = Math.min(smallBlind, sbPlayer.chips);
-  sbPlayer.chips -= sbAmount;
+  const sbAmount = r6(Math.min(smallBlind, sbPlayer.chips));
+  sbPlayer.chips = r6(sbPlayer.chips - sbAmount);
   sbPlayer.currentBet = sbAmount;
   sbPlayer.totalBet = sbAmount;
   sbPlayer.hasActedThisRound = false; // SB hasn't voluntarily acted yet
   if (sbPlayer.chips === 0) sbPlayer.isAllIn = true;
 
-  const bbAmount = Math.min(bigBlind, bbPlayer.chips);
-  bbPlayer.chips -= bbAmount;
+  const bbAmount = r6(Math.min(bigBlind, bbPlayer.chips));
+  bbPlayer.chips = r6(bbPlayer.chips - bbAmount);
   bbPlayer.currentBet = bbAmount;
   bbPlayer.totalBet = bbAmount;
   bbPlayer.hasActedThisRound = false; // BB hasn't voluntarily acted yet (BB option)
   if (bbPlayer.chips === 0) bbPlayer.isAllIn = true;
 
-  newState.pot = sbAmount + bbAmount;
+  newState.pot = r6(sbAmount + bbAmount);
   newState.currentBet = bbAmount;
   newState.minRaise = bigBlind; // First raise must be at least 1 BB increment
   newState.phase = "preflop";
@@ -205,23 +211,23 @@ export function processAction(state: GameState, playerId: number, action: Player
       player.hasActedThisRound = true;
       break;
     case "call": {
-      const callAmount = Math.min(newState.currentBet - player.currentBet, player.chips);
-      player.chips -= callAmount;
-      player.currentBet += callAmount;
-      player.totalBet += callAmount;
-      newState.pot += callAmount;
+      const callAmount = r6(Math.min(newState.currentBet - player.currentBet, player.chips));
+      player.chips = r6(player.chips - callAmount);
+      player.currentBet = r6(player.currentBet + callAmount);
+      player.totalBet = r6(player.totalBet + callAmount);
+      newState.pot = r6(newState.pot + callAmount);
       player.hasActedThisRound = true;
       if (player.chips === 0) player.isAllIn = true;
       break;
     }
     case "raise": {
       const raiseAmount = amount ?? (newState.currentBet + newState.minRaise);
-      const totalNeeded = raiseAmount - player.currentBet;
-      const actualAmount = Math.min(totalNeeded, player.chips);
-      player.chips -= actualAmount;
-      player.currentBet += actualAmount;
-      player.totalBet += actualAmount;
-      newState.pot += actualAmount;
+      const totalNeeded = r6(raiseAmount - player.currentBet);
+      const actualAmount = r6(Math.min(totalNeeded, player.chips));
+      player.chips = r6(player.chips - actualAmount);
+      player.currentBet = r6(player.currentBet + actualAmount);
+      player.totalBet = r6(player.totalBet + actualAmount);
+      newState.pot = r6(newState.pot + actualAmount);
       // Update minRaise: the increment of this raise becomes the new minimum
       const raiseIncrement = player.currentBet - newState.currentBet;
       newState.minRaise = Math.max(raiseIncrement, newState.minRaise);
@@ -238,9 +244,9 @@ export function processAction(state: GameState, playerId: number, action: Player
     }
     case "all_in": {
       const allInAmount = player.chips;
-      player.currentBet += allInAmount;
-      player.totalBet += allInAmount;
-      newState.pot += allInAmount;
+      player.currentBet = r6(player.currentBet + allInAmount);
+      player.totalBet = r6(player.totalBet + allInAmount);
+      newState.pot = r6(newState.pot + allInAmount);
       player.chips = 0;
       player.isAllIn = true;
       player.hasActedThisRound = true;
@@ -471,8 +477,8 @@ export function settleHand(state: GameState, rakePercent: number, rakeCap: numbe
   // If only one player remains (everyone else folded)
   if (activePlayers.length === 1) {
     const winner = activePlayers[0];
-    const rakeAmount = Math.min(state.pot * rakePercent / 100, rakeCap);
-    const winAmount = state.pot - rakeAmount;
+    const rakeAmount = r6(Math.min(r6(state.pot * rakePercent / 100), rakeCap));
+    const winAmount = r6(state.pot - rakeAmount);
     return {
       winners: [{ playerId: winner.id, amount: winAmount, hand: { rank: "high_card", rankValue: 0, kickers: [], description: "Last Standing" } }],
       rakeAmount,
@@ -492,9 +498,9 @@ export function settleHand(state: GameState, rakePercent: number, rakeCap: numbe
   const bestHand = evaluations[0].hand;
   const winners = evaluations.filter(e => compareHands(e.hand, bestHand) === 0);
 
-  const rakeAmount = Math.min(state.pot * rakePercent / 100, rakeCap);
-  const distributablePot = state.pot - rakeAmount;
-  const sharePerWinner = distributablePot / winners.length;
+  const rakeAmount = r6(Math.min(r6(state.pot * rakePercent / 100), rakeCap));
+  const distributablePot = r6(state.pot - rakeAmount);
+  const sharePerWinner = r6(distributablePot / winners.length);
 
   return {
     winners: winners.map(w => ({ playerId: w.player.id, amount: sharePerWinner, hand: w.hand })),

@@ -9,6 +9,7 @@ import {
   Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn, Pencil, Trophy
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatBalance, formatAmount } from "@/lib/utils";
 
 // ==================== ADMIN I18N ====================
 type AdminLang = "zh-CN" | "zh-TW" | "en";
@@ -1689,7 +1690,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
                 {u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}
               </span>
               {/* Balance */}
-              <span className="text-sm font-mono text-gold text-right w-16 shrink-0">${u.balance ?? "0.00"}</span>
+              <span className="text-sm font-mono text-gold text-right w-16 shrink-0">${formatBalance(u.balance)}</span>
               {/* Online status */}
               <div className="w-20 shrink-0 flex justify-end">
                 {u.onlineStatus?.online ? (
@@ -1800,7 +1801,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">{at("users.colUser")}: {(user as any).name || (user as any).nickname} (ID: {(user as any).id})</p>
-              <p className="text-xs text-muted-foreground">{at("users.balance")}: <span className="text-gold font-mono">${(user as any).balance}</span></p>
+              <p className="text-xs text-muted-foreground">{at("users.balance")}: <span className="text-gold font-mono">${formatBalance((user as any).balance)}</span></p>
             </div>
             <div className="space-y-3">
               <div>
@@ -1880,14 +1881,14 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
           <div className="glass rounded-xl p-4">
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><DollarSign className="w-4 h-4 text-gold" />{at("finance.title")}</h3>
             <div className="grid grid-cols-2 gap-3">
-              <InfoCard label={at("users.balance")} value={`$${(user as any).balance}`} color="text-gold" />
-              <InfoCard label={at("users.colBalance")} value={`$${(user as any).frozenBalance}`} color="text-orange-400" />
-              <InfoCard label={at("users.totalDeposited")} value={`$${(user as any).financialSummary?.totalDeposited}`} color="text-emerald-400" />
-              <InfoCard label={at("users.totalWithdrawn")} value={`$${(user as any).financialSummary?.totalWithdrawn}`} color="text-red-400" />
-              <InfoCard label={at("users.totalHands")} value={`$${(user as any).financialSummary?.totalBets}`} color="text-blue-400" />
-              <InfoCard label={at("users.winRate")} value={`$${(user as any).financialSummary?.netProfit}`} color={parseFloat((user as any).financialSummary?.netProfit ?? "0") >= 0 ? "text-emerald-400" : "text-red-400"} />
-              <InfoCard label={at("finance.rake")} value={`$${(user as any).financialSummary?.totalRake}`} color="text-purple-400" />
-              <InfoCard label={at("finance.commission")} value={`$${(user as any).agentInfo?.totalCommission}`} color="text-amber-400" />
+              <InfoCard label={at("users.balance")} value={`$${formatBalance((user as any).balance)}`} color="text-gold" />
+              <InfoCard label={at("users.colBalance")} value={`$${formatBalance((user as any).frozenBalance)}`} color="text-orange-400" />
+              <InfoCard label={at("users.totalDeposited")} value={`$${formatBalance((user as any).financialSummary?.totalDeposited)}`} color="text-emerald-400" />
+              <InfoCard label={at("users.totalWithdrawn")} value={`$${formatBalance((user as any).financialSummary?.totalWithdrawn)}`} color="text-red-400" />
+              <InfoCard label={at("users.totalHands")} value={`$${formatBalance((user as any).financialSummary?.totalBets)}`} color="text-blue-400" />
+              <InfoCard label={at("users.winRate")} value={`$${formatBalance((user as any).financialSummary?.netProfit)}`} color={parseFloat((user as any).financialSummary?.netProfit ?? "0") >= 0 ? "text-emerald-400" : "text-red-400"} />
+              <InfoCard label={at("finance.rake")} value={`$${formatBalance((user as any).financialSummary?.totalRake)}`} color="text-purple-400" />
+              <InfoCard label={at("finance.commission")} value={`$${formatBalance((user as any).agentInfo?.totalCommission)}`} color="text-amber-400" />
             </div>
           </div>
 
@@ -1948,7 +1949,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
               <div key={tx.id} className="glass rounded-xl p-3">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium text-emerald-400">+${tx.amount}</span>
+                    <span className="text-xs font-medium text-emerald-400">+${formatBalance(tx.amount)}</span>
                     {tx.referenceType === "admin_topup" && (
                       <span className="px-1 py-0.5 rounded text-[9px] bg-gold/20 text-gold">{at("users.adminTopUp")}</span>
                     )}
@@ -1980,7 +1981,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
             (txData as any).transactions.map((tx: any) => (
               <div key={tx.id} className="glass rounded-xl p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium text-red-400">-${tx.amount}</span>
+                  <span className="text-xs font-medium text-red-400">-${formatBalance(tx.amount)}</span>
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                     tx.status === "confirmed" ? "bg-success/20 text-success" :
                     tx.status === "pending" ? "bg-warning/20 text-warning" :
@@ -2010,11 +2011,11 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-medium">{g.roomName}</span>
                   <span className={`text-xs font-mono ${parseFloat(g.pnl) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {parseFloat(g.pnl) >= 0 ? "+" : ""}${g.pnl}
+                    {parseFloat(g.pnl) >= 0 ? "+" : ""}${formatBalance(g.pnl)}
                   </span>
                 </div>
                 <div className="text-[10px] text-muted-foreground">
-                  <span>{at("finance.amount")}: ${g.betAmount} | {at("users.totalWins")}: ${g.winAmount}</span>
+                  <span>{at("finance.amount")}: ${formatBalance(g.betAmount)} | {at("users.totalWins")}: ${formatBalance(g.winAmount)}</span>
                   <div>{g.completedAt ? new Date(g.completedAt).toLocaleString() : "-"}</div>
                 </div>
               </div>
@@ -2069,14 +2070,14 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-sm font-mono text-gold">${rel.user?.balance ?? "0.00"}</div>
+                            <div className="text-sm font-mono text-gold">${formatBalance(rel.user?.balance)}</div>
                             <div className="text-[10px] text-muted-foreground">余额</div>
                           </div>
                         </div>
                         <div className="mt-2 pt-2 border-t border-border/30 grid grid-cols-3 gap-2 text-center">
                           <div>
                             <div className="text-[10px] text-muted-foreground">贡献佣金</div>
-                            <div className="text-xs font-mono text-amber-400">${rel.commissionEarned}</div>
+                            <div className="text-xs font-mono text-amber-400">${formatBalance(rel.commissionEarned)}</div>
                           </div>
                           <div>
                             <div className="text-[10px] text-muted-foreground">自己下线</div>
@@ -2120,7 +2121,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-xs font-mono text-gold">${rel.user?.balance ?? "0.00"}</div>
+                            <div className="text-xs font-mono text-gold">${formatBalance(rel.user?.balance)}</div>
                             <div className="text-[10px] text-muted-foreground">余额</div>
                           </div>
                         </div>
@@ -2569,7 +2570,7 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
                   <span className="text-xs text-muted-foreground">{at("finance.userLabel")} #{tx.userId}</span>
                   <span className="text-xs text-muted-foreground">#{tx.id}</span>
                 </div>
-                <span className="text-sm font-mono font-medium">${tx.amount}</span>
+                <span className="text-sm font-mono font-medium">${formatBalance(tx.amount)}</span>
               </div>
               <div className="text-[10px] text-muted-foreground space-y-0.5 mb-2">
                 <div>{at("finance.chainLabel")}: {tx.chain || "-"} | {at("finance.statusLabel")}: <span className={tx.status === "pending" ? "text-warning" : tx.status === "confirmed" ? "text-success" : "text-danger"}>{tx.status === "pending" ? at("finance.statusPending") : tx.status === "confirmed" ? at("finance.statusConfirmed") : tx.status === "failed" ? at("finance.statusFailed") : tx.status}</span></div>
@@ -2623,7 +2624,7 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
             <div className="space-y-3 mb-4">
               <div className="glass rounded-lg p-3">
                 <div className="text-xs text-muted-foreground mb-1">{at("finance.withdrawAmount")}</div>
-                <div className="text-lg font-bold text-gold">${approveDialog.amount}</div>
+                <div className="text-lg font-bold text-gold">${formatBalance(approveDialog.amount)}</div>
               </div>
               <div className="glass rounded-lg p-3">
                 <div className="text-xs text-muted-foreground mb-1">{at("finance.chainAddr")}</div>
@@ -2705,7 +2706,7 @@ function RakePanel({ at }: { at: (k: string) => string }) {
               const height = (parseFloat(d.total || "0") / maxVal) * 100;
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-                  <span className="text-[8px] text-muted-foreground">${parseFloat(d.total || "0").toFixed(0)}</span>
+                  <span className="text-[8px] text-muted-foreground">${formatAmount(d.total)}</span>
                   <div className="w-full bg-gold/30 rounded-t" style={{ height: `${Math.max(height, 4)}%` }}>
                     <div className="w-full h-full bg-gold/70 rounded-t" />
                   </div>
@@ -2721,7 +2722,7 @@ function RakePanel({ at }: { at: (k: string) => string }) {
       <div className="glass rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold">{at("finance.rakeRecords")}</h3>
-          <span className="text-xs text-muted-foreground">{at("finance.rakeAvg")}: ${summary.avgRake}</span>
+          <span className="text-xs text-muted-foreground">{at("finance.rakeAvg")}: ${formatBalance(summary.avgRake)}</span>
         </div>
         <div className="space-y-2">
           {records.length > 0 ? records.map((r: any) => (
@@ -2731,8 +2732,8 @@ function RakePanel({ at }: { at: (k: string) => string }) {
                 <span className="text-[10px] text-muted-foreground ml-2">Room #{r.roomId}</span>
               </div>
               <div className="text-right">
-                <span className="text-sm font-bold text-gold">${parseFloat(r.rakeAmount || "0").toFixed(2)}</span>
-                <span className="text-[10px] text-muted-foreground ml-2">/ ${parseFloat(r.potSize || "0").toFixed(2)}</span>
+                <span className="text-sm font-bold text-gold">${formatBalance(r.rakeAmount)}</span>
+                <span className="text-[10px] text-muted-foreground ml-2">/ ${formatBalance(r.potSize)}</span>
               </div>
               <span className="text-[10px] text-muted-foreground">{r.startedAt ? new Date(r.startedAt).toLocaleString() : "-"}</span>
             </div>
@@ -2815,7 +2816,7 @@ function AgentsPanel({ at }: { at: (k: string) => string }) {
                   <span className="text-xs text-muted-foreground ml-2">← #{c.sourceUserId}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-mono text-gold">${c.amount}</span>
+                  <span className="text-sm font-mono text-gold">${formatBalance(c.amount)}</span>
                   <span className="text-[10px] text-muted-foreground ml-1">L{c.level}</span>
                 </div>
               </div>
@@ -3549,7 +3550,7 @@ function TrendChart({ data, dataKey, color, label, isVolume, noDataText }: { dat
     <div>
       <div className="flex items-baseline gap-2 mb-2">
         <span className="text-lg font-bold" style={{ color }}>
-          {isVolume ? `$${latestVal.toFixed(2)}` : latestVal}
+          {isVolume ? `$${formatBalance(latestVal)}` : latestVal}
         </span>
         <span className={`text-[10px] font-medium ${isPositive ? "text-success" : "text-red-400"}`}>
           {isPositive ? "↑" : "↓"}{Math.abs(parseInt(changePercent))}%
