@@ -79,7 +79,9 @@ function formatNotification(payload: NotificationPayload): string {
     case "private_room_invite":
       return `🎯 <b>${title}</b>\n\n${body}\n\n${data?.roomName ? `房间: ${data.roomName}` : ""}`;
     case "turn_action":
-      return `⏰ <b>${title}</b>\n\n${body}\n\n${data?.timeLeft ? `剩余时间: ${data.timeLeft}秒` : ""}`;
+      return data?.isTimeout
+        ? `⏱ <b>${title}</b>\n\n${body}`
+        : `⏰ <b>${title}</b>\n\n${body}\n\n${data?.timeLeft ? `剩余时间: ${data.timeLeft}秒` : ""}`;
     case "game_starting":
       return `🎮 <b>${title}</b>\n\n${body}`;
     case "balance_change":
@@ -142,12 +144,15 @@ export async function notifyPrivateRoomInvite(userId: number, roomName: string, 
 }
 
 export async function notifyTurnAction(userId: number, roomName: string, timeLeft: number): Promise<boolean> {
+  const isTimeout = timeLeft === 0;
   return sendNotification({
     type: "turn_action",
     userId,
-    title: "轮到你操作",
-    body: `在 ${roomName} 中轮到你行动了`,
-    data: { timeLeft },
+    title: isTimeout ? "操作超时，已自动弃牌" : "轮到你操作",
+    body: isTimeout
+      ? `你在 ${roomName} 中操作超时，已自动弃牌并离开游戏`
+      : `在 ${roomName} 中轮到你行动了`,
+    data: { timeLeft, isTimeout },
   });
 }
 

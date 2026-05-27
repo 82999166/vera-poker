@@ -305,9 +305,7 @@ export async function processPlayerAction(
   // Check if betting round is complete and advance game
   await checkAndAdvanceGame(roomId);
 
-  // Notify next player it's their turn (async, non-blocking)
-  notifyNextPlayer(roomId).catch(() => {});
-
+  // NOTE: Do NOT notify next player here - notifications are only sent on timeout auto-fold
   return { success: true };
 }
 
@@ -756,10 +754,16 @@ export function checkTimeouts() {
     if (elapsed > table.turnTimeout) {
       const currentPlayer = table.gameState.players[table.gameState.currentPlayerIndex];
       if (currentPlayer && !currentPlayer.isFolded) {
+        const timedOutPlayerId = currentPlayer.id;
         // Auto-fold on timeout
-        table.gameState = gameEngine.processAction(table.gameState, currentPlayer.id, "fold");
+        table.gameState = gameEngine.processAction(table.gameState, timedOutPlayerId, "fold");
         table.lastActionAt = now;
         checkAndAdvanceGame(roomId);
+        // Notify the timed-out player via Bot (only on timeout, not on normal actions)
+        db.getRoomById(roomId).then(room => {
+          const roomName = room?.name || `Room #${roomId}`;
+          notifyTurnAction(timedOutPlayerId, roomName, 0).catch(() => {});
+        }).catch(() => {});
       }
     }
   }
