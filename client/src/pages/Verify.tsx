@@ -32,13 +32,12 @@ export default function Verify() {
             setClientSeed(hand.clientSeed);
             setServerSeedHash(hand.serverSeedHash);
             setDeckHash(hand.deckHash);
-            // Now actually verify the seeds using the server endpoint
             const response = await fetch(`/api/trpc/game.verify?input=${encodeURIComponent(JSON.stringify({
               serverSeed: hand.serverSeed,
               clientSeed: hand.clientSeed,
               serverSeedHash: hand.serverSeedHash,
               deckHash: hand.deckHash
-            }))}`); 
+            }))}`);
             const json = await response.json();
             const verifyResult = json?.result?.data;
             if (verifyResult) {
@@ -52,30 +51,29 @@ export default function Verify() {
         }
       } catch (err: any) {
         if (err?.data?.code === "NOT_FOUND") {
-          toast.error("Hand not found. Check the ID and try again.");
+          toast.error(t("verify.handNotFoundMsg"));
         } else {
-          toast.error(t("common.error"));
+          toast.error(t("verify.requestFailedMsg"));
         }
       }
       return;
     }
 
     if (!serverSeed || !clientSeed || !serverSeedHash || !deckHash) {
-      return toast.error("All fields are required for verification");
+      return toast.error(t("verify.allFieldsRequired"));
     }
 
     try {
-      // Use the server-side verify endpoint
       const response = await fetch(`/api/trpc/game.verify?input=${encodeURIComponent(JSON.stringify({ serverSeed, clientSeed, serverSeedHash, deckHash }))}`);
       const json = await response.json();
       const verifyResult = json?.result?.data;
       if (verifyResult) {
         setResult(verifyResult);
       } else {
-        setResult({ isValid: false, message: "Verification request failed" });
+        setResult({ isValid: false, message: t("verify.requestFailedMsg") });
       }
     } catch (err) {
-      toast.error("Verification failed");
+      toast.error(t("verify.verificationFailed"));
     }
   };
 
@@ -94,10 +92,9 @@ export default function Verify() {
         {/* Intro */}
         <div className="gradient-border rounded-xl p-5 text-center">
           <Shield className="w-10 h-10 text-truth-blue mx-auto mb-3" />
-          <h2 className="text-lg font-bold mb-2">Provably Fair</h2>
+          <h2 className="text-lg font-bold mb-2">{t("verify.provablyFair")}</h2>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Every hand is cryptographically verifiable. The server seed is committed before dealing, 
-            and revealed after the hand completes. You can independently verify that no manipulation occurred.
+            {t("verify.provablyFairDesc")}
           </p>
         </div>
 
@@ -109,7 +106,7 @@ export default function Verify() {
               mode === "quick" ? "bg-truth-blue text-white" : "text-muted-foreground"
             }`}
           >
-            Quick Lookup
+            {t("verify.quickLookup")}
           </button>
           <button
             onClick={() => setMode("manual")}
@@ -117,20 +114,20 @@ export default function Verify() {
               mode === "manual" ? "bg-truth-blue text-white" : "text-muted-foreground"
             }`}
           >
-            Manual Verify
+            {t("verify.manualVerify")}
           </button>
         </div>
 
         {/* Verification Input */}
         {mode === "quick" ? (
           <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Hand ID / Transaction Hash</label>
+            <label className="text-xs text-muted-foreground mb-2 block">{t("verify.handIdLabel2")}</label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={handId}
                 onChange={(e) => setHandId(e.target.value)}
-                placeholder="Enter hand ID or TX hash"
+                placeholder={t("verify.handIdPlaceholder2")}
                 className="flex-1 glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-truth-blue font-mono text-xs"
               />
               <button
@@ -149,7 +146,7 @@ export default function Verify() {
                 type="text"
                 value={serverSeed}
                 onChange={(e) => setServerSeed(e.target.value)}
-                placeholder="Server seed (revealed after hand)"
+                placeholder={t("verify.serverSeedPlaceholder")}
                 className="w-full glass rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-truth-blue font-mono text-xs"
               />
             </div>
@@ -159,17 +156,17 @@ export default function Verify() {
                 type="text"
                 value={clientSeed}
                 onChange={(e) => setClientSeed(e.target.value)}
-                placeholder="Client seed (your seed)"
+                placeholder={t("verify.clientSeedPlaceholder")}
                 className="w-full glass rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-truth-blue font-mono text-xs"
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Server Seed Hash (Commitment)</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t("verify.serverSeedHashLabel")}</label>
               <input
                 type="text"
                 value={serverSeedHash}
                 onChange={(e) => setServerSeedHash(e.target.value)}
-                placeholder="SHA-256 hash committed before dealing"
+                placeholder={t("verify.serverSeedHashPlaceholder")}
                 className="w-full glass rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-truth-blue font-mono text-xs"
               />
             </div>
@@ -179,7 +176,7 @@ export default function Verify() {
                 type="text"
                 value={deckHash}
                 onChange={(e) => setDeckHash(e.target.value)}
-                placeholder="Expected deck hash"
+                placeholder={t("verify.deckHashPlaceholder")}
                 className="w-full glass rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-truth-blue font-mono text-xs"
               />
             </div>
@@ -209,15 +206,15 @@ export default function Verify() {
               )}
             </div>
             <p className="text-xs text-muted-foreground">{result.message}</p>
-            
+
             {result.isValid && (
               <div className="mt-3 space-y-2">
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Server Seed</p>
+                  <p className="text-[10px] text-muted-foreground">{t("verify.resultServerSeed")}</p>
                   <p className="text-xs font-mono text-foreground break-all">{serverSeed}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Deck Hash (SHA-256)</p>
+                  <p className="text-[10px] text-muted-foreground">{t("verify.resultDeckHash")}</p>
                   <p className="text-xs font-mono text-truth-blue break-all">{deckHash}</p>
                 </div>
               </div>
@@ -225,7 +222,7 @@ export default function Verify() {
 
             {result.isValid && (
               <button className="mt-4 w-full py-2 rounded-lg glass text-xs text-truth-blue flex items-center justify-center gap-1 hover:bg-truth-blue/10 transition-colors">
-                <ExternalLink className="w-3 h-3" /> View on TON Explorer
+                <ExternalLink className="w-3 h-3" /> {t("verify.viewOnChain")}
               </button>
             )}
           </div>
@@ -233,21 +230,21 @@ export default function Verify() {
 
         {/* How it works */}
         <div className="glass rounded-xl p-5">
-          <h3 className="text-sm font-semibold mb-3">How Provably Fair Works</h3>
+          <h3 className="text-sm font-semibold mb-3">{t("verify.howItWorks")}</h3>
           <div className="space-y-3">
             {[
-              { step: "1", title: "Commit", desc: "Server generates a random seed and publishes its hash before dealing" },
-              { step: "2", title: "Deal", desc: "Cards are dealt using the combined server + client seeds" },
-              { step: "3", title: "Reveal", desc: "After the hand, server seed is revealed for verification" },
-              { step: "4", title: "Verify", desc: "Anyone can hash the revealed seed and confirm it matches the commitment" },
+              { step: "1", titleKey: "verify.step1Title", descKey: "verify.step1Desc" },
+              { step: "2", titleKey: "verify.step2Title", descKey: "verify.step2Desc" },
+              { step: "3", titleKey: "verify.step3Title", descKey: "verify.step3Desc" },
+              { step: "4", titleKey: "verify.step4Title", descKey: "verify.step4Desc" },
             ].map(item => (
               <div key={item.step} className="flex gap-3">
                 <div className="w-6 h-6 rounded-full bg-truth-blue/20 flex items-center justify-center flex-shrink-0">
                   <span className="text-[10px] font-bold text-truth-blue">{item.step}</span>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold">{item.title}</p>
-                  <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                  <p className="text-xs font-semibold">{t(item.titleKey)}</p>
+                  <p className="text-[10px] text-muted-foreground">{t(item.descKey)}</p>
                 </div>
               </div>
             ))}
@@ -256,19 +253,19 @@ export default function Verify() {
 
         {/* Tier info */}
         <div className="glass rounded-xl p-5">
-          <h3 className="text-sm font-semibold mb-3">Verification Tiers</h3>
+          <h3 className="text-sm font-semibold mb-3">{t("verify.tiers")}</h3>
           <div className="space-y-2">
             <div className="flex items-center justify-between py-2 border-b border-border/30">
-              <span className="text-xs text-muted-foreground">Micro/Low Stakes</span>
-              <span className="text-xs font-medium text-foreground">Hash Verification (Off-chain)</span>
+              <span className="text-xs text-muted-foreground">{t("verify.microStakes")}</span>
+              <span className="text-xs font-medium text-foreground">{t("verify.microStakesMethod")}</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-border/30">
-              <span className="text-xs text-muted-foreground">Mid Stakes</span>
-              <span className="text-xs font-medium text-truth-blue">Server Hash On-chain</span>
+              <span className="text-xs text-muted-foreground">{t("verify.midStakes")}</span>
+              <span className="text-xs font-medium text-truth-blue">{t("verify.midStakesMethod")}</span>
             </div>
             <div className="flex items-center justify-between py-2">
-              <span className="text-xs text-muted-foreground">High Stakes (VIP)</span>
-              <span className="text-xs font-medium text-gold">Every Card On-chain</span>
+              <span className="text-xs text-muted-foreground">{t("verify.highStakes")}</span>
+              <span className="text-xs font-medium text-gold">{t("verify.highStakesMethod")}</span>
             </div>
           </div>
         </div>
