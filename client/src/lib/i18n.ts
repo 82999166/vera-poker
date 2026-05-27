@@ -1967,6 +1967,22 @@ export function detectLocale(): Locale {
   return langMap[normalized] || langMap[normalized.split("-")[0]] || "en";
 }
 
+// applyLocale: update runtime state + DOM only, does NOT write to localStorage.
+// Use this for auto-detection (TG language, browser language) so that the
+// auto-detected value never blocks future TG language detection on next load.
+export function applyLocale(locale: Locale) {
+  currentLocale = locale;
+  document.documentElement.lang = locale;
+  if (locale === "ar") {
+    document.documentElement.dir = "rtl";
+  } else {
+    document.documentElement.dir = "ltr";
+  }
+  listeners.forEach(fn => fn());
+}
+
+// setLocale: update runtime state + DOM + persist to localStorage.
+// Use this ONLY when the user manually selects a language.
 export function setLocale(locale: Locale) {
   currentLocale = locale;
   localStorage.setItem("vera-locale", locale);
@@ -2015,6 +2031,8 @@ export function useI18n() {
   return { locale, t, changeLocale, setLocale: changeLocale, locales: Object.keys(translations) as Locale[] };
 }
 
-// Initialize
+// Initialize: detect locale and apply to DOM, but do NOT persist to localStorage.
+// This ensures that on every load, TG language_code is re-evaluated fresh.
+// Only explicit user selection (setLocale) writes to localStorage.
 currentLocale = detectLocale();
-setLocale(currentLocale);
+applyLocale(currentLocale);

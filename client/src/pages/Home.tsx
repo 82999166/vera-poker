@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { getLoginUrl } from "@/const";
 import { useTelegramAuth, isTelegramMiniApp, getTelegramStartParam } from "@/hooks/useTelegramAuth";
 import { trpc } from "@/lib/trpc";
-import { useI18n, detectLocale, setLocale } from "@/lib/i18n";
+import { useI18n, detectLocale, setLocale, applyLocale } from "@/lib/i18n";
 import { Shield, Zap, Globe, Users, ArrowRight, Loader2 } from "lucide-react";
 
 // Storage key for pending referral code
@@ -82,10 +82,14 @@ export default function Home() {
       if (result?.success) {
         setTgLoginSuccess(true);
         localStorage.setItem("vera_auth_method", "telegram");
-        // Apply TG language on first login (only if user hasn't manually set a preference)
-        if (!localStorage.getItem("vera-locale")) {
+        // Apply TG language on every login unless user has manually set a preference.
+        // We use applyLocale (not setLocale) so we don't overwrite a manual choice,
+        // but we DO re-detect every time so new users always get their TG language.
+        const manualLocale = localStorage.getItem("vera-locale");
+        if (!manualLocale) {
+          // No manual preference: always re-detect (picks up TG language_code)
           const detectedLocale = detectLocale();
-          setLocale(detectedLocale);
+          applyLocale(detectedLocale);
         }
         refresh();
       }
