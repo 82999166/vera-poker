@@ -297,6 +297,9 @@ export function isBettingRoundComplete(state: GameState): boolean {
   
   // Only 1 active player total (everyone else folded) → hand is over
   if (activePlayers.length <= 1) return true;
+
+  // currentPlayerIndex === -1 means getNextActivePlayer found nobody to act → round is complete
+  if (state.currentPlayerIndex === -1) return true;
   
   // All active non-all-in players must have:
   // 1. Matched the current bet (or gone all-in for less)

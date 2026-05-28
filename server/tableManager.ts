@@ -264,6 +264,11 @@ export async function processPlayerAction(
   // Verify it's this player's turn
   const currentPlayer = gs.players[gs.currentPlayerIndex];
   if (!currentPlayer || currentPlayer.id !== userId) {
+    // Special case: if currentPlayerIndex is -1, the round should have already advanced.
+    // Trigger advance in case it got stuck, then reject the action.
+    if (gs.currentPlayerIndex === -1) {
+      await checkAndAdvanceGame(roomId);
+    }
     return { success: false, message: "Not your turn" };
   }
 
@@ -340,6 +345,18 @@ async function checkAndAdvanceGame(roomId: number) {
 
   // If already in showdown phase, do nothing (settle timer is already scheduled)
   if (gs.phase === 'showdown' || gs.phase === 'completed') return;
+
+  // If currentPlayerIndex is -1 (no one can act), treat as round complete
+  if (gs.currentPlayerIndex === -1) {
+    const newState = gameEngine.advancePhase(gs, table.bigBlind);
+    table.gameState = newState;
+    table.lastActionAt = Date.now();
+    if (newState.phase === 'showdown') {
+      scheduleShowdownSettle(roomId);
+      return;
+    }
+    // Continue checking below
+  }
 
   // Check if betting round is complete - loop to handle consecutive phase advances
   // (e.g. both players check on flop → advance to turn → both all-in → advance to river → showdown)

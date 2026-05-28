@@ -421,6 +421,18 @@ export default function Table() {
   const waitingStartRef = useRef<number | null>(null);
   const WAITING_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 
+  // When isSeated transitions to true (new join), reset all detection guards
+  const prevIsSeatedRef = useRef(false);
+  useEffect(() => {
+    if (isSeated && !prevIsSeatedRef.current) {
+      // Just became seated - reset all guards to prevent stale state from previous session
+      kickDetectedRef.current = false;
+      joinSettledRef.current = false;
+      isLeavingRef.current = false;
+    }
+    prevIsSeatedRef.current = isSeated;
+  }, [isSeated]);
+
   useEffect(() => {
     if (!isSeated || !user || !tableState) return;
 
@@ -519,6 +531,9 @@ export default function Table() {
       isLeavingRef.current = true;
       setIsLeaving(true);
       setIsSeated(false);
+      // Reset all join/kick guards so re-entry works cleanly
+      kickDetectedRef.current = false;
+      joinSettledRef.current = false;
       toast.success(t("table.left"), { duration: 1000 });
       utils.wallet.balance.invalidate();
       // Navigate back to lobby after leaving
@@ -545,7 +560,23 @@ export default function Table() {
       // Note: Auto-switch after fold removed to prevent players being split across tables
       // Players stay at their current table and can manually switch if desired
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => {
+      // Silently refresh state for phase/turn mismatch errors (stale client state)
+      // These happen when the 2s polling lag causes the client to submit an action
+      // after the server has already advanced the phase.
+      const silentErrors = [
+        "Game is not in an active betting phase",
+        "Not your turn",
+        "You have already folded",
+        "You are already all-in",
+      ];
+      if (silentErrors.some(e => err.message?.includes(e))) {
+        // Just refresh the state silently - no toast needed
+        utils.game.tableState.invalidate({ roomId });
+      } else {
+        toast.error(err.message);
+      }
+    },
   });
 
   const readyMutation = trpc.game.ready.useMutation({
@@ -690,6 +721,12 @@ export default function Table() {
         joinSettledRef.current = true;
         setShowBuyIn(false); // Already seated - hide buy-in dialog
         return;
+      }
+      // Not seated: reset kick/join guards so they don't fire on the next join
+      // (This handles the case where player just left and roomPlayers refreshed)
+      if (!isLeavingRef.current) {
+        kickDetectedRef.current = false;
+        joinSettledRef.current = false;
       }
       // If leaving or navigating away, skip buy-in dialog
       if (isLeavingRef.current) {
