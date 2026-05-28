@@ -414,7 +414,8 @@ export const appRouter = router({
       }
       const result = await tableManager.joinTable(targetRoom.id, ctx.user.id, input.buyIn);
       if (!result.success) {
-        await db.updateUserBalance(ctx.user.id, balanceBefore);
+        // Refund atomically instead of setting old balance (prevents race condition)
+        await db.addUserBalanceAtomic(ctx.user.id, input.buyIn);
         throw new TRPCError({ code: "BAD_REQUEST", message: result.message || "Cannot join table" });
       }
       await db.createTransaction({
@@ -462,11 +463,7 @@ export const appRouter = router({
       const joinResult = await tableManager.joinTable(targetRoom.id, ctx.user.id, chipsToCarry);
       if (!joinResult.success) {
         // Refund chips to balance if join fails
-        const user = await db.getUserById(ctx.user.id);
-        if (user) {
-          const refundBalance = (parseFloat(user.balance) + chipsToCarry).toFixed(2);
-          await db.updateUserBalance(ctx.user.id, refundBalance);
-        }
+        await db.addUserBalanceAtomic(ctx.user.id, chipsToCarry);
         throw new TRPCError({ code: "BAD_REQUEST", message: joinResult.message || "Cannot join target table" });
       }
       await db.createTransaction({
@@ -803,6 +800,16 @@ export const appRouter = router({
       if (parseFloat(user.balance) < input.buyIn) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
       }
+      // Pre-check: if already seated at this table (second device scenario), reject early without deducting
+      const existingPlayers = await db.getRoomPlayers(input.roomId);
+      const alreadySeated = existingPlayers.find((p: any) => p.userId === ctx.user.id);
+      if (alreadySeated) {
+        // This account is already seated at this table from another device
+        throw new TRPCError({ 
+          code: "CONFLICT", 
+          message: "ALREADY_SEATED_THIS_TABLE" 
+        });
+      }
       // Atomically deduct balance (prevents race condition / negative balance)
       const balanceBefore = user.balance;
       const newBalance = await db.deductUserBalanceAtomic(ctx.user.id, input.buyIn);
@@ -811,8 +818,8 @@ export const appRouter = router({
       }
       const result = await tableManager.joinTable(input.roomId, ctx.user.id, input.buyIn);
       if (!result.success) {
-        // Refund atomically
-        await db.updateUserBalance(ctx.user.id, balanceBefore);
+        // Refund atomically (add back the deducted amount)
+        await db.addUserBalanceAtomic(ctx.user.id, input.buyIn);
         throw new TRPCError({ code: "BAD_REQUEST", message: result.message || "Cannot join table" });
       }
       // Record buy-in transaction
@@ -843,19 +850,19 @@ export const appRouter = router({
     // Leave a table
     leave: protectedProcedure.input(z.object({ roomId: z.number() })).mutation(async ({ ctx, input }) => {
       const result = await tableManager.leaveTable(input.roomId, ctx.user.id);
-      // Return remaining chips to user balance
+      // Return remaining chips to user balance atomically
       const leaveUser = await db.getUserById(ctx.user.id);
       if (result.remainingChips > 0 && leaveUser) {
-        const newBalance = (parseFloat(leaveUser.balance) + result.remainingChips).toFixed(2);
-        await db.updateUserBalance(ctx.user.id, newBalance);
+        const balanceBefore = leaveUser.balance;
+        const newBalance = await db.addUserBalanceAtomic(ctx.user.id, result.remainingChips);
         // Record leave-table transaction
         const room = await db.getRoomById(input.roomId);
         await db.createTransaction({
           userId: ctx.user.id,
           type: "leave_table",
           amount: result.remainingChips.toFixed(2),
-          balanceBefore: leaveUser.balance,
-          balanceAfter: newBalance,
+          balanceBefore,
+          balanceAfter: newBalance || balanceBefore,
           status: "confirmed",
           referenceType: "room",
           referenceId: input.roomId,

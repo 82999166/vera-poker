@@ -422,7 +422,7 @@ export default function Table() {
       if (!kickDetectedRef.current) {
         kickDetectedRef.current = true;
         isLeavingRef.current = true;
-        toast.info(t("table.roomClosed"));
+        toast.info(t("table.roomClosed"), { duration: 2000 });
         setIsSeated(false);
         utils.wallet.balance.invalidate();
         setTimeout(() => navigate("/lobby"), 2000);
@@ -440,7 +440,7 @@ export default function Table() {
     if (!myPlayerInState && !kickDetectedRef.current && joinSettledRef.current) {
       kickDetectedRef.current = true;
       // Return chips are handled server-side; just navigate back
-      toast.info(t("table.kickedToLobby"));
+      toast.info(t("table.kickedToLobby"), { duration: 2000 });
       setIsSeated(false);
       isLeavingRef.current = true;
       utils.wallet.balance.invalidate();
@@ -456,7 +456,7 @@ export default function Table() {
       if (!waitingStartRef.current) waitingStartRef.current = Date.now();
       const elapsed = Date.now() - waitingStartRef.current;
       if (elapsed > WAITING_TIMEOUT_MS) {
-        toast.info(t("table.noMatchTimeout"));
+        toast.info(t("table.noMatchTimeout"), { duration: 2000 });
         leaveMutation.mutate({ roomId });
       }
     } else {
@@ -484,7 +484,7 @@ export default function Table() {
       setShowBuyIn(false);
       joinSettledRef.current = false; // reset: wait for tableState to confirm player presence
       kickDetectedRef.current = false;
-      toast.success(t("table.seatJoined", { seat: data.seatIndex + 1 }));
+      toast.success(t("table.seatJoined", { seat: data.seatIndex + 1 }), { duration: 1000 });
       // Immediately refetch table state to show avatar
       utils.game.tableState.invalidate({ roomId });
       utils.rooms.getPlayers.invalidate({ roomId });
@@ -495,6 +495,10 @@ export default function Table() {
       if (err.message?.includes("Already in another game")) {
         toast.error(t("table.alreadyInGame"));
         setTimeout(() => navigate("/lobby"), 1500);
+      } else if (err.message?.includes("ALREADY_SEATED_THIS_TABLE")) {
+        // Same account is already seated at this table from another device
+        toast.error(t("table.alreadySeatedOtherDevice") || "该账号已在其他设备上游戏，请勿重复入座");
+        setTimeout(() => navigate("/lobby"), 2000);
       } else {
         toast.error(err.message);
       }
@@ -505,7 +509,7 @@ export default function Table() {
     onSuccess: () => {
       isLeavingRef.current = true; // prevent roomPlayers re-query from triggering showBuyIn
       setIsSeated(false);
-      toast.success(t("table.left"));
+      toast.success(t("table.left"), { duration: 1000 });
       utils.wallet.balance.invalidate();
       // Navigate back to lobby after leaving
       navigate("/lobby");
@@ -997,7 +1001,7 @@ export default function Table() {
 
       {/* Table Area - flex-1 min-h-0 ensures it fills all remaining vertical space */}
       {/* max-h limits table to ~55% of screen so it doesn't look oversized on tall phones */}
-      <div ref={tableAreaRef} className="flex-1 min-h-0 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e', maxHeight: '56vh' }}>
+      <div ref={tableAreaRef} className="flex-1 min-h-0 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
         {/* Game content overlay */}
         <div className="absolute inset-0">
             

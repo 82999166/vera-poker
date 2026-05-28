@@ -150,7 +150,9 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
   // Check if already seated at THIS table
   const alreadySeated = existingPlayers.find((p: any) => p.userId === userId);
   if (alreadySeated) {
-    return { success: true, seatIndex: alreadySeated.seatIndex, message: "Already seated" };
+    // Return a special error so the second device knows this account is already seated here
+    // This prevents two devices from both thinking they are "seated" and causing a deadlock
+    return { success: false, seatIndex: alreadySeated.seatIndex, message: "ALREADY_SEATED_THIS_TABLE" };
   }
 
   // Check if player is already seated at ANOTHER table - one account, one active game at a time
@@ -670,10 +672,21 @@ async function settleHand(roomId: number) {
       for (const rp of activePlayers) {
         const chips = parseFloat(rp.chipCount as string);
         if (chips > 0) {
+          await db.addUserBalanceAtomic(rp.userId, chips);
+          // Record leave_table transaction for dissolved room
           const user = await db.getUserById(rp.userId);
           if (user) {
-            const newBalance = (parseFloat(user.balance) + chips).toFixed(2);
-            await db.updateUserBalance(rp.userId, newBalance);
+            await db.createTransaction({
+              userId: rp.userId,
+              type: "leave_table",
+              amount: chips.toFixed(2),
+              balanceBefore: ((parseFloat(user.balance) - chips).toFixed(2)), // balance before the atomic add
+              balanceAfter: user.balance,
+              status: "confirmed",
+              referenceType: "room",
+              referenceId: roomId,
+              note: `Leave table (room dissolved): ${(await db.getRoomById(roomId))?.name || 'Unknown'}`,
+            });
           }
         }
       }
@@ -821,9 +834,36 @@ export function checkTimeouts() {
           const playerInGame = table.gameState.players.find(p => p.id === timedOutPlayerId);
           const chipsToReturn = playerInGame?.chips ?? 0;
           db.getUserById(timedOutPlayerId).then(async user => {
-            if (user) {
-              const newBalance = (parseFloat(user.balance) + chipsToReturn).toFixed(2);
-              await db.updateUserBalance(timedOutPlayerId, newBalance);
+            if (user && chipsToReturn > 0) {
+              const balanceBefore = user.balance;
+              const newBalance = await db.addUserBalanceAtomic(timedOutPlayerId, chipsToReturn);
+              // Record leave_table transaction for audit trail
+              const room = await db.getRoomById(roomId);
+              await db.createTransaction({
+                userId: timedOutPlayerId,
+                type: "leave_table",
+                amount: chipsToReturn.toFixed(2),
+                balanceBefore,
+                balanceAfter: newBalance || balanceBefore,
+                status: "confirmed",
+                referenceType: "room",
+                referenceId: roomId,
+                note: `Leave table (AFK kicked): ${room?.name || 'Unknown'}`,
+              });
+            } else if (user && chipsToReturn === 0) {
+              // Zero chips - still record for audit
+              const room = await db.getRoomById(roomId);
+              await db.createTransaction({
+                userId: timedOutPlayerId,
+                type: "leave_table",
+                amount: "0.00",
+                balanceBefore: user.balance,
+                balanceAfter: user.balance,
+                status: "confirmed",
+                referenceType: "room",
+                referenceId: roomId,
+                note: `Leave table (AFK kicked): ${room?.name || 'Unknown'}`,
+              });
             }
             await db.removeRoomPlayer(roomId, timedOutPlayerId);
             // Remove from in-memory gameState
@@ -859,11 +899,37 @@ async function handleReadyTimeout(roomId: number) {
   for (const playerId of unreadyPlayers) {
     const player = gs.players.find(p => p.id === playerId);
     if (player) {
-      // Return remaining chips to balance
+      // Return remaining chips to balance atomically
       const user = await db.getUserById(playerId);
-      if (user) {
-        const newBalance = (parseFloat(user.balance) + player.chips).toFixed(2);
-        await db.updateUserBalance(playerId, newBalance);
+      if (user && player.chips > 0) {
+        const balanceBefore = user.balance;
+        const newBalance = await db.addUserBalanceAtomic(playerId, player.chips);
+        // Record leave_table transaction
+        const room = await db.getRoomById(roomId);
+        await db.createTransaction({
+          userId: playerId,
+          type: "leave_table",
+          amount: player.chips.toFixed(2),
+          balanceBefore,
+          balanceAfter: newBalance || balanceBefore,
+          status: "confirmed",
+          referenceType: "room",
+          referenceId: roomId,
+          note: `Leave table (not ready): ${room?.name || 'Unknown'}`,
+        });
+      } else if (user && player.chips === 0) {
+        const room = await db.getRoomById(roomId);
+        await db.createTransaction({
+          userId: playerId,
+          type: "leave_table",
+          amount: "0.00",
+          balanceBefore: user.balance,
+          balanceAfter: user.balance,
+          status: "confirmed",
+          referenceType: "room",
+          referenceId: roomId,
+          note: `Leave table (not ready): ${room?.name || 'Unknown'}`,
+        });
       }
       await db.removeRoomPlayer(roomId, playerId);
     }
@@ -1015,12 +1081,8 @@ async function distributeAgentCommissions(totalRake: number, playerIds: number[]
       status: "settled",
     });
     
-    // Update agent's balance (add commission to current balance)
-    const agent = await db.getUserById(rel.agentId);
-    if (agent) {
-      const newBalance = (parseFloat(agent.balance ?? "0") + commissionAmount).toFixed(2);
-      await db.updateUserBalance(rel.agentId, newBalance);
-    }
+    // Update agent's balance atomically (add commission to current balance)
+    await db.addUserBalanceAtomic(rel.agentId, commissionAmount);
     
     // Update totalCommissionEarned in agent_relationships
     const currentEarned = parseFloat(rel.totalCommissionEarned ?? "0");

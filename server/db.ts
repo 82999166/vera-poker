@@ -197,6 +197,20 @@ export async function deductUserBalanceAtomic(userId: number, deductAmount: numb
   return updated[0]?.balance ?? null;
 }
 
+/**
+ * Atomically add balance using SQL: UPDATE users SET balance = balance + addAmount WHERE id = userId
+ * Returns the new balance string.
+ */
+export async function addUserBalanceAtomic(userId: number, addAmount: number): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  await db.execute(
+    sql`UPDATE users SET balance = ROUND(balance + ${addAmount}, 2) WHERE id = ${userId}`
+  );
+  const updated = await db.select({ balance: users.balance }).from(users).where(eq(users.id, userId)).limit(1);
+  return updated[0]?.balance ?? null;
+}
+
 // ==================== SYSTEM CONFIG QUERIES ====================
 export async function getConfig(key: string) {
   const db = await getDb();
