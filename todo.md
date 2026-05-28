@@ -78,3 +78,7 @@
 - [x] routers.ts: adminTournaments.distributePrizes - new route: calculate prizes, credit balances, save results, notify each player with rank + prize
 - [x] Admin.tsx: Add "发放奖金" button for running tournaments that calls distributePrizes
 - [x] Admin.tsx: distributePrizeMutation wired to new backend route
+
+## Bug Fix: 玩家刚进入牌局就被踢出
+- [x] Table.tsx: kicked 检测加入 joinPendingRef 保护，防止 joinMutation 完成后 tableState 刷新前误判被踢
+- [x] Table.tsx: isSeated 设为 true 后再等一个 tableState 刷新周期再开始 kicked 检测

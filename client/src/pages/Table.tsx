@@ -366,6 +366,10 @@ export default function Table() {
   // 1. If player is kicked (not in tableState.players while isSeated), auto-navigate to lobby
   // 2. If table stays in 'waiting' phase for > 3 minutes with only 1 or 0 players, auto-navigate to lobby
   const kickDetectedRef = useRef(false);
+  // Guard: after joinMutation succeeds, wait for at least one tableState refresh that includes the player
+  // before enabling kicked detection. This prevents a race condition where tableState is fetched
+  // before the server has added the player to gameState.players, causing a false "kicked" detection.
+  const joinSettledRef = useRef(false); // true once tableState confirms player is in the game
   const waitingStartRef = useRef<number | null>(null);
   const WAITING_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 
@@ -387,7 +391,12 @@ export default function Table() {
 
     // Check if player was kicked (seated but not in player list)
     const myPlayerInState = tableState.players?.find((p: any) => p.id === user.id);
-    if (!myPlayerInState && !kickDetectedRef.current) {
+    // Once we see the player in tableState at least once, mark join as settled
+    if (myPlayerInState) joinSettledRef.current = true;
+    // Only trigger kicked detection after join is settled (player appeared in tableState at least once)
+    // This prevents false positives during the brief window between joinMutation success and
+    // the first tableState refresh that includes the new player.
+    if (!myPlayerInState && !kickDetectedRef.current && joinSettledRef.current) {
       kickDetectedRef.current = true;
       // Return chips are handled server-side; just navigate back
       toast.info(t("table.kickedToLobby"));
@@ -397,7 +406,7 @@ export default function Table() {
       setTimeout(() => navigate("/lobby"), 1500);
       return;
     }
-    if (myPlayerInState) kickDetectedRef.current = false;
+    if (myPlayerInState) { kickDetectedRef.current = false; }
 
     // Check waiting timeout (no match found)
     const phase = tableState.phase;
@@ -432,6 +441,8 @@ export default function Table() {
     onSuccess: (data) => {
       setIsSeated(true);
       setShowBuyIn(false);
+      joinSettledRef.current = false; // reset: wait for tableState to confirm player presence
+      kickDetectedRef.current = false;
       toast.success(t("table.seatJoined", { seat: data.seatIndex + 1 }));
       // Immediately refetch table state to show avatar
       utils.game.tableState.invalidate({ roomId });
@@ -600,6 +611,8 @@ export default function Table() {
     if (roomPlayers && user) {
       const seated = roomPlayers.some((p: any) => p.userId === user.id);
       setIsSeated(seated);
+      // If already seated (e.g. page refresh), mark join as settled so kicked detection works immediately
+      if (seated) joinSettledRef.current = true;
       // If leaving or navigating away, skip buy-in dialog
       if (isLeavingRef.current) return;
       // If autoJoin (same-stakes switch), auto-join with min buy-in
