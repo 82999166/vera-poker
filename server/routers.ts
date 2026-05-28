@@ -372,6 +372,116 @@ export const appRouter = router({
       if (!room) return null;
       return { roomId: activeRoom.roomId, seatIndex: activeRoom.seatIndex, roomName: room.name, blinds: `${room.smallBlind}/${room.bigBlind}` };
     }),
+    // Join by stake level - auto-assign to best available table
+    joinByStake: protectedProcedure.input(z.object({
+      smallBlind: z.string(),
+      bigBlind: z.string(),
+      buyIn: z.number().positive(),
+    })).mutation(async ({ ctx, input }) => {
+      const allRooms = await db.getPublicRooms();
+      const matchingRooms = allRooms.filter(r =>
+        r.smallBlind === input.smallBlind &&
+        r.bigBlind === input.bigBlind &&
+        (r.status === "waiting" || r.status === "playing") &&
+        r.currentPlayers < r.maxPlayers
+      );
+      if (matchingRooms.length === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "No available tables for this stake level" });
+      }
+      // Pick table with most players (most action) but not full
+      const targetRoom = matchingRooms.sort((a, b) => b.currentPlayers - a.currentPlayers)[0];
+      const minBuyIn = parseFloat(targetRoom.minBuyIn);
+      const maxBuyIn = parseFloat(targetRoom.maxBuyIn);
+      if (input.buyIn < minBuyIn || input.buyIn > maxBuyIn) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Buy-in must be between ${minBuyIn} and ${maxBuyIn}` });
+      }
+      const user = await db.getUserById(ctx.user.id);
+      if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      if (parseFloat(user.balance) < input.buyIn) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
+      }
+      const balanceBefore = user.balance;
+      const newBalance = await db.deductUserBalanceAtomic(ctx.user.id, input.buyIn);
+      if (newBalance === null) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
+      }
+      const result = await tableManager.joinTable(targetRoom.id, ctx.user.id, input.buyIn);
+      if (!result.success) {
+        await db.updateUserBalance(ctx.user.id, balanceBefore);
+        throw new TRPCError({ code: "BAD_REQUEST", message: result.message || "Cannot join table" });
+      }
+      await db.createTransaction({
+        userId: ctx.user.id,
+        type: "buy_in",
+        amount: input.buyIn.toFixed(2),
+        balanceBefore,
+        balanceAfter: newBalance,
+        status: "confirmed",
+        referenceType: "room",
+        referenceId: targetRoom.id,
+        note: `Buy-in (auto): ${targetRoom.name}`,
+      });
+      return { roomId: targetRoom.id, seatIndex: result.seatIndex, newBalance, roomName: targetRoom.name };
+    }),
+    // Switch table - move to another table at same stake level, carrying chips
+    switchTable: protectedProcedure.input(z.object({
+      currentRoomId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      const currentRoom = await db.getRoomById(input.currentRoomId);
+      if (!currentRoom) throw new TRPCError({ code: "NOT_FOUND", message: "Current room not found" });
+      const currentChips = await tableManager.getPlayerChips(input.currentRoomId, ctx.user.id);
+      if (currentChips < 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Not seated at this table" });
+      }
+      const allRooms = await db.getPublicRooms();
+      const candidates = allRooms.filter(r =>
+        r.id !== input.currentRoomId &&
+        r.smallBlind === currentRoom.smallBlind &&
+        r.bigBlind === currentRoom.bigBlind &&
+        (r.status === "waiting" || r.status === "playing") &&
+        r.currentPlayers < r.maxPlayers
+      );
+      if (candidates.length === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "No other tables available at this stake level" });
+      }
+      const targetRoom = candidates.sort((a, b) => b.currentPlayers - a.currentPlayers)[0];
+      const targetMinBuyIn = parseFloat(targetRoom.minBuyIn);
+      const targetMaxBuyIn = parseFloat(targetRoom.maxBuyIn);
+      const chipsToCarry = Math.min(currentChips, targetMaxBuyIn);
+      const lowChips = chipsToCarry < targetMinBuyIn * 0.5;
+      // Leave current table
+      await tableManager.leaveTable(input.currentRoomId, ctx.user.id);
+      // Join target table with carried chips
+      const joinResult = await tableManager.joinTable(targetRoom.id, ctx.user.id, chipsToCarry);
+      if (!joinResult.success) {
+        // Refund chips to balance if join fails
+        const user = await db.getUserById(ctx.user.id);
+        if (user) {
+          const refundBalance = (parseFloat(user.balance) + chipsToCarry).toFixed(2);
+          await db.updateUserBalance(ctx.user.id, refundBalance);
+        }
+        throw new TRPCError({ code: "BAD_REQUEST", message: joinResult.message || "Cannot join target table" });
+      }
+      await db.createTransaction({
+        userId: ctx.user.id,
+        type: "buy_in",
+        amount: chipsToCarry.toFixed(2),
+        balanceBefore: "0",
+        balanceAfter: "0",
+        status: "confirmed",
+        referenceType: "room",
+        referenceId: targetRoom.id,
+        note: `Switch table: ${currentRoom.name} -> ${targetRoom.name}`,
+      });
+      return {
+        newRoomId: targetRoom.id,
+        newRoomName: targetRoom.name,
+        seatIndex: joinResult.seatIndex,
+        chips: chipsToCarry,
+        lowChips,
+        targetMinBuyIn,
+      };
+    }),
   }),
 
   // ==================== WALLET / TRANSACTIONS ====================
@@ -820,7 +930,7 @@ export const appRouter = router({
       });
       return { success: true, newBalance, newChips: currentChips + input.amount };
     }),
-    // Player action (fold/check/call/raise/all_in)
+    // Player action (fold/check/call/raise/all_in)    // Player action (fold/check/call/raise/all_in)
     action: protectedProcedure.input(z.object({
       roomId: z.number(),
       action: z.enum(["fold", "check", "call", "raise", "all_in"]),

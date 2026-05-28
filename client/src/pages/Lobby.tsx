@@ -4,11 +4,25 @@ import { t } from "@/lib/i18n";
 import { formatAmount, formatBalance } from "@/lib/utils";
 import { useLocation } from "wouter";
 import React, { useState } from "react";
-import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, TrendingUp, TrendingDown, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, TrendingUp, TrendingDown, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine, RefreshCw } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 
 type FilterLevel = "all" | "low" | "mid" | "high" | "vip";
+
+// Stake group: aggregate multiple tables with same blinds into one entry
+interface StakeGroup {
+  smallBlind: string;
+  bigBlind: string;
+  minBuyIn: string;
+  maxBuyIn: string;
+  name: string;
+  totalPlayers: number;
+  availableSeats: number;
+  tableCount: number;
+  isLive: boolean;
+  fairnessLevel: string;
+}
 
 export default function Lobby() {
   const { user } = useAuth();
@@ -16,17 +30,54 @@ export default function Lobby() {
   const [activeTab, setActiveTab] = useState<"cash" | "tourneys" | "private">("cash");
   const [filterLevel, setFilterLevel] = useState<FilterLevel>("all");
   const [privateRoomCode, setPrivateRoomCode] = useState("");
+  // Buy-in dialog state
+  const [buyInDialog, setBuyInDialog] = useState<{ open: boolean; group: StakeGroup | null }>({
+    open: false,
+    group: null,
+  });
+  const [buyInAmount, setBuyInAmount] = useState("");
+  const [joiningStake, setJoiningStake] = useState(false);
   const { data: rooms, isLoading } = trpc.rooms.list.useQuery(undefined, { refetchInterval: 3000 });
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
   const { data: activeRoom } = trpc.rooms.myActiveRoom.useQuery(undefined, { enabled: !!user });
+  const joinByStakeMutation = trpc.rooms.joinByStake.useMutation();
 
-  const filteredRooms = (rooms ?? []).filter(room => {
-    // Filter by tab
-    if (activeTab === "private" && room.type !== "private") return false;
-    if (activeTab === "cash" && room.type === "private") return false;
-    // Filter by level
+  const cashRooms = (rooms ?? []).filter(r => r.type !== "private" && r.status !== "closed");
+  const privateRooms = (rooms ?? []).filter(r => r.type === "private" && r.status !== "closed");
+
+  // Group cash rooms by blinds into stake groups
+  const stakeGroups = React.useMemo((): StakeGroup[] => {
+    const map = new Map<string, StakeGroup>();
+    for (const r of cashRooms) {
+      const key = `${r.smallBlind}/${r.bigBlind}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.totalPlayers += r.currentPlayers;
+        existing.availableSeats += Math.max(0, r.maxPlayers - r.currentPlayers);
+        existing.tableCount += 1;
+        if (r.status === "playing") existing.isLive = true;
+      } else {
+        map.set(key, {
+          smallBlind: r.smallBlind,
+          bigBlind: r.bigBlind,
+          minBuyIn: r.minBuyIn,
+          maxBuyIn: r.maxBuyIn,
+          name: r.name,
+          totalPlayers: r.currentPlayers,
+          availableSeats: Math.max(0, r.maxPlayers - r.currentPlayers),
+          tableCount: 1,
+          isLive: r.status === "playing",
+          fairnessLevel: r.fairnessLevel ?? "basic",
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => parseFloat(a.bigBlind) - parseFloat(b.bigBlind));
+  }, [cashRooms]);
+
+  // Filter stake groups by level
+  const filteredGroups = stakeGroups.filter(g => {
     if (filterLevel === "all") return true;
-    const bb = parseFloat(room.bigBlind);
+    const bb = parseFloat(g.bigBlind);
     if (filterLevel === "low") return bb <= 0.10;
     if (filterLevel === "mid") return bb > 0.10 && bb <= 1;
     if (filterLevel === "high") return bb > 1 && bb <= 10;
@@ -34,25 +85,58 @@ export default function Lobby() {
     return true;
   });
 
-  const totalOnline = (rooms ?? []).reduce((sum, r) => sum + r.currentPlayers, 0);
+  const totalOnline = cashRooms.reduce((sum, r) => sum + r.currentPlayers, 0);
 
-  // Count tables by level for cash tab
-  const cashRooms = (rooms ?? []).filter(r => r.type !== "private");
   const tableCountByLevel = {
-    all: cashRooms.length,
-    low: cashRooms.filter(r => parseFloat(r.bigBlind) <= 0.10).length,
-    mid: cashRooms.filter(r => parseFloat(r.bigBlind) > 0.10 && parseFloat(r.bigBlind) <= 1).length,
-    high: cashRooms.filter(r => parseFloat(r.bigBlind) > 1 && parseFloat(r.bigBlind) <= 10).length,
-    vip: cashRooms.filter(r => parseFloat(r.bigBlind) > 10).length,
+    all: stakeGroups.length,
+    low: stakeGroups.filter(g => parseFloat(g.bigBlind) <= 0.10).length,
+    mid: stakeGroups.filter(g => parseFloat(g.bigBlind) > 0.10 && parseFloat(g.bigBlind) <= 1).length,
+    high: stakeGroups.filter(g => parseFloat(g.bigBlind) > 1 && parseFloat(g.bigBlind) <= 10).length,
+    vip: stakeGroups.filter(g => parseFloat(g.bigBlind) > 10).length,
   };
 
-  // Quick join: find a low-stakes room with available seats
+  const handleSitDown = (group: StakeGroup) => {
+    if (!user) { navigate("/"); return; }
+    if (group.availableSeats === 0) { toast.error(t("lobby.full")); return; }
+    const defaultBuyIn = Math.min(
+      parseFloat(group.maxBuyIn),
+      Math.max(parseFloat(group.minBuyIn), parseFloat(group.bigBlind) * 20)
+    );
+    setBuyInAmount(defaultBuyIn.toFixed(2));
+    setBuyInDialog({ open: true, group });
+  };
+
+  const handleConfirmBuyIn = async () => {
+    if (!buyInDialog.group) return;
+    const amount = parseFloat(buyInAmount);
+    const min = parseFloat(buyInDialog.group.minBuyIn);
+    const max = parseFloat(buyInDialog.group.maxBuyIn);
+    if (isNaN(amount) || amount < min || amount > max) {
+      toast.error(`${t("lobby.buyIn")}: $${min} - $${max}`);
+      return;
+    }
+    setJoiningStake(true);
+    try {
+      const result = await joinByStakeMutation.mutateAsync({
+        smallBlind: buyInDialog.group.smallBlind,
+        bigBlind: buyInDialog.group.bigBlind,
+        buyIn: amount,
+      });
+      setBuyInDialog({ open: false, group: null });
+      navigate(`/table/${result.roomId}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg || t("lobby.noRooms"));
+    } finally {
+      setJoiningStake(false);
+    }
+  };
+
+  // Quick join: auto-assign to lowest-stake available group
   const handleQuickJoin = () => {
-    const lowRooms = cashRooms
-      .filter(r => parseFloat(r.bigBlind) <= 0.10 && r.currentPlayers < r.maxPlayers && r.status !== "closed")
-      .sort((a, b) => b.currentPlayers - a.currentPlayers); // prefer rooms with more players
-    if (lowRooms.length > 0) {
-      navigate(`/table/${lowRooms[0].id}`);
+    const available = filteredGroups.filter(g => g.availableSeats > 0);
+    if (available.length > 0) {
+      handleSitDown(available[0]);
     } else {
       // Fallback: any available room
       const anyRoom = cashRooms.find(r => r.currentPlayers < r.maxPlayers && r.status !== "closed");
@@ -247,9 +331,9 @@ export default function Lobby() {
           <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
           <span className="text-xs text-muted-foreground">{t("lobby.online", { count: totalOnline })}</span>
         </div>
-        {activeTab === "cash" && filteredRooms.length > 0 && (
+        {activeTab === "cash" && filteredGroups.length > 0 && (
           <span className="text-xs text-muted-foreground">
-            {filteredRooms.length} {t("lobby.tables")}
+            {filteredGroups.length} {t("lobby.tables")}
           </span>
         )}
       </div>
@@ -269,48 +353,49 @@ export default function Lobby() {
         {/* Tournament List */}
         {activeTab === "tourneys" && <TournamentList />}
 
-        {activeTab !== "tourneys" && (isLoading ? (
+        {/* Cash Tab: Stake Groups */}
+        {activeTab === "cash" && (isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : filteredRooms.length === 0 ? (
+        ) : filteredGroups.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <p>{t("lobby.noRooms")}</p>
           </div>
         ) : (
-          filteredRooms.map(room => {
-            const isFull = room.currentPlayers >= room.maxPlayers;
-            const isPlaying = room.status === "playing";
+          filteredGroups.map(group => {
+            const isFull = group.availableSeats === 0;
             return (
-              <div key={room.id} className="glass rounded-xl p-4 card-hover cursor-pointer" onClick={() => navigate(`/table/${room.id}`)}>
+              <div key={`${group.smallBlind}/${group.bigBlind}`} className="glass rounded-xl p-4 card-hover">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-semibold text-foreground">{room.name}</span>
-                      {room.fairnessLevel === "high" && (
+                      <span className="text-sm font-semibold text-foreground">{group.name}</span>
+                      {group.fairnessLevel === "high" && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-truth-blue/20 text-truth-blue-bright">{t("lobby.onChain")}</span>
                       )}
-                      {isPlaying && (
+                      {group.isLive && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success">{t("lobby.live")}</span>
-                      )}
-                      {room.type === "private" && (
-                        <Lock className="w-3 h-3 text-gold" />
                       )}
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>{t("lobby.blinds")}: ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)}</span>
-                      <span>{t("lobby.buyIn")}: ${formatAmount(room.minBuyIn)}-${formatAmount(room.maxBuyIn)}</span>
+                      <span>{t("lobby.blinds")}: ${formatAmount(group.smallBlind)}/${formatAmount(group.bigBlind)}</span>
+                      <span>{t("lobby.buyIn")}: ${formatAmount(group.minBuyIn)}-${formatAmount(group.maxBuyIn)}</span>
                     </div>
                   </div>
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1">
                       <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-sm font-semibold text-foreground">{room.currentPlayers}</span>
+                      <span className="text-sm font-semibold text-foreground">{group.totalPlayers}</span>
                       <span className="text-xs text-muted-foreground">{t("lobby.onlineSuffix")}</span>
                     </div>
-                    <button className={`font-semibold px-3 py-1.5 rounded-lg text-xs transition-opacity ${
-                      isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"
-                    }`} disabled={isFull}>
+                    <button
+                      onClick={() => handleSitDown(group)}
+                      className={`font-semibold px-3 py-1.5 rounded-lg text-xs transition-all active:scale-95 ${
+                        isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"
+                      }`}
+                      disabled={isFull}
+                    >
                       {isFull ? t("lobby.full") : t("lobby.sit")}
                     </button>
                   </div>
@@ -319,7 +404,93 @@ export default function Lobby() {
             );
           })
         ))}
+
+        {/* Private Tab: individual private rooms */}
+        {activeTab === "private" && !isLoading && privateRooms.length > 0 && privateRooms.map(room => {
+          const isFull = room.currentPlayers >= room.maxPlayers;
+          return (
+            <div key={room.id} className="glass rounded-xl p-4 card-hover cursor-pointer" onClick={() => navigate(`/table/${room.id}`)}>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Lock className="w-3 h-3 text-gold" />
+                    <span className="text-sm font-semibold text-foreground">{room.name}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span>{t("lobby.blinds")}: ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)}</span>
+                    <span>{t("lobby.buyIn")}: ${formatAmount(room.minBuyIn)}-${formatAmount(room.maxBuyIn)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm font-semibold text-foreground">{room.currentPlayers}</span>
+                    <span className="text-xs text-muted-foreground">{t("lobby.onlineSuffix")}</span>
+                  </div>
+                  <button className={`font-semibold px-3 py-1.5 rounded-lg text-xs transition-opacity ${
+                    isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"
+                  }`} disabled={isFull}>
+                    {isFull ? t("lobby.full") : t("lobby.sit")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
+
+      {/* Buy-in Dialog */}
+      {buyInDialog.open && buyInDialog.group && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setBuyInDialog({ open: false, group: null })}>
+          <div className="w-full max-w-md glass-strong rounded-t-2xl p-6 pb-10" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-foreground mb-1">{buyInDialog.group.name}</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              {t("lobby.blinds")}: ${formatAmount(buyInDialog.group.smallBlind)}/${formatAmount(buyInDialog.group.bigBlind)}
+              &nbsp;·&nbsp;
+              {t("lobby.buyIn")}: ${formatAmount(buyInDialog.group.minBuyIn)} - ${formatAmount(buyInDialog.group.maxBuyIn)}
+            </p>
+            <label className="block text-xs text-muted-foreground mb-1">{t("lobby.buyIn")} (USDT)</label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={buyInAmount}
+                onChange={e => setBuyInAmount(e.target.value)}
+                min={buyInDialog.group.minBuyIn}
+                max={buyInDialog.group.maxBuyIn}
+                step="0.01"
+                className="flex-1 bg-background/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-gold"
+              />
+              <button
+                onClick={() => setBuyInAmount(buyInDialog.group!.maxBuyIn)}
+                className="px-3 py-2 rounded-lg glass text-xs text-gold hover:bg-gold/10 transition-colors"
+              >
+                MAX
+              </button>
+            </div>
+            <div className="flex gap-2 text-xs text-muted-foreground mb-4">
+              <span>{t("wallet.balance")}: ${formatBalance(walletData?.balance)}</span>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setBuyInDialog({ open: false, group: null })}
+                className="flex-1 py-3 rounded-xl glass text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                onClick={handleConfirmBuyIn}
+                disabled={joiningStake}
+                className="flex-1 py-3 rounded-xl bg-gold text-background text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {joiningStake ? (
+                  <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
+                ) : t("lobby.sit")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav active="lobby" />
     </div>

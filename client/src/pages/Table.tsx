@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useI18n, getLocale } from "@/lib/i18n";
 import { fmtAmt, formatAmount, formatBalance } from "@/lib/utils";
-import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users, Plus, AlertTriangle, Settings, ImageIcon } from "lucide-react";
+import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users, Plus, AlertTriangle, Settings, ImageIcon, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import RoomInvitePoster from "@/components/RoomInvitePoster";
@@ -525,6 +525,10 @@ export default function Table() {
   const [showAutoRebuySettings, setShowAutoRebuySettings] = useState(false);
   const [showRoomPoster, setShowRoomPoster] = useState(false);
 
+  // === Switch Table ===
+  const [isSwitchingTable, setIsSwitchingTable] = useState(false);
+  const switchTableMutation = trpc.rooms.switchTable.useMutation();
+
   // Wallet balance for rebuy
   const myChipsForWallet = (tableState?.players ?? []).find((p: any) => p.id === user?.id)?.chips;
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user && (showRebuyDialog || showBuyIn || myChipsForWallet === 0) });
@@ -717,6 +721,28 @@ export default function Table() {
   const bigBlindValue = room ? parseFloat(room.bigBlind) : 2;
   const canRebuy = isSeated && (waitingForReady || phase === "waiting") && !isDemoMode;
   const isLowChips = myPlayer && myPlayer.chips > 0 && myPlayer.chips < bigBlindValue * 5;
+  // Can switch table: seated, between hands, not demo
+  const canSwitchTable = isSeated && (waitingForReady || phase === "waiting") && !isDemoMode && !!room;
+
+  const handleSwitchTable = async () => {
+    if (!room || !canSwitchTable) return;
+    setIsSwitchingTable(true);
+    try {
+      const result = await switchTableMutation.mutateAsync({ currentRoomId: roomId });
+      // Check if chips are below min buy-in threshold (50% of minBuyIn)
+      const minBuyIn = parseFloat(room.minBuyIn);
+      const currentChips = myPlayer?.chips ?? 0;
+      if (currentChips < minBuyIn * 0.5) {
+        toast.warning(t("table.lowChipsWarning") || `筹码不足 (${currentChips.toFixed(2)} USDT)，建议补充至 ${minBuyIn.toFixed(2)} USDT 以上`);
+      }
+      navigate(`/table/${result.newRoomId}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg || t("table.switchTableFailed") || "换桌失败，请稍后重试");
+    } finally {
+      setIsSwitchingTable(false);
+    }
+  };
 
   // Auto-rebuy trigger: when waitingForReady becomes true and auto-rebuy is enabled
   useEffect(() => {
@@ -981,13 +1007,29 @@ export default function Table() {
                 )}
                 {/* Rebuy button between hands */}
                 {canRebuy && myPlayer && myPlayer.chips > 0 && (
-                  <button
-                    onClick={() => setShowRebuyDialog(true)}
-                    className="mt-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/80 to-yellow-600/80 text-white text-[11px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-[0.97] flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" />
-                    {t("rebuy.addChips")}
-                  </button>
+                  <div className="mt-2 flex gap-2 flex-wrap justify-center">
+                    <button
+                      onClick={() => setShowRebuyDialog(true)}
+                      className="px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/80 to-yellow-600/80 text-white text-[11px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-[0.97] flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      {t("rebuy.addChips")}
+                    </button>
+                    {canSwitchTable && (
+                      <button
+                        onClick={handleSwitchTable}
+                        disabled={isSwitchingTable}
+                        className="px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500/80 to-cyan-600/80 text-white text-[11px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-[0.97] flex items-center gap-1 disabled:opacity-50"
+                      >
+                        {isSwitchingTable ? (
+                          <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-3 h-3" />
+                        )}
+                        {t("table.switchTable") || "换桌"}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
