@@ -227,6 +227,7 @@ export default function Table() {
   };
   // Prevent roomPlayers re-query from triggering showBuyIn after leave/navigate
   const isLeavingRef = useRef(false);
+  const [isLeaving, setIsLeaving] = useState(false); // mirrors isLeavingRef for JSX re-render
 
   const tableAreaRef = useRef<HTMLDivElement>(null);
 
@@ -428,6 +429,7 @@ export default function Table() {
       if (!kickDetectedRef.current) {
         kickDetectedRef.current = true;
         isLeavingRef.current = true;
+        setIsLeaving(true);
         toast.info(t("table.roomClosed"), { duration: 2000 });
         setIsSeated(false);
         utils.wallet.balance.invalidate();
@@ -449,6 +451,7 @@ export default function Table() {
       toast.info(t("table.kickedToLobby"), { duration: 2000 });
       setIsSeated(false);
       isLeavingRef.current = true;
+      setIsLeaving(true);
       utils.wallet.balance.invalidate();
       setTimeout(() => navigate("/lobby"), 1500);
       return;
@@ -513,7 +516,8 @@ export default function Table() {
 
   const leaveMutation = trpc.game.leave.useMutation({
     onSuccess: () => {
-      isLeavingRef.current = true; // prevent roomPlayers re-query from triggering showBuyIn
+      isLeavingRef.current = true;
+      setIsLeaving(true);
       setIsSeated(false);
       toast.success(t("table.left"), { duration: 1000 });
       utils.wallet.balance.invalidate();
@@ -1205,7 +1209,8 @@ export default function Table() {
           })()}
 
           {/* Sit-down overlay: shown when not seated - just shows table info */}
-          {!isSeated && !isDemoMode && !showBuyIn && (
+          {/* Hide when leaving/kicked to prevent flash of old overlay */}
+          {!isSeated && !isDemoMode && !showBuyIn && !isLeaving && (
             <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/40 backdrop-blur-sm">
               <div className="glass-strong rounded-2xl p-5 text-center max-w-[260px] border border-border/30">
                 <div className="space-y-3">

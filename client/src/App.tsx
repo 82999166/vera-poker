@@ -86,7 +86,7 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
-          <Toaster />
+          <Toaster position="top-center" duration={1500} />
           <AppContent />
         </TooltipProvider>
       </ThemeProvider>
