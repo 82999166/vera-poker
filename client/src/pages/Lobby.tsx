@@ -3,8 +3,8 @@ import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
 import { formatAmount, formatBalance } from "@/lib/utils";
 import { useLocation } from "wouter";
-import React, { useState } from "react";
-import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, TrendingUp, TrendingDown, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine, RefreshCw } from "lucide-react";
+import React, { useState, useCallback } from "react";
+import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 
@@ -30,12 +30,6 @@ export default function Lobby() {
   const [activeTab, setActiveTab] = useState<"cash" | "tourneys" | "private">("cash");
   const [filterLevel, setFilterLevel] = useState<FilterLevel>("all");
   const [privateRoomCode, setPrivateRoomCode] = useState("");
-  // Buy-in dialog state
-  const [buyInDialog, setBuyInDialog] = useState<{ open: boolean; group: StakeGroup | null }>({
-    open: false,
-    group: null,
-  });
-  const [buyInAmount, setBuyInAmount] = useState("");
   const [joiningStake, setJoiningStake] = useState(false);
   const { data: rooms, isLoading } = trpc.rooms.list.useQuery(undefined, { refetchInterval: 3000 });
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
@@ -95,34 +89,18 @@ export default function Lobby() {
     vip: stakeGroups.filter(g => parseFloat(g.bigBlind) > 10).length,
   };
 
-  const handleSitDown = (group: StakeGroup) => {
+  // 点「入座」：先找到可用桌，直接跳转到游戏桌，在游戏桌内弹出买入弹窗
+  const handleSitDown = useCallback(async (group: StakeGroup) => {
     if (!user) { navigate("/"); return; }
     if (group.availableSeats === 0) { toast.error(t("lobby.full")); return; }
-    const defaultBuyIn = Math.min(
-      parseFloat(group.maxBuyIn),
-      Math.max(parseFloat(group.minBuyIn), parseFloat(group.bigBlind) * 20)
-    );
-    setBuyInAmount(defaultBuyIn.toFixed(2));
-    setBuyInDialog({ open: true, group });
-  };
-
-  const handleConfirmBuyIn = async () => {
-    if (!buyInDialog.group) return;
-    const amount = parseFloat(buyInAmount);
-    const min = parseFloat(buyInDialog.group.minBuyIn);
-    const max = parseFloat(buyInDialog.group.maxBuyIn);
-    if (isNaN(amount) || amount < min || amount > max) {
-      toast.error(`${t("lobby.buyIn")}: $${min} - $${max}`);
-      return;
-    }
     setJoiningStake(true);
     try {
+      // 只找桌子，不传 buyIn（buyIn=0 表示仅分配桌子，不入座）
       const result = await joinByStakeMutation.mutateAsync({
-        smallBlind: buyInDialog.group.smallBlind,
-        bigBlind: buyInDialog.group.bigBlind,
-        buyIn: amount,
+        smallBlind: group.smallBlind,
+        bigBlind: group.bigBlind,
+        buyIn: 0, // 0 = 仅分配桌子，不扣余额，游戏桌内再买入
       });
-      setBuyInDialog({ open: false, group: null });
       navigate(`/table/${result.roomId}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -130,21 +108,17 @@ export default function Lobby() {
     } finally {
       setJoiningStake(false);
     }
-  };
+  }, [user, joinByStakeMutation, navigate, t]);
 
-  // Quick join: auto-assign to lowest-stake available group
+  // 一键开玩：优先选在线人数最多的场次
   const handleQuickJoin = () => {
     const available = filteredGroups.filter(g => g.availableSeats > 0);
     if (available.length > 0) {
-      handleSitDown(available[0]);
+      // 选在线人数最多的场次
+      const best = available.reduce((a, b) => a.totalPlayers >= b.totalPlayers ? a : b);
+      handleSitDown(best);
     } else {
-      // Fallback: any available room
-      const anyRoom = cashRooms.find(r => r.currentPlayers < r.maxPlayers && r.status !== "closed");
-      if (anyRoom) {
-        navigate(`/table/${anyRoom.id}`);
-      } else {
-        toast.info(t("lobby.noRooms"));
-      }
+      toast.info(t("lobby.noRooms"));
     }
   };
 
@@ -439,55 +413,12 @@ export default function Lobby() {
         })}
       </div>
 
-      {/* Buy-in Dialog */}
-      {buyInDialog.open && buyInDialog.group && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setBuyInDialog({ open: false, group: null })}>
-          <div className="w-full max-w-md glass-strong rounded-t-2xl p-6 pb-10" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-foreground mb-1">{buyInDialog.group.name}</h3>
-            <p className="text-xs text-muted-foreground mb-4">
-              {t("lobby.blinds")}: ${formatAmount(buyInDialog.group.smallBlind)}/${formatAmount(buyInDialog.group.bigBlind)}
-              &nbsp;·&nbsp;
-              {t("lobby.buyIn")}: ${formatAmount(buyInDialog.group.minBuyIn)} - ${formatAmount(buyInDialog.group.maxBuyIn)}
-            </p>
-            <label className="block text-xs text-muted-foreground mb-1">{t("lobby.buyIn")} (USDT)</label>
-            <div className="flex gap-2 mb-2">
-              <input
-                type="number"
-                inputMode="decimal"
-                value={buyInAmount}
-                onChange={e => setBuyInAmount(e.target.value)}
-                min={buyInDialog.group.minBuyIn}
-                max={buyInDialog.group.maxBuyIn}
-                step="0.01"
-                className="flex-1 bg-background/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-gold"
-              />
-              <button
-                onClick={() => setBuyInAmount(buyInDialog.group!.maxBuyIn)}
-                className="px-3 py-2 rounded-lg glass text-xs text-gold hover:bg-gold/10 transition-colors"
-              >
-                MAX
-              </button>
-            </div>
-            <div className="flex gap-2 text-xs text-muted-foreground mb-4">
-              <span>{t("wallet.balance")}: ${formatBalance(walletData?.balance)}</span>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setBuyInDialog({ open: false, group: null })}
-                className="flex-1 py-3 rounded-xl glass text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                onClick={handleConfirmBuyIn}
-                disabled={joiningStake}
-                className="flex-1 py-3 rounded-xl bg-gold text-background text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {joiningStake ? (
-                  <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
-                ) : t("lobby.sit")}
-              </button>
-            </div>
+      {/* 加载中遮罩（找桌子时） */}
+      {joiningStake && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="glass-strong rounded-2xl px-8 py-6 flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-foreground font-medium">{t("lobby.findingTable") || "正在寻找桌子..."}</p>
           </div>
         </div>
       )}

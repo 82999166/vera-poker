@@ -373,10 +373,12 @@ export const appRouter = router({
       return { roomId: activeRoom.roomId, seatIndex: activeRoom.seatIndex, roomName: room.name, blinds: `${room.smallBlind}/${room.bigBlind}` };
     }),
     // Join by stake level - auto-assign to best available table
+    // buyIn=0: only find & return roomId (navigate to table, buy-in dialog shown there)
+    // buyIn>0: find table AND join with specified buy-in amount
     joinByStake: protectedProcedure.input(z.object({
       smallBlind: z.string(),
       bigBlind: z.string(),
-      buyIn: z.number().positive(),
+      buyIn: z.number().min(0),
     })).mutation(async ({ ctx, input }) => {
       const allRooms = await db.getPublicRooms();
       const matchingRooms = allRooms.filter(r =>
@@ -390,6 +392,11 @@ export const appRouter = router({
       }
       // Pick table with most players (most action) but not full
       const targetRoom = matchingRooms.sort((a, b) => b.currentPlayers - a.currentPlayers)[0];
+      // buyIn=0: lobby navigation mode - just return the roomId, buy-in happens in Table.tsx
+      if (input.buyIn === 0) {
+        return { roomId: targetRoom.id, seatIndex: -1, newBalance: null, roomName: targetRoom.name };
+      }
+      // buyIn>0: full join flow
       const minBuyIn = parseFloat(targetRoom.minBuyIn);
       const maxBuyIn = parseFloat(targetRoom.maxBuyIn);
       if (input.buyIn < minBuyIn || input.buyIn > maxBuyIn) {

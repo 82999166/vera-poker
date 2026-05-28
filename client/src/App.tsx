@@ -54,6 +54,8 @@ function AppContent() {
   // Staff login and Admin use full-screen layout
   const isStaffLogin = window.location.pathname === "/staff-login";
   const isAdmin = window.location.pathname.startsWith("/admin");
+  // Table page uses full-screen layout (no max-width container)
+  const isTable = window.location.pathname.startsWith("/table/");
   
   if (isStaffLogin) {
     return <StaffLogin key={locale} />;
@@ -61,6 +63,15 @@ function AppContent() {
   
   if (isAdmin) {
     return <Admin key={locale} />;
+  }
+
+  if (isTable) {
+    // Full-screen layout for game table - no max-width, no overflow-hidden wrapper
+    return (
+      <div className="w-full h-full" style={{ height: '100dvh', overflow: 'hidden' }}>
+        <MobileRouter key={locale} />
+      </div>
+    );
   }
   
   return (
