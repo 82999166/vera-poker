@@ -106,5 +106,6 @@
 - [x] Bug 1: 退出后重入座第一次被强返大厅 - kickDetectedRef/joinSettledRef 在离桌后未重置，新增 prevIsSeatedRef 监听入座变化时完整重置
 - [x] Bug 2: isBettingRoundComplete 未处理 currentPlayerIndex=-1 - 增加 -1 即返回 true 的逻辑
 - [x] Bug 3: 结算动画不显示（轮询竞态条件）- 重写 winner 检测 useEffect，用 handNumber 作为唯一标识替代 winnerKey 变化检测
+- [x] Bug 5: localStorage hasSeenSettlement 在服务器重启后 handNumber 重置导致误判 - 完全移除 localStorage 去重机制，改用纯内存 lastSettledHandRef
 - [x] Bug 4: actionMutation.onError 对状态不一致错误改为静默刷新（不弹 toast）
 - [x] TypeScript 零错误，103 个测试全部通过

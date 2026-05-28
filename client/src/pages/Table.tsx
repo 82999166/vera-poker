@@ -210,20 +210,9 @@ export default function Table() {
   const [showWinner, setShowWinner] = useState<{ name: string; amount: number; handDescription?: string } | null>(null);
   const [showSettlement, setShowSettlement] = useState<any>(null);
   const [winnerPlayerIds, setWinnerPlayerIds] = useState<number[]>([]);
-  // Track which hand settlements have already been shown (persist across re-mounts)
-  // Key: "vera-seen-hand-{roomId}-{handNumber}", value: "1"
-  // roomId is declared below at line ~256, so we use id directly here
-  const _seenRoomId = id ? parseInt(id) : 0;
-  const hasSeenSettlement = (handNum: number) => {
-    return localStorage.getItem(`vera-seen-hand-${_seenRoomId}-${handNum}`) === "1";
-  };
-  const markSettlementSeen = (handNum: number) => {
-    localStorage.setItem(`vera-seen-hand-${_seenRoomId}-${handNum}`, "1");
-    // Clean up old keys to avoid localStorage bloat (keep last 20 hands)
-    for (let i = handNum - 30; i < handNum - 20; i++) {
-      localStorage.removeItem(`vera-seen-hand-${_seenRoomId}-${i}`);
-    }
-  };
+  // Settlement dedup is handled purely by lastSettledHandRef (in-memory).
+  // localStorage was removed because handNumber resets on server restart,
+  // causing false "already seen" matches that block settlement animation.
   // Prevent roomPlayers re-query from triggering showBuyIn after leave/navigate
   const isLeavingRef = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false); // mirrors isLeavingRef for JSX re-render
@@ -349,12 +338,9 @@ export default function Table() {
     const isCompleted = currentPhase === "completed";
     const isNewSettlement = isCompleted && currentHandNum > 0 && currentHandNum !== lastSettledHandRef.current;
     
-    // Guard: skip if this hand's settlement has already been shown (prevents replay after re-mount)
-    const alreadySeen = currentHandNum > 0 && hasSeenSettlement(currentHandNum);
 
-    if (isNewSettlement && tableState?.lastWinner && !showWinner && !alreadySeen) {
+    if (isNewSettlement && tableState?.lastWinner && !showWinner) {
       lastSettledHandRef.current = currentHandNum;
-      if (currentHandNum > 0) markSettlementSeen(currentHandNum);
       setShowWinner(tableState.lastWinner);
       if (tableState.settlementDetail) {
         setShowSettlement(tableState.settlementDetail);
