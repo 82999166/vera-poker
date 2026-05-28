@@ -31,6 +31,7 @@ interface ActiveTable {
   readyDeadline?: number; // timestamp when unready players get kicked
   waitingForReady: boolean; // true when in between hands waiting for ready clicks
   settlementStartedAt?: number; // timestamp when settlement started (for delayed ready)
+  afkFoldCount: Map<number, number>; // playerId -> consecutive auto-fold count (zombie detection)
 }
 
 // In-memory store of active tables
@@ -297,6 +298,8 @@ export async function processPlayerAction(
   // Process the action
   table.gameState = gameEngine.processAction(gs, userId, action, amount);
   table.lastActionAt = Date.now();
+  // Player made a real action → reset their AFK counter
+  table.afkFoldCount.delete(userId);
   // Record last action for voice announcement on other clients
   (table as any).lastActionInfo = {
     playerId: userId,
@@ -751,6 +754,8 @@ async function startNewHand(roomId: number) {
     readyPlayers: new Set(),
     waitingForReady: false,
     readyDeadline: undefined,
+    // Preserve afkFoldCount across hands (reset only on manual action)
+    afkFoldCount: activeTables.get(roomId)?.afkFoldCount ?? new Map(),
   });
 }
 
@@ -777,6 +782,31 @@ export function checkTimeouts() {
         // Auto-fold on timeout
         table.gameState = gameEngine.processAction(table.gameState, timedOutPlayerId, "fold");
         table.lastActionAt = now;
+
+        // === Zombie player detection: kick after 3 consecutive auto-folds ===
+        const AFK_KICK_THRESHOLD = 3;
+        const prevCount = table.afkFoldCount.get(timedOutPlayerId) ?? 0;
+        const newCount = prevCount + 1;
+        table.afkFoldCount.set(timedOutPlayerId, newCount);
+
+        if (newCount >= AFK_KICK_THRESHOLD) {
+          // Kick the zombie player: return chips and remove from room
+          table.afkFoldCount.delete(timedOutPlayerId);
+          const playerInGame = table.gameState.players.find(p => p.id === timedOutPlayerId);
+          const chipsToReturn = playerInGame?.chips ?? 0;
+          db.getUserById(timedOutPlayerId).then(async user => {
+            if (user) {
+              const newBalance = (parseFloat(user.balance) + chipsToReturn).toFixed(2);
+              await db.updateUserBalance(timedOutPlayerId, newBalance);
+            }
+            await db.removeRoomPlayer(roomId, timedOutPlayerId);
+            // Remove from in-memory gameState
+            table.gameState.players = table.gameState.players.filter(p => p.id !== timedOutPlayerId);
+            const remaining = await db.getRoomPlayers(roomId);
+            await db.updateRoom(roomId, { currentPlayers: remaining.length });
+          }).catch(() => {});
+        }
+
         checkAndAdvanceGame(roomId);
         // Notify the timed-out player via Bot (only on timeout, not on normal actions)
         db.getRoomById(roomId).then(room => {

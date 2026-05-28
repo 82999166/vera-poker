@@ -348,7 +348,7 @@ function BannerCarousel() {
           <div className="w-full h-full flex items-center justify-center">
             <div className="text-center">
               <span className="text-gold text-lg font-bold">★ Vera Poker</span>
-              <p className="text-xs text-muted-foreground mt-1">{t("lobby.tourneysSoon") || "活动即将开始"}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("lobby.tourneysSoon")}</p>
             </div>
           </div>
         </div>

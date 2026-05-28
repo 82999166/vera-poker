@@ -333,6 +333,33 @@ export const appRouter = router({
       db.createAdminLog({ action: "edit_room", category: "room", targetType: "room", targetId: String(id), detail: data });
       return { success: true };
     }),
+    // Duplicate a room with the same config (new name suffix, new inviteCode, status=waiting)
+    duplicate: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const source = await db.getRoomById(input.id);
+      if (!source) throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
+      const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
+      const ownerId = ctx.adminUser?.adminId ?? ctx.user?.id ?? 0;
+      const newRoomId = await db.createRoom({
+        name: `${source.name} (Copy)`,
+        type: source.type,
+        gameType: source.gameType,
+        smallBlind: source.smallBlind,
+        bigBlind: source.bigBlind,
+        minBuyIn: source.minBuyIn,
+        maxBuyIn: source.maxBuyIn,
+        maxPlayers: source.maxPlayers,
+        totalRounds: source.totalRounds ?? null,
+        billingMode: source.billingMode,
+        roundFee: source.roundFee ?? "0.00",
+        rakePercent: source.rakePercent ?? null,
+        rakeCap: source.rakeCap ?? null,
+        fairnessLevel: source.fairnessLevel,
+        ownerId,
+        inviteCode,
+      });
+      db.createAdminLog({ action: "duplicate_room", category: "room", targetType: "room", targetId: String(newRoomId), detail: { sourceId: input.id } });
+      return { roomId: newRoomId, inviteCode };
+    }),
     // User's own rooms
     myRooms: protectedProcedure.query(async ({ ctx }) => {
       return db.getUserRooms(ctx.user.id);

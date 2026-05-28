@@ -82,3 +82,9 @@
 ## Bug Fix: 玩家刚进入牌局就被踢出
 - [x] Table.tsx: kicked 检测加入 joinPendingRef 保护，防止 joinMutation 完成后 tableState 刷新前误判被踢
 - [x] Table.tsx: isSeated 设为 true 后再等一个 tableState 刷新周期再开始 kicked 检测
+
+## 2026-05-28 四项功能完成
+- [x] 问题3：房间管理筛选（初级/中级/高级/VIP/全部）+ 状态筛选 + 桌子张数统计 + 一键复制牌桌
+- [x] 问题1：结算界面不重复显示（localStorage handNumber 去重）
+- [x] 问题2：僵尸玩家自动踢出（连续3局超时auto-fold后踢出并退还筹码）
+- [x] 问题4：大厅/游戏场 i18n 补全（12种语言 table.roomClosed + 移除硬编码中文fallback）

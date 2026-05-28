@@ -144,6 +144,25 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "rooms.cancel": "取消",
     "rooms.inviteCode": "邀请码",
     "rooms.status": "状态",
+    "rooms.duplicate": "复制",
+    "rooms.duplicated": "房间已复制",
+    "rooms.filterAll": "全部场次",
+    "rooms.filterBeginner": "初级场",
+    "rooms.filterIntermediate": "中级场",
+    "rooms.filterAdvanced": "高级场",
+    "rooms.filterVip": "VIP场",
+    "rooms.filterStatusAll": "全部状态",
+    "rooms.filterStatusOpen": "开放中",
+    "rooms.filterStatusPlaying": "进行中",
+    "rooms.filterStatusClosed": "已关闭",
+    "rooms.statTotal": "总桌数",
+    "rooms.statOpen": "开放中",
+    "rooms.statPlaying": "进行中",
+    "rooms.statClosed": "已关闭",
+    "rooms.beginner": "初级场",
+    "rooms.intermediate": "中级场",
+    "rooms.advanced": "高级场",
+    "rooms.vip": "VIP场",
     "finance.title": "财务概览",
     "finance.totalVolume": "总交易额",
     "finance.totalTx": "总交易数",
@@ -2487,9 +2506,12 @@ function RoomFormModal({ at, open, onClose, editRoom, onSuccess }: {
 }
 
 function RoomsPanel({ at }: { at: (k: string) => string }) {
-  const { data, isLoading, refetch } = trpc.rooms.adminList.useQuery({ page: 1, limit: 50 });
+  const { data, isLoading, refetch } = trpc.rooms.adminList.useQuery({ page: 1, limit: 200 });
   const [showModal, setShowModal] = useState(false);
   const [editRoom, setEditRoom] = useState<any>(null);
+  const [filterStake, setFilterStake] = useState<"all" | "beginner" | "intermediate" | "advanced" | "vip">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "waiting" | "playing" | "paused" | "closed">("all");
+
   const updateMutation = trpc.rooms.adminUpdate.useMutation({
     onSuccess: () => { toast.success(at("rooms.updated")); refetch(); },
     onError: (err) => toast.error(err.message),
@@ -2498,24 +2520,113 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
     onSuccess: () => { toast.success(at("rooms.deleted")); refetch(); },
     onError: (err) => toast.error(err.message),
   });
+  const duplicateMutation = trpc.rooms.duplicate.useMutation({
+    onSuccess: () => { toast.success(at("rooms.duplicated")); refetch(); },
+    onError: (err) => toast.error(err.message),
+  });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
 
-  const rooms = (data as any)?.rooms ?? [];
+  const allRooms = (data as any)?.rooms ?? [];
+
+  // Classify stake level by big blind
+  const getStakeLevel = (bigBlind: string) => {
+    const bb = parseFloat(bigBlind);
+    if (bb <= 0.10) return "beginner";
+    if (bb <= 1.00) return "intermediate";
+    if (bb <= 10.00) return "advanced";
+    return "vip";
+  };
+
+  const getStakeLabel = (bigBlind: string) => {
+    const level = getStakeLevel(bigBlind);
+    return at(`rooms.${level}`);
+  };
+
+  const stakeColor = (bigBlind: string) => {
+    const level = getStakeLevel(bigBlind);
+    if (level === "beginner") return "bg-emerald-500/20 text-emerald-400";
+    if (level === "intermediate") return "bg-truth-blue/20 text-truth-blue";
+    if (level === "advanced") return "bg-gold/20 text-gold";
+    return "bg-purple-500/20 text-purple-400";
+  };
+
+  // Filter
+  const filteredRooms = allRooms.filter((r: any) => {
+    const stakeOk = filterStake === "all" || getStakeLevel(r.bigBlind) === filterStake;
+    const statusOk = filterStatus === "all" || r.status === filterStatus;
+    return stakeOk && statusOk;
+  });
+
+  // Stats
+  const statTotal = allRooms.length;
+  const statOpen = allRooms.filter((r: any) => r.status === "waiting").length;
+  const statPlaying = allRooms.filter((r: any) => r.status === "playing").length;
+  const statClosed = allRooms.filter((r: any) => r.status === "closed" || r.status === "paused").length;
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">{at("rooms.title")}</h2>
         <button onClick={() => { setEditRoom(null); setShowModal(true); }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gold text-black text-sm font-bold hover:bg-gold/90">
           <Plus className="w-4 h-4" /> {at("rooms.create")}
         </button>
       </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { label: at("rooms.statTotal"), value: statTotal, color: "text-foreground" },
+          { label: at("rooms.statOpen"), value: statOpen, color: "text-warning" },
+          { label: at("rooms.statPlaying"), value: statPlaying, color: "text-success" },
+          { label: at("rooms.statClosed"), value: statClosed, color: "text-muted-foreground" },
+        ].map((s) => (
+          <div key={s.label} className="glass rounded-xl p-3 text-center">
+            <p className="text-[10px] text-muted-foreground mb-0.5">{s.label}</p>
+            <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2">
+        <div className="flex gap-1 glass rounded-lg p-1">
+          {(["all", "beginner", "intermediate", "advanced", "vip"] as const).map((k) => (
+            <button key={k} onClick={() => setFilterStake(k)}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                filterStake === k ? "bg-gold text-black" : "text-muted-foreground hover:text-foreground"
+              }`}>
+              {k === "all" ? at("rooms.filterAll") : at(`rooms.filter${k.charAt(0).toUpperCase() + k.slice(1)}`)}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1 glass rounded-lg p-1">
+          {(["all", "waiting", "playing", "paused", "closed"] as const).map((k) => (
+            <button key={k} onClick={() => setFilterStatus(k)}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                filterStatus === k ? "bg-gold text-black" : "text-muted-foreground hover:text-foreground"
+              }`}>
+              {k === "all" ? at("rooms.filterStatusAll") :
+               k === "waiting" ? at("rooms.filterStatusOpen") :
+               k === "playing" ? at("rooms.filterStatusPlaying") :
+               at("rooms.filterStatusClosed")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Room Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {rooms.map((r: any) => (
+        {filteredRooms.map((r: any) => (
           <div key={r.id} className="glass rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">{r.name}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{r.name}</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${stakeColor(r.bigBlind)}`}>
+                  {getStakeLabel(r.bigBlind)}
+                </span>
+              </div>
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                 r.status === "playing" ? "bg-success/20 text-success" :
                 r.status === "waiting" ? "bg-warning/20 text-warning" :
@@ -2537,6 +2648,9 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
             <div className="flex gap-2 flex-wrap">
               <button onClick={() => { setEditRoom(r); setShowModal(true); }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-truth-blue/10 text-truth-blue text-xs font-medium hover:bg-truth-blue/20">
                 <Pencil className="w-3 h-3" /> {at("rooms.edit")}
+              </button>
+              <button onClick={() => duplicateMutation.mutate({ id: r.id })} disabled={duplicateMutation.isPending} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-medium hover:bg-emerald-500/20 disabled:opacity-50">
+                <Copy className="w-3 h-3" /> {at("rooms.duplicate")}
               </button>
               {r.status !== "paused" && r.status !== "closed" && (
                 <button onClick={() => updateMutation.mutate({ id: r.id, status: "paused" })} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-warning/10 text-warning text-xs font-medium hover:bg-warning/20">
@@ -2560,7 +2674,7 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
           </div>
         ))}
       </div>
-      {rooms.length === 0 && (
+      {filteredRooms.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-8">{at("rooms.noRooms")}</p>
       )}
       <RoomFormModal at={at} open={showModal} onClose={() => setShowModal(false)} editRoom={editRoom} onSuccess={refetch} />
