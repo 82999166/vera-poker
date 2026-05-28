@@ -202,7 +202,9 @@ export default function Table() {
   const [raiseAmount, setRaiseAmount] = useState(4.00);
   const [isSeated, setIsSeated] = useState(false);
   const [buyInAmount, setBuyInAmount] = useState("");
-  const [showBuyIn, setShowBuyIn] = useState(false);
+  // Default true so the buy-in dialog shows immediately on entry (before roomPlayers loads)
+  // This prevents the old "sit-down" overlay from flashing briefly
+  const [showBuyIn, setShowBuyIn] = useState(true);
   const [lastPhase, setLastPhase] = useState("");
   const [animateCards, setAnimateCards] = useState(false);
   const [showWinner, setShowWinner] = useState<{ name: string; amount: number; handDescription?: string } | null>(null);
@@ -676,18 +678,28 @@ export default function Table() {
       const seated = roomPlayers.some((p: any) => p.userId === user.id);
       setIsSeated(seated);
       // If already seated (e.g. page refresh), mark join as settled so kicked detection works immediately
-      if (seated) joinSettledRef.current = true;
+      if (seated) {
+        joinSettledRef.current = true;
+        setShowBuyIn(false); // Already seated - hide buy-in dialog
+        return;
+      }
       // If leaving or navigating away, skip buy-in dialog
-      if (isLeavingRef.current) return;
+      if (isLeavingRef.current) {
+        setShowBuyIn(false);
+        return;
+      }
       // If autoJoin (same-stakes switch), auto-join with min buy-in
       if (!seated && isValidRoom && autoJoinRef.current && room) {
         autoJoinRef.current = false;
+        setShowBuyIn(false); // autoJoin bypasses dialog
         const minBuyIn = parseFloat(room.minBuyIn);
         joinMutation.mutate({ roomId, buyIn: minBuyIn });
       } else if (!seated && isValidRoom && !autoJoinRef.current) {
         // Normal entry - show buy-in dialog (only if room is valid and not closed)
         if (room && room.status !== "closed") {
           setShowBuyIn(true);
+        } else {
+          setShowBuyIn(false);
         }
       }
     }
