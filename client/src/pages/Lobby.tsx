@@ -286,6 +286,7 @@ export default function Lobby() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">#{room.id}</span>
                       <span className="text-sm font-semibold text-foreground">{room.name}</span>
                       {room.fairnessLevel === "high" && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-truth-blue/20 text-truth-blue-bright">{t("lobby.onChain")}</span>

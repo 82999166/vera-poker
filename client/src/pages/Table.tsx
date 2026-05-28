@@ -750,7 +750,10 @@ export default function Table() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+          <span className="text-[10px] font-mono text-muted-foreground/70 bg-muted/40 px-1.5 py-0.5 rounded">
+            {room?.type === "private" && room?.inviteCode ? room.inviteCode : `#${id}`}
+          </span>
+          <span className="text-xs text-muted-foreground truncate max-w-[100px]">
             {room ? room.name : isDemoMode ? t("table.demo") : `#${id}`}
           </span>
           {displayPhase !== "waiting" && (

@@ -143,6 +143,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "rooms.save": "保存",
     "rooms.cancel": "取消",
     "rooms.inviteCode": "邀请码",
+    "rooms.tableNo": "桌号",
     "rooms.status": "状态",
     "rooms.duplicate": "复制",
     "rooms.duplicated": "房间已复制",
@@ -521,6 +522,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "rooms.save": "儲存",
     "rooms.cancel": "取消",
     "rooms.inviteCode": "邀請碼",
+    "rooms.tableNo": "桌號",
     "rooms.status": "狀態",
     "finance.title": "財務概覽",
     "finance.totalVolume": "總交易額",
@@ -876,6 +878,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "rooms.save": "Save",
     "rooms.cancel": "Cancel",
     "rooms.inviteCode": "Invite Code",
+    "rooms.tableNo": "Table No.",
     "rooms.status": "Status",
     "finance.title": "Financial Overview",
     "finance.totalVolume": "Total Volume",
@@ -2634,6 +2637,7 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
           <div key={r.id} className="glass rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-muted-foreground/70 bg-muted/40 px-1.5 py-0.5 rounded">#{r.id}</span>
                 <span className="text-sm font-medium">{r.name}</span>
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${stakeColor(r.bigBlind)}`}>
                   {getStakeLabel(r.bigBlind)}
@@ -2655,7 +2659,8 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
               <span>{at("rooms.billingMode")}: {r.billingMode === "standard_rake" ? at("rooms.standardRake") : at("rooms.perRoundFee")}</span>
-              {r.inviteCode && <span>{at("rooms.inviteCode")}: <code className="font-mono text-gold">{r.inviteCode}</code></span>}
+              {r.type === "public" && <span>{at("rooms.tableNo")}: <code className="font-mono text-gold">#{r.id}</code></span>}
+              {r.type === "private" && r.inviteCode && <span>{at("rooms.inviteCode")}: <code className="font-mono text-gold">{r.inviteCode}</code></span>}
             </div>
             <div className="flex gap-2 flex-wrap">
               <button onClick={() => { setEditRoom(r); setShowModal(true); }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-truth-blue/10 text-truth-blue text-xs font-medium hover:bg-truth-blue/20">
