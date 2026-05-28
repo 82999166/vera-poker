@@ -239,15 +239,12 @@ export default function Table() {
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
-      // Expand to full screen in Telegram WebApp
+      // Expand to full height in Telegram WebApp (do NOT use requestFullscreen -
+      // it hides content behind TG header on older devices and breaks lobby on return)
       tg.expand?.();
-      // Request fullscreen if available (TG 7.7+)
-      tg.requestFullscreen?.();
       const update = () => {
-        // Use viewportStableHeight to get height excluding TG chrome
+        // viewportStableHeight excludes TG chrome (header/keyboard) for stable layout
         const h = tg.viewportStableHeight || tg.viewportHeight || window.innerHeight;
-        // safeAreaInset: TG 7.7+ provides safe area for notch/status bar
-        const topInset = tg.safeAreaInset?.top ?? 0;
         if (h > 100) {
           setContainerStyle({
             position: 'fixed', top: 0, left: 0,
@@ -255,16 +252,13 @@ export default function Table() {
             height: `${h}px`,
             maxWidth: '100vw',
             overflow: 'hidden',
-            paddingTop: topInset > 0 ? `${topInset}px` : undefined,
           });
         }
       };
       update();
       tg.onEvent?.('viewportChanged', update);
-      tg.onEvent?.('safeAreaChanged', update);
       return () => {
         tg.offEvent?.('viewportChanged', update);
-        tg.offEvent?.('safeAreaChanged', update);
       };
     } else {
       // Standard browser: window.innerHeight is most reliable (doesn't change on keyboard open)
@@ -1002,7 +996,8 @@ export default function Table() {
       )}
 
       {/* Table Area - flex-1 min-h-0 ensures it fills all remaining vertical space */}
-      <div ref={tableAreaRef} className="flex-1 min-h-0 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
+      {/* max-h limits table to ~55% of screen so it doesn't look oversized on tall phones */}
+      <div ref={tableAreaRef} className="flex-1 min-h-0 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e', maxHeight: '56vh' }}>
         {/* Game content overlay */}
         <div className="absolute inset-0">
             
