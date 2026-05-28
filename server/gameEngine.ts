@@ -306,7 +306,7 @@ export function isBettingRoundComplete(state: GameState): boolean {
   return playersWhoCanAct.every(p => p.currentBet === state.currentBet && p.hasActedThisRound);
 }
 
-export function advancePhase(state: GameState): GameState {
+export function advancePhase(state: GameState, bigBlind?: number): GameState {
   const newState = { ...state, players: state.players.map(p => ({ ...p })) };
   
   // Reset current bets and action tracking for new round
@@ -315,7 +315,9 @@ export function advancePhase(state: GameState): GameState {
     player.hasActedThisRound = false;
   }
   newState.currentBet = 0;
-  newState.minRaise = 0; // Will be set by first bet/raise in new round
+  // Post-flop: minRaise should default to 1 big blind (not 0) so first bet is valid
+  // If bigBlind is provided, use it; otherwise keep previous minRaise as fallback
+  newState.minRaise = bigBlind ?? state.minRaise;
 
   // Find first active player after dealer
   newState.currentPlayerIndex = getNextActivePlayer(newState, newState.dealerIndex);

@@ -94,3 +94,10 @@
 - [x] 房间管理增加「公开/私人房」类型筛选按钮
 - [x] 买入弹窗移到游戏桌内（Lobby 点入座直接跳转，Table.tsx 内弹出全屏买入弹窗）
 - [x] 游戏桌全屏自适应布局（fixed 定位 100vw/100dvh，消除 iPhone 7 Plus 空白）
+
+## Bug Fix: 游戏逻辑 - 过牌不推进 + 不结算
+- [x] Bug 1: processPlayerAction 增加 showdown/dealing 阶段拦截，防止 4s 延迟期间过期操作触发错误
+- [x] Bug 2: checkAndAdvanceGame 改为 while 循环（最多5次），确保连续过牌后每个阶段都能正确推进
+- [x] Bug 3: advancePhase 接受 bigBlind 参数，翻牌后 minRaise 正确初始化为大盲注而非 0
+- [x] Bug 4: tableManager 所有 advancePhase 调用传入 table.bigBlind
+- [x] TypeScript 零错误，103 个测试全部通过

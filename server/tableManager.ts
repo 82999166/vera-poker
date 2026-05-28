@@ -256,7 +256,8 @@ export async function processPlayerAction(
   if (!table) return { success: false, message: "No active game" };
 
   const gs = table.gameState;
-  if (gs.phase === "waiting" || gs.phase === "completed") {
+  // Block actions during non-betting phases (including showdown - 4s settle delay)
+  if (gs.phase === "waiting" || gs.phase === "completed" || gs.phase === "showdown" || gs.phase === "dealing") {
     return { success: false, message: "Game is not in an active betting phase" };
   }
 
@@ -340,9 +341,20 @@ async function checkAndAdvanceGame(roomId: number) {
   // If already in showdown phase, do nothing (settle timer is already scheduled)
   if (gs.phase === 'showdown' || gs.phase === 'completed') return;
 
-  // Check if betting round is complete
-  if (gameEngine.isBettingRoundComplete(gs)) {
-    const newState = gameEngine.advancePhase(gs);
+  // Check if betting round is complete - loop to handle consecutive phase advances
+  // (e.g. both players check on flop → advance to turn → both all-in → advance to river → showdown)
+  let maxAdvances = 5; // safety limit to prevent infinite loop
+  while (gameEngine.isBettingRoundComplete(table.gameState) && maxAdvances-- > 0) {
+    const currentGs = table.gameState;
+    // Re-check active players before advancing
+    const activeNow = gameEngine.getActivePlayers(currentGs);
+    if (activeNow.length <= 1) {
+      await settleHand(roomId);
+      return;
+    }
+
+    // Pass bigBlind so post-flop minRaise is correctly initialized
+    const newState = gameEngine.advancePhase(currentGs, table.bigBlind);
     table.gameState = newState;
     table.lastActionAt = Date.now();
 
@@ -357,7 +369,9 @@ async function checkAndAdvanceGame(roomId: number) {
     const canAct = stillActive.filter(p => !p.isAllIn);
     if (canAct.length <= 1 && table.gameState.phase !== 'showdown') {
       scheduleAllInAdvance(roomId);
+      return;
     }
+    // Otherwise loop again: check if the new phase is also immediately complete
   }
 }
 
@@ -409,7 +423,7 @@ function scheduleAllInAdvance(roomId: number) {
     }
 
     if (gameEngine.isBettingRoundComplete(table.gameState)) {
-      const newState = gameEngine.advancePhase(table.gameState);
+      const newState = gameEngine.advancePhase(table.gameState, table.bigBlind);
       table.gameState = newState;
       table.lastActionAt = Date.now();
 
