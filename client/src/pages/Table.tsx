@@ -167,14 +167,14 @@ function AnimatedPot({ amount }: { amount: number }) {
 const DEFAULT_AVATAR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/default-avatar-aXRqAewdDSMxKYhaCU9DtA.webp";
 
 // Player seat positions for 6-max table (oval layout)
-// Seats positioned outside the table oval, but within screen bounds
+// Hero at bottom-center; side seats use % inset to stay within screen on all phones
 const SEAT_POSITIONS = [
-  { top: "82%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
-  { top: "68%", left: "4%", transform: "translate(0, -50%)" },      // Left bottom
-  { top: "28%", left: "4%", transform: "translate(0, -50%)" },      // Left top
-  { top: "5%", left: "50%", transform: "translate(-50%, 0)" },       // Top
-  { top: "28%", left: "96%", transform: "translate(-100%, -50%)" }, // Right top
-  { top: "68%", left: "96%", transform: "translate(-100%, -50%)" }, // Right bottom
+  { top: "78%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero) - raised to avoid action bar overlap
+  { top: "66%", left: "3%",  transform: "translate(0, -50%)" },      // Left bottom
+  { top: "26%", left: "3%",  transform: "translate(0, -50%)" },      // Left top
+  { top: "4%",  left: "50%", transform: "translate(-50%, 0)" },       // Top
+  { top: "26%", left: "97%", transform: "translate(-100%, -50%)" }, // Right top
+  { top: "66%", left: "97%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
 
 // Hand rank translation helper - maps English server descriptions to i18n keys
@@ -551,6 +551,9 @@ export default function Table() {
   const [rebuyAmount, setRebuyAmount] = useState("");
   const [showAutoRebuySettings, setShowAutoRebuySettings] = useState(false);
   const [showRoomPoster, setShowRoomPoster] = useState(false);
+
+  // === All-in Confirm ===
+  const [showAllInConfirm, setShowAllInConfirm] = useState(false);
 
   // === Switch Table ===
   const [isSwitchingTable, setIsSwitchingTable] = useState(false);
@@ -1404,20 +1407,23 @@ export default function Table() {
                 <span className="text-[10px] text-gold font-bold min-w-[40px] text-right">{fmtAmt(raiseAmount)}</span>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex gap-1.5">
+              {/* Action buttons - 2-row layout for small screens */}
+              <div className="flex gap-1.5 mb-1.5">
+                {/* Fold - always visible */}
                 <button
                   onClick={handleFold}
                   disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
-                  className="flex-1 py-2.5 rounded-xl bg-red-500/20 text-red-400 border border-red-500/40 font-semibold text-xs hover:bg-red-500/30 transition-all active:scale-[0.97] disabled:opacity-40"
+                  className="flex-1 py-2.5 rounded-xl bg-red-900/60 text-red-300 border border-red-500/50 font-bold text-sm hover:bg-red-800/70 transition-all active:scale-[0.97] disabled:opacity-40"
                 >
                   {t("table.fold")}
                 </button>
+                {/* Check or Call */}
                 {canCheck ? (
                   <button
                     onClick={handleCheck}
                     disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
-                    className="flex-1 py-2.5 rounded-xl bg-truth-blue text-white font-semibold text-xs hover:bg-truth-blue/80 transition-all glow-blue active:scale-[0.97] disabled:opacity-40"
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.97] disabled:opacity-40"
+                    style={{ background: 'linear-gradient(135deg,#1a6bb5,#1e90ff)', color: '#fff', boxShadow: '0 2px 12px rgba(30,144,255,0.4)' }}
                   >
                     {t("table.check")}
                   </button>
@@ -1425,27 +1431,31 @@ export default function Table() {
                   <button
                     onClick={handleCall}
                     disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
-                    className="flex-1 py-2.5 rounded-xl bg-truth-blue text-white font-semibold text-xs hover:bg-truth-blue/80 transition-all glow-blue active:scale-[0.97] disabled:opacity-40"
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.97] disabled:opacity-40"
+                    style={{ background: 'linear-gradient(135deg,#1a6bb5,#1e90ff)', color: '#fff', boxShadow: '0 2px 12px rgba(30,144,255,0.4)' }}
                   >
                     {t("table.call")} {fmtAmt(currentBet)}
                   </button>
                 )}
+                {/* Raise */}
                 <button
                   onClick={handleRaise}
                   disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-xs hover:opacity-90 transition-all glow-gold active:scale-[0.97] disabled:opacity-40"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.97] disabled:opacity-40"
+                  style={{ background: 'linear-gradient(135deg,#b8860b,#FFD700)', color: '#1a0a00', boxShadow: '0 2px 12px rgba(255,215,0,0.4)' }}
                 >
                   {t("table.raise")} {fmtAmt(raiseAmount)}
                 </button>
               </div>
 
-              {/* All-in button */}
+              {/* All-in button - full width, prominent orange-red */}
               <button
-                onClick={handleAllIn}
+                onClick={() => setShowAllInConfirm(true)}
                 disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
-                className="w-full mt-1.5 py-2 rounded-xl border border-red-500/40 text-red-400 font-bold text-[11px] hover:bg-red-500/10 transition-all active:scale-[0.97] disabled:opacity-40 uppercase tracking-wider"
+                className="w-full py-2.5 rounded-xl font-black text-sm tracking-wide transition-all active:scale-[0.97] disabled:opacity-40"
+                style={{ background: 'linear-gradient(135deg,#c0392b,#e74c3c,#ff6b6b)', color: '#fff', boxShadow: '0 2px 14px rgba(231,76,60,0.5)', letterSpacing: '0.05em' }}
               >
-                {t("table.allIn")} {myPlayer ? fmtAmt(myPlayer.chips) : ""}
+                🔥 {t("table.allIn")} {myPlayer ? fmtAmt(myPlayer.chips) : ""}
               </button>
             </>
           )}
@@ -1580,6 +1590,53 @@ export default function Table() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== All-in Confirm Dialog ===== */}
+      {showAllInConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setShowAllInConfirm(false)}
+        >
+          <div
+            className="bg-[#1a2744] rounded-2xl p-5 w-[280px] max-w-[88vw] border border-red-500/40 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Warning icon */}
+            <div className="flex flex-col items-center mb-4">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center mb-2" style={{ background: 'linear-gradient(135deg,#c0392b,#e74c3c)', boxShadow: '0 0 20px rgba(231,76,60,0.5)' }}>
+                <span className="text-3xl">🔥</span>
+              </div>
+              <h3 className="text-base font-black text-white">{t("table.allIn")}</h3>
+              <p className="text-[12px] text-red-300 mt-1 text-center">
+                {t("table.allInConfirmMsg") || `确认押上全部筹码？`}
+              </p>
+              <p className="text-xl font-black text-yellow-300 mt-2">
+                {myPlayer ? fmtAmt(myPlayer.chips) : ""}
+              </p>
+            </div>
+            <div className="flex gap-2.5">
+              <button
+                onClick={() => setShowAllInConfirm(false)}
+                className="flex-1 py-3 rounded-xl bg-secondary text-muted-foreground text-sm font-medium hover:text-foreground transition-colors active:scale-[0.97]"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                onClick={() => {
+                  setShowAllInConfirm(false);
+                  if (isDemoMode) return toast.info(t("table.demoMode"));
+                  actionMutation.mutate({ roomId, action: "all_in" });
+                }}
+                disabled={actionMutation.isPending}
+                className="flex-1 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.97] disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg,#c0392b,#e74c3c,#ff6b6b)', color: '#fff', boxShadow: '0 2px 14px rgba(231,76,60,0.5)' }}
+              >
+                {actionMutation.isPending ? "..." : (t("table.allInConfirm") || "确认全押")}
+              </button>
             </div>
           </div>
         </div>

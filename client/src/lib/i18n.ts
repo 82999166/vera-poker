@@ -499,6 +499,8 @@ const zhCN: Record<string, string> = {
   "table.call": "跟注",
   "table.raise": "加注",
   "table.allIn": "全押",
+  "table.allInConfirm": "确认全押",
+  "table.allInConfirmMsg": "确认押上全部筹码？此操作无法撤回！",
   "table.pot": "底池",
   "table.dealer": "D",
   "table.yourTurn": "轮到你了",
