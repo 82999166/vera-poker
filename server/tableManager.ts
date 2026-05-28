@@ -656,12 +656,38 @@ async function settleHand(roomId: number) {
   if (currentRoom && currentRoom.type === "private") {
     const newPlayedRounds = (currentRoom.playedRounds ?? 0) + 1;
     await db.updateRoom(roomId, { playedRounds: newPlayedRounds });
-    // If totalRounds is set and reached, close the room (inviteCode becomes invalid)
-    if (currentRoom.totalRounds && newPlayedRounds >= currentRoom.totalRounds) {
-      await db.updateRoom(roomId, { status: "closed" });
+
+    // Determine if this private room should auto-dissolve
+    const shouldDissolve =
+      // Case 1: totalRounds is set and reached
+      (currentRoom.totalRounds != null && newPlayedRounds >= currentRoom.totalRounds) ||
+      // Case 2: no totalRounds limit (unlimited) — dissolve after every hand
+      (currentRoom.totalRounds == null);
+
+    if (shouldDissolve) {
+      // Return remaining chips to each player's balance
+      const activePlayers = await db.getRoomPlayers(roomId);
+      for (const rp of activePlayers) {
+        const chips = parseFloat(rp.chipCount as string);
+        if (chips > 0) {
+          const user = await db.getUserById(rp.userId);
+          if (user) {
+            const newBalance = (parseFloat(user.balance) + chips).toFixed(2);
+            await db.updateUserBalance(rp.userId, newBalance);
+          }
+        }
+      }
+      // Clear all players from the room
+      await db.clearRoomPlayers(roomId);
+      // Invalidate the invite code and close the room
+      await db.updateRoom(roomId, {
+        status: "closed",
+        inviteCode: null as any,
+        currentPlayers: 0,
+      });
       // Remove from active tables
       activeTables.delete(roomId);
-      return; // Don't set up ready phase, room is done
+      return; // Don't set up ready phase, room is dissolved
     }
   }
 

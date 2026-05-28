@@ -2511,6 +2511,7 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
   const [editRoom, setEditRoom] = useState<any>(null);
   const [filterStake, setFilterStake] = useState<"all" | "beginner" | "intermediate" | "advanced" | "vip">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "waiting" | "playing" | "paused" | "closed">("all");
+  const [filterType, setFilterType] = useState<"all" | "public" | "private">("all");
 
   const updateMutation = trpc.rooms.adminUpdate.useMutation({
     onSuccess: () => { toast.success(at("rooms.updated")); refetch(); },
@@ -2555,7 +2556,8 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
   const filteredRooms = allRooms.filter((r: any) => {
     const stakeOk = filterStake === "all" || getStakeLevel(r.bigBlind) === filterStake;
     const statusOk = filterStatus === "all" || r.status === filterStatus;
-    return stakeOk && statusOk;
+    const typeOk = filterType === "all" || r.type === filterType;
+    return stakeOk && statusOk && typeOk;
   });
 
   // Stats
@@ -2598,6 +2600,16 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
                 filterStake === k ? "bg-gold text-black" : "text-muted-foreground hover:text-foreground"
               }`}>
               {k === "all" ? at("rooms.filterAll") : at(`rooms.filter${k.charAt(0).toUpperCase() + k.slice(1)}`)}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1 glass rounded-lg p-1">
+          {(["all", "public", "private"] as const).map((k) => (
+            <button key={k} onClick={() => setFilterType(k)}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                filterType === k ? "bg-gold text-black" : "text-muted-foreground hover:text-foreground"
+              }`}>
+              {k === "all" ? at("rooms.filterAll") : k === "public" ? at("rooms.public") : at("rooms.private")}
             </button>
           ))}
         </div>

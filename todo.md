@@ -88,3 +88,7 @@
 - [x] 问题1：结算界面不重复显示（localStorage handNumber 去重）
 - [x] 问题2：僵尸玩家自动踢出（连续3局超时auto-fold后踢出并退还筹码）
 - [x] 问题4：大厅/游戏场 i18n 补全（12种语言 table.roomClosed + 移除硬编码中文fallback）
+
+## 2026-05-28 私人房功能
+- [x] 私人房打完一局自动解散：退还筹码到余额、清空玩家、销毁房间号（inviteCode=null）、状态变为closed
+- [x] 房间管理增加「公开/私人房」类型筛选按钮

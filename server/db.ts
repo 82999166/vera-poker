@@ -557,6 +557,15 @@ export async function removeRoomPlayer(roomId: number, userId: number) {
     .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.userId, userId)));
 }
 
+export async function clearRoomPlayers(roomId: number) {
+  const db = await getDb();
+  if (!db) return;
+  // Mark all active players as 'left'
+  await db.update(roomPlayers)
+    .set({ status: "left" })
+    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.status, "active")));
+}
+
 export async function updateRoomPlayerChips(roomId: number, userId: number, chipCount: string) {
   const db = await getDb();
   if (!db) return;
