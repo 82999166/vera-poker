@@ -322,6 +322,12 @@ export default function Table() {
         setTimeout(() => setAnimateCards(false), 1000);
         if (!muted) playSound("cardFlip");
       }
+      // Showdown: animate opponent card reveal
+      if (tableState.phase === "showdown" && lastPhase === "river") {
+        setAnimateCards(true);
+        setTimeout(() => setAnimateCards(false), 2000);
+        if (!muted) playSound("cardFlip");
+      }
       if (tableState.phase === "preflop" && lastPhase !== "" && lastPhase !== "preflop") {
         if (!muted) playSound("deal");
       }
@@ -392,7 +398,7 @@ export default function Table() {
           }, 800);
         }
       }
-      setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); }, 3500);
+      setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); }, 5000);
     }
     
     prevPhaseRef.current = currentPhase;
@@ -716,10 +722,12 @@ export default function Table() {
   const [demoMyCards] = useState(["As", "Kh"]);
 
   const displayPlayers = isDemoMode ? demoPlayers : players;
-  // When waitingForReady (between hands), clear community cards and hand cards to avoid showing last hand's cards
-  const displayCommunity = isDemoMode ? demoCommunity : (waitingForReady ? [] : communityCards);
-  const displayMyCards = isDemoMode ? demoMyCards : (waitingForReady ? [] : myCards);
-  const displayPot = isDemoMode ? 12.5 : (waitingForReady ? 0 : pot);
+  // When waitingForReady AND winner banner is gone, clear cards/pot to reset the table
+  // Keep showing last hand's cards while the winner banner is still visible
+  const shouldClearTable = waitingForReady && !showWinner;
+  const displayCommunity = isDemoMode ? demoCommunity : (shouldClearTable ? [] : communityCards);
+  const displayMyCards = isDemoMode ? demoMyCards : (shouldClearTable ? [] : myCards);
+  const displayPot = isDemoMode ? 12.5 : (shouldClearTable ? 0 : pot);
   const displayPhase = isDemoMode ? "flop" : phase;
   const displayIsMyTurn = isDemoMode ? true : isMyTurn;
 

@@ -318,6 +318,9 @@ export async function processPlayerAction(
   return { success: true };
 }
 
+// Tracks pending showdown settle timers (to avoid double-settling)
+const showdownTimers = new Map<number, NodeJS.Timeout>();
+
 /**
  * Check if betting round is complete and advance game phases
  */
@@ -327,32 +330,57 @@ async function checkAndAdvanceGame(roomId: number) {
 
   const gs = table.gameState;
 
-  // Check if hand is complete (only 1 player left or showdown)
-  if (gameEngine.isHandComplete(gs)) {
+  // Check if only 1 player left (everyone else folded) → settle immediately, no showdown
+  const activePlayers = gameEngine.getActivePlayers(gs);
+  if (activePlayers.length <= 1 && gs.phase !== 'showdown' && gs.phase !== 'completed' && gs.phase !== 'waiting') {
     await settleHand(roomId);
     return;
   }
 
+  // If already in showdown phase, do nothing (settle timer is already scheduled)
+  if (gs.phase === 'showdown' || gs.phase === 'completed') return;
+
   // Check if betting round is complete
   if (gameEngine.isBettingRoundComplete(gs)) {
-    table.gameState = gameEngine.advancePhase(gs);
+    const newState = gameEngine.advancePhase(gs);
+    table.gameState = newState;
     table.lastActionAt = Date.now();
 
-    // After advancing, check again if hand is complete
-    if (gameEngine.isHandComplete(table.gameState)) {
-      await settleHand(roomId);
+    // After advancing to showdown, delay settlement so frontend can show cards
+    if (newState.phase === 'showdown') {
+      scheduleShowdownSettle(roomId);
       return;
     }
 
-    // If all remaining players are all-in, schedule delayed phase advances
-    // so the frontend can show each community card stage with animation
-    const activePlayers = gameEngine.getActivePlayers(table.gameState);
-    const playersWhoCanAct = activePlayers.filter(p => !p.isAllIn);
-    if (playersWhoCanAct.length <= 1 && !gameEngine.isHandComplete(table.gameState)) {
-      // Schedule sequential phase advances with delays for visual effect
+    // If all remaining players are all-in (but not showdown yet), schedule delayed phase advances
+    const stillActive = gameEngine.getActivePlayers(table.gameState);
+    const canAct = stillActive.filter(p => !p.isAllIn);
+    if (canAct.length <= 1 && table.gameState.phase !== 'showdown') {
       scheduleAllInAdvance(roomId);
     }
   }
+}
+
+/**
+ * Schedule showdown settlement with delay so frontend can animate card reveal
+ * Delay: 4 seconds (enough for flip animation + hand evaluation display)
+ */
+function scheduleShowdownSettle(roomId: number) {
+  // Clear any existing timer
+  const existing = showdownTimers.get(roomId);
+  if (existing) clearTimeout(existing);
+
+  const SHOWDOWN_DELAY_MS = 4000; // 4 seconds for card reveal animation
+  const timer = setTimeout(async () => {
+    showdownTimers.delete(roomId);
+    const table = activeTables.get(roomId);
+    if (!table) return;
+    if (table.gameState.phase === 'showdown') {
+      await settleHand(roomId);
+    }
+  }, SHOWDOWN_DELAY_MS);
+
+  showdownTimers.set(roomId, timer);
 }
 
 /**
@@ -373,24 +401,28 @@ function scheduleAllInAdvance(roomId: number) {
     const table = activeTables.get(roomId);
     if (!table) return;
 
-    if (gameEngine.isHandComplete(table.gameState)) {
+    // If only 1 active player (all others folded), settle immediately
+    const activeNow = gameEngine.getActivePlayers(table.gameState);
+    if (activeNow.length <= 1 && table.gameState.phase !== 'showdown' && table.gameState.phase !== 'completed') {
       await settleHand(roomId);
       return;
     }
 
     if (gameEngine.isBettingRoundComplete(table.gameState)) {
-      table.gameState = gameEngine.advancePhase(table.gameState);
+      const newState = gameEngine.advancePhase(table.gameState);
+      table.gameState = newState;
       table.lastActionAt = Date.now();
 
-      if (gameEngine.isHandComplete(table.gameState)) {
-        await settleHand(roomId);
+      // If we just entered showdown, schedule delayed settlement
+      if (newState.phase === 'showdown') {
+        scheduleShowdownSettle(roomId);
         return;
       }
 
       // Check if still need to advance (all players still all-in)
-      const activePlayers = gameEngine.getActivePlayers(table.gameState);
-      const playersWhoCanAct = activePlayers.filter(p => !p.isAllIn);
-      if (playersWhoCanAct.length <= 1 && !gameEngine.isHandComplete(table.gameState)) {
+      const stillActive = gameEngine.getActivePlayers(table.gameState);
+      const canAct = stillActive.filter(p => !p.isAllIn);
+      if (canAct.length <= 1 && table.gameState.phase !== 'showdown') {
         // Schedule next advance
         scheduleAllInAdvance(roomId);
       }
@@ -705,19 +737,20 @@ async function settleHand(roomId: number) {
   }
 
   // After settlement, delay showing the "ready" button so settlement UI displays first
-  // Settlement display takes ~3.5s on frontend, so we delay 4s before enabling ready state
+  // Timeline: showdown reveal (4s) + winner banner (3.5s) = ~7.5s total
+  // We delay 7s before enabling ready state so players can see the full result
   table.waitingForReady = false;
   table.readyPlayers = new Set();
   table.settlementStartedAt = Date.now();
   
-  // Delay enabling ready state by 4 seconds (after settlement animation completes)
+  // Delay enabling ready state by 7 seconds (showdown animation + winner banner)
   setTimeout(() => {
     const currentTable = activeTables.get(roomId);
     if (currentTable && currentTable.settlementStartedAt === table.settlementStartedAt) {
       currentTable.waitingForReady = true;
       currentTable.readyDeadline = Date.now() + 30000; // 30 seconds to ready up
     }
-  }, 4000);
+  }, 7000);
 }
 
 /**
@@ -812,6 +845,7 @@ export function checkTimeouts() {
 
     if (table.gameState.phase === "waiting" || table.gameState.phase === "completed") continue;
     if (table.waitingForReady) continue; // Don't auto-fold during ready phase
+    if (table.gameState.phase === "showdown") continue; // Don't auto-fold during showdown (settle timer is running)
     
     const elapsed = (now - table.lastActionAt) / 1000;
     if (elapsed > table.turnTimeout) {
