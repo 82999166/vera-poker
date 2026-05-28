@@ -228,28 +228,52 @@ export default function Table() {
 
   const tableAreaRef = useRef<HTMLDivElement>(null);
 
-  // Use Telegram WebApp viewport height if available (accounts for TG top bar)
-  // Priority: TG stable height > visualViewport > 100dvh fallback
-  const [containerHeight, setContainerHeight] = useState<string>('100dvh');
+  // Full-screen layout: use 100% of available viewport, accounting for TG WebApp chrome
+  const [containerStyle, setContainerStyle] = useState<React.CSSProperties>({
+    position: 'fixed', top: 0, left: 0,
+    width: '100vw', height: '100dvh',
+    maxWidth: '100vw', overflow: 'hidden',
+  });
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
       // Expand to full screen in Telegram WebApp
       tg.expand?.();
-      const updateTgHeight = () => {
-        const h = tg.viewportStableHeight || tg.viewportHeight || window.innerHeight;
-        if (h > 100) setContainerHeight(`${h}px`);
-      };
-      updateTgHeight();
-      tg.onEvent?.('viewportChanged', updateTgHeight);
-      return () => tg.offEvent?.('viewportChanged', updateTgHeight);
-    } else {
-      // Standard browser: use visualViewport API for accurate height (handles mobile browser chrome)
+      // Request fullscreen if available (TG 7.7+)
+      tg.requestFullscreen?.();
       const update = () => {
-        // Use window.innerHeight as it's most reliable across devices
-        // visualViewport.height changes when keyboard opens, which we don't want
-        const h = window.innerHeight;
-        setContainerHeight(`${h}px`);
+        // Use viewportStableHeight to get height excluding TG chrome
+        const h = tg.viewportStableHeight || tg.viewportHeight || window.innerHeight;
+        // safeAreaInset: TG 7.7+ provides safe area for notch/status bar
+        const topInset = tg.safeAreaInset?.top ?? 0;
+        if (h > 100) {
+          setContainerStyle({
+            position: 'fixed', top: 0, left: 0,
+            width: '100vw',
+            height: `${h}px`,
+            maxWidth: '100vw',
+            overflow: 'hidden',
+            paddingTop: topInset > 0 ? `${topInset}px` : undefined,
+          });
+        }
+      };
+      update();
+      tg.onEvent?.('viewportChanged', update);
+      tg.onEvent?.('safeAreaChanged', update);
+      return () => {
+        tg.offEvent?.('viewportChanged', update);
+        tg.offEvent?.('safeAreaChanged', update);
+      };
+    } else {
+      // Standard browser: window.innerHeight is most reliable (doesn't change on keyboard open)
+      const update = () => {
+        setContainerStyle({
+          position: 'fixed', top: 0, left: 0,
+          width: '100vw',
+          height: `${window.innerHeight}px`,
+          maxWidth: '100vw',
+          overflow: 'hidden',
+        });
       };
       update();
       window.addEventListener('resize', update);
@@ -778,15 +802,7 @@ export default function Table() {
   return (
     <div
       className="bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col"
-      style={{
-        width: '100vw',
-        height: containerHeight,
-        maxWidth: '100vw',
-        overflow: 'hidden',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-      }}
+      style={containerStyle}
     >
       {/* Room Invite Poster Overlay */}
       {showRoomPoster && room && room.inviteCode && (
@@ -1198,103 +1214,118 @@ export default function Table() {
       </div>
 
 
-      {/* ===== Buy-in Dialog (Full-screen overlay, shown after entering table) ===== */}
+      {/* ===== Buy-in Dialog (3/4 size bottom sheet) ===== */}
       {showBuyIn && !isSeated && !isDemoMode && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" style={{ height: '100dvh' }}>
-          <div className="w-full max-w-md bg-[#0d1f3c] border border-gold/30 rounded-t-3xl px-5 pt-6 pb-10 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" style={{ height: '100dvh' }}>
+          {/* Tap outside to cancel */}
+          <div className="absolute inset-0" onClick={() => { setShowBuyIn(false); navigate("/lobby"); }} />
+          <div className="relative w-full max-w-md bg-[#0d1f3c] border border-gold/30 rounded-t-2xl shadow-2xl"
+            style={{ maxHeight: '75vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
             {/* Handle bar */}
-            <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-5" />
-            {/* Room info */}
-            <div className="mb-5">
-              <h3 className="text-lg font-bold text-foreground mb-1">
-                {room ? room.name : t("table.buyIn")}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {t("lobby.blinds")}: ${room ? formatAmount(room.smallBlind) : "0"}/${room ? formatAmount(room.bigBlind) : "0"}
-                &nbsp;·&nbsp;
-                {t("lobby.buyIn")}: ${room ? formatAmount(room.minBuyIn) : "0"} - ${room ? formatAmount(room.maxBuyIn) : "0"}
-              </p>
-            </div>
-            {/* Balance */}
-            <div className="flex justify-between items-center mb-3 px-1">
-              <span className="text-xs text-muted-foreground">{t("wallet.balance")}</span>
-              <span className="text-sm font-bold text-green-400">${formatBalance(walletData?.balance)}</span>
-            </div>
-            {/* Insufficient balance warning */}
-            {walletData && room && parseFloat(walletData.balance) < parseFloat(room.minBuyIn) && (
-              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-orange-500/15 border border-orange-500/30 mb-3">
-                <AlertTriangle className="w-4 h-4 text-orange-400 flex-shrink-0" />
-                <p className="flex-1 text-xs text-orange-300 font-medium">{t("table.insufficientBalance")}</p>
+            <div className="w-8 h-1 rounded-full bg-white/20 mx-auto mt-3 mb-3" />
+            <div className="px-4 pb-8">
+              {/* Room info */}
+              <div className="mb-3">
+                <h3 className="text-base font-bold text-foreground mb-0.5">
+                  {room ? room.name : t("table.buyIn")}
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  {t("lobby.blinds")}: ${room ? formatAmount(room.smallBlind) : "0"}/${room ? formatAmount(room.bigBlind) : "0"}
+                  &nbsp;·&nbsp;
+                  {t("lobby.buyIn")}: ${room ? formatAmount(room.minBuyIn) : "0"} - ${room ? formatAmount(room.maxBuyIn) : "0"}
+                </p>
+              </div>
+              {/* Balance */}
+              <div className="flex justify-between items-center mb-2.5 px-0.5">
+                <span className="text-[11px] text-muted-foreground">{t("wallet.balance")}</span>
+                <span className="text-sm font-bold text-green-400">${formatBalance(walletData?.balance)}</span>
+              </div>
+              {/* Insufficient balance warning */}
+              {walletData && room && parseFloat(walletData.balance) < parseFloat(room.minBuyIn) && (
+                <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-orange-500/15 border border-orange-500/30 mb-2.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+                  <p className="flex-1 text-[11px] text-orange-300 font-medium">{t("table.insufficientBalance")}</p>
+                  <button onClick={() => navigate("/wallet")} className="text-[11px] text-truth-blue underline whitespace-nowrap font-medium">
+                    {t("table.goDeposit")}
+                  </button>
+                </div>
+              )}
+              {/* Amount input */}
+              <label className="block text-[11px] text-muted-foreground mb-1.5">{t("lobby.buyIn")} (USDT)</label>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={buyInAmount}
+                  onChange={(e) => setBuyInAmount(e.target.value)}
+                  min={room?.minBuyIn}
+                  max={room?.maxBuyIn}
+                  step="0.01"
+                  placeholder={room ? `${formatAmount(room.minBuyIn)} - ${formatAmount(room.maxBuyIn)}` : ""}
+                  className="flex-1 bg-background/50 border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-gold transition-colors"
+                  autoFocus
+                />
                 <button
-                  onClick={() => navigate("/wallet")}
-                  className="text-xs text-truth-blue underline whitespace-nowrap font-medium"
+                  onClick={() => room && setBuyInAmount(room.maxBuyIn)}
+                  className="px-3 py-2.5 rounded-xl bg-gold/20 text-gold text-sm font-bold hover:bg-gold/30 transition-colors active:scale-95"
                 >
-                  {t("table.goDeposit")}
+                  MAX
                 </button>
               </div>
-            )}
-            {/* Amount input */}
-            <label className="block text-xs text-muted-foreground mb-2">{t("lobby.buyIn")} (USDT)</label>
-            <div className="flex gap-2 mb-5">
-              <input
-                type="number"
-                inputMode="decimal"
-                value={buyInAmount}
-                onChange={(e) => setBuyInAmount(e.target.value)}
-                min={room?.minBuyIn}
-                max={room?.maxBuyIn}
-                step="0.01"
-                placeholder={room ? `${formatAmount(room.minBuyIn)} - ${formatAmount(room.maxBuyIn)}` : ""}
-                className="flex-1 bg-background/50 border border-border rounded-xl px-4 py-3 text-sm text-foreground outline-none focus:border-gold transition-colors"
-                autoFocus
-              />
-              <button
-                onClick={() => room && setBuyInAmount(room.maxBuyIn)}
-                className="px-4 py-3 rounded-xl bg-gold/20 text-gold text-sm font-bold hover:bg-gold/30 transition-colors active:scale-95"
-              >
-                MAX
-              </button>
-            </div>
-            {/* Quick amount buttons */}
-            {room && (
-              <div className="flex gap-2 mb-5">
-                {[
-                  parseFloat(room.minBuyIn),
-                  parseFloat(room.minBuyIn) * 2,
-                  parseFloat(room.minBuyIn) * 5,
-                  parseFloat(room.maxBuyIn),
-                ].filter((v, i, arr) => arr.indexOf(v) === i && v <= parseFloat(room.maxBuyIn)).map(v => (
-                  <button
-                    key={v}
-                    onClick={() => setBuyInAmount(v.toFixed(2))}
-                    className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all active:scale-95 ${
-                      parseFloat(buyInAmount) === v
-                        ? "bg-gold text-background"
-                        : "bg-secondary text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    ${formatAmount(v.toFixed(2))}
-                  </button>
-                ))}
+              {/* Quick amount buttons */}
+              {room && (
+                <div className="flex gap-1.5 mb-4">
+                  {[
+                    parseFloat(room.minBuyIn),
+                    parseFloat(room.minBuyIn) * 2,
+                    parseFloat(room.minBuyIn) * 5,
+                    parseFloat(room.maxBuyIn),
+                  ].filter((v, i, arr) => arr.indexOf(v) === i && v <= parseFloat(room.maxBuyIn)).map(v => (
+                    <button
+                      key={v}
+                      onClick={() => setBuyInAmount(v.toFixed(2))}
+                      className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all active:scale-95 ${
+                        parseFloat(buyInAmount) === v
+                          ? "bg-gold text-background"
+                          : "bg-secondary text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      ${formatAmount(v.toFixed(2))}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* Buttons */}
+              <div className="flex gap-2.5">
+                <button
+                  onClick={() => { setShowBuyIn(false); navigate("/lobby"); }}
+                  className="flex-1 py-3 rounded-xl bg-secondary text-muted-foreground text-sm font-medium hover:text-foreground transition-colors active:scale-[0.97]"
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  onClick={handleJoin}
+                  disabled={joinMutation.isPending || !buyInAmount || (!!walletData && !!room && parseFloat(walletData.balance) < parseFloat(room.minBuyIn))}
+                  className="flex-1 py-3 rounded-xl text-base font-black tracking-wide transition-all active:scale-[0.97] disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{
+                    background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%)',
+                    color: '#1a0a00',
+                    boxShadow: '0 4px 16px rgba(255,165,0,0.5), 0 0 0 2px rgba(255,215,0,0.3)',
+                    textShadow: '0 1px 2px rgba(255,255,255,0.3)',
+                  }}
+                >
+                  {joinMutation.isPending ? (
+                    <><div className="w-4 h-4 border-2 border-[#1a0a00]/40 border-t-[#1a0a00] rounded-full animate-spin" /><span>{t("table.joining") || "..."}</span></>
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      <span>🪑</span>
+                      <span>{t("table.sitDown")}</span>
+                    </span>
+                  )}
+                </button>
               </div>
-            )}
-            {/* Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setShowBuyIn(false); navigate("/lobby"); }}
-                className="flex-1 py-3.5 rounded-2xl bg-secondary text-muted-foreground text-sm font-semibold hover:text-foreground transition-colors active:scale-[0.97]"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                onClick={handleJoin}
-                disabled={joinMutation.isPending || !buyInAmount || (!!walletData && !!room && parseFloat(walletData.balance) < parseFloat(room.minBuyIn))}
-                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-gold to-gold-dim text-background text-sm font-bold hover:opacity-90 transition-opacity active:scale-[0.97] disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {joinMutation.isPending ? (
-                  <><div className="w-4 h-4 border-2 border-background/40 border-t-background rounded-full animate-spin" /><span>{t("table.joining") || "..."}</span></>
-                ) : t("table.sitDown")}
-              </button>
             </div>
           </div>
         </div>
