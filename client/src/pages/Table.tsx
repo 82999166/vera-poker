@@ -210,7 +210,6 @@ export default function Table() {
   const [showWinner, setShowWinner] = useState<{ name: string; amount: number; handDescription?: string } | null>(null);
   const [showSettlement, setShowSettlement] = useState<any>(null);
   const [winnerPlayerIds, setWinnerPlayerIds] = useState<number[]>([]);
-  const prevHandRef = useRef<number>(0);
   // Track which hand settlements have already been shown (persist across re-mounts)
   // Key: "vera-seen-hand-{roomId}-{handNumber}", value: "1"
   // roomId is declared below at line ~256, so we use id directly here
@@ -336,23 +335,25 @@ export default function Table() {
     }
   }, [tableState?.phase, lastPhase, muted, playSound]);
 
-  // Detect winner - trigger when lastWinner appears OR phase becomes completed
-  const prevWinnerRef = useRef<string | null>(null);
+  // Detect winner - use handNumber + phase as primary detection to avoid polling race conditions
+  // Problem solved: when same player wins consecutive hands with same amount, winnerKey doesn't change
+  // between polls if the client misses the brief "lastWinner=null" window during new hand start.
+  // Solution: track the last settled handNumber and trigger on any new completed hand.
+  const lastSettledHandRef = useRef<number>(0);
   const prevPhaseRef = useRef<string>("");
   useEffect(() => {
     const currentPhase = tableState?.phase || "";
-    const winnerKey = tableState?.lastWinner ? `${tableState.lastWinner.name}-${tableState.lastWinner.amount}` : null;
+    const currentHandNum = tableState?.handNumber ?? 0;
     
-    // Trigger when:
-    // 1. Phase transitions to completed and we have winner data
-    // 2. OR lastWinner appears (even if we missed the phase transition due to polling)
-    const phaseJustCompleted = currentPhase === "completed" && prevPhaseRef.current !== "completed";
-    const winnerJustAppeared = winnerKey && winnerKey !== prevWinnerRef.current;
+    // Primary trigger: phase is "completed" AND this hand hasn't been settled yet
+    const isCompleted = currentPhase === "completed";
+    const isNewSettlement = isCompleted && currentHandNum > 0 && currentHandNum !== lastSettledHandRef.current;
     
     // Guard: skip if this hand's settlement has already been shown (prevents replay after re-mount)
-    const currentHandNum = tableState?.handNumber ?? 0;
     const alreadySeen = currentHandNum > 0 && hasSeenSettlement(currentHandNum);
-    if ((phaseJustCompleted || winnerJustAppeared) && tableState?.lastWinner && !showWinner && !alreadySeen) {
+
+    if (isNewSettlement && tableState?.lastWinner && !showWinner && !alreadySeen) {
+      lastSettledHandRef.current = currentHandNum;
       if (currentHandNum > 0) markSettlementSeen(currentHandNum);
       setShowWinner(tableState.lastWinner);
       if (tableState.settlementDetail) {
@@ -403,11 +404,6 @@ export default function Table() {
     }
     
     prevPhaseRef.current = currentPhase;
-    prevWinnerRef.current = winnerKey;
-    // Also track handNumber for reference
-    if (tableState?.handNumber && tableState.handNumber !== prevHandRef.current) {
-      prevHandRef.current = tableState.handNumber;
-    }
   }, [tableState?.phase, tableState?.handNumber, tableState?.lastWinner, tableState?.settlementDetail, muted, playSound, user]);
 
   // === Auto-return to lobby logic ===

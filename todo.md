@@ -101,3 +101,10 @@
 - [x] Bug 3: advancePhase 接受 bigBlind 参数，翻牌后 minRaise 正确初始化为大盲注而非 0
 - [x] Bug 4: tableManager 所有 advancePhase 调用传入 table.bigBlind
 - [x] TypeScript 零错误，103 个测试全部通过
+
+## Bug Fix: 重入座被踢 + 结算动画不显示
+- [x] Bug 1: 退出后重入座第一次被强返大厅 - kickDetectedRef/joinSettledRef 在离桌后未重置，新增 prevIsSeatedRef 监听入座变化时完整重置
+- [x] Bug 2: isBettingRoundComplete 未处理 currentPlayerIndex=-1 - 增加 -1 即返回 true 的逻辑
+- [x] Bug 3: 结算动画不显示（轮询竞态条件）- 重写 winner 检测 useEffect，用 handNumber 作为唯一标识替代 winnerKey 变化检测
+- [x] Bug 4: actionMutation.onError 对状态不一致错误改为静默刷新（不弹 toast）
+- [x] TypeScript 零错误，103 个测试全部通过
