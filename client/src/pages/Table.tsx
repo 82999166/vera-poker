@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useI18n, getLocale } from "@/lib/i18n";
 import { fmtAmt, formatAmount, formatBalance } from "@/lib/utils";
-import { ArrowLeft, Shield, Volume2, VolumeX, LogIn, LogOut, Trophy, Clock, Users, Plus, AlertTriangle, Settings, ImageIcon, RefreshCw } from "lucide-react";
+import { ArrowLeft, Shield, Volume2, VolumeX, LogOut, Trophy, Clock, Users, Plus, AlertTriangle, Settings, ImageIcon, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import RoomInvitePoster from "@/components/RoomInvitePoster";
@@ -1208,35 +1208,6 @@ export default function Table() {
           });
           })()}
 
-          {/* Sit-down overlay: shown when not seated - just shows table info */}
-          {/* Hide when leaving/kicked to prevent flash of old overlay */}
-          {!isSeated && !isDemoMode && !showBuyIn && !isLeaving && (
-            <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/40 backdrop-blur-sm">
-              <div className="glass-strong rounded-2xl p-5 text-center max-w-[260px] border border-border/30">
-                <div className="space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-truth-blue/10 flex items-center justify-center mx-auto">
-                    <LogIn className="w-6 h-6 text-truth-blue" />
-                  </div>
-                  <h3 className="text-sm font-bold text-foreground">{t("table.sitDown")}</h3>
-                  <p className="text-[11px] text-muted-foreground">
-                    {room ? `${room.name} · ${room.smallBlind}/${room.bigBlind}` : "..."}
-                  </p>
-                  <button
-                    onClick={() => setShowBuyIn(true)}
-                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-truth-blue to-truth-blue-bright text-white font-semibold text-sm hover:opacity-90 transition-opacity active:scale-[0.97]"
-                  >
-                    {t("table.sitDown")}
-                  </button>
-                  <button
-                    onClick={() => navigate("/lobby")}
-                    className="w-full py-2 rounded-xl bg-secondary text-muted-foreground text-xs hover:bg-secondary/80 transition-colors active:scale-[0.97]"
-                  >
-                    {t("table.backToLobby")}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
