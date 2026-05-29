@@ -183,7 +183,9 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   else if (className.includes('!w-12')) cardPx = 48;
   const cornerRankPx = Math.floor(cardPx * 0.50); // rank digit in corner — large and bold
   const cornerSuitPx = Math.floor(cardPx * 0.28); // suit symbol in corner
-  const centerSuitPx = Math.floor(cardPx * 0.58); // center suit — fills ~55% of card height
+  // Center suit must NOT overlap corners: corners occupy top ~38% and bottom ~38% of card height
+  // Safe zone is middle ~24% → cap center suit at cardHeight * 0.30, cardHeight ≈ cardPx * 1.36
+  const centerSuitPx = Math.floor(cardPx * 0.38); // center suit — safe, no overlap with corners
 
   return (
     <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${flip && flipped ? "animate-flip" : ""} ${className}`}>
