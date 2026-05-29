@@ -170,35 +170,37 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const suitInfo = SUITS[suit] || SUITS.s;
   const displayRank = RANK_DISPLAY[rank] || rank;
   const isRed = suit === 'h' || suit === 'd';
-
-  // Detect card size bucket from className overrides
-  // !w-9 / !w-10 = small (opponent face-down), !w-12 = hero cards, default w-14 = community
-  const isSmall = className.includes('!w-9') || className.includes('!w-10');
-  const isMedium = className.includes('!w-12') || className.includes('!w-11');
-  // Corner label sizes
-  const rankSize = isSmall ? 'text-[12px]' : isMedium ? 'text-[13px]' : 'text-[15px]';
-  const suitSize = isSmall ? 'text-[10px]' : isMedium ? 'text-[11px]' : 'text-[12px]';
-  // Center suit: kept small enough to never overlap the corner labels
-  const centerSize = isSmall ? 'text-[18px]' : isMedium ? 'text-[20px]' : 'text-[22px]';
-  // Brighter colors: vivid red for hearts/diamonds, near-black for clubs/spades
   const rankColor = isRed ? 'text-[#e8000a]' : 'text-[#111111]';
+
+  // Size buckets: extract numeric width from className (e.g. !w-9 → 36px, !w-10 → 40px, !w-12 → 48px, default w-14 → 56px)
+  // We use the actual card width to derive font sizes so they NEVER overflow regardless of screen size.
+  // Formula: cornerRank ≈ cardWidth * 0.26, centerSuit ≈ cardWidth * 0.38 (leaves ~30% margin each side for corners)
+  let cardPx = 56; // default w-14
+  if (className.includes('!w-[44px]')) cardPx = 44;
+  else if (className.includes('!w-9')) cardPx = 36;
+  else if (className.includes('!w-10')) cardPx = 40;
+  else if (className.includes('!w-11')) cardPx = 44;
+  else if (className.includes('!w-12')) cardPx = 48;
+  const cornerRankPx = Math.floor(cardPx * 0.24); // rank digit in corner
+  const cornerSuitPx = Math.floor(cardPx * 0.20); // suit symbol in corner
+  const centerSuitPx = Math.floor(cardPx * 0.36); // center large suit
 
   return (
     <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${flip && flipped ? "animate-flip" : ""} ${className}`}>
       <div className="w-full h-full bg-white border-[1.5px] border-gray-200 rounded-lg relative">
-        {/* Top-left: rank + suit side by side */}
-        <div className="absolute top-[3px] left-[3px] flex flex-col items-center leading-none">
-          <span className={`${rankSize} font-black leading-none ${rankColor}`}>{displayRank}</span>
-          <span className={`${suitSize} leading-none ${rankColor}`}>{suitInfo.symbol}</span>
+        {/* Top-left corner: rank above suit, tightly packed */}
+        <div className="absolute top-[2px] left-[2px] flex flex-col items-center leading-[1]">
+          <span style={{ fontSize: cornerRankPx }} className={`font-black leading-none ${rankColor}`}>{displayRank}</span>
+          <span style={{ fontSize: cornerSuitPx }} className={`leading-none ${rankColor}`}>{suitInfo.symbol}</span>
         </div>
-        {/* Center suit symbol - sized to not overlap corners */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`${centerSize} leading-none select-none ${rankColor}`}>{suitInfo.symbol}</span>
+        {/* Center suit symbol — width-proportional, guaranteed not to reach corners */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span style={{ fontSize: centerSuitPx }} className={`leading-none select-none ${rankColor}`}>{suitInfo.symbol}</span>
         </div>
-        {/* Bottom-right: rank + suit stacked (inverted) */}
-        <div className="absolute bottom-[3px] right-[3px] flex flex-col items-center leading-none rotate-180">
-          <span className={`${rankSize} font-black leading-none ${rankColor}`}>{displayRank}</span>
-          <span className={`${suitSize} leading-none ${rankColor}`}>{suitInfo.symbol}</span>
+        {/* Bottom-right corner: mirrored */}
+        <div className="absolute bottom-[2px] right-[2px] flex flex-col items-center leading-[1] rotate-180">
+          <span style={{ fontSize: cornerRankPx }} className={`font-black leading-none ${rankColor}`}>{displayRank}</span>
+          <span style={{ fontSize: cornerSuitPx }} className={`leading-none ${rankColor}`}>{suitInfo.symbol}</span>
         </div>
       </div>
     </div>
