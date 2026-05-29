@@ -169,12 +169,12 @@ const DEFAULT_AVATAR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691
 // Player seat positions for 6-max table (oval layout)
 // Hero at bottom-center; side seats use % inset to stay within screen on all phones
 const SEAT_POSITIONS = [
-  { top: "78%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero) - raised to avoid action bar overlap
-  { top: "66%", left: "3%",  transform: "translate(0, -50%)" },      // Left bottom
-  { top: "26%", left: "3%",  transform: "translate(0, -50%)" },      // Left top
-  { top: "4%",  left: "50%", transform: "translate(-50%, 0)" },       // Top
-  { top: "26%", left: "97%", transform: "translate(-100%, -50%)" }, // Right top
-  { top: "66%", left: "97%", transform: "translate(-100%, -50%)" }, // Right bottom
+  { top: "80%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
+  { top: "67%", left: "3%",  transform: "translate(0, -50%)" },      // Left bottom
+  { top: "27%", left: "3%",  transform: "translate(0, -50%)" },      // Left top
+  { top: "5%",  left: "50%", transform: "translate(-50%, 0)" },       // Top
+  { top: "27%", left: "97%", transform: "translate(-100%, -50%)" }, // Right top
+  { top: "67%", left: "97%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
 
 // Hand rank translation helper - maps English server descriptions to i18n keys
@@ -856,8 +856,8 @@ export default function Table() {
           onClose={() => setShowRoomPoster(false)}
         />
       )}
-      {/* Top Bar */}
-      <div className="glass-strong px-3 py-2 flex items-center justify-between z-10 border-b border-border/30">
+      {/* Top Bar - compact for small screens */}
+      <div className="glass-strong px-2 py-1.5 flex items-center justify-between z-10 border-b border-border/30">
         <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground transition-colors active:scale-95">
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -929,9 +929,9 @@ export default function Table() {
         </div>
       </div>
 
-      {/* Phase Progress Indicator */}
+      {/* Phase Progress Indicator - minimal height */}
       {displayPhase !== "waiting" && (
-        <div className="px-3 py-1.5 glass border-b border-border/20">
+        <div className="px-3 py-0.5 glass border-b border-border/20">
           <div className="flex items-center justify-center gap-1">
             {["preflop", "flop", "turn", "river"].map((phase, i) => {
               const phases = ["preflop", "flop", "turn", "river"];
@@ -948,10 +948,10 @@ export default function Table() {
                 </div>
               );
             })}
+            <span className="text-[9px] text-muted-foreground ml-2">
+              {phaseNames[displayPhase]}
+            </span>
           </div>
-          <p className="text-[9px] text-center text-muted-foreground mt-0.5">
-            {phaseNames[displayPhase]}
-          </p>
         </div>
       )}
 
@@ -1033,6 +1033,26 @@ export default function Table() {
       {/* Table Area - flex-1 min-h-0 ensures it fills all remaining vertical space */}
       {/* max-h limits table to ~55% of screen so it doesn't look oversized on tall phones */}
       <div ref={tableAreaRef} className="flex-1 min-h-0 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
+        {/* Vertical Countdown Timer - right edge of table area */}
+        {displayIsMyTurn && (
+          <div className="absolute right-2 top-[15%] bottom-[15%] z-20 flex flex-col items-center gap-1">
+            <div className={`relative w-2 flex-1 bg-secondary/60 rounded-full overflow-hidden ${isUrgent ? 'animate-pulse' : ''}`}>
+              <div
+                className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 ease-linear ${
+                  countdown > 10
+                    ? 'bg-gradient-to-t from-truth-blue to-gold'
+                    : countdown > 5
+                      ? 'bg-gradient-to-t from-orange-400 to-yellow-500'
+                      : 'bg-gradient-to-t from-red-600 to-red-400'
+                }`}
+                style={{ height: `${(countdown / turnTimeout) * 100}%` }}
+              />
+            </div>
+            <div className={`text-[10px] font-bold ${isUrgent ? 'text-red-400' : 'text-gold'}`}>
+              {countdown}s
+            </div>
+          </div>
+        )}
         {/* Game content overlay */}
         <div className="absolute inset-0">
             
@@ -1047,10 +1067,10 @@ export default function Table() {
               )}
             </div>
 
-            {/* Community Cards - no placeholders, background has card slots */}
-            <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2">
+            {/* Community Cards - responsive size for small screens */}
+            <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5">
               {displayCommunity.map((card, i) => (
-                <CardView key={`${card}-${i}`} card={card} className="!w-[52px] !h-[72px]" animate={animateCards} delay={i * 150} />
+                <CardView key={`${card}-${i}`} card={card} className="!w-[44px] !h-[62px]" animate={animateCards} delay={i * 150} />
               ))}
             </div>
 
@@ -1348,53 +1368,26 @@ export default function Table() {
         </div>
       )}
 
-      {/* Action Panel */}
+      {/* Action Panel - fixed min-height to prevent layout jumps */}
       {(isSeated || isDemoMode) && (
-        <div className="glass-strong border-t border-border/30 px-3 py-2.5 z-10">
-          {/* Countdown Timer */}
-          {displayIsMyTurn && (
-            <div className={`mb-2 ${isUrgent ? "animate-pulse" : ""}`}>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-1000 ease-linear ${
-                    countdown > 10 
-                      ? "bg-gradient-to-r from-truth-blue to-gold" 
-                      : countdown > 5
-                        ? "bg-gradient-to-r from-orange-400 to-yellow-500"
-                        : "bg-gradient-to-r from-red-600 to-red-400 animate-pulse"
-                  }`}
-                  style={{ width: `${(countdown / turnTimeout) * 100}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-center gap-1 mt-1">
-                <Clock className={`w-3 h-3 ${isUrgent ? "text-red-400 animate-spin" : "text-gold"}`} />
-                <p className={`text-[10px] font-bold ${
-                  isUrgent ? "text-red-400 text-xs" : "text-gold"
-                }`}>
-                  {t("table.yourTurn")} · {countdown}s
-                </p>
-              </div>
-            </div>
-          )}
-
-
+        <div className="glass-strong border-t border-border/30 px-3 py-2 z-10" style={{ minHeight: '88px' }}>
 
           {displayPhase === "waiting" && !waitingForReady && !isDemoMode && (
-            <div className="text-center py-3">
+            <div className="flex items-center justify-center" style={{ minHeight: '72px' }}>
               {players.length >= 2 ? (
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center gap-1">
                   <button
                     onClick={() => readyMutation.mutate({ roomId })}
                     disabled={readyMutation.isPending}
-                    className="px-6 py-2.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-500/40 hover:shadow-green-500/60 transition-all active:scale-[0.97] disabled:opacity-50"
+                    className="px-6 py-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-500/40 hover:shadow-green-500/60 transition-all active:scale-[0.97] disabled:opacity-50"
                   >
                     ▶ {t("table.startNextHand")}
                   </button>
                   <span className="text-[10px] text-muted-foreground/60">{players.length} {t("table.minPlayers")}</span>
                 </div>
               ) : (
-                <div>
-                  <div className="flex items-center justify-center gap-2 mb-1">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-0.5">
                     <div className="w-2 h-2 rounded-full bg-truth-blue animate-pulse" />
                     <span className="text-sm text-muted-foreground">{t("table.waiting")}</span>
                   </div>
@@ -1404,11 +1397,18 @@ export default function Table() {
             </div>
           )}
 
+          {/* When waitingForReady, show placeholder to maintain height */}
+          {waitingForReady && !isDemoMode && displayPhase !== "waiting" && (
+            <div className="flex items-center justify-center" style={{ minHeight: '72px' }}>
+              <span className="text-[11px] text-muted-foreground/60">{t("table.waiting")}</span>
+            </div>
+          )}
+
           {(displayPhase !== "waiting" || isDemoMode) && !waitingForReady && (
             <>
               {/* Raise slider */}
-              <div className="flex items-center gap-2 mb-2.5">
-                <span className="text-[10px] text-muted-foreground min-w-[36px]">{fmtAmt(currentBet * 2)}</span>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[10px] text-muted-foreground min-w-[32px]">{fmtAmt(currentBet * 2)}</span>
                 <input
                   type="range"
                   min={currentBet * 2}
@@ -1416,18 +1416,18 @@ export default function Table() {
                   step={room ? (parseFloat(room.bigBlind) < 1 ? 0.01 : parseFloat(room.bigBlind) < 10 ? 0.1 : 0.5) : 0.5}
                   value={raiseAmount}
                   onChange={(e) => setRaiseAmount(parseFloat(e.target.value))}
-                  className="flex-1 h-1.5 bg-secondary rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-gold [&::-webkit-slider-thumb]:to-gold-dim [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gold/50"
+                  className="flex-1 h-1.5 bg-secondary rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-gold [&::-webkit-slider-thumb]:to-gold-dim [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gold/50"
                 />
-                <span className="text-[10px] text-gold font-bold min-w-[40px] text-right">{fmtAmt(raiseAmount)}</span>
+                <span className="text-[10px] text-gold font-bold min-w-[36px] text-right">{fmtAmt(raiseAmount)}</span>
               </div>
 
-              {/* Action buttons - 2-row layout for small screens */}
-              <div className="flex gap-1.5 mb-1.5">
-                {/* Fold - always visible */}
+              {/* Action buttons - single row, always visible (disabled when not your turn) */}
+              <div className="flex gap-1.5 mb-1">
+                {/* Fold */}
                 <button
                   onClick={handleFold}
                   disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
-                  className="flex-1 py-2.5 rounded-xl bg-red-900/60 text-red-300 border border-red-500/50 font-bold text-sm hover:bg-red-800/70 transition-all active:scale-[0.97] disabled:opacity-40"
+                  className="flex-1 py-2 rounded-xl bg-red-900/60 text-red-300 border border-red-500/50 font-bold text-xs hover:bg-red-800/70 transition-all active:scale-[0.97] disabled:opacity-40"
                 >
                   {t("table.fold")}
                 </button>
@@ -1436,7 +1436,7 @@ export default function Table() {
                   <button
                     onClick={handleCheck}
                     disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
-                    className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.97] disabled:opacity-40"
+                    className="flex-1 py-2 rounded-xl font-bold text-xs transition-all active:scale-[0.97] disabled:opacity-40"
                     style={{ background: 'linear-gradient(135deg,#1a6bb5,#1e90ff)', color: '#fff', boxShadow: '0 2px 12px rgba(30,144,255,0.4)' }}
                   >
                     {t("table.check")}
@@ -1445,7 +1445,7 @@ export default function Table() {
                   <button
                     onClick={handleCall}
                     disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
-                    className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.97] disabled:opacity-40"
+                    className="flex-1 py-2 rounded-xl font-bold text-xs transition-all active:scale-[0.97] disabled:opacity-40"
                     style={{ background: 'linear-gradient(135deg,#1a6bb5,#1e90ff)', color: '#fff', boxShadow: '0 2px 12px rgba(30,144,255,0.4)' }}
                   >
                     {t("table.call")} {fmtAmt(currentBet)}
@@ -1455,22 +1455,21 @@ export default function Table() {
                 <button
                   onClick={handleRaise}
                   disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
-                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.97] disabled:opacity-40"
+                  className="flex-1 py-2 rounded-xl font-bold text-xs transition-all active:scale-[0.97] disabled:opacity-40"
                   style={{ background: 'linear-gradient(135deg,#b8860b,#FFD700)', color: '#1a0a00', boxShadow: '0 2px 12px rgba(255,215,0,0.4)' }}
                 >
                   {t("table.raise")} {fmtAmt(raiseAmount)}
                 </button>
+                {/* All-in */}
+                <button
+                  onClick={() => setShowAllInConfirm(true)}
+                  disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
+                  className="py-2 px-2.5 rounded-xl font-black text-xs tracking-wide transition-all active:scale-[0.97] disabled:opacity-40"
+                  style={{ background: 'linear-gradient(135deg,#c0392b,#e74c3c,#ff6b6b)', color: '#fff', boxShadow: '0 2px 14px rgba(231,76,60,0.5)' }}
+                >
+                  🔥{t("table.allIn")}
+                </button>
               </div>
-
-              {/* All-in button - full width, prominent orange-red */}
-              <button
-                onClick={() => setShowAllInConfirm(true)}
-                disabled={!displayIsMyTurn || actionMutation.isPending || connectionLost}
-                className="w-full py-2.5 rounded-xl font-black text-sm tracking-wide transition-all active:scale-[0.97] disabled:opacity-40"
-                style={{ background: 'linear-gradient(135deg,#c0392b,#e74c3c,#ff6b6b)', color: '#fff', boxShadow: '0 2px 14px rgba(231,76,60,0.5)', letterSpacing: '0.05em' }}
-              >
-                🔥 {t("table.allIn")} {myPlayer ? fmtAmt(myPlayer.chips) : ""}
-              </button>
             </>
           )}
         </div>

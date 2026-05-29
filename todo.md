@@ -109,3 +109,7 @@
 - [x] Bug 5: localStorage hasSeenSettlement 在服务器重启后 handNumber 重置导致误判 - 完全移除 localStorage 去重机制，改用纯内存 lastSettledHandRef
 - [x] Bug 4: actionMutation.onError 对状态不一致错误改为静默刷新（不弹 toast）
 - [x] TypeScript 零错误，103 个测试全部通过
+
+- [x] 修复小屏幕（iPhone 7 Plus）游戏桌面显示不完整
+- [x] 进度条改为竖向，避免下注时底部菜单高度变化
+- [x] 固定底部操作区高度，消除菜单跳动
