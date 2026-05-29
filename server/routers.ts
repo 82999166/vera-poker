@@ -1884,7 +1884,21 @@ ${faqContext}
   // Public Banners
   banners: router({
     list: publicProcedure.query(async () => {
-      return db.getActiveBanners();
+      const bannerList = await db.getActiveBanners();
+      // Resolve /manus-storage/ relative paths to signed CDN URLs for browser display
+      const { storageGetSignedUrl } = await import("../server/storage");
+      return Promise.all(bannerList.map(async (b) => {
+        if (b.imageUrl && b.imageUrl.startsWith("/manus-storage/")) {
+          const key = b.imageUrl.replace("/manus-storage/", "");
+          try {
+            const signedUrl = await storageGetSignedUrl(key);
+            return { ...b, imageUrl: signedUrl };
+          } catch {
+            return b;
+          }
+        }
+        return b;
+      }));
     }),
   }),
   // ==================== TOURNAMENTS ====================
@@ -2113,7 +2127,21 @@ ${faqContext}
   // Admin Banners Management
   adminBanners: router({
     list: staffProcedure.query(async () => {
-      return db.getAllBanners();
+      const bannerList = await db.getAllBanners();
+      // Resolve /manus-storage/ relative paths to signed CDN URLs for browser display
+      const { storageGetSignedUrl } = await import("../server/storage");
+      return Promise.all(bannerList.map(async (b) => {
+        if (b.imageUrl && b.imageUrl.startsWith("/manus-storage/")) {
+          const key = b.imageUrl.replace("/manus-storage/", "");
+          try {
+            const signedUrl = await storageGetSignedUrl(key);
+            return { ...b, imageUrl: signedUrl };
+          } catch {
+            return b;
+          }
+        }
+        return b;
+      }));
     }),
     create: staffProcedure.input(z.object({
       title: z.string().min(1),
