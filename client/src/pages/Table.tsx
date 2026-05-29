@@ -9,6 +9,88 @@ import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import RoomInvitePoster from "@/components/RoomInvitePoster";
 
+// ==================== Frontend Hand Evaluator (for real-time hand strength hints) ====================
+const RANK_VALUES: Record<string, number> = {
+  '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
+  'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14,
+};
+
+function getCombinations<T>(arr: T[], k: number): T[][] {
+  const result: T[][] = [];
+  function combine(start: number, current: T[]) {
+    if (current.length === k) { result.push([...current]); return; }
+    for (let i = start; i < arr.length; i++) { current.push(arr[i]); combine(i + 1, current); current.pop(); }
+  }
+  combine(0, []);
+  return result;
+}
+
+function evalFive(cards: string[]): number {
+  const ranks = cards.map(c => RANK_VALUES[c[0]] ?? 0).sort((a, b) => b - a);
+  const suits = cards.map(c => c[1]);
+  const isFlush = suits.every(s => s === suits[0]);
+  const uniq = Array.from(new Set(ranks)).sort((a, b) => b - a);
+  const isStraight = (uniq.length === 5 && uniq[0] - uniq[4] === 4) ||
+    (uniq[0] === 14 && uniq[1] === 5 && uniq[2] === 4 && uniq[3] === 3 && uniq[4] === 2);
+  const cnt = new Map<number, number>();
+  for (const r of ranks) cnt.set(r, (cnt.get(r) || 0) + 1);
+  const counts = Array.from(cnt.entries()).sort((a, b) => b[1] - a[1] || b[0] - a[0]);
+  if (isFlush && isStraight && ranks[0] === 14 && ranks[1] === 13) return 10;
+  if (isFlush && isStraight) return 9;
+  if (counts[0][1] === 4) return 8;
+  if (counts[0][1] === 3 && counts[1][1] === 2) return 7;
+  if (isFlush) return 6;
+  if (isStraight) return 5;
+  if (counts[0][1] === 3) return 4;
+  if (counts[0][1] === 2 && counts[1][1] === 2) return 3;
+  if (counts[0][1] === 2) return 2;
+  return 1;
+}
+
+// Maps evalFive rank value (1-10) to HAND_RANK_MAP keys (same as server-side descriptions)
+const HAND_RANK_VALUE_TO_KEY: Record<number, string> = {
+  10: 'Royal Flush', 9: 'Straight Flush', 8: 'Four of a Kind', 7: 'Full House',
+  6: 'Flush', 5: 'Straight', 4: 'Three of a Kind', 3: 'Two Pair', 2: 'One Pair', 1: 'High Card',
+};
+
+// Returns i18n key for draw type, or empty string
+function detectDrawKey(hole: string[], community: string[]): string {
+  const all = [...hole, ...community];
+  const suits = all.map(c => c[1]);
+  const ranks = all.map(c => RANK_VALUES[c[0]] ?? 0);
+  const suitCnt = new Map<string, number>();
+  for (const s of suits) suitCnt.set(s, (suitCnt.get(s) || 0) + 1);
+  const hasFlushDraw = Array.from(suitCnt.values()).some(v => v === 4);
+  const uniqRanks = Array.from(new Set(ranks)).sort((a, b) => a - b);
+  let oesd = false, gutshot = false;
+  for (let i = 0; i <= uniqRanks.length - 4; i++) {
+    const span = uniqRanks[i + 3] - uniqRanks[i];
+    if (span === 3) { oesd = true; break; }
+    if (span === 4) { gutshot = true; }
+  }
+  if (hasFlushDraw && oesd) return 'hand.draw.sfDraw';
+  if (hasFlushDraw) return 'hand.draw.flushDraw';
+  if (oesd) return 'hand.draw.oesd';
+  if (gutshot) return 'hand.draw.gutshot';
+  return '';
+}
+
+// Returns an i18n key (string) for the best hand strength, or '' if not applicable
+function calcHandStrengthKey(holeCards: string[], communityCards: string[]): string {
+  if (holeCards.length < 2 || communityCards.length < 3) return '';
+  const all = [...holeCards, ...communityCards];
+  const combos = getCombinations(all, 5);
+  let best = 0;
+  for (const c of combos) best = Math.max(best, evalFive(c));
+  // Only show draws if made hand is weak (pair or less)
+  if (best <= 2) {
+    const drawKey = detectDrawKey(holeCards, communityCards);
+    if (drawKey) return drawKey;
+  }
+  const desc = HAND_RANK_VALUE_TO_KEY[best];
+  return desc ? (HAND_RANK_MAP[desc] || '') : '';
+}
+
 // Card rendering with animation support
 const SUITS: Record<string, { symbol: string; color: string }> = {
   s: { symbol: "\u2660", color: "text-gray-900" },
@@ -23,16 +105,43 @@ const RANK_DISPLAY: Record<string, string> = {
   "J": "J", "Q": "Q", "K": "K",
 };
 
-function CardView({ card, faceDown = false, className = "", delay = 0, animate = false }: {
-  card?: string; faceDown?: boolean; className?: string; delay?: number; animate?: boolean;
+function CardView({ card, faceDown = false, className = "", delay = 0, animate = false, flip = false }: {
+  card?: string; faceDown?: boolean; className?: string; delay?: number; animate?: boolean; flip?: boolean;
 }) {
   const [visible, setVisible] = useState(!animate);
+  const [flipped, setFlipped] = useState(false);
   useEffect(() => {
     if (animate) {
       const timer = setTimeout(() => setVisible(true), delay);
       return () => clearTimeout(timer);
     }
   }, [animate, delay]);
+  useEffect(() => {
+    if (flip) {
+      const timer = setTimeout(() => setFlipped(true), delay);
+      return () => clearTimeout(timer);
+    } else {
+      setFlipped(false);
+    }
+  }, [flip, delay]);
+
+  // Flip animation: show card back first, then flip to reveal face
+  if (flip && !flipped) {
+    // Show card back while waiting to flip
+    return (
+      <div className={`w-11 h-[60px] rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4)] ${className}`}>
+        <div className="w-full h-full bg-gradient-to-br from-[#d63031] to-[#b71c1c] border-[2px] border-white/90 rounded-md relative">
+          <div className="absolute inset-[3px] border-[1.5px] border-white/50 rounded-sm" />
+          <div className="absolute inset-[6px] rounded-sm overflow-hidden" style={{ backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.15) 6px, rgba(255,255,255,0.15) 7px)` }} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-full bg-white/30 border-[1.5px] border-white/50 flex items-center justify-center">
+              <span className="text-[9px] font-black text-white">VP</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!card || faceDown) {
     // Card back: clean red design with subtle pattern
@@ -62,18 +171,27 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const displayRank = RANK_DISPLAY[rank] || rank;
   const isRed = suit === 'h' || suit === 'd';
 
+  // Determine font sizes based on card size (className may override w/h)
+  const isSmall = className.includes('!w-9') || className.includes('!w-10');
+  const rankSize = isSmall ? 'text-[13px]' : 'text-[16px]';
+  const suitSize = isSmall ? 'text-[11px]' : 'text-[13px]';
+
   return (
-    <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${className}`}>
+    <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${flip && flipped ? "animate-flip" : ""} ${className}`}>
       <div className="w-full h-full bg-white border-[1.5px] border-gray-300 rounded-lg relative">
-        {/* Top-left rank + suit */}
-        <div className="absolute top-1 left-1 flex flex-col items-center leading-none">
-          <span className={`text-[18px] font-black leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
-          <span className={`text-[13px] leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+        {/* Top-left: rank + suit side by side */}
+        <div className="absolute top-0.5 left-0.5 flex items-center leading-none gap-[1px]">
+          <span className={`${rankSize} font-black leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
+          <span className={`${suitSize} leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
         </div>
-        {/* Bottom-right rank + suit (inverted) */}
-        <div className="absolute bottom-1 right-1 flex flex-col items-center leading-none rotate-180">
-          <span className={`text-[18px] font-black leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
-          <span className={`text-[13px] leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+        {/* Center suit symbol */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className={`${isSmall ? 'text-[20px]' : 'text-[26px]'} leading-none select-none ${isRed ? 'text-red-500/80' : 'text-gray-800/80'}`}>{suitInfo.symbol}</span>
+        </div>
+        {/* Bottom-right: rank + suit side by side (inverted) */}
+        <div className="absolute bottom-0.5 right-0.5 flex items-center leading-none gap-[1px] rotate-180">
+          <span className={`${rankSize} font-black leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
+          <span className={`${suitSize} leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
         </div>
       </div>
     </div>
@@ -634,6 +752,31 @@ export default function Table() {
   const readyPlayers = tableState?.readyPlayers ?? [];
   const readyCountdown = tableState?.readyCountdown ?? null;
   const amIReady = user ? readyPlayers.includes(user.id) : false;
+  const showdownRevealOrder: number[] = (tableState as any)?.showdownRevealOrder ?? [];
+
+  // === Showdown sequential reveal ===
+  // Track which opponent IDs have been "flipped" face-up during showdown
+  const [revealedOpponentIds, setRevealedOpponentIds] = useState<Set<number>>(new Set());
+  const prevShowdownPhaseRef = useRef(false);
+  useEffect(() => {
+    const isShowdown = phase === "showdown" || phase === "completed";
+    if (isShowdown && !prevShowdownPhaseRef.current) {
+      // Just entered showdown: reveal opponents one by one
+      prevShowdownPhaseRef.current = true;
+      setRevealedOpponentIds(new Set()); // reset
+      const order = showdownRevealOrder.length > 0 ? showdownRevealOrder
+        : players.filter(p => p.id !== user?.id && !p.isFolded && p.holeCards?.length > 0).map(p => p.id);
+      order.forEach((pid, idx) => {
+        setTimeout(() => {
+          setRevealedOpponentIds(prev => new Set([...prev, pid]));
+          if (!muted) playSound("cardFlip");
+        }, idx * 600 + 300);
+      });
+    } else if (!isShowdown) {
+      prevShowdownPhaseRef.current = false;
+      setRevealedOpponentIds(new Set());
+    }
+  }, [phase, showdownRevealOrder, players, user?.id, muted, playSound]);
 
   // Countdown timer with urgency feedback
   const [countdown, setCountdown] = useState(30);
@@ -1161,17 +1304,34 @@ export default function Table() {
                 <div className={`flex flex-col items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} ${isWinner ? "animate-winner-glow" : ""} transition-transform duration-200`}>
                   {/* Player cards next to seat */}
                   {isHero && displayMyCards.length > 0 && (
-                    <div className="flex gap-1 mb-0.5">
-                      {displayMyCards.map((card, i) => (
-                        <CardView key={i} card={card} className="!w-12 !h-[64px]" animate delay={i * 200} />
-                      ))}
+                    <div className="flex flex-col items-center gap-0.5 mb-0.5">
+                      <div className="flex gap-1">
+                        {displayMyCards.map((card, i) => (
+                          <CardView key={i} card={card} className="!w-12 !h-[64px]" animate delay={i * 200} />
+                        ))}
+                      </div>
+                      {/* Real-time hand strength hint: only show during flop/turn/river */}
+                      {(displayPhase === "flop" || displayPhase === "turn" || displayPhase === "river") && displayMyCards.length >= 2 && displayCommunity.length >= 3 && (() => {
+                        const strengthKey = calcHandStrengthKey(displayMyCards, displayCommunity);
+                        return strengthKey ? (
+                          <div className="px-1.5 py-0.5 rounded-full text-[9px] font-bold leading-none bg-black/60 border border-gold/40 text-gold shadow-[0_0_6px_rgba(212,175,55,0.3)] whitespace-nowrap">
+                            {t(strengthKey)}
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   )}
-                  {/* Opponent cards: only show face-up in showdown/completed phase (security: never reveal during active betting) */}
+                  {/* Opponent cards: only show face-up in showdown/completed phase with sequential flip animation */}
                   {!isHero && (displayPhase === "showdown" || displayPhase === "completed") && player.holeCards && player.holeCards.length > 0 && !waitingForReady && (
                     <div className="flex gap-0.5 mb-0.5">
                       {player.holeCards.map((card, i) => (
-                        <CardView key={i} card={card} className="!w-10 !h-[54px]" />
+                        <CardView
+                          key={i}
+                          card={card}
+                          className="!w-10 !h-[54px]"
+                          flip={revealedOpponentIds.has(player.id)}
+                          delay={i * 200}
+                        />
                       ))}
                     </div>
                   )}

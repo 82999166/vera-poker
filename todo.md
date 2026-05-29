@@ -113,3 +113,11 @@
 - [x] 修复小屏幕（iPhone 7 Plus）游戏桌面显示不完整
 - [x] 进度条改为竖向，避免下注时底部菜单高度变化
 - [x] 固定底部操作区高度，消除菜单跳动
+
+## Feature: 游戏体验增强 5 项
+- [x] 修复手牌花色重叠问题（CardView rank+suit 并排显示，小字体，不重叠）
+- [x] 翻牌动画（CardView flip prop + CSS @keyframes flip-card 3D 翻转效果）
+- [x] Showdown 逐个亮牌（按 showdownRevealOrder 顺序，每张间隔 600ms，revealedOpponentIds state 控制）
+- [x] 赢家筹码飞行动画（animate-chips-fly CSS 动画，从底池区域向上飞出）
+- [x] 实时牌力显示（flop/turn/river 阶段在 hero 手牌下方显示牌力，calcHandStrengthKey 返回 i18n 键，t() 多语言展示，听牌文案已添加 hand.draw.* 多语言键）
+- [x] TypeScript 零错误，103 个测试全部通过

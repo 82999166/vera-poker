@@ -32,6 +32,7 @@ interface ActiveTable {
   waitingForReady: boolean; // true when in between hands waiting for ready clicks
   settlementStartedAt?: number; // timestamp when settlement started (for delayed ready)
   afkFoldCount: Map<number, number>; // playerId -> consecutive auto-fold count (zombie detection)
+  lastAggressorId?: number; // playerId of the last player who raised/bet (for showdown reveal order)
 }
 
 // In-memory store of active tables
@@ -132,6 +133,16 @@ export async function getPlayerView(roomId: number, playerId: number) {
     readyCountdown: table.readyDeadline ? Math.max(0, Math.ceil((table.readyDeadline - Date.now()) / 1000)) : null,
     // Last action info for voice announcements
     lastActionInfo: (table as any).lastActionInfo || null,
+    // Showdown reveal order: last aggressor first, then others in seat order
+    showdownRevealOrder: (() => {
+      const activePlayers = gs.players.filter(p => !p.isFolded);
+      if (activePlayers.length <= 1) return activePlayers.map(p => p.id);
+      const aggressorId = table.lastAggressorId;
+      if (!aggressorId) return activePlayers.map(p => p.id);
+      const aggressor = activePlayers.find(p => p.id === aggressorId);
+      const others = activePlayers.filter(p => p.id !== aggressorId);
+      return aggressor ? [aggressor.id, ...others.map(p => p.id)] : activePlayers.map(p => p.id);
+    })(),
   };
 }
 
@@ -308,6 +319,10 @@ export async function processPlayerAction(
   table.lastActionAt = Date.now();
   // Player made a real action → reset their AFK counter
   table.afkFoldCount.delete(userId);
+  // Record last aggressor for showdown reveal order
+  if (action === "raise" || action === "all_in") {
+    table.lastAggressorId = userId;
+  }
   // Record last action for voice announcement on other clients
   (table as any).lastActionInfo = {
     playerId: userId,
