@@ -1198,10 +1198,10 @@ export default function Table() {
       {/* Table Area - flex-1 min-h-0 ensures it fills all remaining vertical space */}
       {/* max-h limits table to ~55% of screen so it doesn't look oversized on tall phones */}
       <div ref={tableAreaRef} className="flex-1 min-h-0 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
-        {/* Vertical Countdown Timer - left edge of table area (moved from right to avoid overlapping right-side player cards) */}
+        {/* Vertical Countdown Timer - pinned to far left edge, slim bar so it never overlaps cards */}
         {displayIsMyTurn && (
-          <div className="absolute left-2 top-[15%] bottom-[15%] z-20 flex flex-col items-center gap-1">
-            <div className={`relative w-2 flex-1 bg-secondary/60 rounded-full overflow-hidden ${isUrgent ? 'animate-pulse' : ''}`}>
+          <div className="absolute left-0.5 top-[10%] bottom-[10%] z-20 flex flex-col items-center gap-1">
+            <div className={`relative w-1.5 flex-1 bg-secondary/40 rounded-full overflow-hidden ${isUrgent ? 'animate-pulse' : ''}`}>
               <div
                 className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 ease-linear ${
                   countdown > 10
@@ -1213,7 +1213,7 @@ export default function Table() {
                 style={{ height: `${(countdown / turnTimeout) * 100}%` }}
               />
             </div>
-            <div className={`text-[10px] font-bold ${isUrgent ? 'text-red-400' : 'text-gold'}`}>
+            <div className={`text-[9px] font-bold ${isUrgent ? 'text-red-400' : 'text-gold'}`}>
               {countdown}s
             </div>
           </div>
