@@ -184,9 +184,9 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   else if (className.includes('!w-12')) cardPx = 48;
   // Corner rank: ~38% of card width gives a clear readable number without dominating the card
   // Center suit: ~52% fills the middle zone nicely; corners only occupy ~28px top/bottom so no overlap
-  const cornerRankPx = Math.floor(cardPx * 0.38); // rank digit — clear but not oversized
+  const cornerRankPx = Math.floor(cardPx * 0.36); // rank digit
   const cornerSuitPx = Math.floor(cardPx * 0.24); // suit symbol in corner
-  const centerSuitPx = Math.floor(cardPx * 0.42); // center suit — moderate size, balanced with corners
+  const centerSuitPx = Math.floor(cardPx * 0.40); // center suit
 
   return (
     <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${flip && flipped ? "animate-flip" : ""} ${className}`}>
