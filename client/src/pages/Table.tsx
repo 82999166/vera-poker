@@ -1200,7 +1200,7 @@ export default function Table() {
       <div ref={tableAreaRef} className="flex-1 min-h-0 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
         {/* Vertical Countdown Timer - pinned to far left edge, slim bar so it never overlaps cards */}
         {displayIsMyTurn && (
-          <div className="absolute left-0.5 top-[10%] bottom-[10%] z-20 flex flex-col items-center gap-1">
+          <div className="absolute -left-0.5 top-[10%] bottom-[10%] z-20 flex flex-col items-center gap-0.5">
             <div className={`relative w-1.5 flex-1 bg-secondary/40 rounded-full overflow-hidden ${isUrgent ? 'animate-pulse' : ''}`}>
               <div
                 className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 ease-linear ${
