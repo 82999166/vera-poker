@@ -845,7 +845,7 @@ export const appRouter = router({
           }
         }
       }
-      return { seatIndex: result.seatIndex, newBalance };
+      return { seatIndex: result.seatIndex, newBalance, message: result.message || null };
     }),
     // Leave a table
     leave: protectedProcedure.input(z.object({ roomId: z.number() })).mutation(async ({ ctx, input }) => {

@@ -632,7 +632,12 @@ export default function Table() {
       setShowBuyIn(false);
       joinSettledRef.current = false; // reset: wait for tableState to confirm player presence
       kickDetectedRef.current = false;
-      toast.success(t("table.seatJoined", { seat: data.seatIndex + 1 }), { duration: 1000 });
+      if (data.message === "WAITING_FOR_NEXT_HAND") {
+        // Player joined mid-game as sitting_out (Wait for Big Blind)
+        toast.success(t("table.waitingForNextHand") || "等待下一局开始，将自动参与", { duration: 3000 });
+      } else {
+        toast.success(t("table.seatJoined", { seat: data.seatIndex + 1 }), { duration: 1000 });
+      }
       // Immediately refetch table state to show avatar
       utils.game.tableState.invalidate({ roomId });
       utils.rooms.getPlayers.invalidate({ roomId });
@@ -780,6 +785,7 @@ export default function Table() {
   const readyCountdown = tableState?.readyCountdown ?? null;
   const amIReady = user ? readyPlayers.includes(user.id) : false;
   const showdownRevealOrder: number[] = (tableState as any)?.showdownRevealOrder ?? [];
+  const amISittingOut = (tableState as any)?.amISittingOut ?? false;
 
   // === Showdown sequential reveal ===
   // Track which opponent IDs have been "flipped" face-up during showdown
@@ -1370,11 +1376,19 @@ export default function Table() {
                     </div>
                   )}
 
+                  {/* Sitting out badge (waiting for next hand) */}
+                  {(player as any).isSittingOut && (
+                    <div className="mb-0.5 px-1.5 py-0.5 rounded text-[8px] font-semibold bg-amber-500/20 border border-amber-500/40 text-amber-300 text-center">
+                      {t("table.waitingBigBlind") || "等待大盲"}
+                    </div>
+                  )}
+
                   {/* Avatar circle */}
                   <div className={`relative w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-200 ${
                     isWinner ? "border-gold shadow-[0_0_20px_rgba(234,179,8,0.8)] scale-110" :
                     isCurrentTurn ? "border-gold shadow-[0_0_12px_rgba(212,175,55,0.6)]" :
                     isHero ? "border-truth-blue/60" :
+                    (player as any).isSittingOut ? "border-amber-500/40 opacity-70" :
                     player.isFolded ? "border-white/10 opacity-40" : "border-white/30"
                   }`}>
                     <img
@@ -1591,7 +1605,19 @@ export default function Table() {
             </div>
           )}
 
-          {(displayPhase !== "waiting" || isDemoMode) && !waitingForReady && (
+          {/* Sitting out: waiting for next hand (Wait for Big Blind) */}
+          {amISittingOut && !isDemoMode && (
+            <div className="flex items-center justify-center py-3">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/15 border border-amber-500/30">
+                <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-sm text-amber-300 font-medium">
+                  {t("table.waitingForNextHand") || "等待下一局，将自动参与游戏"}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {(displayPhase !== "waiting" || isDemoMode) && !waitingForReady && !amISittingOut && (
             <>
               {/* Raise slider */}
               <div className="flex items-center gap-2 mb-1.5">

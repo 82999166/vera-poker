@@ -285,6 +285,15 @@ export async function getRoomPlayers(roomId: number) {
     .orderBy(asc(roomPlayers.joinedAt));
 }
 
+// Get all seated players (active + sitting_out) for seat occupancy checks
+export async function getRoomPlayersAll(roomId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(roomPlayers)
+    .where(and(eq(roomPlayers.roomId, roomId), or(eq(roomPlayers.status, "active"), eq(roomPlayers.status, "sitting_out"))))
+    .orderBy(asc(roomPlayers.joinedAt));
+}
+
 // ==================== TRANSACTION QUERIES ====================
 export async function createTransaction(data: typeof transactions.$inferInsert) {
   const db = await getDb();
@@ -561,6 +570,31 @@ export async function addRoomPlayer(roomId: number, userId: number, seatIndex: n
   const db = await getDb();
   if (!db) return;
   await db.insert(roomPlayers).values({ roomId, userId, seatIndex, chipCount, status: "active" });
+}
+
+// Add a player who joins mid-game as sitting_out (waiting for next hand)
+export async function addRoomPlayerSittingOut(roomId: number, userId: number, seatIndex: number, chipCount: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(roomPlayers).values({ roomId, userId, seatIndex, chipCount, status: "sitting_out" });
+}
+
+// Get all sitting_out players for a room
+export async function getRoomPlayersSittingOut(roomId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(roomPlayers)
+    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.status, "sitting_out")))
+    .orderBy(asc(roomPlayers.joinedAt));
+}
+
+// Activate all sitting_out players (called at start of new hand)
+export async function activateSittingOutPlayers(roomId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(roomPlayers)
+    .set({ status: "active" })
+    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.status, "sitting_out")));
 }
 
 export async function removeRoomPlayer(roomId: number, userId: number) {

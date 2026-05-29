@@ -108,7 +108,31 @@ export async function getPlayerView(roomId: number, playerId: number) {
       : (gs.phase === "showdown" || gs.phase === "completed")
         ? p.holeCards  // Show opponent cards only at showdown
         : [],          // Hide opponent cards during active betting rounds
+    isSittingOut: false, // Active game players are never sitting out
   }));
+
+  // Append sitting_out players (waiting for next hand) to the player list
+  const sittingOutList = await db.getRoomPlayersSittingOut(roomId);
+  for (const sp of sittingOutList) {
+    const user = await db.getUserById(sp.userId);
+    players.push({
+      id: sp.userId,
+      seatIndex: sp.seatIndex,
+      chips: parseFloat(sp.chipCount || "0"),
+      currentBet: 0,
+      totalBet: 0,
+      isFolded: false,
+      isAllIn: false,
+      isActive: false,
+      name: user?.name || `Player ${sp.seatIndex + 1}`,
+      avatar: user?.avatar || null,
+      holeCards: [],
+      isSittingOut: true, // Waiting for next hand (Wait for Big Blind)
+    });
+  }
+
+  // Check if the requesting player is sitting out
+  const amISittingOut = sittingOutList.some((sp: any) => sp.userId === playerId);
 
   return {
     phase: gs.phase,
@@ -143,6 +167,8 @@ export async function getPlayerView(roomId: number, playerId: number) {
       const others = activePlayers.filter(p => p.id !== aggressorId);
       return aggressor ? [aggressor.id, ...others.map(p => p.id)] : activePlayers.map(p => p.id);
     })(),
+    // Waiting for next hand (Wait for Big Blind)
+    amISittingOut,
   };
 }
 
@@ -156,9 +182,10 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
     return { success: false, seatIndex: -1, message: "Room is not available" };
   }
 
-  const existingPlayers = await db.getRoomPlayers(roomId);
+  // Use getRoomPlayersAll to include both active + sitting_out players for seat occupancy checks
+  const existingPlayers = await db.getRoomPlayersAll(roomId);
   
-  // Check if already seated at THIS table
+  // Check if already seated at THIS table (active or sitting_out)
   const alreadySeated = existingPlayers.find((p: any) => p.userId === userId);
   if (alreadySeated) {
     // Return a special error so the second device knows this account is already seated here
@@ -173,12 +200,12 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
     return { success: false, seatIndex: -1, message: "Already in another game. Please leave your current table first." };
   }
 
-  // Check max players
+  // Check max players (count all seated players including sitting_out)
   if (existingPlayers.length >= room.maxPlayers) {
     return { success: false, seatIndex: -1, message: "Table is full" };
   }
 
-  // Find next available seat
+  // Find next available seat (exclude seats taken by both active and sitting_out players)
   const takenSeats = new Set(existingPlayers.map((p: any) => p.seatIndex));
   let seatIndex = -1;
   for (let i = 0; i < room.maxPlayers; i++) {
@@ -192,7 +219,20 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
     return { success: false, seatIndex: -1, message: "No available seats" };
   }
 
-  // Add player to room
+  // Check if a game is currently in progress
+  const gameInProgress = activeTables.has(roomId);
+  const table = activeTables.get(roomId);
+  const activePhase = table?.gameState.phase;
+  const isActiveGame = gameInProgress && activePhase && activePhase !== 'waiting' && activePhase !== 'completed';
+
+  if (isActiveGame) {
+    // Game in progress: add as sitting_out (waiting for next hand / Wait for Big Blind)
+    await db.addRoomPlayerSittingOut(roomId, userId, seatIndex, buyIn.toString());
+    await db.updateRoom(roomId, { currentPlayers: existingPlayers.length + 1 });
+    return { success: true, seatIndex, message: "WAITING_FOR_NEXT_HAND" };
+  }
+
+  // No active game: add as active player
   await db.addRoomPlayer(roomId, userId, seatIndex, buyIn.toString());
   
   // Update room player count
@@ -219,6 +259,13 @@ export async function leaveTable(roomId: number, userId: number): Promise<{ succ
     const player = table.gameState.players.find(p => p.id === userId);
     if (player) {
       remainingChips = player.chips;
+    } else {
+      // Player might be sitting_out (waiting for next hand) - get from DB
+      const sittingOutPlayers = await db.getRoomPlayersSittingOut(roomId);
+      const sittingOutPlayer = sittingOutPlayers.find((p: any) => p.userId === userId);
+      if (sittingOutPlayer) {
+        remainingChips = parseFloat(sittingOutPlayer.chipCount || "0");
+      }
     }
   } else {
     // No active game, get from DB
@@ -806,6 +853,9 @@ async function startNewHand(roomId: number) {
   const room = await db.getRoomById(roomId);
   if (!room) return;
 
+  // Activate all sitting_out players (Wait for Big Blind → now joining the game)
+  await db.activateSittingOutPlayers(roomId);
+
   const roomPlayersList = await db.getRoomPlayers(roomId);
   if (roomPlayersList.length < 2) return;
 
@@ -898,14 +948,18 @@ export function checkTimeouts() {
       const currentPlayer = table.gameState.players[table.gameState.currentPlayerIndex];
       if (currentPlayer && !currentPlayer.isFolded) {
         const timedOutPlayerId = currentPlayer.id;
-        // Auto-fold on timeout
-        table.gameState = gameEngine.processAction(table.gameState, timedOutPlayerId, "fold");
+        // Auto-Check if no bet to call (player already matched current bet), otherwise Auto-Fold
+        // This matches industry standard: PokerStars / GGPoker behavior
+        const canCheck = currentPlayer.currentBet >= table.gameState.currentBet;
+        const timeoutAction: PlayerAction = canCheck ? "check" : "fold";
+        table.gameState = gameEngine.processAction(table.gameState, timedOutPlayerId, timeoutAction);
         table.lastActionAt = now;
 
-        // === Zombie player detection: kick after 3 consecutive auto-folds ===
+        // === Zombie player detection: kick after 3 consecutive auto-folds (not auto-checks) ===
         const AFK_KICK_THRESHOLD = 3;
         const prevCount = table.afkFoldCount.get(timedOutPlayerId) ?? 0;
-        const newCount = prevCount + 1;
+        // Only count as AFK if they actually folded (facing a bet); auto-check doesn't count
+        const newCount = timeoutAction === "fold" ? prevCount + 1 : prevCount;
         table.afkFoldCount.set(timedOutPlayerId, newCount);
 
         if (newCount >= AFK_KICK_THRESHOLD) {
