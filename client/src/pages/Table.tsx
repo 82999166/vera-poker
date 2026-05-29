@@ -181,9 +181,9 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   else if (className.includes('!w-10')) cardPx = 40;
   else if (className.includes('!w-11')) cardPx = 44;
   else if (className.includes('!w-12')) cardPx = 48;
-  const cornerRankPx = Math.floor(cardPx * 0.24); // rank digit in corner
-  const cornerSuitPx = Math.floor(cardPx * 0.20); // suit symbol in corner
-  const centerSuitPx = Math.floor(cardPx * 0.36); // center large suit
+  const cornerRankPx = Math.floor(cardPx * 0.32); // rank digit in corner
+  const cornerSuitPx = Math.floor(cardPx * 0.26); // suit symbol in corner
+  const centerSuitPx = Math.floor(cardPx * 0.46); // center large suit
 
   return (
     <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${flip && flipped ? "animate-flip" : ""} ${className}`}>
