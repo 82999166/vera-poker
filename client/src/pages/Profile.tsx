@@ -10,7 +10,7 @@ import { useSoundEffects } from "@/hooks/useSoundEffects";
 import {
   User, Trophy, TrendingUp, Gamepad2, Edit2, Check, X,
   Link2, Unlink, ArrowLeft, Shield, Coins, Award, Globe, ChevronRight,
-  Volume2, Users, ChevronRight as ArrowRight, Lock, Eye, EyeOff
+  Volume2, Users, ChevronRight as ArrowRight, Lock, Eye, EyeOff, BookOpen
 } from "lucide-react";
 
 export default function Profile() {
@@ -249,6 +249,23 @@ export default function Profile() {
           <div className="flex-1 text-left">
             <p className="text-sm font-semibold">{t("profile.agentEntry")}</p>
             <p className="text-xs text-muted-foreground">{t("profile.agentEntryDesc")}</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+        </button>
+      </div>
+
+      {/* Tutorial Entry */}
+      <div className="px-4 pb-3">
+        <button
+          onClick={() => navigate("/tutorial")}
+          className="w-full glass rounded-2xl p-4 flex items-center gap-3 hover:border-truth-blue/30 border border-transparent transition-all active:scale-[0.98]"
+        >
+          <div className="w-10 h-10 rounded-full bg-truth-blue/10 flex items-center justify-center">
+            <BookOpen className="w-5 h-5 text-truth-blue" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-semibold">{t("tutorial.title")}</p>
+            <p className="text-xs text-muted-foreground">{t("tutorial.subtitle")}</p>
           </div>
           <ArrowRight className="w-4 h-4 text-muted-foreground" />
         </button>

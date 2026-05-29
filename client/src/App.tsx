@@ -18,6 +18,7 @@ import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
 import Admin from "./pages/Admin";
 import StaffLogin from "./pages/StaffLogin";
+import Tutorial from "./pages/Tutorial";
 
 function MobileRouter() {
   return (
@@ -33,6 +34,7 @@ function MobileRouter() {
       <Route path="/history/:id" component={HandHistory} />
       <Route path="/profile" component={Profile} />
       <Route path="/leaderboard" component={Leaderboard} />
+      <Route path="/tutorial" component={Tutorial} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

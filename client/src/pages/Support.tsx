@@ -3,7 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { t, getLocale } from "@/lib/i18n";
 import { useLocation } from "wouter";
-import { ArrowLeft, Send, Bot, User, Loader2, UserRound, AlertCircle, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, Bot, User, Loader2, UserRound, AlertCircle, Trash2, BookOpen } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 
 interface Message {
@@ -310,6 +310,29 @@ export default function Support() {
           </div>
         )}
         <div ref={scrollRef} />
+      </div>
+
+      {/* Tutorial shortcut */}
+      <div className="px-4 pt-2 pb-1 flex gap-2 overflow-x-auto">
+        <button
+          onClick={() => navigate("/tutorial")}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-truth-blue/10 border border-truth-blue/30 text-truth-blue text-xs font-medium whitespace-nowrap hover:bg-truth-blue/20 transition-colors active:scale-[0.97] flex-shrink-0"
+        >
+          <BookOpen className="w-3 h-3" />
+          {t("tutorial.title")}
+        </button>
+        <button
+          onClick={() => setInput(t("cs.quickRules"))}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-border/50 text-muted-foreground text-xs font-medium whitespace-nowrap hover:text-foreground transition-colors active:scale-[0.97] flex-shrink-0"
+        >
+          🃏 {t("cs.quickRules")}
+        </button>
+        <button
+          onClick={() => setInput(t("cs.quickSettlement"))}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-border/50 text-muted-foreground text-xs font-medium whitespace-nowrap hover:text-foreground transition-colors active:scale-[0.97] flex-shrink-0"
+        >
+          💰 {t("cs.quickSettlement")}
+        </button>
       </div>
 
       {/* Input */}

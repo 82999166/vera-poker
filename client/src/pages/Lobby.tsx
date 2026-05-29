@@ -4,7 +4,7 @@ import { t } from "@/lib/i18n";
 import { formatAmount, formatBalance } from "@/lib/utils";
 import { useLocation } from "wouter";
 import React, { useState, useCallback } from "react";
-import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine, BookOpen } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 
@@ -235,14 +235,21 @@ export default function Lobby() {
         </div>
       </div>
 
-      {/* Quick Actions: Leaderboard + Quick Join */}
-      <div className="px-4 pt-3 flex items-center justify-between">
+      {/* Quick Actions: Leaderboard + Tutorial + Quick Join */}
+      <div className="px-4 pt-3 flex items-center justify-between gap-2">
         <button
           onClick={() => navigate("/leaderboard")}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-gold hover:bg-gold/10 transition-colors"
         >
           <Trophy className="w-3.5 h-3.5" />
           {t("lobby.leaderboard")}
+        </button>
+        <button
+          onClick={() => navigate("/tutorial")}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-truth-blue hover:bg-truth-blue/10 transition-colors"
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          {t("tutorial.title")}
         </button>
         <button
           onClick={handleQuickJoin}
