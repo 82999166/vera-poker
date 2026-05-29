@@ -171,28 +171,32 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const displayRank = RANK_DISPLAY[rank] || rank;
   const isRed = suit === 'h' || suit === 'd';
 
-  // Determine font sizes based on card size (className may override w/h)
+  // Detect card size bucket from className overrides
+  // !w-9 / !w-10 = small (opponent face-down), !w-12 = hero cards, default w-14 = community
   const isSmall = className.includes('!w-9') || className.includes('!w-10');
-  const rankSize = isSmall ? 'text-[14px]' : 'text-[17px]';
-  const suitSize = isSmall ? 'text-[12px]' : 'text-[14px]';
+  const isMedium = className.includes('!w-12') || className.includes('!w-11');
+  // Corner label sizes
+  const rankSize = isSmall ? 'text-[12px]' : isMedium ? 'text-[13px]' : 'text-[15px]';
+  const suitSize = isSmall ? 'text-[10px]' : isMedium ? 'text-[11px]' : 'text-[12px]';
+  // Center suit: kept small enough to never overlap the corner labels
+  const centerSize = isSmall ? 'text-[18px]' : isMedium ? 'text-[20px]' : 'text-[22px]';
   // Brighter colors: vivid red for hearts/diamonds, near-black for clubs/spades
   const rankColor = isRed ? 'text-[#e8000a]' : 'text-[#111111]';
-  const centerColor = isRed ? 'text-[#e8000a]' : 'text-[#111111]';
 
   return (
     <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${flip && flipped ? "animate-flip" : ""} ${className}`}>
       <div className="w-full h-full bg-white border-[1.5px] border-gray-200 rounded-lg relative">
         {/* Top-left: rank + suit side by side */}
-        <div className="absolute top-0.5 left-0.5 flex items-center leading-none gap-[1px]">
+        <div className="absolute top-[3px] left-[3px] flex flex-col items-center leading-none">
           <span className={`${rankSize} font-black leading-none ${rankColor}`}>{displayRank}</span>
           <span className={`${suitSize} leading-none ${rankColor}`}>{suitInfo.symbol}</span>
         </div>
-        {/* Center suit symbol - larger and fully opaque */}
+        {/* Center suit symbol - sized to not overlap corners */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`${isSmall ? 'text-[22px]' : 'text-[28px]'} leading-none select-none ${centerColor}`}>{suitInfo.symbol}</span>
+          <span className={`${centerSize} leading-none select-none ${rankColor}`}>{suitInfo.symbol}</span>
         </div>
-        {/* Bottom-right: rank + suit side by side (inverted) */}
-        <div className="absolute bottom-0.5 right-0.5 flex items-center leading-none gap-[1px] rotate-180">
+        {/* Bottom-right: rank + suit stacked (inverted) */}
+        <div className="absolute bottom-[3px] right-[3px] flex flex-col items-center leading-none rotate-180">
           <span className={`${rankSize} font-black leading-none ${rankColor}`}>{displayRank}</span>
           <span className={`${suitSize} leading-none ${rankColor}`}>{suitInfo.symbol}</span>
         </div>
