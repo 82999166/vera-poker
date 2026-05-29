@@ -173,25 +173,28 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
 
   // Determine font sizes based on card size (className may override w/h)
   const isSmall = className.includes('!w-9') || className.includes('!w-10');
-  const rankSize = isSmall ? 'text-[13px]' : 'text-[16px]';
-  const suitSize = isSmall ? 'text-[11px]' : 'text-[13px]';
+  const rankSize = isSmall ? 'text-[14px]' : 'text-[17px]';
+  const suitSize = isSmall ? 'text-[12px]' : 'text-[14px]';
+  // Brighter colors: vivid red for hearts/diamonds, near-black for clubs/spades
+  const rankColor = isRed ? 'text-[#e8000a]' : 'text-[#111111]';
+  const centerColor = isRed ? 'text-[#e8000a]' : 'text-[#111111]';
 
   return (
     <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${flip && flipped ? "animate-flip" : ""} ${className}`}>
-      <div className="w-full h-full bg-white border-[1.5px] border-gray-300 rounded-lg relative">
+      <div className="w-full h-full bg-white border-[1.5px] border-gray-200 rounded-lg relative">
         {/* Top-left: rank + suit side by side */}
         <div className="absolute top-0.5 left-0.5 flex items-center leading-none gap-[1px]">
-          <span className={`${rankSize} font-black leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
-          <span className={`${suitSize} leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+          <span className={`${rankSize} font-black leading-none ${rankColor}`}>{displayRank}</span>
+          <span className={`${suitSize} leading-none ${rankColor}`}>{suitInfo.symbol}</span>
         </div>
-        {/* Center suit symbol */}
+        {/* Center suit symbol - larger and fully opaque */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`${isSmall ? 'text-[20px]' : 'text-[26px]'} leading-none select-none ${isRed ? 'text-red-500/80' : 'text-gray-800/80'}`}>{suitInfo.symbol}</span>
+          <span className={`${isSmall ? 'text-[22px]' : 'text-[28px]'} leading-none select-none ${centerColor}`}>{suitInfo.symbol}</span>
         </div>
         {/* Bottom-right: rank + suit side by side (inverted) */}
         <div className="absolute bottom-0.5 right-0.5 flex items-center leading-none gap-[1px] rotate-180">
-          <span className={`${rankSize} font-black leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{displayRank}</span>
-          <span className={`${suitSize} leading-none ${isRed ? 'text-red-600' : 'text-gray-900'}`}>{suitInfo.symbol}</span>
+          <span className={`${rankSize} font-black leading-none ${rankColor}`}>{displayRank}</span>
+          <span className={`${suitSize} leading-none ${rankColor}`}>{suitInfo.symbol}</span>
         </div>
       </div>
     </div>
@@ -325,6 +328,8 @@ export default function Table() {
   const [showBuyIn, setShowBuyIn] = useState(true);
   const [lastPhase, setLastPhase] = useState("");
   const [animateCards, setAnimateCards] = useState(false);
+  const [dealingMyCards, setDealingMyCards] = useState(false); // preflop deal animation for hero hole cards
+  const prevMyCardsLenRef = useRef(0);
   const [showWinner, setShowWinner] = useState<{ name: string; amount: number; handDescription?: string } | null>(null);
   const [showSettlement, setShowSettlement] = useState<any>(null);
   const [winnerPlayerIds, setWinnerPlayerIds] = useState<number[]>([]);
@@ -437,10 +442,23 @@ export default function Table() {
       }
       if (tableState.phase === "preflop" && lastPhase !== "" && lastPhase !== "preflop") {
         if (!muted) playSound("deal");
+        // Trigger dealing animation for hero hole cards
+        setDealingMyCards(true);
+        setTimeout(() => setDealingMyCards(false), 1200);
       }
       setLastPhase(tableState.phase);
     }
   }, [tableState?.phase, lastPhase, muted, playSound]);
+
+  // Also trigger dealing animation when myCards first arrive (e.g. on reconnect mid-hand)
+  const myCardsLen = tableState?.myCards?.length ?? 0;
+  useEffect(() => {
+    if (myCardsLen > 0 && prevMyCardsLenRef.current === 0) {
+      setDealingMyCards(true);
+      setTimeout(() => setDealingMyCards(false), 1200);
+    }
+    prevMyCardsLenRef.current = myCardsLen;
+  }, [myCardsLen]);
 
   // Detect winner - use handNumber + phase as primary detection to avoid polling race conditions
   // Problem solved: when same player wins consecutive hands with same amount, winnerKey doesn't change
@@ -1176,9 +1194,9 @@ export default function Table() {
       {/* Table Area - flex-1 min-h-0 ensures it fills all remaining vertical space */}
       {/* max-h limits table to ~55% of screen so it doesn't look oversized on tall phones */}
       <div ref={tableAreaRef} className="flex-1 min-h-0 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
-        {/* Vertical Countdown Timer - right edge of table area */}
+        {/* Vertical Countdown Timer - left edge of table area (moved from right to avoid overlapping right-side player cards) */}
         {displayIsMyTurn && (
-          <div className="absolute right-2 top-[15%] bottom-[15%] z-20 flex flex-col items-center gap-1">
+          <div className="absolute left-2 top-[15%] bottom-[15%] z-20 flex flex-col items-center gap-1">
             <div className={`relative w-2 flex-1 bg-secondary/60 rounded-full overflow-hidden ${isUrgent ? 'animate-pulse' : ''}`}>
               <div
                 className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 ease-linear ${
@@ -1307,7 +1325,7 @@ export default function Table() {
                     <div className="flex flex-col items-center gap-0.5 mb-0.5">
                       <div className="flex gap-1">
                         {displayMyCards.map((card, i) => (
-                          <CardView key={i} card={card} className="!w-12 !h-[64px]" animate delay={i * 200} />
+                          <CardView key={i} card={card} className={`!w-12 !h-[64px]${dealingMyCards ? (i === 0 ? ' animate-deal' : ' animate-deal-2') : ''}`} animate delay={i * 200} />
                         ))}
                       </div>
                       {/* Real-time hand strength hint: only show during flop/turn/river */}

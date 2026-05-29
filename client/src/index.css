@@ -160,11 +160,15 @@
 
 /* Deal card animation */
 @keyframes deal-card {
-  0% { transform: translate(-100px, -100px) rotate(-10deg) scale(0.5); opacity: 0; }
+  0% { transform: translate(0, -120px) rotate(-15deg) scale(0.3); opacity: 0; }
+  60% { transform: translate(0, 8px) rotate(3deg) scale(1.05); opacity: 1; }
   100% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
 }
 .animate-deal {
-  animation: deal-card 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  animation: deal-card 0.45s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.animate-deal-2 {
+  animation: deal-card 0.45s cubic-bezier(0.23, 1, 0.32, 1) 0.18s both;
 }
 
 /* Flip card animation */
