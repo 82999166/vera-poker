@@ -177,6 +177,7 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   // Formula: cornerRank ≈ cardWidth * 0.26, centerSuit ≈ cardWidth * 0.38 (leaves ~30% margin each side for corners)
   let cardPx = 56; // default w-14
   if (className.includes('!w-[44px]')) cardPx = 44;
+  else if (className.includes('!w-[52px]')) cardPx = 52;
   else if (className.includes('!w-9')) cardPx = 36;
   else if (className.includes('!w-10')) cardPx = 40;
   else if (className.includes('!w-11')) cardPx = 44;
@@ -1354,7 +1355,7 @@ export default function Table() {
                         <CardView
                           key={i}
                           card={card}
-                          className="!w-10 !h-[54px]"
+                          className="!w-[52px] !h-[70px]"
                           flip={revealedOpponentIds.has(player.id)}
                           delay={i * 200}
                         />
