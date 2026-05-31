@@ -192,3 +192,11 @@
 - [x] 排查 QQXL9999 账号余额自动减少原因：updateUserBalance 函数被错误使用（设绝对值而非增减）
 - [x] 修复余额异常减少的 bug：所有 updateUserBalance 改为 deductUserBalanceAtomic/addUserBalanceAtomic，恢复7个受影响用户余额（user 31800 余额偏高未调整）
 - [x] Lobby 顶部：将 "Vera Poker / 真相发牌" 替换为用户头像+用户名+TG用户名
+
+## 2026-05-31 锦标赛流程修复
+
+- [x] 锦标赛牌桌自动开始下一局（不需要手动点 Ready）
+- [x] 锦标赛中禁止离开（隐藏离开按钮）
+- [x] 前端识别锦标赛牌桌（显示盲注级别、剩余人数等）
+- [x] 淘汰时显示排名信息而非 kicked 提示
+- [x] 锦标赛结束时显示最终排名和奖金

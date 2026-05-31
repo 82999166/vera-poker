@@ -136,6 +136,57 @@ export async function getPlayerView(roomId: number, playerId: number) {
   // Check if the requesting player is sitting out
   const amISittingOut = sittingOutList.some((sp: any) => sp.userId === playerId);
 
+  // Tournament context: check if this is a tournament table
+  const tournamentModule = await import("./tournamentEngine");
+  const tournamentIdForRoom = tournamentModule.getTournamentForRoom(roomId);
+  let tournamentInfo: {
+    isTournament: boolean;
+    tournamentId: number | null;
+    blindLevel: number;
+    currentBlinds: { smallBlind: number; bigBlind: number };
+    nextBlinds: { smallBlind: number; bigBlind: number } | null;
+    timeUntilNextLevel: number;
+    playersRemaining: number;
+    totalPlayers: number;
+    myRank: number | null;
+    myEliminated: boolean;
+    myPrize: string | null;
+    isPaused: boolean;
+    isFinished: boolean;
+  } | null = null;
+
+  if (tournamentIdForRoom !== null) {
+    const tState = tournamentModule.getTournamentState(tournamentIdForRoom, playerId);
+    if (tState) {
+      // Look up prize if player is eliminated or tournament finished
+      let myPrize: string | null = null;
+      if (tState.myRank && tState.myEliminated) {
+        // Prize will be calculated and stored in DB by finishTournament
+        // For now just show rank; actual prize amount comes from tournament results
+        const results = await db.getTournamentResults(tournamentIdForRoom);
+        const myResult = results?.find((r) => r.result.userId === playerId);
+        if (myResult && parseFloat(myResult.result.prizeAmount) > 0) {
+          myPrize = myResult.result.prizeAmount;
+        }
+      }
+      tournamentInfo = {
+        isTournament: true,
+        tournamentId: tournamentIdForRoom,
+        blindLevel: tState.currentBlindLevel,
+        currentBlinds: tState.currentBlinds || { smallBlind: 0, bigBlind: 0 },
+        nextBlinds: tState.nextBlinds ? { smallBlind: tState.nextBlinds.smallBlind, bigBlind: tState.nextBlinds.bigBlind } : null,
+        timeUntilNextLevel: tState.timeUntilNextLevel,
+        playersRemaining: tState.activePlayers,
+        totalPlayers: tState.totalPlayers,
+        myRank: tState.myRank,
+        myEliminated: tState.myEliminated,
+        myPrize,
+        isPaused: tState.status === "paused",
+        isFinished: tState.status === "finished",
+      };
+    }
+  }
+
   return {
     phase: gs.phase,
     players,
@@ -171,6 +222,8 @@ export async function getPlayerView(roomId: number, playerId: number) {
     })(),
     // Waiting for next hand (Wait for Big Blind)
     amISittingOut,
+    // Tournament context
+    tournamentInfo,
   };
 }
 
@@ -252,7 +305,13 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
 /**
  * Leave a table
  */
-export async function leaveTable(roomId: number, userId: number): Promise<{ success: boolean; remainingChips: number }> {
+export async function leaveTable(roomId: number, userId: number): Promise<{ success: boolean; remainingChips: number; message?: string }> {
+  // Tournament tables: players cannot leave mid-tournament
+  const { isTournamentTable: isTourney } = require("./tournamentEngine");
+  if (isTourney(roomId)) {
+    return { success: false, remainingChips: 0, message: "Cannot leave during a tournament" };
+  }
+
   const table = activeTables.get(roomId);
   let remainingChips = 0;
 
@@ -801,8 +860,9 @@ async function settleHand(roomId: number) {
   } catch (_) { /* risk engine not critical */ }
 
   // Increment playedRounds for private rooms and check if room should close
+  // SKIP dissolve logic for tournament tables - they manage their own lifecycle
   const currentRoom = await db.getRoomById(roomId);
-  if (currentRoom && currentRoom.type === "private") {
+  if (currentRoom && currentRoom.type === "private" && tId === null) {
     const newPlayedRounds = (currentRoom.playedRounds ?? 0) + 1;
     await db.updateRoom(roomId, { playedRounds: newPlayedRounds });
 
@@ -851,21 +911,61 @@ async function settleHand(roomId: number) {
     }
   }
 
-  // After settlement, delay showing the "ready" button so settlement UI displays first
-  // Timeline: showdown reveal (4s) + winner banner (3.5s) = ~7.5s total
-  // We delay 7s before enabling ready state so players can see the full result
-  table.waitingForReady = false;
-  table.readyPlayers = new Set();
-  table.settlementStartedAt = Date.now();
-  
-  // Delay enabling ready state by 7 seconds (showdown animation + winner banner)
-  setTimeout(() => {
-    const currentTable = activeTables.get(roomId);
-    if (currentTable && currentTable.settlementStartedAt === table.settlementStartedAt) {
-      currentTable.waitingForReady = true;
-      currentTable.readyDeadline = Date.now() + 30000; // 30 seconds to ready up
-    }
-  }, 7000);
+  // === TOURNAMENT vs REGULAR TABLE: different post-settlement behavior ===
+  if (tId !== null) {
+    // TOURNAMENT TABLE: Auto-start next hand after settlement delay (no ready system)
+    // Players stay seated, next hand begins automatically like PokerStars
+    table.waitingForReady = false;
+    table.readyPlayers = new Set();
+    table.settlementStartedAt = Date.now();
+    
+    // Auto-start next hand after 5 seconds (enough time to see settlement)
+    setTimeout(async () => {
+      const currentTable = activeTables.get(roomId);
+      if (!currentTable) return;
+      // Only proceed if this is still the same settlement cycle
+      if (currentTable.settlementStartedAt !== table.settlementStartedAt) return;
+      
+      // Check if tournament is still active and not paused
+      const te = await import("./tournamentEngine");
+      const tournament = te.getActiveTournament(tId);
+      if (!tournament || tournament.isFinished || tournament.isPaused) return;
+      
+      // Check if enough players remain at this table
+      const remainingPlayers = await db.getRoomPlayers(roomId);
+      const playablePlayers = remainingPlayers.filter((rp: any) => parseFloat(rp.chipCount) > 0);
+      
+      if (playablePlayers.length >= 2) {
+        // Update blinds from tournament engine (may have increased)
+        const tState = te.getTournamentState(tId);
+        if (tState && tState.currentBlinds) {
+          currentTable.smallBlind = tState.currentBlinds.smallBlind;
+          currentTable.bigBlind = tState.currentBlinds.bigBlind;
+        }
+        await startNewHand(roomId);
+      } else if (playablePlayers.length === 1) {
+        // Only 1 player left at this table - tournament engine handles table merging
+        // For now, just wait; the balance checker in tournamentEngine will handle it
+      }
+    }, 5000);
+  } else {
+    // REGULAR TABLE: Use ready system (players must click "ready" for next hand)
+    // After settlement, delay showing the "ready" button so settlement UI displays first
+    // Timeline: showdown reveal (4s) + winner banner (3.5s) = ~7.5s total
+    // We delay 7s before enabling ready state so players can see the full result
+    table.waitingForReady = false;
+    table.readyPlayers = new Set();
+    table.settlementStartedAt = Date.now();
+    
+    // Delay enabling ready state by 7 seconds (showdown animation + winner banner)
+    setTimeout(() => {
+      const currentTable = activeTables.get(roomId);
+      if (currentTable && currentTable.settlementStartedAt === table.settlementStartedAt) {
+        currentTable.waitingForReady = true;
+        currentTable.readyDeadline = Date.now() + 30000; // 30 seconds to ready up
+      }
+    }, 7000);
+  }
 }
 
 /**
@@ -881,10 +981,19 @@ async function startNewHand(roomId: number) {
   const roomPlayersList = await db.getRoomPlayers(roomId);
   if (roomPlayersList.length < 2) return;
 
+  // Load tournament engine early (needed for elimination + blinds)
+  const tournamentEngineModule = await import("./tournamentEngine");
+  const tournamentId = tournamentEngineModule.getTournamentForRoom(roomId);
+
   // Remove players with 0 chips - they can't play
   const zeroChipPlayers = roomPlayersList.filter((rp: any) => parseFloat(rp.chipCount) <= 0);
   for (const zp of zeroChipPlayers) {
-    await db.removeRoomPlayer(roomId, zp.userId);
+    // Tournament: trigger proper elimination instead of just removing
+    if (tournamentId !== null) {
+      await tournamentEngineModule.eliminatePlayer(tournamentId, zp.userId);
+    } else {
+      await db.removeRoomPlayer(roomId, zp.userId);
+    }
   }
   
   // Re-fetch active players after removing zero-chip players
@@ -908,9 +1017,20 @@ async function startNewHand(roomId: number) {
   // Generate client seed from all player IDs + timestamp
   const clientSeed = `${roomId}-${handNumber}-${Date.now()}`;
 
+  // Determine blinds: tournament tables use dynamic blinds from tournament engine
+  let effectiveSmallBlind = parseFloat(room.smallBlind);
+  let effectiveBigBlind = parseFloat(room.bigBlind);
+  if (tournamentId !== null) {
+    const tState = tournamentEngineModule.getTournamentState(tournamentId);
+    if (tState && tState.currentBlinds) {
+      effectiveSmallBlind = tState.currentBlinds.smallBlind;
+      effectiveBigBlind = tState.currentBlinds.bigBlind;
+    }
+  }
+
   // Initialize game
   let gameState = gameEngine.initializeGame(players, dealerIndex, clientSeed);
-  gameState = gameEngine.postBlinds(gameState, parseFloat(room.smallBlind), parseFloat(room.bigBlind));
+  gameState = gameEngine.postBlinds(gameState, effectiveSmallBlind, effectiveBigBlind);
   gameState = gameEngine.dealHoleCards(gameState);
 
   // Create hand record in DB
@@ -934,8 +1054,8 @@ async function startNewHand(roomId: number) {
     handId: handId ?? null,
     lastActionAt: Date.now(),
     turnTimeout: 30,
-    smallBlind: parseFloat(room.smallBlind),
-    bigBlind: parseFloat(room.bigBlind),
+    smallBlind: effectiveSmallBlind,
+    bigBlind: effectiveBigBlind,
     handNumber,
     // Clear previous winner info for new hand
     lastWinner: undefined,
@@ -985,6 +1105,16 @@ export function checkTimeouts() {
         table.afkFoldCount.set(timedOutPlayerId, newCount);
 
         if (newCount >= AFK_KICK_THRESHOLD) {
+          // Tournament tables: don't kick AFK players, just keep auto-folding them
+          // In tournaments, players can only be eliminated by losing all chips
+          // Use synchronous import (already cached after first dynamic import)
+          const { isTournamentTable: isTourneyTable } = require("./tournamentEngine");
+          if (isTourneyTable(roomId)) {
+            // Reset count so we don't spam this check every hand
+            table.afkFoldCount.set(timedOutPlayerId, 0);
+            checkAndAdvanceGame(roomId);
+            continue;
+          }
           // Kick the zombie player: return chips and remove from room
           table.afkFoldCount.delete(timedOutPlayerId);
           const playerInGame = table.gameState.players.find(p => p.id === timedOutPlayerId);
@@ -1046,6 +1176,19 @@ export function checkTimeouts() {
 async function handleReadyTimeout(roomId: number) {
   const table = activeTables.get(roomId);
   if (!table) return;
+
+  // Tournament tables should NEVER use the ready system or kick players
+  const tournamentEngine = await import("./tournamentEngine");
+  if (tournamentEngine.isTournamentTable(roomId)) {
+    // Reset ready state and auto-start next hand instead
+    table.waitingForReady = false;
+    table.readyDeadline = undefined;
+    const remainingPlayers = await db.getRoomPlayers(roomId);
+    if (remainingPlayers.length >= 2) {
+      await startNewHand(roomId);
+    }
+    return;
+  }
 
   const gs = table.gameState;
   const allPlayerIds = gs.players.map(p => p.id);

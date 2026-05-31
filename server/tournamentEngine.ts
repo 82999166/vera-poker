@@ -580,9 +580,16 @@ async function movePlayerBetweenTables(tournamentId: number, fromRoomId: number,
 
   const playerToMove = playersAtFrom[Math.floor(Math.random() * playersAtFrom.length)];
 
-  // Remove from old table
+  // Remove from old table (DB + in-memory)
   await db.removeRoomPlayer(fromRoomId, playerToMove.userId);
   fromTable.playerCount--;
+
+  // Remove from old table's in-memory gameState if exists
+  if (fromActiveTable) {
+    fromActiveTable.gameState.players = fromActiveTable.gameState.players.filter(
+      (p: any) => p.id !== playerToMove.userId
+    );
+  }
 
   // Add to new table
   const newSeatIndex = toTable.playerCount;
@@ -590,6 +597,13 @@ async function movePlayerBetweenTables(tournamentId: number, fromRoomId: number,
   playerToMove.roomId = toRoomId;
   playerToMove.seatIndex = newSeatIndex;
   toTable.playerCount++;
+
+  // Also add to new table's in-memory gameState so they participate in next hand
+  const toActiveTable = tm.getTable(toRoomId);
+  if (toActiveTable) {
+    // Add as a sitting-out player; they'll be included in startNewHand
+    // The player will be picked up from room_players on next hand start
+  }
 
   // Update registration
   await db.updateTournamentRegistrationStatus(

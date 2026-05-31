@@ -585,6 +585,29 @@ export default function Table() {
     // This prevents false positives during the brief window between joinMutation success and
     // the first tableState refresh that includes the new player.
     if (!myPlayerInState && !kickDetectedRef.current && joinSettledRef.current) {
+      // TOURNAMENT: If eliminated, show elimination message instead of generic "kicked"
+      const tInfo = (tableState as any)?.tournamentInfo;
+      if (tInfo?.isTournament && tInfo?.myEliminated) {
+        kickDetectedRef.current = true;
+        const rank = tInfo.myRank || "?";
+        const prize = tInfo.myPrize ? ` | +$${tInfo.myPrize}` : "";
+        toast.info(`${t("tourney.rank")} #${rank}${prize}`, { duration: 5000 });
+        setIsSeated(false);
+        isLeavingRef.current = true;
+        setIsLeaving(true);
+        setTimeout(() => navigate("/lobby"), 5000);
+        return;
+      }
+      // TOURNAMENT: If tournament finished, navigate back gracefully
+      if (tInfo?.isTournament && tInfo?.isFinished) {
+        kickDetectedRef.current = true;
+        toast.success(t("tourney.statusFinished"), { duration: 3000 });
+        setIsSeated(false);
+        isLeavingRef.current = true;
+        setIsLeaving(true);
+        setTimeout(() => navigate("/lobby"), 3000);
+        return;
+      }
       kickDetectedRef.current = true;
       // Return chips are handled server-side; just navigate back
       toast.info(t("table.kickedToLobby"), { duration: 2000 });
@@ -787,6 +810,12 @@ export default function Table() {
   const showdownRevealOrder: number[] = (tableState as any)?.showdownRevealOrder ?? [];
   const amISittingOut = (tableState as any)?.amISittingOut ?? false;
 
+  // === Tournament context ===
+  const tournamentInfo = (tableState as any)?.tournamentInfo ?? null;
+  const isTournamentTable = !!tournamentInfo?.isTournament;
+  const tournamentEliminated = tournamentInfo?.myEliminated ?? false;
+  const tournamentFinished = tournamentInfo?.isFinished ?? false;
+
   // === Showdown sequential reveal ===
   // Track which opponent IDs have been "flipped" face-up during showdown
   const [revealedOpponentIds, setRevealedOpponentIds] = useState<Set<number>>(new Set());
@@ -978,10 +1007,10 @@ export default function Table() {
   const myPlayer = displayPlayers.find(p => p.id === user?.id);
   const canCheck = myPlayer ? myPlayer.currentBet >= currentBet : false;
   const bigBlindValue = room ? parseFloat(room.bigBlind) : 2;
-  const canRebuy = isSeated && (waitingForReady || phase === "waiting") && !isDemoMode;
+  const canRebuy = isSeated && (waitingForReady || phase === "waiting") && !isDemoMode && !isTournamentTable;
   const isLowChips = myPlayer && myPlayer.chips > 0 && myPlayer.chips < bigBlindValue * 5;
-  // Can switch table: seated, between hands, not demo
-  const canSwitchTable = isSeated && (waitingForReady || phase === "waiting") && !isDemoMode && !!room;
+  // Can switch table: seated, between hands, not demo, not tournament
+  const canSwitchTable = isSeated && (waitingForReady || phase === "waiting") && !isDemoMode && !!room && !isTournamentTable;
 
   const handleSwitchTable = async () => {
     if (!room || !canSwitchTable) return;
@@ -1041,6 +1070,7 @@ export default function Table() {
           {room?.type === "private" && room?.inviteCode && (
             <span className="text-[10px] font-mono text-muted-foreground/70 bg-muted/40 px-1.5 py-0.5 rounded">{room.inviteCode}</span>
           )}
+          {isTournamentTable && <Trophy className="w-3.5 h-3.5 text-gold" />}
           <span className="text-xs text-muted-foreground truncate max-w-[120px]">
             {room ? room.name : isDemoMode ? t("table.demo") : `#${id}`}
           </span>
@@ -1051,7 +1081,7 @@ export default function Table() {
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          {isSeated && !isDemoMode && (
+          {isSeated && !isDemoMode && !isTournamentTable && (
             <button onClick={handleLeave} className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all active:scale-95" title={t("table.leave")}>
               <LogOut className="w-4 h-4" />
             </button>
@@ -1250,8 +1280,39 @@ export default function Table() {
               ))}
             </div>
 
-            {/* Start Next Hand button in center of table - only show after settlement overlay dismissed */}
-            {waitingForReady && !isDemoMode && !showWinner && (
+            {/* Tournament HUD - show blind level, players remaining, next blind timer */}
+            {isTournamentTable && tournamentInfo && !showWinner && (
+              <div className="absolute top-[3%] left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 border border-gold/40 backdrop-blur-sm">
+                <span className="text-[10px] text-gold font-bold">{t("tourney.blindLevel")} {tournamentInfo.blindLevel}</span>
+                <span className="text-[10px] text-muted-foreground">|</span>
+                <span className="text-[10px] text-foreground font-medium">{tournamentInfo.currentBlinds?.smallBlind}/{tournamentInfo.currentBlinds?.bigBlind}</span>
+                <span className="text-[10px] text-muted-foreground">|</span>
+                <span className="text-[10px] text-foreground">
+                  <Users className="w-3 h-3 inline mr-0.5" />{tournamentInfo.playersRemaining}/{tournamentInfo.totalPlayers}
+                </span>
+                {tournamentInfo.timeUntilNextLevel > 0 && (
+                  <>
+                    <span className="text-[10px] text-muted-foreground">|</span>
+                    <span className="text-[10px] text-amber-400">
+                      {Math.floor(tournamentInfo.timeUntilNextLevel / 60000)}:{String(Math.floor((tournamentInfo.timeUntilNextLevel % 60000) / 1000)).padStart(2, '0')}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Tournament: auto-start indicator (replaces ready button) */}
+            {isTournamentTable && waitingForReady && !isDemoMode && !showWinner && (
+              <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 border border-gold/40">
+                  <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                  <span className="text-xs text-gold font-medium">{t("tourney.inProgress")}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Start Next Hand button in center of table - only show after settlement overlay dismissed (regular tables only) */}
+            {waitingForReady && !isDemoMode && !showWinner && !isTournamentTable && (
               <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
                 {myPlayer && myPlayer.chips <= 0 ? (
                   <div className="flex flex-col items-center gap-2">
@@ -1575,7 +1636,12 @@ export default function Table() {
 
           {displayPhase === "waiting" && !waitingForReady && !isDemoMode && (
             <div className="flex items-center justify-center" style={{ minHeight: '72px' }}>
-              {players.length >= 2 ? (
+              {isTournamentTable ? (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gold/10 border border-gold/30">
+                  <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                  <span className="text-sm text-gold font-medium">{t("tourney.inProgress")}</span>
+                </div>
+              ) : players.length >= 2 ? (
                 <div className="flex flex-col items-center gap-1">
                   <button
                     onClick={() => readyMutation.mutate({ roomId })}
@@ -1601,7 +1667,14 @@ export default function Table() {
           {/* When waitingForReady, show placeholder to maintain height */}
           {waitingForReady && !isDemoMode && displayPhase !== "waiting" && (
             <div className="flex items-center justify-center" style={{ minHeight: '72px' }}>
-              <span className="text-[11px] text-muted-foreground/60">{t("table.waiting")}</span>
+              {isTournamentTable ? (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold/10 border border-gold/30">
+                  <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                  <span className="text-[11px] text-gold">{t("tourney.inProgress")}</span>
+                </div>
+              ) : (
+                <span className="text-[11px] text-muted-foreground/60">{t("table.waiting")}</span>
+              )}
             </div>
           )}
 
