@@ -762,8 +762,21 @@ async function settleHand(roomId: number) {
   }
 
   // Set lastWinner for UI display (primary winner)
+  // In side pot scenarios, show the player with the BEST hand (not highest amount)
+  // This prevents confusion where a weaker hand appears to "win" because they won a larger side pot
   if (winnerDetails.length > 0) {
-    const primary = winnerDetails.sort((a, b) => b.amount - a.amount)[0];
+    const HAND_RANK_ORDER: Record<string, number> = {
+      "royal_flush": 10, "straight_flush": 9, "four_of_a_kind": 8,
+      "full_house": 7, "flush": 6, "straight": 5, "three_of_a_kind": 4,
+      "two_pair": 3, "one_pair": 2, "high_card": 1, "last_standing": 0,
+    };
+    const primary = winnerDetails.sort((a, b) => {
+      const rankDiff = (HAND_RANK_ORDER[b.handRank] || 0) - (HAND_RANK_ORDER[a.handRank] || 0);
+      if (rankDiff !== 0) return rankDiff;
+      return b.amount - a.amount; // tie-break by amount
+    })[0];
+    // Show total pot won by all winners combined for the banner
+    const totalWon = winnerDetails.reduce((sum, w) => sum + w.amount, 0);
     table.lastWinner = { name: primary.name, amount: primary.amount, handDescription: primary.handDescription };
   }
 
@@ -825,6 +838,8 @@ async function settleHand(roomId: number) {
         await tournamentEngine.eliminatePlayer(tId, player.id);
       }
     }
+    // Increment tournament hand count and check if totalRounds limit reached
+    await tournamentEngine.incrementHandCount(tId);
   }
 
   // Distribute agent commissions from rake
@@ -1518,4 +1533,11 @@ export async function processAutoRebuy(roomId: number, userId: number, threshold
   await addPlayerChips(roomId, userId, needed);
 
   return { success: true, added: needed };
+}
+
+/**
+ * Remove a table from activeTables (used by tournament engine when force-finishing)
+ */
+export function removeActiveTable(roomId: number): void {
+  activeTables.delete(roomId);
 }

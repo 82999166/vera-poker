@@ -65,6 +65,8 @@ interface ActiveTournament {
   playersPerTable: number;
   finalTableThreshold: number;
   totalPlayers: number;
+  totalRounds: number | null; // max hands before forced finish (null = unlimited, play until 1 left)
+  handsPlayed: number; // total hands completed across all tables
   blindTimer?: ReturnType<typeof setInterval>;
   balanceTimer?: ReturnType<typeof setInterval>;
 }
@@ -196,6 +198,8 @@ export async function startTournament(tournamentId: number): Promise<{
     playersPerTable,
     finalTableThreshold: tournament.finalTableThreshold || 9,
     totalPlayers: playerCount,
+    totalRounds: tournament.totalRounds || null, // max hands (null = unlimited)
+    handsPlayed: 0,
   };
 
   activeTournaments.set(tournamentId, activeTournament);
@@ -291,6 +295,8 @@ export function getTournamentState(tournamentId: number, userId?: number) {
     myEliminated,
     startedAt: t.startedAt,
     averageStack: activePlayers.length > 0 ? Math.round(activePlayers.reduce((s, p) => s + p.chips, 0) / activePlayers.length) : 0,
+    totalRounds: t.totalRounds,
+    handsPlayed: t.handsPlayed,
   };
 }
 
@@ -457,6 +463,125 @@ export function generateDefaultBlindStructure(startingChips: number): BlindLevel
   }
 
   return levels;
+}
+
+/**
+ * Increment the hand count for a tournament.
+ * If totalRounds is set and reached, force-finish the tournament by chip ranking.
+ */
+export async function incrementHandCount(tournamentId: number): Promise<void> {
+  const t = activeTournaments.get(tournamentId);
+  if (!t || t.isFinished) return;
+
+  t.handsPlayed++;
+
+  // Check if totalRounds limit reached
+  if (t.totalRounds !== null && t.handsPlayed >= t.totalRounds) {
+    console.log(`[Tournament ${tournamentId}] totalRounds limit reached (${t.handsPlayed}/${t.totalRounds}). Force-finishing by chip count.`);
+    await forceFinishByChips(tournamentId);
+  }
+}
+
+/**
+ * Force-finish a tournament by ranking all remaining players by chip count.
+ * Used when totalRounds limit is reached.
+ */
+async function forceFinishByChips(tournamentId: number): Promise<void> {
+  const t = activeTournaments.get(tournamentId);
+  if (!t || t.isFinished) return;
+
+  t.isFinished = true;
+
+  // Stop timers
+  if (t.blindTimer) clearInterval(t.blindTimer);
+  if (t.balanceTimer) clearInterval(t.balanceTimer);
+
+  // Rank remaining active players by chips (descending)
+  const activePlayers = Array.from(t.players.values()).filter(p => !p.isEliminated);
+  activePlayers.sort((a, b) => b.chips - a.chips);
+
+  // Assign ranks: active players get ranks 1..N, already eliminated keep their ranks
+  for (let i = 0; i < activePlayers.length; i++) {
+    activePlayers[i].finishRank = i + 1;
+    activePlayers[i].isEliminated = true;
+    activePlayers[i].eliminatedAt = Date.now();
+  }
+
+  // Calculate prize pool
+  const totalPrizePool = t.entryFee * t.totalPlayers * (1 - t.platformRake / 100);
+
+  // Build final rankings: active players by chips first, then previously eliminated
+  const rankings: { userId: number; rank: number; prizeAmount: number }[] = [];
+
+  for (const p of activePlayers) {
+    rankings.push({ userId: p.userId, rank: p.finishRank!, prizeAmount: 0 });
+  }
+
+  // Previously eliminated players keep their existing ranks
+  const eliminatedReversed = [...t.eliminationOrder].reverse();
+  for (let i = 0; i < eliminatedReversed.length; i++) {
+    const rank = activePlayers.length + i + 1;
+    rankings.push({ userId: eliminatedReversed[i], rank, prizeAmount: 0 });
+  }
+
+  // Assign prizes based on distribution
+  for (const r of rankings) {
+    const prizeEntry = t.prizeDistribution.find(p => p.rank === r.rank);
+    if (prizeEntry) {
+      r.prizeAmount = parseFloat((totalPrizePool * prizeEntry.percentage / 100).toFixed(2));
+    }
+  }
+
+  // Import notification helper
+  const { notifyTournamentResult } = await import("./notifications");
+
+  // Save results and distribute prizes
+  for (const r of rankings) {
+    if (r.prizeAmount > 0) {
+      await db.addUserBalanceAtomic(r.userId, r.prizeAmount);
+    }
+
+    await db.saveTournamentResult({
+      tournamentId,
+      userId: r.userId,
+      rank: r.rank,
+      prizeAmount: r.prizeAmount.toFixed(2),
+      startingChips: t.startingChips,
+      finalChips: t.players.get(r.userId)?.chips || 0,
+      roundsPlayed: t.handsPlayed,
+      handsWon: 0,
+    });
+
+    // Notify player
+    await notifyTournamentResult(r.userId, t.name, r.rank, r.prizeAmount.toFixed(2)).catch(() => {});
+  }
+
+  // Close all tournament tables and remove from activeTables (prevents auto-start race)
+  const tableManagerModule = await import("./tableManager");
+  for (const [roomId] of t.tables) {
+    // Remove from in-memory active tables first (stops any pending auto-start timers)
+    tableManagerModule.removeActiveTable(roomId);
+    // Remove players from room DB
+    const roomPlayers = await db.getRoomPlayers(roomId);
+    for (const rp of roomPlayers) {
+      await db.removeRoomPlayer(roomId, rp.userId);
+    }
+    await db.updateRoom(roomId, { status: "closed", currentPlayers: 0 });
+  }
+
+  // Update tournament status
+  await db.updateTournament(tournamentId, {
+    status: "finished",
+    endTime: new Date(),
+    totalPrizePool: totalPrizePool.toFixed(2),
+  });
+
+  console.log(`[Tournament ${tournamentId}] Force-finished by totalRounds! Winner: ${activePlayers[0]?.name}. Prize pool: $${totalPrizePool.toFixed(2)}`);
+
+  // Clean up after a delay
+  setTimeout(() => {
+    activeTournaments.delete(tournamentId);
+  }, 5 * 60 * 1000);
 }
 
 // ==================== Internal Logic ====================
@@ -790,9 +915,16 @@ async function finishTournament(tournamentId: number, winner: TournamentPlayer):
     totalPrizePool: totalPrizePool.toFixed(2),
   });
 
-  // Close all tournament tables
+  // Close all tournament tables and clean up in-memory state
+  const tableManagerModule = await import("./tableManager");
   for (const [roomId] of t.tables) {
-    await db.updateRoom(roomId, { status: "closed" });
+    tableManagerModule.removeActiveTable(roomId);
+    // Remove remaining players from room
+    const roomPlayers = await db.getRoomPlayers(roomId);
+    for (const rp of roomPlayers) {
+      await db.removeRoomPlayer(roomId, rp.userId);
+    }
+    await db.updateRoom(roomId, { status: "closed", currentPlayers: 0 });
   }
 
   console.log(`[Tournament ${tournamentId}] Finished! Winner: ${winner.name}. Prize pool: $${totalPrizePool.toFixed(2)}`);

@@ -200,3 +200,9 @@
 - [x] 前端识别锦标赛牌桌（显示盲注级别、剩余人数等）
 - [x] 淘汰时显示排名信息而非 kicked 提示
 - [x] 锦标赛结束时显示最终排名和奖金
+
+## 2026-05-31 锦标赛三项 Bug 修复
+
+- [x] Bug 1: 总局数设置无效 → 添加 incrementHandCount + forceFinishByChips 逻辑，达到 totalRounds 时按筹码排名强制结束
+- [x] Bug 2: 比赛结果卡住 → finishTournament/forceFinishByChips 中 removeActiveTable + 延迟清理 activeTournaments，前端检测 isFinished 正确导航
+- [x] Bug 3: 牌力判断错误 → 修复 wheel straight kicker（A-2-3-4-5 高牌应为5而非14）+ side pot 显示优先显示最强牌力赢家

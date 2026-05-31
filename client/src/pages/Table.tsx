@@ -345,6 +345,8 @@ export default function Table() {
   // Settlement dedup is handled purely by lastSettledHandRef (in-memory).
   // localStorage was removed because handNumber resets on server restart,
   // causing false "already seen" matches that block settlement animation.
+  // Remember if this was ever a tournament table (survives tournamentInfo becoming null)
+  const wasTournamentRef = useRef(false);
   // Prevent roomPlayers re-query from triggering showBuyIn after leave/navigate
   const isLeavingRef = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false); // mirrors isLeavingRef for JSX re-render
@@ -608,6 +610,17 @@ export default function Table() {
         setTimeout(() => navigate("/lobby"), 3000);
         return;
       }
+      // TOURNAMENT: If we were in a tournament but tournamentInfo is gone (table closed),
+      // treat as tournament ended gracefully
+      if (wasTournamentRef.current) {
+        kickDetectedRef.current = true;
+        toast.success(t("tourney.statusFinished"), { duration: 3000 });
+        setIsSeated(false);
+        isLeavingRef.current = true;
+        setIsLeaving(true);
+        setTimeout(() => navigate("/lobby"), 3000);
+        return;
+      }
       kickDetectedRef.current = true;
       // Return chips are handled server-side; just navigate back
       toast.info(t("table.kickedToLobby"), { duration: 2000 });
@@ -813,6 +826,8 @@ export default function Table() {
   // === Tournament context ===
   const tournamentInfo = (tableState as any)?.tournamentInfo ?? null;
   const isTournamentTable = !!tournamentInfo?.isTournament;
+  // Once we detect tournament, remember it permanently for this session
+  if (isTournamentTable) wasTournamentRef.current = true;
   const tournamentEliminated = tournamentInfo?.myEliminated ?? false;
   const tournamentFinished = tournamentInfo?.isFinished ?? false;
 

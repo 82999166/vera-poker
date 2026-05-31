@@ -406,7 +406,8 @@ function evaluateFiveCards(cards: Card[]): HandEvaluation {
     return { rank: "royal_flush", rankValue: 10, kickers: values, description: "Royal Flush" };
   }
   if (isFlush && isStraight) {
-    return { rank: "straight_flush", rankValue: 9, kickers: values, description: "Straight Flush" };
+    const straightKickers = getStraightKickers(values);
+    return { rank: "straight_flush", rankValue: 9, kickers: straightKickers, description: "Straight Flush" };
   }
   if (counts[0][1] === 4) {
     return { rank: "four_of_a_kind", rankValue: 8, kickers: [counts[0][0], counts[1][0]], description: "Four of a Kind" };
@@ -418,7 +419,8 @@ function evaluateFiveCards(cards: Card[]): HandEvaluation {
     return { rank: "flush", rankValue: 6, kickers: values, description: "Flush" };
   }
   if (isStraight) {
-    return { rank: "straight", rankValue: 5, kickers: values, description: "Straight" };
+    const straightKickers = getStraightKickers(values);
+    return { rank: "straight", rankValue: 5, kickers: straightKickers, description: "Straight" };
   }
   if (counts[0][1] === 3) {
     return { rank: "three_of_a_kind", rankValue: 4, kickers: [counts[0][0], ...values.filter(v => v !== counts[0][0])], description: "Three of a Kind" };
@@ -443,6 +445,21 @@ function checkStraight(values: number[]): boolean {
   if (sorted[0] === 14 && sorted[1] === 5 && sorted[2] === 4 && sorted[3] === 3 && sorted[4] === 2) return true;
   
   return false;
+}
+
+/**
+ * Get proper kickers for a straight hand.
+ * For wheel (A-2-3-4-5), the high card is 5, not Ace.
+ * Kickers represent the straight from high to low for comparison purposes.
+ */
+function getStraightKickers(values: number[]): number[] {
+  const sorted = Array.from(new Set(values)).sort((a, b) => b - a);
+  // Check if this is a wheel (A-2-3-4-5)
+  if (sorted[0] === 14 && sorted[1] === 5 && sorted[2] === 4 && sorted[3] === 3 && sorted[4] === 2) {
+    return [5, 4, 3, 2, 1]; // Ace counts as 1 in wheel
+  }
+  // Normal straight: return sorted values
+  return sorted.slice(0, 5);
 }
 
 function getCombinations(arr: Card[], k: number): Card[][] {
