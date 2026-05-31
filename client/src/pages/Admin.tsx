@@ -411,6 +411,41 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "toast.tournamentCancelled": "比赛已取消，已退款",
     "toast.tournamentPrizesDone": "奖金发放完成！共发放 {count} 人，比赛已结束",
     "toast.tournamentNameTimeRequired": "请填写比赛名称和开赛时间",
+    "banners.add": "添加 Banner",
+    "banners.edit": "编辑 Banner",
+    "banners.empty": "暂无 Banner，点击上方按钮添加",
+    "banners.linkType": "点击动作",
+    "banners.linkUrl": "链接地址",
+    "banners.sortOrder": "排序（小的在前）",
+    "banners.title": "标题",
+    "csRecords.clear": "清除",
+    "csRecords.count": "消息数",
+    "csRecords.detail": "对话详情",
+    "csRecords.empty": "暂无客服对话记录",
+    "csRecords.lastMsg": "最后消息",
+    "csRecords.search": "搜索",
+    "csRecords.searchPlaceholder": "搜索用户名 / TG用户名 / 用户ID",
+    "csRecords.searchResult": "搜索结果",
+    "csRecords.time": "时间",
+    "csRecords.user": "用户",
+    "csRecords.users": "个用户",
+    "settings.registrationBonus": "注册奖金设置",
+    "settings.registrationBonusDesc": "新用户注册自动发放奖金，需满足条件后才能提现（防薅羊毛）",
+    "settings.bonusAmount": "注册赠送金额 (USDT)",
+    "settings.bonusAmountHint": "设为 0 则不发放注册奖金",
+    "settings.bonusMinHands": "解锁最低有效手数",
+    "settings.bonusMinHandsHint": "仅公共房间 ≥3人牌局计入有效手数（私房不计入）",
+    "settings.bonusWagerMultiplier": "解锁流水倍数",
+    "settings.bonusWagerHint": "需下注流水 ≥ 奖金 × 倍数才能解锁提现",
+    "settings.bonusSummary": "当前规则摘要",
+    "settings.bonusSummary1": "注册赠送",
+    "settings.bonusSummary2": "解锁条件",
+    "settings.bonusSummary2b": "有效手数",
+    "settings.bonusSummary2c": "有效流水",
+    "settings.bonusSummary3": "防薅机制",
+    "settings.bonusSummary3b": "仅公共房 ≥3人牌局计入，私房不计入",
+    "settings.bonusSummary4": "未充值用户不能进入私人房间",
+    "users.colBonus": "奖金",
   },
   "zh-TW": {
     "admin.title": "Vera 管理後台",
@@ -783,6 +818,41 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "toast.tournamentCancelled": "比賽已取消，已退款",
     "toast.tournamentPrizesDone": "獎金發放完成！共發放 {count} 人，比賽已結束",
     "toast.tournamentNameTimeRequired": "請填寫比賽名稱和開賽時間",
+    "banners.add": "添加 Banner",
+    "banners.edit": "編輯 Banner",
+    "banners.empty": "暫無 Banner，點擊上方按鈕添加",
+    "banners.linkType": "點擊動作",
+    "banners.linkUrl": "鏈接地址",
+    "banners.sortOrder": "排序（小的在前）",
+    "banners.title": "標題",
+    "csRecords.clear": "清除",
+    "csRecords.count": "消息數",
+    "csRecords.detail": "對話詳情",
+    "csRecords.empty": "暫無客服對話記錄",
+    "csRecords.lastMsg": "最後消息",
+    "csRecords.search": "搜索",
+    "csRecords.searchPlaceholder": "搜索用戶名 / TG用戶名 / 用戶ID",
+    "csRecords.searchResult": "搜索結果",
+    "csRecords.time": "時間",
+    "csRecords.user": "用戶",
+    "csRecords.users": "個用戶",
+    "settings.registrationBonus": "註冊獎金設置",
+    "settings.registrationBonusDesc": "新用戶註冊自動發放獎金，需滿足條件後才能提現（防薅羊毛）",
+    "settings.bonusAmount": "註冊贈送金額 (USDT)",
+    "settings.bonusAmountHint": "設為 0 則不發放註冊獎金",
+    "settings.bonusMinHands": "解鎖最低有效手數",
+    "settings.bonusMinHandsHint": "僅公共房間 ≥3人牌局計入有效手數（私房不計入）",
+    "settings.bonusWagerMultiplier": "解鎖流水倍數",
+    "settings.bonusWagerHint": "需下注流水 ≥ 獎金 × 倍數才能解鎖提現",
+    "settings.bonusSummary": "當前規則摘要",
+    "settings.bonusSummary1": "註冊贈送",
+    "settings.bonusSummary2": "解鎖條件",
+    "settings.bonusSummary2b": "有效手數",
+    "settings.bonusSummary2c": "有效流水",
+    "settings.bonusSummary3": "防薅機制",
+    "settings.bonusSummary3b": "僅公共房 ≥3人牌局計入，私房不計入",
+    "settings.bonusSummary4": "未充值用戶不能進入私人房間",
+    "users.colBonus": "獎金",
   },
   "en": {
     "admin.title": "Vera Admin",
@@ -1155,6 +1225,41 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "toast.tournamentCancelled": "Tournament cancelled, refunds issued",
     "toast.tournamentPrizesDone": "Prizes distributed to {count} players, tournament ended",
     "toast.tournamentNameTimeRequired": "Please enter tournament name and start time",
+    "banners.add": "Add Banner",
+    "banners.edit": "Edit Banner",
+    "banners.empty": "No banners yet, click above to add",
+    "banners.linkType": "Click Action",
+    "banners.linkUrl": "Link URL",
+    "banners.sortOrder": "Sort Order (smaller first)",
+    "banners.title": "Title",
+    "csRecords.clear": "Clear",
+    "csRecords.count": "Messages",
+    "csRecords.detail": "Chat Details",
+    "csRecords.empty": "No customer service records",
+    "csRecords.lastMsg": "Last Message",
+    "csRecords.search": "Search",
+    "csRecords.searchPlaceholder": "Search username / TG username / User ID",
+    "csRecords.searchResult": "Search Results",
+    "csRecords.time": "Time",
+    "csRecords.user": "User",
+    "csRecords.users": "users",
+    "settings.registrationBonus": "Registration Bonus",
+    "settings.registrationBonusDesc": "Auto-grant bonus on registration, withdrawal requires meeting conditions (anti-abuse)",
+    "settings.bonusAmount": "Bonus Amount (USDT)",
+    "settings.bonusAmountHint": "Set to 0 to disable registration bonus",
+    "settings.bonusMinHands": "Min Valid Hands to Unlock",
+    "settings.bonusMinHandsHint": "Only public room hands with 3+ players count (private rooms excluded)",
+    "settings.bonusWagerMultiplier": "Wagering Multiplier",
+    "settings.bonusWagerHint": "Total wagering must be >= bonus × multiplier to unlock withdrawal",
+    "settings.bonusSummary": "Current Rules Summary",
+    "settings.bonusSummary1": "Registration Bonus",
+    "settings.bonusSummary2": "Unlock Conditions",
+    "settings.bonusSummary2b": "Valid Hands",
+    "settings.bonusSummary2c": "Valid Wagering",
+    "settings.bonusSummary3": "Anti-Abuse",
+    "settings.bonusSummary3b": "Only public rooms with 3+ players count, private rooms excluded",
+    "settings.bonusSummary4": "Users without deposits cannot enter private rooms",
+    "users.colBonus": "Bonus",
   },
 };
 
@@ -1342,11 +1447,11 @@ export default function Admin() {
     { key: "faq", icon: MessageSquare, label: at("tab.faq") },
     { key: "config", icon: Settings, label: at("tab.config") },
     { key: "settings", icon: Settings, label: at("tab.settings") },
-    { key: "banners", icon: Layers, label: at("tab.banners") || "活动管理" },
-    { key: "tournaments", icon: Trophy, label: at("tab.tournaments") || "锦标赛" },
+    { key: "banners", icon: Layers, label: at("tab.banners") },
+    { key: "tournaments", icon: Trophy, label: at("tab.tournaments") },
     { key: "csRecords", icon: MessageSquare, label: at("tab.csRecords") },
     { key: "logs", icon: Eye, label: at("tab.logs") },
-    { key: "marketing", icon: Megaphone, label: at("tab.marketing") || "营销系统" },
+    { key: "marketing", icon: Megaphone, label: at("tab.marketing") },
   ];
   const tabs = allTabs.filter(t => allowedTabs.includes(t.key));
 
@@ -1739,11 +1844,12 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
         className="w-full glass rounded-lg px-3 py-2 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
       />
       {/* Column Header */}
-      <div className="grid grid-cols-[1fr_minmax(140px,auto)_auto_auto_auto_auto] gap-2 px-3 text-[10px] text-muted-foreground font-medium">
+      <div className="grid grid-cols-[1fr_minmax(140px,auto)_auto_auto_auto_auto_auto] gap-2 px-3 text-[10px] text-muted-foreground font-medium">
         <span>{at("users.colUser")}</span>
         <span className="text-center">{at("users.colIp")}</span>
         <span className="text-right w-28">{at("users.colLastLogin")}</span>
         <span className="text-right w-16">{at("users.colBalance")}</span>
+        <span className="text-right w-16">{at("users.colBonus")}</span>
         <span className="text-right w-20">{at("users.colStatus")}</span>
         <span className="text-right w-14"></span>
       </div>
@@ -1755,7 +1861,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
             onClick={() => setSelectedUserId(u.id)}
           >
             {/* Single row layout */}
-            <div className="grid grid-cols-[1fr_minmax(140px,auto)_auto_auto_auto_auto] gap-2 items-center">
+            <div className="grid grid-cols-[1fr_minmax(140px,auto)_auto_auto_auto_auto_auto] gap-2 items-center">
               {/* User info */}
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-7 h-7 shrink-0 rounded-full bg-gradient-to-br from-gold/30 to-gold/10 flex items-center justify-center">
@@ -1790,6 +1896,16 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
               </span>
               {/* Balance */}
               <span className="text-sm font-mono text-gold text-right w-16 shrink-0">${formatBalance(u.balance)}</span>
+              {/* Bonus Status */}
+              <div className="w-16 shrink-0 flex justify-end">
+                {u.bonusUnlocked ? (
+                  <span className="px-1 py-0.5 rounded text-[9px] font-medium bg-emerald-500/20 text-emerald-400">✓ 已解锁</span>
+                ) : parseFloat(u.bonusBalance || "0") > 0 ? (
+                  <span className="px-1 py-0.5 rounded text-[9px] font-medium bg-yellow-500/20 text-yellow-400">${formatBalance(parseFloat(u.bonusBalance))}</span>
+                ) : (
+                  <span className="text-[9px] text-muted-foreground">-</span>
+                )}
+              </div>
               {/* Online status */}
               <div className="w-20 shrink-0 flex justify-end">
                 {u.onlineStatus?.online ? (
@@ -4388,22 +4504,22 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold">{at("tab.banners") || "活动管理"}</h3>
+        <h3 className="text-lg font-bold">{at("tab.banners")}</h3>
         <button
           onClick={handleCreate}
           className="px-4 py-2 rounded-lg bg-gold text-background text-sm font-medium hover:opacity-90 transition-opacity"
         >
-          + {at("banners.add") || "添加 Banner"}
+          + {at("banners.add")}
         </button>
       </div>
 
       {/* Form Dialog */}
       {showForm && (
         <div className="border border-border rounded-lg p-4 bg-card space-y-3">
-          <h4 className="font-semibold">{editingBanner ? (at("banners.edit") || "编辑 Banner") : (at("banners.add") || "添加 Banner")}</h4>
+          <h4 className="font-semibold">{editingBanner ? (at("banners.edit")) : (at("banners.add"))}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground">{at("banners.title") || "标题"}</label>
+              <label className="text-xs text-muted-foreground">{at("banners.title")}</label>
               <input
                 type="text"
                 value={formData.title}
@@ -4472,7 +4588,7 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
               )}
             </div>
             <div>
-              <label className="text-xs text-muted-foreground">{at("banners.linkType") || "点击动作"}</label>
+              <label className="text-xs text-muted-foreground">{at("banners.linkType")}</label>
               <select
                 value={formData.linkType}
                 onChange={(e) => setFormData(p => ({ ...p, linkType: e.target.value as any }))}
@@ -4484,7 +4600,7 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground">{at("banners.linkUrl") || "链接地址"}</label>
+              <label className="text-xs text-muted-foreground">{at("banners.linkUrl")}</label>
               <input
                 type="text"
                 value={formData.linkUrl}
@@ -4494,7 +4610,7 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground">{at("banners.sortOrder") || "排序（小的在前）"}</label>
+              <label className="text-xs text-muted-foreground">{at("banners.sortOrder")}</label>
               <input
                 type="number"
                 value={formData.sortOrder}
@@ -4529,7 +4645,7 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
       {/* Banner List */}
       {bannersQuery.isLoading && <p className="text-muted-foreground">Loading...</p>}
       {bannersQuery.data && bannersQuery.data.length === 0 && (
-        <p className="text-muted-foreground">{at("banners.empty") || "暂无 Banner，点击上方按钮添加"}</p>
+        <p className="text-muted-foreground">{at("banners.empty")}</p>
       )}
       {bannersQuery.data && bannersQuery.data.length > 0 && (
         <div className="space-y-3">
@@ -5111,7 +5227,7 @@ function CsRecordsPanel({ at }: { at: (k: string) => string }) {
           <button onClick={() => setSelectedUserId(null)} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <h3 className="text-lg font-bold">{at("csRecords.detail") || "对话详情"} (User#{selectedUserId})</h3>
+          <h3 className="text-lg font-bold">{at("csRecords.detail")} (User#{selectedUserId})</h3>
           <span className="text-xs text-muted-foreground">({msgs.length} messages)</span>
         </div>
         <div className="space-y-3 max-h-[70vh] overflow-y-auto">
@@ -5149,42 +5265,42 @@ function CsRecordsPanel({ at }: { at: (k: string) => string }) {
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          placeholder={at("csRecords.searchPlaceholder") || "搜索用户名 / TG用户名 / 用户ID"}
+          placeholder={at("csRecords.searchPlaceholder")}
           className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-truth-blue"
         />
         <button
           onClick={handleSearch}
           className="px-4 py-2 rounded-lg bg-truth-blue text-white text-sm font-medium hover:opacity-90 transition-opacity"
         >
-          {at("csRecords.search") || "搜索"}
+          {at("csRecords.search")}
         </button>
         {search && (
           <button
             onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}
             className="px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
           >
-            {at("csRecords.clear") || "清除"}
+            {at("csRecords.clear")}
           </button>
         )}
       </div>
       {search && (
         <p className="text-xs text-muted-foreground">
-          {at("csRecords.searchResult") || "搜索结果"}: "{search}" ({convosQuery.data?.total ?? 0} {at("csRecords.users") || "个用户"})
+          {at("csRecords.searchResult")}: "{search}" ({convosQuery.data?.total ?? 0} {at("csRecords.users")})
         </p>
       )}
       {convosQuery.isLoading && <p className="text-muted-foreground">Loading...</p>}
       {convosQuery.data && convosQuery.data.items.length === 0 && !convosQuery.isLoading && (
-        <p className="text-muted-foreground">{at("csRecords.empty") || "暂无客服对话记录"}</p>
+        <p className="text-muted-foreground">{at("csRecords.empty")}</p>
       )}
       {convosQuery.data && convosQuery.data.items.length > 0 && (
         <div className="border border-border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-2 text-left">{at("csRecords.user") || "用户"}</th>
-                <th className="px-4 py-2 text-left">{at("csRecords.lastMsg") || "最后消息"}</th>
-                <th className="px-4 py-2 text-center">{at("csRecords.count") || "消息数"}</th>
-                <th className="px-4 py-2 text-right">{at("csRecords.time") || "时间"}</th>
+                <th className="px-4 py-2 text-left">{at("csRecords.user")}</th>
+                <th className="px-4 py-2 text-left">{at("csRecords.lastMsg")}</th>
+                <th className="px-4 py-2 text-center">{at("csRecords.count")}</th>
+                <th className="px-4 py-2 text-right">{at("csRecords.time")}</th>
               </tr>
             </thead>
             <tbody>
@@ -5388,15 +5504,15 @@ function RegistrationBonusConfig({ at, configs, saveSystemSetting }: { at: (k: s
 
   return (
     <div className="glass rounded-xl p-4">
-      <h3 className="text-sm font-semibold mb-3">🎁 {at("settings.registrationBonus") || "注册奖金设置"}</h3>
+      <h3 className="text-sm font-semibold mb-3">🎁 {at("settings.registrationBonus")}</h3>
       <p className="text-xs text-muted-foreground mb-4">
-        {at("settings.registrationBonusDesc") || "新用户注册自动发放奖金，需满足条件后才能提现（防薅羊毛）"}
+        {at("settings.registrationBonusDesc")}
       </p>
       <div className="space-y-3">
         {/* Bonus Amount */}
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">
-            {at("settings.bonusAmount") || "注册赠送金额 (USDT)"}
+            {at("settings.bonusAmount")}
           </label>
           <div className="flex gap-2">
             <input
@@ -5413,14 +5529,14 @@ function RegistrationBonusConfig({ at, configs, saveSystemSetting }: { at: (k: s
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">
-            {at("settings.bonusAmountHint") || "设为 0 则不发放注册奖金"}
+            {at("settings.bonusAmountHint")}
           </p>
         </div>
 
         {/* Min Hands */}
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">
-            {at("settings.bonusMinHands") || "解锁最低有效手数"}
+            {at("settings.bonusMinHands")}
           </label>
           <div className="flex gap-2">
             <input
@@ -5436,14 +5552,14 @@ function RegistrationBonusConfig({ at, configs, saveSystemSetting }: { at: (k: s
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">
-            {at("settings.bonusMinHandsHint") || "仅公共房间 ≥3人牌局计入有效手数（私房不计入）"}
+            {at("settings.bonusMinHandsHint")}
           </p>
         </div>
 
         {/* Wager Multiplier */}
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">
-            {at("settings.bonusWagerMultiplier") || "解锁流水倍数"}
+            {at("settings.bonusWagerMultiplier")}
           </label>
           <div className="flex gap-2">
             <input
@@ -5460,7 +5576,7 @@ function RegistrationBonusConfig({ at, configs, saveSystemSetting }: { at: (k: s
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">
-            {at("settings.bonusWagerHint") || `需下注流水 ≥ 奖金 × 倍数才能解锁提现`}
+            {at("settings.bonusWagerHint")}
           </p>
         </div>
 
@@ -5468,13 +5584,13 @@ function RegistrationBonusConfig({ at, configs, saveSystemSetting }: { at: (k: s
         {bonusNum > 0 && (
           <div className="mt-3 rounded-lg border border-gold/30 bg-gold/5 p-3">
             <p className="text-xs font-medium text-gold mb-1">
-              {at("settings.bonusSummary") || "当前规则摘要"}
+              {at("settings.bonusSummary")}
             </p>
             <ul className="text-[11px] text-muted-foreground space-y-1">
-              <li>• {at("settings.bonusSummary1") || "注册赠送"}: <span className="text-gold font-bold">${bonusAmount} USDT</span></li>
-              <li>• {at("settings.bonusSummary2") || "解锁条件"}: ≥{minHands} {at("settings.bonusSummary2b") || "有效手数"} + ≥${requiredWager} {at("settings.bonusSummary2c") || "有效流水"}</li>
-              <li>• {at("settings.bonusSummary3") || "防薅机制"}: {at("settings.bonusSummary3b") || "仅公共房 ≥3人牌局计入，私房不计入"}</li>
-              <li>• {at("settings.bonusSummary4") || "未充值用户不能进入私人房间"}</li>
+              <li>• {at("settings.bonusSummary1")}: <span className="text-gold font-bold">${bonusAmount} USDT</span></li>
+              <li>• {at("settings.bonusSummary2")}: ≥{minHands} {at("settings.bonusSummary2b")} + ≥${requiredWager} {at("settings.bonusSummary2c")}</li>
+              <li>• {at("settings.bonusSummary3")}: {at("settings.bonusSummary3b")}</li>
+              <li>• {at("settings.bonusSummary4")}</li>
             </ul>
           </div>
         )}

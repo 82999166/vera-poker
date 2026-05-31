@@ -1,0 +1,1 @@
+ALTER TABLE `broadcast_tasks` ADD `buttons` json;

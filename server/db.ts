@@ -1528,6 +1528,19 @@ export async function checkAndUnlockBonus(userId: number): Promise<boolean> {
   if (userHands >= minHands && userWager >= requiredWager) {
     // Unlock: set bonusUnlocked = true
     await db.update(users).set({ bonusUnlocked: true }).where(eq(users.id, userId));
+    // Send TG Bot notification about bonus unlock
+    try {
+      const { sendNotification } = await import("./notifications");
+      await sendNotification({
+        type: "balance_change",
+        userId,
+        title: "\ud83c\udf89 Bonus Unlocked!",
+        body: `Congratulations! Your registration bonus of $${bonusAmount.toFixed(2)} has been unlocked and is now fully withdrawable. Keep playing and winning!`,
+        data: { subType: "bonus_unlocked", amount: bonusAmount.toFixed(2) },
+      });
+    } catch (e) {
+      console.warn("[Bonus] Failed to send unlock notification:", e);
+    }
     return true;
   }
   return false;

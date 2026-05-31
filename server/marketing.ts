@@ -133,8 +133,21 @@ export async function executeBroadcast(taskId: number): Promise<void> {
           text: task.content,
           parse_mode: "HTML",
         };
-        // Add inline button if configured
-        if (task.buttonText && task.buttonUrl) {
+        // Add inline buttons if configured
+        if (task.buttons && task.buttons.length > 0) {
+          // Group buttons by row (default row 0)
+          const rowMap = new Map<number, Array<{ text: string; url: string }>>();
+          for (const btn of task.buttons) {
+            const row = btn.row ?? 0;
+            if (!rowMap.has(row)) rowMap.set(row, []);
+            rowMap.get(row)!.push({ text: btn.text, url: btn.url });
+          }
+          const sortedRows = [...rowMap.entries()].sort((a, b) => a[0] - b[0]);
+          body.reply_markup = {
+            inline_keyboard: sortedRows.map(([, btns]) => btns)
+          };
+        } else if (task.buttonText && task.buttonUrl) {
+          // Legacy single button fallback
           body.reply_markup = {
             inline_keyboard: [[{ text: task.buttonText, url: task.buttonUrl }]]
           };

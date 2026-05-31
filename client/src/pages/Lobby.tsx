@@ -31,11 +31,22 @@ export default function Lobby() {
   const [filterLevel, setFilterLevel] = useState<FilterLevel>("all");
   const [privateRoomCode, setPrivateRoomCode] = useState("");
   const [joiningStake, setJoiningStake] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const { data: rooms, isLoading } = trpc.rooms.list.useQuery(undefined, { refetchInterval: 3000 });
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
   const { data: activeRoom } = trpc.rooms.myActiveRoom.useQuery(undefined, { enabled: !!user });
   const { data: myTournamentTable } = trpc.tournaments.myTable.useQuery(undefined, { enabled: !!user });
   const joinByStakeMutation = trpc.rooms.joinByStake.useMutation();
+
+  // New user welcome popup - show once when bonusBalance > 0 and not yet dismissed
+  React.useEffect(() => {
+    if (user && walletData) {
+      const dismissed = localStorage.getItem(`welcome_dismissed_${user.id}`);
+      if (!dismissed && parseFloat(walletData.bonusBalance || "0") > 0 && !walletData.bonusUnlocked) {
+        setShowWelcome(true);
+      }
+    }
+  }, [user, walletData]);
 
   // Auto-navigate to active tournament table on reconnect
   React.useEffect(() => {
@@ -154,8 +165,37 @@ export default function Lobby() {
     }
   };
 
+  const dismissWelcome = () => {
+    if (user) localStorage.setItem(`welcome_dismissed_${user.id}`, "1");
+    setShowWelcome(false);
+  };
+
   return (
     <div className="min-h-screen bg-background particle-bg flex flex-col">
+      {/* New User Welcome Popup */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className="glass-strong rounded-2xl p-6 mx-4 max-w-sm w-full text-center space-y-4 animate-in zoom-in-95">
+            <div className="text-4xl">\ud83c\udf89</div>
+            <h2 className="text-xl font-bold text-gold">{t("lobby.welcomeTitle")}</h2>
+            <p className="text-sm text-muted-foreground">
+              {t("lobby.welcomeBonus").replace("{amount}", walletData?.bonusBalance || "0")}
+            </p>
+            <div className="glass rounded-lg p-3 text-left space-y-1">
+              <p className="text-xs text-muted-foreground">\u2022 {t("lobby.welcomeRule1")}</p>
+              <p className="text-xs text-muted-foreground">\u2022 {t("lobby.welcomeRule2")}</p>
+              <p className="text-xs text-muted-foreground">\u2022 {t("lobby.welcomeRule3")}</p>
+            </div>
+            <button
+              onClick={dismissWelcome}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-sm hover:opacity-90 transition-opacity"
+            >
+              {t("lobby.welcomeStart")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="glass-strong sticky top-0 z-50 px-4 py-3 safe-top">
         <div className="flex items-center justify-between">

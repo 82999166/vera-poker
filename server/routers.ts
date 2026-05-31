@@ -2462,6 +2462,7 @@ ${faqContext}
       imageUrl: z.string().optional(),
       buttonText: z.string().optional(),
       buttonUrl: z.string().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), row: z.number().optional() })).optional(),
       targetType: z.enum(["all", "active", "deposited", "custom"]),
       targetUserIds: z.array(z.number()).optional(),
       scheduledAt: z.date().optional(),
@@ -2578,6 +2579,43 @@ ${faqContext}
       const { deleteFissionCampaign } = await import("./marketing");
       await deleteFissionCampaign(input.id);
       return { ok: true };
+    }),
+
+    // --- Bot Users List ---
+    botUsers: adminProcedure.input(z.object({
+      page: z.number().default(1),
+      limit: z.number().default(50),
+      search: z.string().optional(),
+    })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { users: [], total: 0 };
+      const { users } = await import("../drizzle/schema");
+      const { isNotNull, like, or, sql, desc } = await import("drizzle-orm");
+      const offset = (input.page - 1) * input.limit;
+      let whereClause = isNotNull(users.tgId);
+      if (input.search) {
+        const searchPattern = `%${input.search}%`;
+        whereClause = sql`${users.tgId} IS NOT NULL AND (${users.nickname} LIKE ${searchPattern} OR ${users.tgUsername} LIKE ${searchPattern} OR ${users.name} LIKE ${searchPattern})` as any;
+      }
+      const [data, countResult] = await Promise.all([
+        dbInstance.select({
+          id: users.id,
+          nickname: users.nickname,
+          tgUsername: users.tgUsername,
+          tgId: users.tgId,
+          name: users.name,
+          avatar: users.avatar,
+          balance: users.balance,
+          totalDeposited: users.totalDeposited,
+          bonusBalance: users.bonusBalance,
+          bonusUnlocked: users.bonusUnlocked,
+          lastSignedIn: users.lastSignedIn,
+          createdAt: users.createdAt,
+          language: users.language,
+        }).from(users).where(whereClause).orderBy(desc(users.lastSignedIn)).limit(input.limit).offset(offset),
+        dbInstance.select({ count: sql<number>`count(*)` }).from(users).where(whereClause),
+      ]);
+      return { users: data, total: countResult[0]?.count ?? 0 };
     }),
   }),
 });
