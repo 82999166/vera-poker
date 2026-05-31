@@ -1168,7 +1168,6 @@ async function notifyNextPlayer(roomId: number) {
 async function distributeAgentCommissions(totalRake: number, playerIds: number[], handId: number) {
   const dbInstance = await db.getDb();
   if (!dbInstance) return;
-  
   const { agentRelationships, commissionRecords } = await import("../drizzle/schema");
   const { eq, and, inArray } = await import("drizzle-orm");
   
@@ -1185,7 +1184,7 @@ async function distributeAgentCommissions(totalRake: number, playerIds: number[]
     .where(inArray(agentRelationships.downlineId, playerIds));
   
   if (relationships.length === 0) return;
-  
+
   for (const rel of relationships) {
     // Only distribute if the downline is unlocked
     if (!rel.isUnlocked) {
@@ -1196,9 +1195,8 @@ async function distributeAgentCommissions(totalRake: number, playerIds: number[]
       progress.gamesPlayed = (progress.gamesPlayed ?? 0) + 1;
       progress.totalRake = parseFloat((parseFloat(progress.totalRake || "0") + perPlayerRake).toFixed(2));
       
-      // Check if unlock conditions are met
+      // Check if unlock conditions are met (gamesPlayed >= 20 AND totalRake >= 1)
       const shouldUnlock = progress.gamesPlayed >= 20 && 
-        parseFloat(progress.totalDeposit || "0") >= 10 && 
         parseFloat(progress.totalRake || "0") >= 1;
       
       await dbInstance.update(agentRelationships)

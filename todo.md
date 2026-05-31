@@ -155,6 +155,6 @@
 - [x] TypeScript 零错误
 
 ## 2026-05-31 三项修复
-- [ ] 代理佣金显示为0：检查佣金计算逻辑，确保代理能看到实际分佣数据
+- [x] 代理佣金显示为0：修复三个问题 - 1) 未解锁时也写入 pending 佣金记录 2) 移除 totalDeposit>=10 解锁条件 3) 修复 SQL 列名 commission_amount → commissionAmount
 - [x] 锦标赛开始后无牌桌/无法进入游戏：重写 tournamentEngine.ts 与 tableManager 集成，创建真实房间并分配玩家
 - [x] 全押结算界面金额错误：修复 Table.tsx 中每个赢家显示自己的赢得金额而非最大赢家金额

@@ -728,7 +728,7 @@ export const appRouter = router({
         const { commissionRecords } = await import("../drizzle/schema");
         const { eq, and, sql } = await import("drizzle-orm");
         const [result] = await dbInstance.select({
-          total: sql<string>`COALESCE(SUM(commission_amount), '0.00')`,
+          total: sql<string>`COALESCE(SUM(commissionAmount), '0.00')`,
         }).from(commissionRecords)
           .where(and(
             eq(commissionRecords.agentId, ctx.user.id),
