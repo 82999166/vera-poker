@@ -280,3 +280,11 @@
 
 ### 7. 管理后台奖金状态列
 - [x] 用户管理列表增加“奖金状态”列（已解锁/进度百分比）
+
+## 2026-05-31 iOS TG Mini App 顶部空白修复（第二轮）
+
+- [x] 研究根本原因：iOS WebView 不支持标准 env(safe-area-inset-*)，需要用 TG 自带 CSS 变量 + visualViewport API
+- [x] main.tsx 添加 visualViewport 高度同步 + 防 overscroll + 早期 expand()
+- [x] index.css safe-top/safe-bottom 改用 var(--tg-content-safe-area-inset-*) 优先
+- [x] index.html viewport meta 添加 shrink-to-fit=no
+- [x] 防止 body rubber-banding（touchmove 拦截，允许内部滚动容器）

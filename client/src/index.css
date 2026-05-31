@@ -302,9 +302,10 @@ html, body {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   user-select: none;
+  touch-action: pan-x pan-y;
 }
 
-/* Mobile viewport height fix */
+/* Mobile viewport height fix - use visualViewport height when available (set by JS) */
 .h-screen {
   height: 100vh;
   height: 100dvh;
@@ -313,21 +314,24 @@ html, body {
 html, body, #root {
   height: 100%;
   min-height: 100dvh;
+  /* Fallback: will be overridden by JS for TG Mini App */
 }
 
 /* Safe area padding for notch devices */
+/* Use Telegram's own CSS variables first, fallback to standard env() */
 .safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 .safe-top {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px));
 }
 
 /* Prevent horizontal overflow on mobile */
 #root {
   overflow-x: hidden;
   width: 100%;
+  overflow-y: auto;
 }
 
 /* Hide scrollbar for tab bars */
