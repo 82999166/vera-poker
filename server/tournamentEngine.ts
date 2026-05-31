@@ -1,35 +1,41 @@
 /**
- * Tournament Engine - Handles tournament lifecycle:
- * - Table assignment (random seating)
- * - Blind level progression
- * - Elimination detection
- * - Table merging (when players are eliminated)
- * - Table shuffling (anti-collusion)
+ * Tournament Engine - Multi-Table Tournament (MTT) System
+ * 
+ * Architecture: PokerStars-style MTT with real room integration:
+ * - Creates actual database rooms via db.createRoom()
+ * - Seats players via db.addRoomPlayer()
+ * - Uses existing tableManager for per-table game logic
+ * - Blind level progression (time-based)
+ * - Table balancing (move players when diff >= 2)
+ * - Table breaking (merge when table too small)
+ * - Final table formation
+ * - Elimination tracking & ranking
  * - Prize distribution
  */
 
 import * as db from "./db";
-
-// ==================== TYPES ====================
-
-export interface TournamentTable {
-  id: string;
-  tournamentId: number;
-  players: TournamentPlayer[];
-  currentRound: number;
-  currentBlindLevel: number;
+// tableManager is imported dynamically to avoid circular dependency
+async function getTableManager() {
+  return await import("./tableManager");
 }
 
-export interface TournamentPlayer {
+// ==================== Types ====================
+
+interface TournamentTable {
+  roomId: number;
+  playerCount: number; // active player count (not eliminated)
+  isActive: boolean;
+}
+
+interface TournamentPlayer {
   userId: number;
-  nickname: string | null;
+  name: string;
   chips: number;
-  tableId: string;
+  roomId: number; // current room
   seatIndex: number;
-  status: "playing" | "eliminated" | "disconnected";
-  roundsPlayed: number;
-  handsWon: number;
-  eliminatedAt?: number; // round number when eliminated
+  isEliminated: boolean;
+  eliminatedAt?: number; // timestamp
+  finishRank?: number;
 }
 
 export interface BlindLevel {
@@ -39,402 +45,393 @@ export interface BlindLevel {
   ante: number;
 }
 
-export interface TournamentState {
-  tournamentId: number;
-  status: "waiting" | "running" | "finished";
-  tables: TournamentTable[];
+interface ActiveTournament {
+  id: number;
+  name: string;
+  tables: Map<number, TournamentTable>; // roomId -> table
   players: Map<number, TournamentPlayer>; // userId -> player
-  eliminatedPlayers: TournamentPlayer[]; // ordered by elimination (last eliminated first)
-  currentRound: number;
-  totalRounds: number;
   currentBlindLevel: number;
-  blindStructure: BlindLevel[];
-  blindLevelDuration: number; // minutes per blind level
   blindLevelStartedAt: number; // timestamp
-  playersPerTable: number;
-  tableShuffleInterval: number; // minutes
-  lastShuffleAt: number; // timestamp
-  finalTableThreshold: number;
+  blindStructure: BlindLevel[];
+  blindLevelDuration: number; // minutes
+  startedAt: number;
+  eliminationOrder: number[]; // userId in order of elimination (first = first eliminated)
+  isPaused: boolean;
+  isFinished: boolean;
   startingChips: number;
+  entryFee: number;
   platformRake: number; // percentage
   prizeDistribution: Array<{ rank: number; percentage: number }>;
-  entryFee: number;
-  registeredCount: number;
+  playersPerTable: number;
+  finalTableThreshold: number;
+  totalPlayers: number;
+  blindTimer?: ReturnType<typeof setInterval>;
+  balanceTimer?: ReturnType<typeof setInterval>;
 }
 
-// In-memory tournament states
-const activeTournaments = new Map<number, TournamentState>();
+// ==================== In-Memory Store ====================
 
-// ==================== TOURNAMENT LIFECYCLE ====================
+const activeTournaments = new Map<number, ActiveTournament>();
+
+// ==================== Public API ====================
 
 /**
- * Initialize and start a tournament
+ * Start a tournament: create real rooms, assign players, begin play
  */
-export async function startTournament(tournamentId: number): Promise<TournamentState | null> {
+export async function startTournament(tournamentId: number): Promise<{
+  success: boolean;
+  tables: number;
+  players: number;
+  message?: string;
+}> {
   const tournament = await db.getTournamentById(tournamentId);
-  if (!tournament) return null;
-
-  const registrations = await db.getTournamentRegistrations(tournamentId);
-  const activeRegs = registrations.filter(r => r.reg.status === "registered");
-
-  // Check minimum players
-  if (activeRegs.length < tournament.minPlayers) {
-    // Cancel and refund
-    await db.updateTournament(tournamentId, { status: "cancelled" });
-    return null;
+  if (!tournament) return { success: false, tables: 0, players: 0, message: "Tournament not found" };
+  if (tournament.status !== "registration") {
+    return { success: false, tables: 0, players: 0, message: `Tournament is not in registration status (current: ${tournament.status})` };
   }
 
-  // Create tournament state
-  const state: TournamentState = {
-    tournamentId,
-    status: "running",
-    tables: [],
-    players: new Map(),
-    eliminatedPlayers: [],
-    currentRound: 0,
-    totalRounds: tournament.totalRounds,
+  const regs = await db.getTournamentRegistrations(tournamentId);
+  const registeredPlayers = regs.filter(r => r.reg.status === "registered");
+  const playerCount = registeredPlayers.length;
+
+  if (playerCount < tournament.minPlayers) {
+    return { success: false, tables: 0, players: 0, message: `Not enough players: ${playerCount}/${tournament.minPlayers}` };
+  }
+
+  // Calculate number of tables needed
+  const playersPerTable = tournament.playersPerTable || 9;
+  const numTables = Math.ceil(playerCount / playersPerTable);
+
+  // Get first blind level
+  const blindStructure = (tournament.blindStructure as BlindLevel[]) || [];
+  const firstLevel = blindStructure[0] || { smallBlind: 25, bigBlind: 50, ante: 0 };
+
+  // Create real tournament rooms
+  const tables = new Map<number, TournamentTable>();
+  const createdRoomIds: number[] = [];
+
+  for (let i = 0; i < numTables; i++) {
+    const roomId = await db.createRoom({
+      name: `${tournament.name} - Table ${i + 1}`,
+      type: "private",
+      status: "waiting",
+      gameType: "texas_holdem",
+      smallBlind: String(firstLevel.smallBlind),
+      bigBlind: String(firstLevel.bigBlind),
+      minBuyIn: String(tournament.startingChips),
+      maxBuyIn: String(tournament.startingChips),
+      maxPlayers: playersPerTable,
+      ownerId: null,
+      inviteCode: `T${tournamentId}_${i + 1}_${Date.now().toString(36)}`,
+      totalRounds: null, // unlimited for tournament
+      billingMode: "standard_rake",
+      roundFee: "0",
+      rakePercent: "0", // No rake in tournament
+      rakeCap: "0",
+      fairnessLevel: "high",
+    });
+
+    if (roomId) {
+      tables.set(roomId, { roomId, playerCount: 0, isActive: true });
+      createdRoomIds.push(roomId);
+    }
+  }
+
+  if (createdRoomIds.length === 0) {
+    return { success: false, tables: 0, players: 0, message: "Failed to create tournament rooms" };
+  }
+
+  // Randomly assign players to tables
+  const shuffledPlayers = [...registeredPlayers].sort(() => Math.random() - 0.5);
+  const players = new Map<number, TournamentPlayer>();
+
+  for (let i = 0; i < shuffledPlayers.length; i++) {
+    const reg = shuffledPlayers[i];
+    const tableIndex = i % createdRoomIds.length;
+    const roomId = createdRoomIds[tableIndex];
+    const table = tables.get(roomId)!;
+    const seatIndex = table.playerCount;
+
+    const user = await db.getUserById(reg.reg.userId);
+    const player: TournamentPlayer = {
+      userId: reg.reg.userId,
+      name: user?.nickname || user?.name || `Player ${reg.reg.userId}`,
+      chips: tournament.startingChips,
+      roomId,
+      seatIndex,
+      isEliminated: false,
+    };
+
+    players.set(reg.reg.userId, player);
+    table.playerCount++;
+
+    // Seat player in the real room
+    await db.addRoomPlayer(roomId, reg.reg.userId, seatIndex, String(tournament.startingChips));
+
+    // Update registration status
+    await db.updateTournamentRegistrationStatus(
+      tournamentId, reg.reg.userId, "playing",
+      String(roomId), seatIndex, tournament.startingChips
+    );
+  }
+
+  // Create active tournament state
+  const activeTournament: ActiveTournament = {
+    id: tournamentId,
+    name: tournament.name,
+    tables,
+    players,
     currentBlindLevel: 0,
-    blindStructure: tournament.blindStructure as BlindLevel[],
-    blindLevelDuration: tournament.blindLevelDuration,
     blindLevelStartedAt: Date.now(),
-    playersPerTable: tournament.playersPerTable,
-    tableShuffleInterval: tournament.tableShuffleInterval,
-    lastShuffleAt: Date.now(),
-    finalTableThreshold: tournament.finalTableThreshold,
+    blindStructure,
+    blindLevelDuration: tournament.blindLevelDuration,
+    startedAt: Date.now(),
+    eliminationOrder: [],
+    isPaused: false,
+    isFinished: false,
     startingChips: tournament.startingChips,
-    platformRake: parseFloat(tournament.platformRake),
-    prizeDistribution: tournament.prizeDistribution as Array<{ rank: number; percentage: number }>,
     entryFee: parseFloat(tournament.entryFee),
-    registeredCount: activeRegs.length,
+    platformRake: parseFloat(tournament.platformRake || "10"),
+    prizeDistribution: (tournament.prizeDistribution as Array<{ rank: number; percentage: number }>) || [],
+    playersPerTable,
+    finalTableThreshold: tournament.finalTableThreshold || 9,
+    totalPlayers: playerCount,
   };
 
-  // Create players
-  const players: TournamentPlayer[] = activeRegs.map(r => ({
-    userId: r.reg.userId,
-    nickname: r.user?.nickname || null,
-    chips: tournament.startingChips,
-    tableId: "",
-    seatIndex: 0,
-    status: "playing" as const,
-    roundsPlayed: 0,
-    handsWon: 0,
-  }));
+  activeTournaments.set(tournamentId, activeTournament);
 
-  // Random table assignment
-  assignTables(state, players);
+  // Start blind level timer
+  startBlindTimer(tournamentId);
 
-  // Update DB status
+  // Start table balance checker
+  startBalanceChecker(tournamentId);
+
+  // Update tournament status in DB
   await db.updateTournament(tournamentId, {
     status: "running",
     actualStartTime: new Date(),
   });
 
-  // Store in memory
-  activeTournaments.set(tournamentId, state);
+  // Update room player counts
+  for (const [roomId, table] of tables) {
+    await db.updateRoom(roomId, { currentPlayers: table.playerCount, status: "waiting" });
+  }
 
-  return state;
+  return { success: true, tables: createdRoomIds.length, players: playerCount };
 }
 
 /**
- * Randomly assign players to tables
+ * Get tournament state for a player (which table they're at, blind level, etc.)
  */
-function assignTables(state: TournamentState, players: TournamentPlayer[]): void {
-  // Shuffle players randomly
-  const shuffled = [...players].sort(() => Math.random() - 0.5);
+export function getTournamentState(tournamentId: number, userId?: number) {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) return null;
 
-  const numTables = Math.ceil(shuffled.length / state.playersPerTable);
-  state.tables = [];
+  const currentBlinds = t.blindStructure[t.currentBlindLevel] || t.blindStructure[t.blindStructure.length - 1];
+  const nextBlinds = t.blindStructure[t.currentBlindLevel + 1] || null;
 
-  for (let i = 0; i < numTables; i++) {
-    state.tables.push({
-      id: `table_${state.tournamentId}_${i + 1}`,
-      tournamentId: state.tournamentId,
-      players: [],
-      currentRound: 0,
-      currentBlindLevel: 0,
-    });
+  const blindDuration = t.blindLevelDuration * 60 * 1000; // ms
+  const timeUntilNextLevel = Math.max(0, blindDuration - (Date.now() - t.blindLevelStartedAt));
+
+  const activePlayers = Array.from(t.players.values()).filter(p => !p.isEliminated);
+
+  // Player's own info
+  let myRoomId: number | null = null;
+  let myChips: number | null = null;
+  let myRank: number | null = null;
+  let myEliminated = false;
+  if (userId) {
+    const player = t.players.get(userId);
+    if (player) {
+      myRoomId = player.isEliminated ? null : player.roomId;
+      myChips = player.chips;
+      myEliminated = player.isEliminated;
+      if (player.isEliminated) {
+        myRank = player.finishRank || null;
+      }
+    }
   }
 
-  // Distribute players evenly across tables
-  shuffled.forEach((player, index) => {
-    const tableIndex = index % numTables;
-    const table = state.tables[tableIndex];
-    player.tableId = table.id;
-    player.seatIndex = table.players.length;
-    table.players.push(player);
-    state.players.set(player.userId, player);
-  });
+  // Table info
+  const tableInfo = Array.from(t.tables.values())
+    .filter(tbl => tbl.isActive)
+    .map(tbl => ({
+      roomId: tbl.roomId,
+      playerCount: tbl.playerCount,
+    }));
+
+  // Chip leaders
+  const chipLeaders = activePlayers
+    .sort((a, b) => b.chips - a.chips)
+    .slice(0, 10)
+    .map((p, i) => ({
+      rank: i + 1,
+      userId: p.userId,
+      name: p.name,
+      chips: p.chips,
+    }));
+
+  return {
+    tournamentId,
+    name: t.name,
+    status: t.isFinished ? "finished" : t.isPaused ? "paused" : "running",
+    currentBlindLevel: t.currentBlindLevel + 1,
+    totalBlindLevels: t.blindStructure.length,
+    currentBlinds: currentBlinds ? { smallBlind: currentBlinds.smallBlind, bigBlind: currentBlinds.bigBlind, ante: currentBlinds.ante } : null,
+    nextBlinds: nextBlinds ? { smallBlind: nextBlinds.smallBlind, bigBlind: nextBlinds.bigBlind, ante: nextBlinds.ante } : null,
+    timeUntilNextLevel,
+    blindDuration,
+    activePlayers: activePlayers.length,
+    totalPlayers: t.totalPlayers,
+    tables: tableInfo,
+    chipLeaders,
+    myRoomId,
+    myChips,
+    myRank,
+    myEliminated,
+    startedAt: t.startedAt,
+    averageStack: activePlayers.length > 0 ? Math.round(activePlayers.reduce((s, p) => s + p.chips, 0) / activePlayers.length) : 0,
+  };
 }
 
 /**
- * Shuffle tables - redistribute all active players randomly (anti-collusion)
+ * Handle player elimination (called when a player busts out - chips reach 0)
  */
-export function shuffleTables(state: TournamentState): void {
-  const activePlayers = Array.from(state.players.values()).filter(p => p.status === "playing");
-  
-  // Clear existing tables
-  state.tables.forEach(t => { t.players = []; });
+export async function eliminatePlayer(tournamentId: number, userId: number): Promise<void> {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) return;
 
-  // Recalculate number of tables needed
-  const numTables = Math.ceil(activePlayers.length / state.playersPerTable);
-  
-  // Trim excess tables
-  while (state.tables.length > numTables) {
-    state.tables.pop();
+  const player = t.players.get(userId);
+  if (!player || player.isEliminated) return;
+
+  player.isEliminated = true;
+  player.eliminatedAt = Date.now();
+  player.chips = 0;
+
+  // Calculate finish rank (remaining active players + 1)
+  const activePlayers = Array.from(t.players.values()).filter(p => !p.isEliminated);
+  player.finishRank = activePlayers.length + 1;
+
+  t.eliminationOrder.push(userId);
+
+  // Update table player count
+  const table = t.tables.get(player.roomId);
+  if (table) {
+    table.playerCount = Math.max(0, table.playerCount - 1);
   }
-  // Add tables if needed
-  while (state.tables.length < numTables) {
-    state.tables.push({
-      id: `table_${state.tournamentId}_${state.tables.length + 1}`,
-      tournamentId: state.tournamentId,
-      players: [],
-      currentRound: 0,
-      currentBlindLevel: state.currentBlindLevel,
-    });
+
+  // Update DB registration status
+  await db.updateTournamentRegistrationStatus(
+    tournamentId, userId, "eliminated", null, null, 0
+  );
+
+  // Remove player from room
+  await db.removeRoomPlayer(player.roomId, userId);
+
+  console.log(`[Tournament ${tournamentId}] Player ${player.name} (${userId}) eliminated at rank ${player.finishRank}. ${activePlayers.length} players remaining.`);
+
+  // Check if tournament is over (1 player left)
+  if (activePlayers.length === 1) {
+    await finishTournament(tournamentId, activePlayers[0]);
+    return;
   }
 
-  // Shuffle and reassign
-  const shuffled = activePlayers.sort(() => Math.random() - 0.5);
-  shuffled.forEach((player, index) => {
-    const tableIndex = index % numTables;
-    const table = state.tables[tableIndex];
-    player.tableId = table.id;
-    player.seatIndex = table.players.length;
-    table.players.push(player);
-  });
-
-  state.lastShuffleAt = Date.now();
+  // Check if table needs breaking/balancing
+  await checkTableBalance(tournamentId);
 }
 
 /**
- * Check if blind level should advance (time-based)
+ * Update player chips after a hand (called from tableManager settlement)
  */
-export function checkBlindLevelAdvance(state: TournamentState): boolean {
-  const elapsed = (Date.now() - state.blindLevelStartedAt) / 1000 / 60; // minutes
-  if (elapsed >= state.blindLevelDuration && state.currentBlindLevel < state.blindStructure.length - 1) {
-    state.currentBlindLevel++;
-    state.blindLevelStartedAt = Date.now();
-    // Update all tables
-    state.tables.forEach(t => { t.currentBlindLevel = state.currentBlindLevel; });
-    return true;
-  }
-  return false;
-}
+export function updatePlayerChips(tournamentId: number, userId: number, newChips: number): void {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) return;
 
-/**
- * Check if table shuffle is needed (time-based, anti-collusion)
- */
-export function checkTableShuffle(state: TournamentState): boolean {
-  const elapsed = (Date.now() - state.lastShuffleAt) / 1000 / 60; // minutes
-  const activePlayers = Array.from(state.players.values()).filter(p => p.status === "playing");
-  
-  // Don't shuffle if already at final table
-  if (activePlayers.length <= state.finalTableThreshold) return false;
-  
-  if (elapsed >= state.tableShuffleInterval) {
-    shuffleTables(state);
-    return true;
-  }
-  return false;
-}
-
-/**
- * Eliminate a player (chips reached 0)
- */
-export function eliminatePlayer(state: TournamentState, userId: number): void {
-  const player = state.players.get(userId);
+  const player = t.players.get(userId);
   if (!player) return;
 
-  player.status = "eliminated";
-  player.chips = 0;
-  player.eliminatedAt = state.currentRound;
-  state.eliminatedPlayers.unshift(player); // most recent first
-
-  // Remove from table
-  const table = state.tables.find(t => t.id === player.tableId);
-  if (table) {
-    table.players = table.players.filter(p => p.userId !== userId);
-  }
-
-  // Check if table merge is needed
-  checkTableMerge(state);
+  player.chips = newChips;
 }
 
 /**
- * Merge tables when player count drops
+ * Get the tournament ID for a room (if it's a tournament table)
  */
-function checkTableMerge(state: TournamentState): void {
-  const activePlayers = Array.from(state.players.values()).filter(p => p.status === "playing");
-  const idealTableCount = Math.ceil(activePlayers.length / state.playersPerTable);
+export function getTournamentForRoom(roomId: number): number | null {
+  for (const [tournamentId, t] of activeTournaments) {
+    if (t.tables.has(roomId)) return tournamentId;
+  }
+  return null;
+}
 
-  // If we have more tables than needed, merge
-  if (state.tables.length > idealTableCount) {
-    // Find tables with fewest players and redistribute
-    const sortedTables = [...state.tables].sort((a, b) => a.players.length - b.players.length);
-    
-    while (state.tables.length > idealTableCount) {
-      const smallestTable = sortedTables.shift();
-      if (!smallestTable || smallestTable.players.length === 0) {
-        state.tables = state.tables.filter(t => t.id !== smallestTable?.id);
-        continue;
-      }
+/**
+ * Check if a room is a tournament table
+ */
+export function isTournamentTable(roomId: number): boolean {
+  return getTournamentForRoom(roomId) !== null;
+}
 
-      // Move players from smallest table to others
-      for (const player of smallestTable.players) {
-        // Find table with most room
-        const targetTable = state.tables
-          .filter(t => t.id !== smallestTable.id)
-          .sort((a, b) => a.players.length - b.players.length)[0];
-        
-        if (targetTable) {
-          player.tableId = targetTable.id;
-          player.seatIndex = targetTable.players.length;
-          targetTable.players.push(player);
-        }
-      }
+/**
+ * Get active tournament by ID
+ */
+export function getActiveTournament(tournamentId: number): ActiveTournament | undefined {
+  return activeTournaments.get(tournamentId);
+}
 
-      state.tables = state.tables.filter(t => t.id !== smallestTable.id);
+/**
+ * Pause/resume tournament
+ */
+export async function pauseTournament(tournamentId: number): Promise<boolean> {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) return false;
+  t.isPaused = true;
+  return true;
+}
+
+export async function resumeTournament(tournamentId: number): Promise<boolean> {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) return false;
+  t.isPaused = false;
+  t.blindLevelStartedAt = Date.now(); // Reset blind timer
+  return true;
+}
+
+/**
+ * Check if user is in an active tournament and return their table
+ */
+export function getPlayerTournamentTable(userId: number): { tournamentId: number; roomId: number } | null {
+  for (const [tournamentId, t] of activeTournaments) {
+    const player = t.players.get(userId);
+    if (player && !player.isEliminated) {
+      return { tournamentId, roomId: player.roomId };
     }
   }
-
-  // Check if final table is reached
-  if (activePlayers.length <= state.finalTableThreshold && state.tables.length > 1) {
-    // Merge all into one final table
-    const finalTable = state.tables[0];
-    for (let i = 1; i < state.tables.length; i++) {
-      for (const player of state.tables[i].players) {
-        player.tableId = finalTable.id;
-        player.seatIndex = finalTable.players.length;
-        finalTable.players.push(player);
-      }
-    }
-    state.tables = [finalTable];
-  }
+  return null;
 }
 
 /**
- * Handle player disconnect - auto fold
+ * Get all active tournaments (for lobby display)
  */
-export function handleDisconnect(state: TournamentState, userId: number): void {
-  const player = state.players.get(userId);
-  if (!player || player.status !== "playing") return;
-  player.status = "disconnected";
-  // Player will auto-fold and lose blinds/antes until chips run out
-}
-
-/**
- * Handle player reconnect
- */
-export function handleReconnect(state: TournamentState, userId: number): void {
-  const player = state.players.get(userId);
-  if (!player || player.status !== "disconnected") return;
-  player.status = "playing";
-}
-
-/**
- * Check if tournament should end
- */
-export function checkTournamentEnd(state: TournamentState): boolean {
-  const activePlayers = Array.from(state.players.values()).filter(p => p.status === "playing");
-  
-  // End conditions:
-  // 1. Only one player remaining
-  if (activePlayers.length <= 1) return true;
-  
-  // 2. All rounds completed
-  if (state.currentRound >= state.totalRounds) return true;
-  
-  // 3. Remaining players <= prize positions
-  if (activePlayers.length <= state.prizeDistribution.length) {
-    // Optional: can continue until rounds end for final ranking
-    if (state.currentRound >= state.totalRounds) return true;
-  }
-
-  return false;
-}
-
-/**
- * Calculate final rankings and distribute prizes
- */
-export async function finishTournament(state: TournamentState): Promise<void> {
-  state.status = "finished";
-
-  // Build final ranking
-  const activePlayers = Array.from(state.players.values())
-    .filter(p => p.status === "playing")
-    .sort((a, b) => b.chips - a.chips); // highest chips first
-
-  // Combine: active players ranked by chips + eliminated players in reverse order
-  const finalRanking: TournamentPlayer[] = [...activePlayers, ...state.eliminatedPlayers];
-
-  // Calculate prize pool
-  const totalPool = state.entryFee * state.registeredCount;
-  const platformCut = totalPool * (state.platformRake / 100);
-  const prizePool = totalPool - platformCut;
-
-  // Distribute prizes
-  for (let i = 0; i < finalRanking.length; i++) {
-    const rank = i + 1;
-    const player = finalRanking[i];
-    const prizeConfig = state.prizeDistribution.find(p => p.rank === rank);
-    const prizeAmount = prizeConfig ? prizePool * (prizeConfig.percentage / 100) : 0;
-
-    // Save result to DB
-    await db.saveTournamentResult({
-      tournamentId: state.tournamentId,
-      userId: player.userId,
-      rank,
-      prizeAmount: prizeAmount.toFixed(2),
-      startingChips: state.startingChips,
-      finalChips: player.chips,
-      roundsPlayed: player.roundsPlayed,
-      handsWon: player.handsWon,
+export function getAllActiveTournaments(): Array<{
+  id: number;
+  name: string;
+  activePlayers: number;
+  totalPlayers: number;
+  tables: number;
+  currentBlindLevel: number;
+}> {
+  const result = [];
+  for (const [id, t] of activeTournaments) {
+    const activePlayers = Array.from(t.players.values()).filter(p => !p.isEliminated).length;
+    result.push({
+      id,
+      name: t.name,
+      activePlayers,
+      totalPlayers: t.totalPlayers,
+      tables: Array.from(t.tables.values()).filter(tbl => tbl.isActive).length,
+      currentBlindLevel: t.currentBlindLevel + 1,
     });
-
-    // Credit prize to winner's balance
-    if (prizeAmount > 0) {
-      await db.updateUserBalance(player.userId, prizeAmount.toFixed(2));
-    }
   }
-
-  // Update tournament status
-  await db.updateTournament(state.tournamentId, {
-    status: "finished",
-    endTime: new Date(),
-    totalPrizePool: prizePool.toFixed(2),
-  });
-
-  // Remove from active tournaments
-  activeTournaments.delete(state.tournamentId);
-}
-
-/**
- * Advance one round for all tables
- */
-export function advanceRound(state: TournamentState): void {
-  state.currentRound++;
-  state.tables.forEach(t => { t.currentRound = state.currentRound; });
-}
-
-/**
- * Get current blind level info
- */
-export function getCurrentBlinds(state: TournamentState): BlindLevel {
-  return state.blindStructure[state.currentBlindLevel] || state.blindStructure[state.blindStructure.length - 1];
-}
-
-/**
- * Get tournament state (for API responses)
- */
-export function getTournamentState(tournamentId: number): TournamentState | null {
-  return activeTournaments.get(tournamentId) || null;
-}
-
-/**
- * Get all active tournament IDs
- */
-export function getActiveTournamentIds(): number[] {
-  return Array.from(activeTournaments.keys());
+  return result;
 }
 
 /**
@@ -444,13 +441,13 @@ export function getActiveTournamentIds(): number[] {
 export function generateDefaultBlindStructure(startingChips: number): BlindLevel[] {
   const baseBlind = Math.floor(startingChips / 200); // 1/200 of starting chips
   const levels: BlindLevel[] = [];
-  
+
   for (let i = 0; i < 20; i++) {
     const multiplier = Math.pow(1.5, i);
     const smallBlind = Math.round(baseBlind * multiplier);
     const bigBlind = smallBlind * 2;
     const ante = i >= 3 ? Math.round(smallBlind * 0.2) : 0; // Ante starts at level 4
-    
+
     levels.push({
       level: i + 1,
       smallBlind,
@@ -460,4 +457,334 @@ export function generateDefaultBlindStructure(startingChips: number): BlindLevel
   }
 
   return levels;
+}
+
+// ==================== Internal Logic ====================
+
+/**
+ * Blind level progression timer
+ */
+function startBlindTimer(tournamentId: number) {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) return;
+
+  const blindDuration = t.blindLevelDuration * 60 * 1000; // ms
+
+  t.blindTimer = setInterval(async () => {
+    if (t.isPaused || t.isFinished) return;
+
+    if (t.currentBlindLevel < t.blindStructure.length - 1) {
+      t.currentBlindLevel++;
+      t.blindLevelStartedAt = Date.now();
+
+      const newBlinds = t.blindStructure[t.currentBlindLevel];
+      console.log(`[Tournament ${tournamentId}] Blind level advanced to ${t.currentBlindLevel + 1}: ${newBlinds.smallBlind}/${newBlinds.bigBlind}`);
+
+      // Update all active tables with new blinds
+      for (const [roomId, table] of t.tables) {
+        if (!table.isActive) continue;
+        await db.updateRoom(roomId, {
+          smallBlind: String(newBlinds.smallBlind),
+          bigBlind: String(newBlinds.bigBlind),
+        });
+        // Update in-memory table state if game is active
+        const tm = await getTableManager();
+        const activeTable = tm.getTable(roomId);
+        if (activeTable) {
+          activeTable.smallBlind = newBlinds.smallBlind;
+          activeTable.bigBlind = newBlinds.bigBlind;
+        }
+      }
+    }
+  }, blindDuration);
+}
+
+/**
+ * Table balance checker - runs periodically
+ */
+function startBalanceChecker(tournamentId: number) {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) return;
+
+  t.balanceTimer = setInterval(async () => {
+    if (t.isPaused || t.isFinished) return;
+    await checkTableBalance(tournamentId);
+  }, 15000); // Check every 15 seconds
+}
+
+/**
+ * Table balancing algorithm (PokerStars-style)
+ * 
+ * Rules:
+ * 1. If total remaining players <= finalTableThreshold, merge to final table
+ * 2. If any table has <= 2 players, break it and redistribute
+ * 3. If any table has 2+ more players than another, move from big to small
+ */
+async function checkTableBalance(tournamentId: number): Promise<void> {
+  const t = activeTournaments.get(tournamentId);
+  if (!t || t.isFinished) return;
+
+  const activeTablesList = Array.from(t.tables.values()).filter(tbl => tbl.isActive);
+  if (activeTablesList.length <= 1) return;
+
+  const activePlayers = Array.from(t.players.values()).filter(p => !p.isEliminated);
+
+  // Check for final table
+  if (activePlayers.length <= t.finalTableThreshold) {
+    await formFinalTable(tournamentId);
+    return;
+  }
+
+  // Check for tables that need breaking (too few players)
+  for (const table of activeTablesList) {
+    if (table.playerCount <= 2 && activeTablesList.length > 1) {
+      await breakTable(tournamentId, table.roomId);
+      return; // Re-check after breaking
+    }
+  }
+
+  // Balance tables (move from largest to smallest when diff >= 2)
+  const sorted = [...activeTablesList].sort((a, b) => b.playerCount - a.playerCount);
+  if (sorted.length >= 2) {
+    const largest = sorted[0];
+    const smallest = sorted[sorted.length - 1];
+
+    if (largest.playerCount - smallest.playerCount >= 2) {
+      await movePlayerBetweenTables(tournamentId, largest.roomId, smallest.roomId);
+    }
+  }
+}
+
+/**
+ * Move a player from one table to another (for balancing)
+ * Only moves players who are NOT currently in an active hand
+ */
+async function movePlayerBetweenTables(tournamentId: number, fromRoomId: number, toRoomId: number): Promise<void> {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) return;
+
+  // Don't move if from-table has an active hand
+  const tm = await getTableManager();
+  const fromActiveTable = tm.getTable(fromRoomId);
+  if (fromActiveTable && (fromActiveTable.gameState as any).phase !== "completed") return;
+
+  const fromTable = t.tables.get(fromRoomId);
+  const toTable = t.tables.get(toRoomId);
+  if (!fromTable || !toTable) return;
+
+  // Pick a random player from the from-table
+  const playersAtFrom = Array.from(t.players.values()).filter(
+    p => !p.isEliminated && p.roomId === fromRoomId
+  );
+  if (playersAtFrom.length === 0) return;
+
+  const playerToMove = playersAtFrom[Math.floor(Math.random() * playersAtFrom.length)];
+
+  // Remove from old table
+  await db.removeRoomPlayer(fromRoomId, playerToMove.userId);
+  fromTable.playerCount--;
+
+  // Add to new table
+  const newSeatIndex = toTable.playerCount;
+  await db.addRoomPlayer(toRoomId, playerToMove.userId, newSeatIndex, String(playerToMove.chips));
+  playerToMove.roomId = toRoomId;
+  playerToMove.seatIndex = newSeatIndex;
+  toTable.playerCount++;
+
+  // Update registration
+  await db.updateTournamentRegistrationStatus(
+    tournamentId, playerToMove.userId, "playing",
+    String(toRoomId), newSeatIndex, playerToMove.chips
+  );
+
+  console.log(`[Tournament ${tournamentId}] Moved ${playerToMove.name} from table ${fromRoomId} to ${toRoomId}`);
+}
+
+/**
+ * Break a table and redistribute its players to other tables
+ */
+async function breakTable(tournamentId: number, roomId: number): Promise<void> {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) return;
+
+  // Don't break if there's an active hand
+  const tm2 = await getTableManager();
+  const activeTable = tm2.getTable(roomId);
+  if (activeTable && (activeTable.gameState as any).phase !== "completed") return;
+
+  const table = t.tables.get(roomId);
+  if (!table) return;
+
+  const playersToMove = Array.from(t.players.values()).filter(
+    p => !p.isEliminated && p.roomId === roomId
+  );
+
+  table.isActive = false;
+  table.playerCount = 0;
+
+  // Get other active tables sorted by player count (smallest first)
+  const otherTables = Array.from(t.tables.values())
+    .filter(tbl => tbl.isActive && tbl.roomId !== roomId)
+    .sort((a, b) => a.playerCount - b.playerCount);
+
+  if (otherTables.length === 0) return;
+
+  // Distribute players round-robin to smallest tables
+  for (let i = 0; i < playersToMove.length; i++) {
+    const player = playersToMove[i];
+    const targetTable = otherTables[i % otherTables.length];
+
+    // Remove from old table
+    await db.removeRoomPlayer(roomId, player.userId);
+
+    // Add to new table
+    const newSeatIndex = targetTable.playerCount;
+    await db.addRoomPlayer(targetTable.roomId, player.userId, newSeatIndex, String(player.chips));
+    player.roomId = targetTable.roomId;
+    player.seatIndex = newSeatIndex;
+    targetTable.playerCount++;
+
+    // Update registration
+    await db.updateTournamentRegistrationStatus(
+      tournamentId, player.userId, "playing",
+      String(targetTable.roomId), newSeatIndex, player.chips
+    );
+  }
+
+  // Close the broken table room
+  await db.updateRoom(roomId, { status: "closed" });
+  console.log(`[Tournament ${tournamentId}] Table ${roomId} broken, ${playersToMove.length} players redistributed`);
+}
+
+/**
+ * Form the final table - merge all remaining players into one table
+ */
+async function formFinalTable(tournamentId: number): Promise<void> {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) return;
+
+  const activeTablesList = Array.from(t.tables.values()).filter(tbl => tbl.isActive);
+  if (activeTablesList.length <= 1) return; // Already at final table
+
+  // Don't form final table if any table has an active hand
+  for (const table of activeTablesList) {
+    const tm3 = await getTableManager();
+    const activeTable = tm3.getTable(table.roomId);
+    if (activeTable && (activeTable.gameState as any).phase !== "completed") return;
+  }
+
+  // Pick the table with the most players as the final table
+  const sortedTables = [...activeTablesList].sort((a, b) => b.playerCount - a.playerCount);
+  const finalTable = sortedTables[0];
+
+  // Move all players from other tables to final table
+  for (const table of sortedTables.slice(1)) {
+    const playersToMove = Array.from(t.players.values()).filter(
+      p => !p.isEliminated && p.roomId === table.roomId
+    );
+
+    for (const player of playersToMove) {
+      await db.removeRoomPlayer(table.roomId, player.userId);
+
+      const newSeatIndex = finalTable.playerCount;
+      await db.addRoomPlayer(finalTable.roomId, player.userId, newSeatIndex, String(player.chips));
+      player.roomId = finalTable.roomId;
+      player.seatIndex = newSeatIndex;
+      finalTable.playerCount++;
+
+      await db.updateTournamentRegistrationStatus(
+        tournamentId, player.userId, "playing",
+        String(finalTable.roomId), newSeatIndex, player.chips
+      );
+    }
+
+    table.isActive = false;
+    table.playerCount = 0;
+    await db.updateRoom(table.roomId, { status: "closed" });
+  }
+
+  // Rename final table
+  await db.updateRoom(finalTable.roomId, { name: `${t.name} - Final Table` });
+  console.log(`[Tournament ${tournamentId}] Final table formed at room ${finalTable.roomId}`);
+}
+
+/**
+ * Finish tournament - declare winner, calculate prizes
+ */
+async function finishTournament(tournamentId: number, winner: TournamentPlayer): Promise<void> {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) return;
+
+  t.isFinished = true;
+  winner.finishRank = 1;
+
+  // Stop timers
+  if (t.blindTimer) clearInterval(t.blindTimer);
+  if (t.balanceTimer) clearInterval(t.balanceTimer);
+
+  // Calculate prize pool
+  const totalPrizePool = t.entryFee * t.totalPlayers * (1 - t.platformRake / 100);
+
+  // Build final rankings: winner first, then elimination order reversed
+  const rankings: { userId: number; rank: number; prizeAmount: number }[] = [];
+
+  // Winner = rank 1
+  rankings.push({ userId: winner.userId, rank: 1, prizeAmount: 0 });
+
+  // Eliminated players: last eliminated = 2nd place, etc.
+  const eliminatedReversed = [...t.eliminationOrder].reverse();
+  for (let i = 0; i < eliminatedReversed.length; i++) {
+    rankings.push({ userId: eliminatedReversed[i], rank: i + 2, prizeAmount: 0 });
+  }
+
+  // Assign prizes based on distribution
+  for (const r of rankings) {
+    const prizeEntry = t.prizeDistribution.find(p => p.rank === r.rank);
+    if (prizeEntry) {
+      r.prizeAmount = parseFloat((totalPrizePool * prizeEntry.percentage / 100).toFixed(2));
+    }
+  }
+
+  // Import notification helper
+  const { notifyTournamentResult } = await import("./notifications");
+
+  // Save results and distribute prizes
+  for (const r of rankings) {
+    if (r.prizeAmount > 0) {
+      await db.addUserBalanceAtomic(r.userId, r.prizeAmount);
+    }
+
+    await db.saveTournamentResult({
+      tournamentId,
+      userId: r.userId,
+      rank: r.rank,
+      prizeAmount: r.prizeAmount.toFixed(2),
+      startingChips: t.startingChips,
+      finalChips: t.players.get(r.userId)?.chips || 0,
+      roundsPlayed: 0,
+      handsWon: 0,
+    });
+
+    // Notify player
+    await notifyTournamentResult(r.userId, t.name, r.rank, r.prizeAmount.toFixed(2)).catch(() => {});
+  }
+
+  // Update tournament status
+  await db.updateTournament(tournamentId, {
+    status: "finished",
+    endTime: new Date(),
+    totalPrizePool: totalPrizePool.toFixed(2),
+  });
+
+  // Close all tournament tables
+  for (const [roomId] of t.tables) {
+    await db.updateRoom(roomId, { status: "closed" });
+  }
+
+  console.log(`[Tournament ${tournamentId}] Finished! Winner: ${winner.name}. Prize pool: $${totalPrizePool.toFixed(2)}`);
+
+  // Clean up after a delay (keep state for API queries for 5 minutes)
+  setTimeout(() => {
+    activeTournaments.delete(tournamentId);
+  }, 5 * 60 * 1000);
 }

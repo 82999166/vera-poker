@@ -1436,9 +1436,9 @@ export default function Table() {
                           </div>
                         ))}
                       </div>
-                      {/* Win amount */}
+                      {/* Win amount - show each player's actual win amount from settlement detail */}
                       <div className="animate-amount-pop flex items-center justify-center gap-1 bg-black/70 rounded-full px-3 py-1 border border-gold/50 shadow-[0_0_12px_rgba(234,179,8,0.4)]">
-                        <span className="text-base font-black text-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]">+{fmtAmt(showWinner.amount)}</span>
+                        <span className="text-base font-black text-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]">+{fmtAmt(showSettlement?.winners?.find((w: any) => w.playerId === player.id)?.amount ?? showWinner.amount)}</span>
                       </div>
                     </div>
                   )}

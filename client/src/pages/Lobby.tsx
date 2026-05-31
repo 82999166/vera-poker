@@ -726,6 +726,9 @@ function TournamentDetail({ id, onBack }: { id: number; onBack: () => void }) {
         </div>
       )}
 
+      {/* Live Tournament State - shown when tournament is running */}
+      {tourney.status === "running" && user && <TournamentLivePanel tournamentId={id} />}
+
       {/* Action Buttons */}
       {user && (
         <div className="pt-2">
@@ -747,7 +750,7 @@ function TournamentDetail({ id, onBack }: { id: number; onBack: () => void }) {
               {cancelMutation.isPending ? "..." : t("tourney.cancelRegistration")}
             </button>
           )}
-          {isRegistered && tourney.status !== "registration" && (
+          {isRegistered && tourney.status !== "registration" && tourney.status !== "running" && (
             <div className="text-center text-sm text-success font-medium">
               {t("tourney.youAreRegistered")}
             </div>
@@ -758,6 +761,118 @@ function TournamentDetail({ id, onBack }: { id: number; onBack: () => void }) {
       {!user && tourney.status === "registration" && (
         <div className="text-center text-sm text-muted-foreground">
           {t("tourney.loginToRegister")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== Tournament Live Panel ====================
+function TournamentLivePanel({ tournamentId }: { tournamentId: number }) {
+  const [, navigate] = useLocation();
+  const { data: liveState, isLoading } = trpc.tournaments.liveState.useQuery(
+    { tournamentId },
+    { refetchInterval: 3000 }
+  );
+
+  if (isLoading || !liveState) {
+    return (
+      <div className="glass rounded-xl p-4 animate-pulse">
+        <div className="h-4 bg-muted rounded w-1/3 mb-2" />
+        <div className="h-3 bg-muted rounded w-2/3" />
+      </div>
+    );
+  }
+
+  const blindTimeLeft = liveState.timeUntilNextLevel ? Math.ceil(liveState.timeUntilNextLevel / 1000) : 0;
+  const blindMinutes = Math.floor(blindTimeLeft / 60);
+  const blindSeconds = blindTimeLeft % 60;
+
+  return (
+    <div className="glass rounded-xl p-4 space-y-3 border border-gold/30">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-gold flex items-center gap-1">
+          <Zap className="w-4 h-4" /> LIVE
+        </h3>
+        <span className="text-xs text-muted-foreground">
+          {liveState.activePlayers}/{liveState.totalPlayers} players
+        </span>
+      </div>
+
+      {/* Blind Level Info */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-background/50 rounded-lg p-2">
+          <p className="text-[10px] text-muted-foreground">Blind Level {liveState.currentBlindLevel}/{liveState.totalBlindLevels}</p>
+          <p className="text-sm font-bold text-foreground">
+            {liveState.currentBlinds?.smallBlind}/{liveState.currentBlinds?.bigBlind}
+            {liveState.currentBlinds?.ante ? ` (ante ${liveState.currentBlinds.ante})` : ""}
+          </p>
+        </div>
+        <div className="bg-background/50 rounded-lg p-2">
+          <p className="text-[10px] text-muted-foreground">Next Level In</p>
+          <p className="text-sm font-bold text-foreground">
+            {blindMinutes}:{String(blindSeconds).padStart(2, "0")}
+          </p>
+          {liveState.nextBlinds && (
+            <p className="text-[10px] text-muted-foreground">→ {liveState.nextBlinds.smallBlind}/{liveState.nextBlinds.bigBlind}</p>
+          )}
+        </div>
+      </div>
+
+      {/* My Status */}
+      {liveState.myEliminated ? (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2 text-center">
+          <p className="text-sm text-red-400 font-medium">已淘汰 - 第 {liveState.myRank} 名</p>
+        </div>
+      ) : liveState.myRoomId ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between bg-background/50 rounded-lg p-2">
+            <div>
+              <p className="text-[10px] text-muted-foreground">My Chips</p>
+              <p className="text-sm font-bold text-gold">{formatAmount(liveState.myChips || 0)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-muted-foreground">Avg Stack</p>
+              <p className="text-sm font-medium text-foreground">{formatAmount(liveState.averageStack || 0)}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate(`/table/${liveState.myRoomId}`)}
+            className="w-full py-2.5 rounded-xl bg-gold text-background font-bold text-sm hover:opacity-90 transition-opacity"
+          >
+            进入我的牌桌
+          </button>
+        </div>
+      ) : null}
+
+      {/* Tables Info */}
+      {liveState.tables && liveState.tables.length > 0 && (
+        <div>
+          <p className="text-[10px] text-muted-foreground mb-1">Tables ({liveState.tables.length})</p>
+          <div className="flex flex-wrap gap-1">
+            {liveState.tables.map((tbl: any, i: number) => (
+              <span key={tbl.roomId} className={`text-[10px] px-2 py-0.5 rounded-full ${tbl.roomId === liveState.myRoomId ? 'bg-gold/20 text-gold border border-gold/40' : 'bg-muted text-muted-foreground'}`}>
+                T{i + 1}: {tbl.playerCount}p
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Chip Leaders */}
+      {liveState.chipLeaders && liveState.chipLeaders.length > 0 && (
+        <div>
+          <p className="text-[10px] text-muted-foreground mb-1">Chip Leaders</p>
+          <div className="space-y-0.5">
+            {liveState.chipLeaders.slice(0, 5).map((leader: any) => (
+              <div key={leader.userId} className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  {leader.rank}. {leader.name}
+                </span>
+                <span className="text-gold font-medium">{formatAmount(leader.chips)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

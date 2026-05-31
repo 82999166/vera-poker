@@ -721,12 +721,28 @@ export const appRouter = router({
       const level2Rate = level2RateConfig ? parseFloat(level2RateConfig.value) : 5;
       // Read TG bot username from database
       const botUsername = await db.getConfigValue("tg_bot_username", "VeraPokerbot");
+      // Calculate pending earnings from pending commission records
+      const dbInstance = await db.getDb();
+      let pendingEarnings = "0.00";
+      if (dbInstance) {
+        const { commissionRecords } = await import("../drizzle/schema");
+        const { eq, and, sql } = await import("drizzle-orm");
+        const [result] = await dbInstance.select({
+          total: sql<string>`COALESCE(SUM(commission_amount), '0.00')`,
+        }).from(commissionRecords)
+          .where(and(
+            eq(commissionRecords.agentId, ctx.user.id),
+            eq(commissionRecords.status, "pending")
+          ));
+        pendingEarnings = result?.total ?? "0.00";
+      }
       return {
         inviteCode: user.inviteCode ?? "",
         inviteLink: `https://t.me/${botUsername}/app?startapp=ref_${user.inviteCode ?? ""}`,
         totalDownlines: downlines.length,
         unlockedDownlines: unlockedCount,
         totalEarnings: totalEarnings.toFixed(2),
+        pendingEarnings,
         availableBalance: user.balance,
         recentCommissions: commissions.records,
         level1Rate,
@@ -1970,6 +1986,42 @@ ${faqContext}
     results: publicProcedure.input(z.object({ tournamentId: z.number() })).query(async ({ input }) => {
       return db.getTournamentResults(input.tournamentId);
     }),
+    // Protected: get live tournament state (blind level, chip leaders, my table, etc.)
+    liveState: protectedProcedure.input(z.object({ tournamentId: z.number() })).query(async ({ ctx, input }) => {
+      const { getTournamentState } = await import("./tournamentEngine");
+      const state = getTournamentState(input.tournamentId, ctx.user.id);
+      if (!state) {
+        // Tournament not running in memory - return basic DB info
+        const tournament = await db.getTournamentById(input.tournamentId);
+        return {
+          tournamentId: input.tournamentId,
+          name: tournament?.name || "",
+          status: tournament?.status || "unknown",
+          currentBlindLevel: 0,
+          totalBlindLevels: 0,
+          currentBlinds: null as { smallBlind: number; bigBlind: number; ante: number } | null,
+          nextBlinds: null as { smallBlind: number; bigBlind: number; ante: number } | null,
+          timeUntilNextLevel: 0,
+          blindDuration: 0,
+          activePlayers: 0,
+          totalPlayers: 0,
+          tables: [] as { roomId: number; playerCount: number }[],
+          chipLeaders: [] as { rank: number; userId: number; name: string; chips: number }[],
+          myRoomId: null as number | null,
+          myChips: null as number | null,
+          myRank: null as number | null,
+          myEliminated: false,
+          startedAt: 0,
+          averageStack: 0,
+        };
+      }
+      return state;
+    }),
+    // Protected: get my tournament table assignment
+    myTable: protectedProcedure.query(async ({ ctx }) => {
+      const { getPlayerTournamentTable } = await import("./tournamentEngine");
+      return getPlayerTournamentTable(ctx.user.id);
+    }),
   }),
   // Admin Tournaments Management
   adminTournaments: router({
@@ -2044,26 +2096,26 @@ ${faqContext}
       await db.updateTournament(input.id, { status: "registration" });
       return { success: true };
     }),
-    // Start tournament manually
+    // Start tournament manually - uses tournamentEngine to create real rooms and seat players
     start: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       const tournament = await db.getTournamentById(input.id);
       if (!tournament) throw new TRPCError({ code: "NOT_FOUND" });
       if (tournament.status !== "registration") throw new TRPCError({ code: "BAD_REQUEST", message: "只有报名中的比赛才能开始" });
-      const regs = await db.getTournamentRegistrations(input.id);
-      const playerCount = regs.filter(r => r.reg.status === "registered").length;
-      if (playerCount < tournament.minPlayers) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: `报名人数不足，最少需要${tournament.minPlayers}人，当前${playerCount}人` });
+      const { startTournament } = await import("./tournamentEngine");
+      const result = await startTournament(input.id);
+      if (!result.success) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: result.message || "启动锦标赛失败" });
       }
-      await db.updateTournament(input.id, { status: "running" });
       // Batch notify all registered players that the tournament has started
       const { notifyTournamentStarted } = await import("./notifications");
-      const registeredPlayers = regs.filter(r => r.reg.status === "registered");
+      const regs = await db.getTournamentRegistrations(input.id);
+      const registeredPlayers = regs.filter(r => r.reg.status === "playing");
       await Promise.allSettled(
         registeredPlayers.map(r =>
-          notifyTournamentStarted(r.reg.userId, tournament.name, playerCount, tournament.startingChips)
+          notifyTournamentStarted(r.reg.userId, tournament.name, result.players, tournament.startingChips)
         )
       );
-      return { success: true, playerCount };
+      return { success: true, playerCount: result.players, tables: result.tables };
     }),
     // Cancel tournament and refund all
     cancel: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
@@ -2122,6 +2174,25 @@ ${faqContext}
       // Mark tournament as finished
       await db.updateTournament(input.id, { status: "finished" });
       return { success: true, distributed, totalPlayers: input.results.length };
+    }),
+    // Pause a running tournament
+    pause: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { pauseTournament } = await import("./tournamentEngine");
+      const ok = await pauseTournament(input.id);
+      if (!ok) throw new TRPCError({ code: "BAD_REQUEST", message: "比赛未在运行中" });
+      return { success: true };
+    }),
+    // Resume a paused tournament
+    resume: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { resumeTournament } = await import("./tournamentEngine");
+      const ok = await resumeTournament(input.id);
+      if (!ok) throw new TRPCError({ code: "BAD_REQUEST", message: "比赛未在运行中" });
+      return { success: true };
+    }),
+    // Get live state for admin
+    liveState: staffProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
+      const { getTournamentState } = await import("./tournamentEngine");
+      return getTournamentState(input.id);
     }),
   }),
   // Admin Banners Management

@@ -6,6 +6,8 @@ import * as gameEngine from "./gameEngine";
 import * as db from "./db";
 import { notifyTurnAction } from "./notifications";
 import { onHandCompleted } from "./tonChain";
+// tournamentEngine is imported dynamically to avoid circular dependency
+// import * as tournamentEngine from "./tournamentEngine";
 import type { GameState, PlayerAction, Card } from "./gameEngine";
 
 interface SettlementDetail {
@@ -754,6 +756,18 @@ async function settleHand(roomId: number) {
     await db.updateRoomPlayerChips(roomId, player.id, player.chips.toFixed(2));
   }
 
+  // Tournament integration: update chips & detect eliminations
+  const tournamentEngine = await import("./tournamentEngine");
+  const tId = tournamentEngine.getTournamentForRoom(roomId);
+  if (tId !== null) {
+    for (const player of gs.players) {
+      tournamentEngine.updatePlayerChips(tId, player.id, player.chips);
+      if (player.chips <= 0) {
+        await tournamentEngine.eliminatePlayer(tId, player.id);
+      }
+    }
+  }
+
   // Distribute agent commissions from rake
   if (totalRake > 0 && table.handId) {
     try {
@@ -1194,7 +1208,52 @@ async function distributeAgentCommissions(totalRake: number, playerIds: number[]
         })
         .where(eq(agentRelationships.id, rel.id));
       
-      continue; // Don't distribute commission until unlocked
+      // Even if not unlocked, record pending commission so agent can see potential earnings
+      const pendingRate = rel.level === 1 ? level1Rate : level2Rate;
+      const pendingAmount = perPlayerRake * pendingRate;
+      if (pendingAmount > 0) {
+        await dbInstance.insert(commissionRecords).values({
+          agentId: rel.agentId,
+          downlineId: rel.downlineId,
+          handId,
+          level: rel.level,
+          rakeAmount: perPlayerRake.toFixed(2),
+          commissionRate: (pendingRate * 100).toFixed(2),
+          commissionAmount: pendingAmount.toFixed(2),
+          status: "pending",
+        });
+      }
+      
+      // If just unlocked, settle all pending commissions
+      if (shouldUnlock) {
+        const pendingRecords = await dbInstance.select()
+          .from(commissionRecords)
+          .where(and(
+            eq(commissionRecords.agentId, rel.agentId),
+            eq(commissionRecords.downlineId, rel.downlineId),
+            eq(commissionRecords.status, "pending")
+          ));
+        let totalPending = 0;
+        for (const pr of pendingRecords) {
+          totalPending += parseFloat(pr.commissionAmount ?? "0");
+        }
+        if (totalPending > 0) {
+          await db.addUserBalanceAtomic(rel.agentId, totalPending);
+          const currentEarned = parseFloat(rel.totalCommissionEarned ?? "0");
+          await dbInstance.update(agentRelationships)
+            .set({ totalCommissionEarned: (currentEarned + totalPending).toFixed(2) })
+            .where(eq(agentRelationships.id, rel.id));
+        }
+        // Mark all pending as settled
+        await dbInstance.update(commissionRecords)
+          .set({ status: "settled" })
+          .where(and(
+            eq(commissionRecords.agentId, rel.agentId),
+            eq(commissionRecords.downlineId, rel.downlineId),
+            eq(commissionRecords.status, "pending")
+          ));
+      }
+      continue;
     }
     
     // Calculate commission based on level

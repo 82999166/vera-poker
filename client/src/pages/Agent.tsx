@@ -70,10 +70,8 @@ export default function Agent() {
         </div>
         <div className="glass rounded-xl p-4 text-center">
           <Lock className="w-5 h-5 text-warning mx-auto mb-1" />
-          <p className="text-2xl font-bold text-warning">
-            {(dashboard?.totalDownlines ?? 0) - (dashboard?.unlockedDownlines ?? 0)}
-          </p>
-          <p className="text-[10px] text-muted-foreground">{t("agent.pending")}</p>
+          <p className="text-2xl font-bold text-warning">${dashboard?.pendingEarnings ?? "0.00"}</p>
+          <p className="text-[10px] text-muted-foreground">{t("agent.pendingEarnings")}</p>
         </div>
       </div>
 

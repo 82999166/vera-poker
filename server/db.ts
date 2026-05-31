@@ -1258,6 +1258,29 @@ export async function getTournamentRegistrations(tournamentId: number) {
     .orderBy(asc(tournamentRegistrations.registeredAt));
 }
 
+export async function updateTournamentRegistrationStatus(
+  tournamentId: number,
+  userId: number,
+  status: "registered" | "playing" | "eliminated" | "finished" | "refunded",
+  tableId?: string | null,
+  seatIndex?: number | null,
+  currentChips?: number
+) {
+  const db = await getDb();
+  if (!db) return;
+  const updateData: any = { status };
+  if (tableId !== undefined) updateData.tableId = tableId;
+  if (seatIndex !== undefined) updateData.seatIndex = seatIndex;
+  if (currentChips !== undefined) updateData.currentChips = currentChips;
+  if (status === "eliminated") updateData.eliminatedAt = new Date();
+  await db.update(tournamentRegistrations)
+    .set(updateData)
+    .where(and(
+      eq(tournamentRegistrations.tournamentId, tournamentId),
+      eq(tournamentRegistrations.userId, userId)
+    ));
+}
+
 export async function getRegistrationCount(tournamentId: number) {
   const db = await getDb();
   if (!db) return 0;
