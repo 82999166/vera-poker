@@ -1368,12 +1368,13 @@ ${faqContext}
         userId: handPlayers.userId,
         name: users.name,
         nickname: users.nickname,
+        tgUsername: users.tgUsername,
         avatar: users.avatar,
         totalProfit: sql<string>`CAST(SUM(CAST(${handPlayers.winAmount} AS DECIMAL(18,2)) - CAST(${handPlayers.betAmount} AS DECIMAL(18,2))) AS CHAR)`,
         totalHands: sql<number>`count(*)`,
       }).from(handPlayers)
         .innerJoin(users, eq(handPlayers.userId, users.id))
-        .groupBy(handPlayers.userId, users.name, users.nickname, users.avatar)
+        .groupBy(handPlayers.userId, users.name, users.nickname, users.tgUsername, users.avatar)
         .orderBy(desc(sql`SUM(CAST(${handPlayers.winAmount} AS DECIMAL(18,2)) - CAST(${handPlayers.betAmount} AS DECIMAL(18,2)))`))
         .limit(input.limit);
       return result;
@@ -1387,12 +1388,13 @@ ${faqContext}
         userId: handPlayers.userId,
         name: users.name,
         nickname: users.nickname,
+        tgUsername: users.tgUsername,
         avatar: users.avatar,
         winRate: sql<number>`ROUND(SUM(CASE WHEN ${handPlayers.isWinner} = 1 THEN 1 ELSE 0 END) * 100.0 / count(*), 1)`,
         totalHands: sql<number>`count(*)`,
       }).from(handPlayers)
         .innerJoin(users, eq(handPlayers.userId, users.id))
-        .groupBy(handPlayers.userId, users.name, users.nickname, users.avatar)
+        .groupBy(handPlayers.userId, users.name, users.nickname, users.tgUsername, users.avatar)
         .having(sql`count(*) >= ${input.minHands}`)
         .orderBy(desc(sql`SUM(CASE WHEN ${handPlayers.isWinner} = 1 THEN 1 ELSE 0 END) * 100.0 / count(*)`))
         .limit(input.limit);
@@ -1407,11 +1409,12 @@ ${faqContext}
         userId: handPlayers.userId,
         name: users.name,
         nickname: users.nickname,
+        tgUsername: users.tgUsername,
         avatar: users.avatar,
         totalHands: sql<number>`count(*)`,
       }).from(handPlayers)
         .innerJoin(users, eq(handPlayers.userId, users.id))
-        .groupBy(handPlayers.userId, users.name, users.nickname, users.avatar)
+        .groupBy(handPlayers.userId, users.name, users.nickname, users.tgUsername, users.avatar)
         .orderBy(desc(sql`count(*)`))
         .limit(input.limit);
       return result;

@@ -347,6 +347,13 @@ export default function Table() {
   // causing false "already seen" matches that block settlement animation.
   // Remember if this was ever a tournament table (survives tournamentInfo becoming null)
   const wasTournamentRef = useRef(false);
+  // Tournament end overlay state
+  const [tournamentEndInfo, setTournamentEndInfo] = useState<{
+    rank: number;
+    prize: number;
+    totalPlayers: number;
+    tournamentName?: string;
+  } | null>(null);
   // Prevent roomPlayers re-query from triggering showBuyIn after leave/navigate
   const isLeavingRef = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false); // mirrors isLeavingRef for JSX re-render
@@ -587,38 +594,33 @@ export default function Table() {
     // This prevents false positives during the brief window between joinMutation success and
     // the first tableState refresh that includes the new player.
     if (!myPlayerInState && !kickDetectedRef.current && joinSettledRef.current) {
-      // TOURNAMENT: If eliminated, show elimination message instead of generic "kicked"
+      // TOURNAMENT: If eliminated or finished, show full-screen overlay
       const tInfo = (tableState as any)?.tournamentInfo;
-      if (tInfo?.isTournament && tInfo?.myEliminated) {
+      if (tInfo?.isTournament && (tInfo?.myEliminated || tInfo?.isFinished)) {
         kickDetectedRef.current = true;
-        const rank = tInfo.myRank || "?";
-        const prize = tInfo.myPrize ? ` | +$${tInfo.myPrize}` : "";
-        toast.info(`${t("tourney.rank")} #${rank}${prize}`, { duration: 5000 });
+        setTournamentEndInfo({
+          rank: tInfo.myRank || 0,
+          prize: tInfo.myPrize || 0,
+          totalPlayers: tInfo.playersRemaining || 0,
+          tournamentName: tInfo.tournamentName,
+        });
         setIsSeated(false);
         isLeavingRef.current = true;
         setIsLeaving(true);
-        setTimeout(() => navigate("/lobby"), 5000);
-        return;
-      }
-      // TOURNAMENT: If tournament finished, navigate back gracefully
-      if (tInfo?.isTournament && tInfo?.isFinished) {
-        kickDetectedRef.current = true;
-        toast.success(t("tourney.statusFinished"), { duration: 3000 });
-        setIsSeated(false);
-        isLeavingRef.current = true;
-        setIsLeaving(true);
-        setTimeout(() => navigate("/lobby"), 3000);
         return;
       }
       // TOURNAMENT: If we were in a tournament but tournamentInfo is gone (table closed),
-      // treat as tournament ended gracefully
+      // treat as tournament ended gracefully - show overlay
       if (wasTournamentRef.current) {
         kickDetectedRef.current = true;
-        toast.success(t("tourney.statusFinished"), { duration: 3000 });
+        setTournamentEndInfo({
+          rank: 0,
+          prize: 0,
+          totalPlayers: 0,
+        });
         setIsSeated(false);
         isLeavingRef.current = true;
         setIsLeaving(true);
-        setTimeout(() => navigate("/lobby"), 3000);
         return;
       }
       kickDetectedRef.current = true;
@@ -1068,6 +1070,47 @@ export default function Table() {
       className="bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col"
       style={containerStyle}
     >
+      {/* Tournament End Overlay */}
+      {tournamentEndInfo && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-500">
+          <div className="w-[90%] max-w-sm bg-gradient-to-b from-[#1a2744] to-[#0d1a2e] rounded-2xl border border-gold/30 p-6 text-center shadow-2xl shadow-gold/10">
+            {/* Trophy icon */}
+            <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-gold/30 to-gold/10 flex items-center justify-center mb-4">
+              <span className="text-3xl">{tournamentEndInfo.rank === 1 ? "🏆" : tournamentEndInfo.rank === 2 ? "🥈" : tournamentEndInfo.rank === 3 ? "🥉" : "🎮"}</span>
+            </div>
+            {/* Title */}
+            <h2 className="text-xl font-bold text-gold mb-1">{t("tourney.statusFinished")}</h2>
+            {tournamentEndInfo.tournamentName && (
+              <p className="text-sm text-muted-foreground mb-4">{tournamentEndInfo.tournamentName}</p>
+            )}
+            {/* Rank */}
+            {tournamentEndInfo.rank > 0 && (
+              <div className="bg-black/30 rounded-xl p-4 mb-4">
+                <p className="text-sm text-muted-foreground mb-1">{t("tourney.yourRank")}</p>
+                <p className="text-4xl font-black text-foreground">#{tournamentEndInfo.rank}</p>
+                {tournamentEndInfo.totalPlayers > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">/ {tournamentEndInfo.totalPlayers} {t("tourney.players")}</p>
+                )}
+              </div>
+            )}
+            {/* Prize */}
+            {tournamentEndInfo.prize > 0 && (
+              <div className="bg-gold/10 border border-gold/20 rounded-xl p-3 mb-4">
+                <p className="text-sm text-muted-foreground mb-1">{t("tourney.prize")}</p>
+                <p className="text-2xl font-bold text-gold">+${tournamentEndInfo.prize.toLocaleString()}</p>
+              </div>
+            )}
+            {/* Back to lobby button */}
+            <button
+              onClick={() => navigate("/lobby")}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-gold to-amber-500 text-black font-bold text-base hover:brightness-110 active:scale-[0.97] transition-all duration-150"
+            >
+              {t("tourney.backToLobby")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Room Invite Poster Overlay */}
       {showRoomPoster && room && room.inviteCode && (
         <RoomInvitePoster

@@ -4993,7 +4993,7 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
                           const prize = r.result?.prizeAmount ?? r.prizeAmount ?? '0';
                           const finalChips = r.result?.finalChips ?? r.finalChips ?? 0;
                           const rounds = r.result?.roundsPlayed ?? r.roundsPlayed ?? 0;
-                          const name = r.user?.nickname || r.user?.name || `用户#${r.result?.userId || r.userId}`;
+                          const name = r.user?.tgUsername ? `@${r.user.tgUsername}` : (r.user?.nickname || r.user?.name || `用户#${r.result?.userId || r.userId}`);
                           const medals = ['🥇', '🥈', '🥉'];
                           return (
                             <tr key={i} className={`border-t border-border ${rank <= 3 ? 'bg-yellow-500/5' : ''}`}>

@@ -69,7 +69,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
         isFolded: false,
         isAllIn: false,
         isActive: true,
-        name: user?.nickname || user?.name || `Player ${sp.seatIndex + 1}`,
+        name: user?.tgUsername ? `@${user.tgUsername}` : (user?.nickname || user?.name || `Player ${sp.seatIndex + 1}`),
         avatar: user?.avatar || null,
         holeCards: [],
       });
@@ -88,7 +88,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
   const playerInfo = new Map<number, { name: string; avatar: string | null }>();
   for (const p of gs.players) {
     const user = await db.getUserById(p.id);
-    playerInfo.set(p.id, { name: user?.name || `Player ${p.seatIndex + 1}`, avatar: user?.avatar || null });
+    playerInfo.set(p.id, { name: user?.tgUsername ? `@${user.tgUsername}` : (user?.nickname || user?.name || `Player ${p.seatIndex + 1}`), avatar: user?.avatar || null });
   }
 
   const players = gs.players.map(p => ({
@@ -126,7 +126,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
       isFolded: false,
       isAllIn: false,
       isActive: false,
-      name: user?.name || `Player ${sp.seatIndex + 1}`,
+      name: user?.tgUsername ? `@${user.tgUsername}` : (user?.nickname || user?.name || `Player ${sp.seatIndex + 1}`),
       avatar: user?.avatar || null,
       holeCards: [],
       isSittingOut: true, // Waiting for next hand (Wait for Big Blind)
@@ -635,7 +635,7 @@ async function settleHand(roomId: number) {
   const playerNames = new Map<number, string>();
   for (const p of gs.players) {
     const user = await db.getUserById(p.id);
-    playerNames.set(p.id, user?.name || `Player ${p.seatIndex + 1}`);
+    playerNames.set(p.id, user?.tgUsername ? `@${user.tgUsername}` : (user?.nickname || user?.name || `Player ${p.seatIndex + 1}`));
   }
 
   // Get system config for rake

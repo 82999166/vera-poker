@@ -1393,14 +1393,14 @@ export async function getTournamentChampions(limit = 20) {
   const results = await db.execute(sql`
     SELECT 
       tr.userId,
-      u.displayName as name,
+      COALESCE(CONCAT('@', u.tgUsername), u.nickname, u.name, CONCAT('Player ', tr.userId)) as name,
       u.avatar,
       COUNT(*) as wins,
       SUM(CAST(tr.prizeAmount AS DECIMAL(12,2))) as totalPrize
     FROM tournament_results tr
     LEFT JOIN users u ON tr.userId = u.id
     WHERE tr.rank = 1
-    GROUP BY tr.userId, u.displayName, u.avatar
+    GROUP BY tr.userId, u.tgUsername, u.nickname, u.name, u.avatar
     ORDER BY wins DESC, totalPrize DESC
     LIMIT ${limit}
   `);
@@ -1416,7 +1416,7 @@ export async function getTournamentPrizeLeaderboard(limit = 20) {
   const results = await db.execute(sql`
     SELECT 
       tr.userId,
-      u.displayName as name,
+      COALESCE(CONCAT('@', u.tgUsername), u.nickname, u.name, CONCAT('Player ', tr.userId)) as name,
       u.avatar,
       COUNT(*) as tournaments,
       SUM(CASE WHEN tr.rank = 1 THEN 1 ELSE 0 END) as wins,
@@ -1425,7 +1425,7 @@ export async function getTournamentPrizeLeaderboard(limit = 20) {
     FROM tournament_results tr
     LEFT JOIN users u ON tr.userId = u.id
     WHERE CAST(tr.prizeAmount AS DECIMAL(12,2)) > 0
-    GROUP BY tr.userId, u.displayName, u.avatar
+    GROUP BY tr.userId, u.tgUsername, u.nickname, u.name, u.avatar
     ORDER BY totalPrize DESC
     LIMIT ${limit}
   `);

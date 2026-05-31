@@ -157,7 +157,7 @@ export async function startTournament(tournamentId: number): Promise<{
     const user = await db.getUserById(reg.reg.userId);
     const player: TournamentPlayer = {
       userId: reg.reg.userId,
-      name: user?.nickname || user?.name || `Player ${reg.reg.userId}`,
+      name: user?.tgUsername ? `@${user.tgUsername}` : (user?.nickname || user?.name || `Player ${reg.reg.userId}`),
       chips: tournament.startingChips,
       roomId,
       seatIndex,

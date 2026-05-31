@@ -116,7 +116,7 @@ export default function Leaderboard() {
             <LeaderboardRow
               key={entry.userId}
               rank={index + 1}
-              name={entry.nickname || entry.name || `Player ${entry.userId}`}
+              name={entry.tgUsername ? `@${entry.tgUsername}` : (entry.nickname || entry.name || `Player ${entry.userId}`)}
               avatar={entry.avatar}
               value={getDisplayValue(activeTab as "profit" | "winRate" | "hands", entry)}
               subValue={getSubValue(activeTab as "profit" | "winRate" | "hands", entry, t("leaderboard.handsUnit"))}
@@ -179,7 +179,7 @@ function TournamentLeaderboard({ data, subTab, userId }: {
               <img src={entry.avatar} alt="" className="w-full h-full object-cover" />
             ) : (
               <span className="text-xs font-bold text-gold">
-                {(entry.name || "?").charAt(0).toUpperCase()}
+                {(entry.name || entry.tgUsername || "?").charAt(0).toUpperCase()}
               </span>
             )}
           </div>
