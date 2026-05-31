@@ -330,16 +330,42 @@ export async function notifyTournamentStarted(userId: number, tournamentName: st
 }
 
 // Notify user of their tournament result
-export async function notifyTournamentResult(userId: number, tournamentName: string, rank: number, prize: string): Promise<boolean> {
+export interface TopRanking {
+  rank: number;
+  name: string;
+  prize: string;
+}
+
+export async function notifyTournamentResult(
+  userId: number,
+  tournamentName: string,
+  rank: number,
+  prize: string,
+  topRankings?: TopRanking[]
+): Promise<boolean> {
   const isWinner = rank <= 3;
+  
+  // Build top-3 summary
+  let topSummary = "";
+  if (topRankings && topRankings.length > 0) {
+    const medals = ["🥇", "🥈", "🥉"];
+    topSummary = "\n\n--- 比赛结果 ---";
+    for (const tr of topRankings) {
+      const medal = medals[tr.rank - 1] || `#${tr.rank}`;
+      topSummary += `\n${medal} ${tr.name}: $${tr.prize}`;
+    }
+  }
+
+  const myResult = isWinner
+    ? `恭喜您在「${tournamentName}」中获得第${rank}名！\n奖金 $${prize} 已发放到您的账户`
+    : `「${tournamentName}」已结束，您的最终排名为第${rank}名${parseFloat(prize) > 0 ? `\n奖金 $${prize} 已发放到您的账户` : ""}`;
+
   return sendNotification({
     type: "balance_change",
     userId,
     title: isWinner ? `🏆 比赛获奖 - 第${rank}名` : `比赛结束 - 第${rank}名`,
-    body: isWinner
-      ? `恭喜您在「${tournamentName}」中获得第${rank}名！\n奖金 $${prize} 已发放到您的账户`
-      : `「${tournamentName}」已结束，您的最终排名为第${rank}名${parseFloat(prize) > 0 ? `\n奖金 $${prize} 已发放到您的账户` : ""}`,
-    data: { tournamentName, rank, prize },
+    body: myResult + topSummary,
+    data: { tournamentName, rank, prize, topRankings },
   });
 }
 

@@ -4597,6 +4597,11 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
   const [showDistributeModal, setShowDistributeModal] = useState(false);
   const [distributeTargetId, setDistributeTargetId] = useState<number | null>(null);
   const [distributeResults, setDistributeResults] = useState<Array<{ userId: number; rank: number; prizeAmount: string; finalChips: number; nickname: string }>>([]);
+  const [showDetailId, setShowDetailId] = useState<number | null>(null);
+  const detailQuery = trpc.adminTournaments.detail.useQuery(
+    { id: showDetailId! },
+    { enabled: !!showDetailId }
+  );
 
   // Form state
   const [form, setForm] = useState({
@@ -4917,6 +4922,10 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
                     setShowDistributeModal(true);
                   }} className="text-xs px-2 py-1 border border-yellow-500 text-yellow-400 rounded hover:bg-yellow-500/10">🏆 发放奖金</button>
                 )}
+                {t.status === "finished" && (
+                  <button onClick={() => setShowDetailId(t.id)}
+                    className="text-xs px-2 py-1 border border-purple-500 text-purple-400 rounded hover:bg-purple-500/10">📊 查看详情</button>
+                )}
               </div>
             </div>
           </div>
@@ -4925,6 +4934,103 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
           <div className="text-center text-muted-foreground py-8">暂无锦标赛</div>
         )}
       </div>
+
+      {/* Tournament Detail Modal */}
+      {showDetailId && detailQuery.data && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-bold text-foreground">🏆 比赛详情 - {detailQuery.data.tournament.name}</h3>
+              <button onClick={() => setShowDetailId(null)} className="text-muted-foreground hover:text-foreground text-lg">✕</button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 space-y-4">
+              {/* Tournament Info */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">报名费</p>
+                  <p className="font-bold text-foreground">${detailQuery.data.tournament.entryFee} USDT</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">总奖池</p>
+                  <p className="font-bold text-yellow-400">${detailQuery.data.tournament.totalPrizePool || '0'} USDT</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">参赛人数</p>
+                  <p className="font-bold text-foreground">{detailQuery.data.registrations?.length || 0} 人</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">总局数</p>
+                  <p className="font-bold text-foreground">{detailQuery.data.tournament.totalRounds} 局</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">开赛时间</p>
+                  <p className="font-bold text-foreground text-xs">{detailQuery.data.tournament.startTime ? new Date(detailQuery.data.tournament.startTime).toLocaleString() : '-'}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">结束时间</p>
+                  <p className="font-bold text-foreground text-xs">{detailQuery.data.tournament.endTime ? new Date(detailQuery.data.tournament.endTime).toLocaleString() : '-'}</p>
+                </div>
+              </div>
+
+              {/* Results Table */}
+              <div>
+                <h4 className="font-bold text-foreground mb-2">🏅 最终排名</h4>
+                {detailQuery.data.results && detailQuery.data.results.length > 0 ? (
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left px-3 py-2 text-xs text-muted-foreground">排名</th>
+                          <th className="text-left px-3 py-2 text-xs text-muted-foreground">用户</th>
+                          <th className="text-right px-3 py-2 text-xs text-muted-foreground">奖金</th>
+                          <th className="text-right px-3 py-2 text-xs text-muted-foreground">最终筹码</th>
+                          <th className="text-right px-3 py-2 text-xs text-muted-foreground">局数</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(detailQuery.data.results as any[]).sort((a: any, b: any) => (a.result?.rank || a.rank) - (b.result?.rank || b.rank)).map((r: any, i: number) => {
+                          const rank = r.result?.rank ?? r.rank;
+                          const prize = r.result?.prizeAmount ?? r.prizeAmount ?? '0';
+                          const finalChips = r.result?.finalChips ?? r.finalChips ?? 0;
+                          const rounds = r.result?.roundsPlayed ?? r.roundsPlayed ?? 0;
+                          const name = r.user?.nickname || r.user?.name || `用户#${r.result?.userId || r.userId}`;
+                          const medals = ['🥇', '🥈', '🥉'];
+                          return (
+                            <tr key={i} className={`border-t border-border ${rank <= 3 ? 'bg-yellow-500/5' : ''}`}>
+                              <td className="px-3 py-2 font-bold">{medals[rank - 1] || `#${rank}`}</td>
+                              <td className="px-3 py-2 text-foreground">{name}</td>
+                              <td className="px-3 py-2 text-right font-bold text-yellow-400">{parseFloat(prize) > 0 ? `$${prize}` : '-'}</td>
+                              <td className="px-3 py-2 text-right text-muted-foreground">{finalChips.toLocaleString()}</td>
+                              <td className="px-3 py-2 text-right text-muted-foreground">{rounds}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">暂无结果数据</p>
+                )}
+              </div>
+
+              {/* Registrations */}
+              <div>
+                <h4 className="font-bold text-foreground mb-2">📝 报名名单 ({detailQuery.data.registrations?.length || 0}人)</h4>
+                <div className="flex flex-wrap gap-2">
+                  {(detailQuery.data.registrations as any[] || []).map((reg: any, i: number) => (
+                    <span key={i} className="text-xs bg-muted/30 px-2 py-1 rounded text-muted-foreground">
+                      {reg.user?.nickname || reg.user?.name || `ID:${reg.reg?.userId || reg.userId}`}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-border">
+              <button onClick={() => setShowDetailId(null)} className="w-full py-2 border border-border text-muted-foreground rounded-lg text-sm hover:bg-muted/30">关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Distribute Prizes Modal */}
       {showDistributeModal && distributeTargetId && (

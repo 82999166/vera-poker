@@ -19,6 +19,7 @@ import Leaderboard from "./pages/Leaderboard";
 import Admin from "./pages/Admin";
 import StaffLogin from "./pages/StaffLogin";
 import Tutorial from "./pages/Tutorial";
+import { useClickSound } from "./hooks/useClickSound";
 
 function MobileRouter() {
   return (
@@ -84,6 +85,7 @@ function AppContent() {
 }
 
 function App() {
+  useClickSound();
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">

@@ -34,7 +34,15 @@ export default function Lobby() {
   const { data: rooms, isLoading } = trpc.rooms.list.useQuery(undefined, { refetchInterval: 3000 });
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
   const { data: activeRoom } = trpc.rooms.myActiveRoom.useQuery(undefined, { enabled: !!user });
+  const { data: myTournamentTable } = trpc.tournaments.myTable.useQuery(undefined, { enabled: !!user });
   const joinByStakeMutation = trpc.rooms.joinByStake.useMutation();
+
+  // Auto-navigate to active tournament table on reconnect
+  React.useEffect(() => {
+    if (myTournamentTable && myTournamentTable.roomId) {
+      navigate(`/table/${myTournamentTable.roomId}`);
+    }
+  }, [myTournamentTable, navigate]);
 
   const cashRooms = (rooms ?? []).filter(r => r.type !== "private" && r.status !== "closed");
   const privateRooms = (rooms ?? []).filter(r => r.type === "private" && r.status !== "closed");

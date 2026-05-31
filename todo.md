@@ -206,3 +206,12 @@
 - [x] Bug 1: 总局数设置无效 → 添加 incrementHandCount + forceFinishByChips 逻辑，达到 totalRounds 时按筹码排名强制结束
 - [x] Bug 2: 比赛结果卡住 → finishTournament/forceFinishByChips 中 removeActiveTable + 延迟清理 activeTournaments，前端检测 isFinished 正确导航
 - [x] Bug 3: 牌力判断错误 → 修复 wheel straight kicker（A-2-3-4-5 高牌应为5而非14）+ side pot 显示优先显示最强牌力赢家
+
+## 2026-05-31 六项功能需求
+
+- [x] 1. 所有按钮点击声音（全局 click 音效 - useClickSound hook + App.tsx 事件委托）
+- [x] 2. 比赛结果通知所有参赛者（含第1/2/3名奖金明细 - notifyTournamentResult 增加 topRankings 参数）
+- [x] 3. 管理后台锦标赛详情（比赛结束后可查看详细比赛数据 - Detail Modal with results table）
+- [x] 4. 验证 totalRounds=2 限制逻辑正确性（incrementHandCount + forceFinishByChips 链路完整）
+- [x] 5. 锦标赛断线重连（Lobby 检测进行中锦标赛自动跳转 - trpc.tournaments.myTable + useEffect navigate）
+- [x] 6. 个人中心锦标赛历史页面（参赛记录+排名+奖金 - TournamentHistorySection in Profile.tsx）

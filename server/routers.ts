@@ -2113,6 +2113,10 @@ ${faqContext}
       const { getPlayerTournamentTable } = await import("./tournamentEngine");
       return getPlayerTournamentTable(ctx.user.id);
     }),
+    // Protected: get my tournament history (all past results)
+    myHistory: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserTournamentHistory(ctx.user.id);
+    }),
   }),
   // Admin Tournaments Management
   adminTournaments: router({

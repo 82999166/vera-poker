@@ -352,6 +352,17 @@ export default function Profile() {
         </div>
       </div>
 
+      {/* Tournament History */}
+      <div className="px-4 pb-3">
+        <div className="glass rounded-2xl p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-amber-400" />
+            {locale === "zh-CN" || locale === "zh-TW" ? "锦标赛战绩" : "Tournament History"}
+          </h3>
+          <TournamentHistorySection locale={locale} />
+        </div>
+      </div>
+
       {/* Sound & Voice Settings (#12) */}
       <div className="px-4 pb-3">
         <div className="glass rounded-2xl p-4">
@@ -577,6 +588,73 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between py-1">
       <span className="text-xs text-muted-foreground">{label}</span>
       <span className="text-xs font-medium">{value}</span>
+    </div>
+  );
+}
+
+function TournamentHistorySection({ locale }: { locale: string }) {
+  const { data: history, isLoading } = trpc.tournaments.myHistory.useQuery();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-16 rounded-xl bg-muted/30 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!history || history.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground text-center py-4">
+        {locale === "zh-CN" || locale === "zh-TW" ? "暂无比赛记录" : "No tournament records yet"}
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2 max-h-64 overflow-y-auto">
+      {history.map((item: any) => {
+        const rank = item.result?.rank ?? 0;
+        const prize = parseFloat(item.result?.prizeAmount ?? "0");
+        const name = item.tournament?.name ?? "Unknown";
+        const totalPlayers = item.tournament?.registeredCount ?? 0;
+        const endTime = item.result?.createdAt ? new Date(item.result.createdAt).toLocaleDateString() : "";
+        const isTop3 = rank >= 1 && rank <= 3;
+        const medalColors = ["text-gold", "text-gray-300", "text-amber-600"];
+        const medalIcons = ["🥇", "🥈", "🥉"];
+
+        return (
+          <div key={item.result?.id} className={`rounded-xl p-3 border transition-all ${
+            isTop3 ? "border-gold/30 bg-gold/5" : "border-border/30 bg-muted/10"
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className={`text-base font-bold ${isTop3 ? medalColors[rank - 1] : "text-muted-foreground"}`}>
+                  {isTop3 ? medalIcons[rank - 1] : `#${rank}`}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold truncate">{name}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {endTime} · {totalPlayers}{locale === "zh-CN" || locale === "zh-TW" ? "人" : " players"}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                {prize > 0 ? (
+                  <p className="text-xs font-bold text-success">+${prize.toFixed(2)}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">-</p>
+                )}
+                <p className="text-[10px] text-muted-foreground">
+                  {locale === "zh-CN" || locale === "zh-TW" ? `第${rank}名` : `Rank ${rank}`}/{totalPlayers}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

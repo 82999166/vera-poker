@@ -1358,3 +1358,27 @@ export async function getUserByTgIdOrNickname(identifier: string) {
   ).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
+
+
+// ==================== USER TOURNAMENT HISTORY ====================
+export async function getUserTournamentHistory(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    result: tournamentResults,
+    tournament: {
+      id: tournaments.id,
+      name: tournaments.name,
+      entryFee: tournaments.entryFee,
+      totalPrizePool: tournaments.totalPrizePool,
+      registeredCount: tournaments.registeredCount,
+      startTime: tournaments.startTime,
+      endTime: tournaments.endTime,
+      status: tournaments.status,
+    }
+  })
+    .from(tournamentResults)
+    .leftJoin(tournaments, eq(tournamentResults.tournamentId, tournaments.id))
+    .where(eq(tournamentResults.userId, userId))
+    .orderBy(desc(tournamentResults.createdAt));
+}

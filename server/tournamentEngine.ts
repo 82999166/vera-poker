@@ -535,6 +535,15 @@ async function forceFinishByChips(tournamentId: number): Promise<void> {
   // Import notification helper
   const { notifyTournamentResult } = await import("./notifications");
 
+  // Build top-3 rankings for notification
+  const topRankings: Array<{ rank: number; name: string; prize: string }> = rankings
+    .filter(r => r.rank <= 3)
+    .map(r => ({
+      rank: r.rank,
+      name: t.players.get(r.userId)?.name || `Player ${r.userId}`,
+      prize: r.prizeAmount.toFixed(2),
+    }));
+
   // Save results and distribute prizes
   for (const r of rankings) {
     if (r.prizeAmount > 0) {
@@ -552,8 +561,8 @@ async function forceFinishByChips(tournamentId: number): Promise<void> {
       handsWon: 0,
     });
 
-    // Notify player
-    await notifyTournamentResult(r.userId, t.name, r.rank, r.prizeAmount.toFixed(2)).catch(() => {});
+    // Notify player with top-3 summary
+    await notifyTournamentResult(r.userId, t.name, r.rank, r.prizeAmount.toFixed(2), topRankings).catch(() => {});
   }
 
   // Close all tournament tables and remove from activeTables (prevents auto-start race)
@@ -887,6 +896,15 @@ async function finishTournament(tournamentId: number, winner: TournamentPlayer):
   // Import notification helper
   const { notifyTournamentResult } = await import("./notifications");
 
+  // Build top-3 rankings for notification
+  const topRankings: Array<{ rank: number; name: string; prize: string }> = rankings
+    .filter(r => r.rank <= 3)
+    .map(r => ({
+      rank: r.rank,
+      name: t.players.get(r.userId)?.name || `Player ${r.userId}`,
+      prize: r.prizeAmount.toFixed(2),
+    }));
+
   // Save results and distribute prizes
   for (const r of rankings) {
     if (r.prizeAmount > 0) {
@@ -900,12 +918,12 @@ async function finishTournament(tournamentId: number, winner: TournamentPlayer):
       prizeAmount: r.prizeAmount.toFixed(2),
       startingChips: t.startingChips,
       finalChips: t.players.get(r.userId)?.chips || 0,
-      roundsPlayed: 0,
+      roundsPlayed: t.handsPlayed,
       handsWon: 0,
     });
 
-    // Notify player
-    await notifyTournamentResult(r.userId, t.name, r.rank, r.prizeAmount.toFixed(2)).catch(() => {});
+    // Notify player with top-3 summary
+    await notifyTournamentResult(r.userId, t.name, r.rank, r.prizeAmount.toFixed(2), topRankings).catch(() => {});
   }
 
   // Update tournament status
