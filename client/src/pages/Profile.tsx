@@ -134,7 +134,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-deep-space pb-20">
       {/* Header with language switcher */}
-      <div className="sticky top-0 z-40 glass-strong border-b border-border px-4 py-3 flex items-center gap-3">
+      <div className="sticky top-0 z-40 glass-strong border-b border-border px-4 py-3 safe-top flex items-center gap-3">
         <button onClick={() => navigate("/lobby")} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -219,8 +219,8 @@ export default function Profile() {
             )}
           </div>
           
-          {profile.tgUsername && (
-            <p className="text-xs text-muted-foreground mt-1">@{profile.tgUsername}</p>
+          {profile.tgId && (
+            <p className="text-xs text-muted-foreground mt-1">TG {t("profile.tgBound")}</p>
           )}
           
           <div className="flex items-center justify-center gap-4 mt-4">
@@ -422,7 +422,7 @@ export default function Profile() {
                 <div>
                   <p className="text-sm font-medium">{t("profile.tgBound")}</p>
                   <p className="text-xs text-muted-foreground">
-                    {profile.tgUsername ? `@${profile.tgUsername}` : `ID: ${profile.tgId}`}
+                    {profile.nickname || profile.name || `ID: ${profile.tgId}`}
                   </p>
                 </div>
               </div>

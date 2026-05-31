@@ -2005,10 +2005,10 @@ ${faqContext}
       const userIds = convos.map(c => c.userId);
       let userMap: Record<number, string> = {};
       if (userIds.length > 0) {
-        const userRows = await dbInstance.select({ id: users.id, name: users.name, tgUsername: users.tgUsername })
+        const userRows = await dbInstance.select({ id: users.id, name: users.name, nickname: users.nickname, tgUsername: users.tgUsername })
           .from(users)
           .where(sql`${users.id} IN (${sql.raw(userIds.join(","))})`);
-        userRows.forEach(u => { userMap[u.id] = u.tgUsername || u.name || `User#${u.id}`; });
+        userRows.forEach(u => { userMap[u.id] = u.nickname || u.name || `User#${u.id}`; });
       }
 
       const items = convos.map(c => ({

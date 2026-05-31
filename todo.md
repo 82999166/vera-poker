@@ -244,3 +244,10 @@
 - [x] 前端：钱包页面显示赠送余额和解锁进度
 - [x] 前端：提现时如未解锁则提示解锁条件
 - [x] 未充值用户不能进入私人房（加入时检查 totalDeposited > 0，否则提示先充值）
+
+## 2026-05-31 UI 修复
+
+- [x] Lobby 顶部适配 iPhone 安全区域（TG Mini App 状态栏空隙）- viewport-fit=cover + safe-top class
+- [x] 全项目用户名统一显示 TG 昵称（nickname），不显示 @username（防止暴露联系方式）
+- [x] Profile.tsx 个人资料页去掉 @username 显示
+- [x] 管理后台保留 @username 显示（管理员需要联系玩家）

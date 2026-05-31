@@ -67,7 +67,7 @@ export default function HandHistory() {
   return (
     <div className="min-h-screen bg-background particle-bg flex flex-col">
       {/* Header */}
-      <header className="glass-strong sticky top-0 z-50 px-4 py-3">
+      <header className="glass-strong sticky top-0 z-50 px-4 py-3 safe-top">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(`/table/${roomId}`)} className="w-8 h-8 rounded-full glass flex items-center justify-center">
             <ArrowLeft className="w-4 h-4" />

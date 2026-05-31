@@ -34,7 +34,7 @@ export default function Leaderboard() {
   return (
     <div className="min-h-screen bg-deep-space pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-40 glass-strong border-b border-border px-4 py-3 flex items-center gap-3">
+      <div className="sticky top-0 z-40 glass-strong border-b border-border px-4 py-3 safe-top flex items-center gap-3">
         <button onClick={() => navigate("/lobby")} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -116,7 +116,7 @@ export default function Leaderboard() {
             <LeaderboardRow
               key={entry.userId}
               rank={index + 1}
-              name={entry.tgUsername ? `@${entry.tgUsername}` : (entry.nickname || entry.name || `Player ${entry.userId}`)}
+              name={entry.nickname || entry.name || `Player ${entry.userId}`}
               avatar={entry.avatar}
               value={getDisplayValue(activeTab as "profit" | "winRate" | "hands", entry)}
               subValue={getSubValue(activeTab as "profit" | "winRate" | "hands", entry, t("leaderboard.handsUnit"))}
@@ -179,13 +179,13 @@ function TournamentLeaderboard({ data, subTab, userId }: {
               <img src={entry.avatar} alt="" className="w-full h-full object-cover" />
             ) : (
               <span className="text-xs font-bold text-gold">
-                {(entry.name || entry.tgUsername || "?").charAt(0).toUpperCase()}
+                {(entry.nickname || entry.name || "?").charAt(0).toUpperCase()}
               </span>
             )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">
-              {entry.name || `Player ${entry.userId}`}
+              {entry.nickname || entry.name || `Player ${entry.userId}`}
               {entry.userId === userId && <span className="text-[10px] text-gold ml-1">{t("leaderboard.you")}</span>}
             </p>
             <p className="text-[10px] text-muted-foreground">

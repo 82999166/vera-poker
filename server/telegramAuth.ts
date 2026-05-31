@@ -178,10 +178,8 @@ export function registerTelegramAuthRoutes(app: Express) {
         return;
       }
 
-      // Create session token
-      const displayName = tgUser.username
-        ? `@${tgUser.username}`
-        : `${tgUser.first_name}${tgUser.last_name ? " " + tgUser.last_name : ""}`;
+      // Create session token - use nickname, not @username
+      const displayName = `${tgUser.first_name}${tgUser.last_name ? " " + tgUser.last_name : ""}`;
 
       const sessionToken = await sdk.createSessionToken(user.openId, {
         name: displayName,
@@ -287,10 +285,8 @@ export function registerTelegramAuthRoutes(app: Express) {
         return;
       }
 
-      // Create session token
-      const displayName = data.username
-        ? `@${data.username}`
-        : `${data.first_name}${data.last_name ? " " + data.last_name : ""}`;
+      // Create session token - use nickname, not @username
+      const displayName = `${data.first_name}${data.last_name ? " " + data.last_name : ""}`;
 
       const sessionToken = await sdk.createSessionToken(user.openId, {
         name: displayName,
@@ -383,10 +379,8 @@ export function registerTelegramAuthRoutes(app: Express) {
         return;
       }
 
-      // Create session
-      const displayName = widgetData.username
-        ? `@${widgetData.username}`
-        : `${widgetData.first_name}${widgetData.last_name ? " " + widgetData.last_name : ""}`;
+      // Create session - use nickname, not @username
+      const displayName = `${widgetData.first_name}${widgetData.last_name ? " " + widgetData.last_name : ""}`;
 
       const sessionToken = await sdk.createSessionToken(user.openId, {
         name: displayName,
@@ -601,7 +595,7 @@ export function registerTelegramAuthRoutes(app: Express) {
       }
 
       // Create session
-      const displayName = username ? `@${username}` : name;
+      const displayName = name || username || "Player";
       const sessionToken = await sdk.createSessionToken(user.openId, {
         name: displayName,
         expiresInMs: ONE_YEAR_MS,

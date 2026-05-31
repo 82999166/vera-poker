@@ -181,7 +181,7 @@ export default function Tutorial() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="glass-strong px-4 py-3 flex items-center gap-3 z-10 sticky top-0">
+      <header className="glass-strong px-4 py-3 flex items-center gap-3 z-10 sticky top-0 safe-top">
         <button onClick={() => navigate(-1 as never)} className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>

@@ -157,19 +157,19 @@ export default function Lobby() {
   return (
     <div className="min-h-screen bg-background particle-bg flex flex-col">
       {/* Header */}
-      <header className="glass-strong sticky top-0 z-50 px-4 py-3">
+      <header className="glass-strong sticky top-0 z-50 px-4 py-3 safe-top">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {user?.avatar ? (
               <img src={user.avatar} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-gold/50" />
             ) : (
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center">
-                <span className="text-sm font-bold text-background">{(user?.tgUsername || user?.nickname || user?.name || "V").charAt(0).toUpperCase()}</span>
+                <span className="text-sm font-bold text-background">{(user?.nickname || user?.name || "V").charAt(0).toUpperCase()}</span>
               </div>
             )}
             <div>
-              <h1 className="text-lg font-bold text-foreground">{user?.tgUsername ? `@${user.tgUsername}` : (user?.nickname || user?.name || "Vera Poker")}</h1>
-              <p className="text-xs text-muted-foreground">{user?.nickname && user?.tgUsername ? user.nickname : t("app.slogan")}</p>
+              <h1 className="text-lg font-bold text-foreground">{user?.nickname || user?.name || "Vera Poker"}</h1>
+              <p className="text-xs text-muted-foreground">{t("app.slogan")}</p>
             </div>
           </div>
           <div className="glass rounded-full px-3 py-1.5 flex items-center gap-2">
@@ -732,7 +732,7 @@ function TournamentDetail({ id, onBack }: { id: number; onBack: () => void }) {
           <div className="space-y-1 max-h-40 overflow-y-auto">
             {registrations.slice(0, 20).map((r: any) => (
               <div key={r.reg.id} className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{r.user?.tgUsername ? `@${r.user.tgUsername}` : (r.user?.nickname || r.user?.name || `User #${r.reg.userId}`)}</span>
+                <span className="text-muted-foreground">{r.user?.nickname || r.user?.name || `User #${r.reg.userId}`}</span>
                 <span className="text-muted-foreground/60">{new Date(r.reg.registeredAt).toLocaleString()}</span>
               </div>
             ))}
