@@ -492,7 +492,15 @@ export const appRouter = router({
   wallet: router({
     balance: protectedProcedure.query(async ({ ctx }) => {
       const user = await db.getUserById(ctx.user.id);
-      return { balance: user?.balance ?? "0.00", frozenBalance: user?.frozenBalance ?? "0.00" };
+      return { 
+        balance: user?.balance ?? "0.00", 
+        frozenBalance: user?.frozenBalance ?? "0.00",
+        bonusBalance: user?.bonusBalance ?? "0.00",
+        bonusUnlocked: user?.bonusUnlocked ?? false,
+      };
+    }),
+    bonusProgress: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserBonusProgress(ctx.user.id);
     }),
     depositAddress: protectedProcedure.input(z.object({
       chain: z.enum(["TRC20", "ERC20", "BEP20", "TON", "Polygon"]),
@@ -557,6 +565,23 @@ export const appRouter = router({
       }
       if (withdrawAmount > currentBalance) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
+      }
+
+      // Bonus lock check: if bonus not unlocked, cannot withdraw bonus portion
+      const bonusAmount = parseFloat(user.bonusBalance ?? "0");
+      if (bonusAmount > 0 && !user.bonusUnlocked) {
+        // Try to unlock first (maybe conditions are now met)
+        const unlocked = await db.checkAndUnlockBonus(ctx.user.id);
+        if (!unlocked) {
+          // User still has locked bonus - limit withdrawable amount
+          const withdrawableBalance = Math.max(0, currentBalance - bonusAmount);
+          if (withdrawAmount > withdrawableBalance) {
+            throw new TRPCError({ 
+              code: "BAD_REQUEST", 
+              message: `Bonus not unlocked. Max withdrawable: $${withdrawableBalance.toFixed(2)}. Play more to unlock your bonus.` 
+            });
+          }
+        }
       }
       
       // Deduct from balance and add to frozen
@@ -807,6 +832,13 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const room = await db.getRoomById(input.roomId);
       if (!room) throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
+      // Private room restriction: must have deposited at least once
+      if (room.type === "private") {
+        const user0 = await db.getUserById(ctx.user.id);
+        if (!user0 || parseFloat(user0.totalDeposited) <= 0) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "PRIVATE_ROOM_DEPOSIT_REQUIRED" });
+        }
+      }
       const minBuyIn = parseFloat(room.minBuyIn);
       const maxBuyIn = parseFloat(room.maxBuyIn);
       if (input.buyIn < minBuyIn || input.buyIn > maxBuyIn) {

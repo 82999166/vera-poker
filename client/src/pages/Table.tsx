@@ -690,6 +690,9 @@ export default function Table() {
         // Same account is already seated at this table from another device
         toast.error(t("table.alreadySeatedOtherDevice"));
         setTimeout(() => navigate("/lobby"), 2000);
+      } else if (err.message?.includes("PRIVATE_ROOM_DEPOSIT_REQUIRED")) {
+        toast.error(t("table.privateRoomDepositRequired"));
+        setTimeout(() => navigate("/lobby"), 2000);
       } else {
         toast.error(err.message);
       }

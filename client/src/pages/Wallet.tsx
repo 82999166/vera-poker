@@ -38,6 +38,7 @@ export default function Wallet() {
   const [amountSuffix] = useState(() => String(Math.floor(Math.random() * 99) + 1).padStart(2, "0"));
 
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
+  const { data: bonusData } = trpc.wallet.bonusProgress.useQuery(undefined, { enabled: !!user });
   const { data: txData } = trpc.wallet.transactions.useQuery(
     { page: 1, limit: 50, category: "finance" },
     { enabled: !!user && activeTab === "history" }
@@ -64,7 +65,13 @@ export default function Wallet() {
       setAmount("");
       setAddress("");
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => {
+      if (err.message?.includes("Bonus not unlocked")) {
+        toast.error(t("wallet.bonusWithdrawBlocked"), { duration: 5000 });
+      } else {
+        toast.error(err.message);
+      }
+    },
   });
 
   const handleDeposit = () => {
@@ -142,6 +149,42 @@ export default function Wallet() {
           <p className="text-xs text-muted-foreground mt-1">{t("wallet.frozen")}: ${formatBalance(walletData?.frozenBalance)}</p>
         </div>
       </div>
+
+      {/* Bonus Progress Card */}
+      {bonusData && parseFloat(bonusData.bonusBalance) > 0 && (
+        <div className="px-4 pt-3">
+          <div className="glass rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-gold">🎁 {t("wallet.bonusTitle")}</span>
+              {bonusData.bonusUnlocked ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">{t("wallet.bonusUnlocked")}</span>
+              ) : (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{t("wallet.bonusLocked")}</span>
+              )}
+            </div>
+            <p className="text-lg font-bold text-foreground">${formatBalance(bonusData.bonusBalance)}</p>
+            {!bonusData.bonusUnlocked && (
+              <div className="mt-2 space-y-1.5">
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>{t("wallet.bonusHands")}: {bonusData.validHands}/{bonusData.requiredHands}</span>
+                  <span>{Math.min(100, Math.round((bonusData.validHands / bonusData.requiredHands) * 100))}%</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${Math.min(100, (bonusData.validHands / bonusData.requiredHands) * 100)}%` }} />
+                </div>
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>{t("wallet.bonusWager")}: ${formatBalance(bonusData.validBetVolume)}/${bonusData.requiredWager}</span>
+                  <span>{Math.min(100, Math.round((parseFloat(bonusData.validBetVolume) / parseFloat(bonusData.requiredWager)) * 100))}%</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full rounded-full bg-truth-blue transition-all" style={{ width: `${Math.min(100, (parseFloat(bonusData.validBetVolume) / parseFloat(bonusData.requiredWager)) * 100)}%` }} />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">{t("wallet.bonusHint")}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="px-4 pt-4">

@@ -68,9 +68,16 @@ export async function upsertUser(user: InsertUser): Promise<{ isNew: boolean }> 
   const values: InsertUser = { openId: user.openId };
   const updateSet: Record<string, unknown> = {};
 
-  // Generate invite code for new users
+  // Generate invite code for new users + registration bonus
   if (isNew) {
     values.inviteCode = await generateUniqueInviteCode();
+    // Check registration bonus config
+    const bonusAmount = await getConfigValue("registration_bonus_amount", "0");
+    const bonus = parseFloat(bonusAmount);
+    if (bonus > 0) {
+      (values as any).balance = bonus.toFixed(2);
+      (values as any).bonusBalance = bonus.toFixed(2);
+    }
   }
 
   const textFields = ["name", "email", "loginMethod", "tgId", "tgUsername", "avatar", "nickname", "language"] as const;
@@ -1431,4 +1438,97 @@ export async function getTournamentPrizeLeaderboard(limit = 20) {
   `);
   
   return (results as any)[0] || [];
+}
+
+// ==================== REGISTRATION BONUS ====================
+
+/**
+ * Get user's bonus unlock progress (anti-abuse: only public rooms, >= 3 players per hand)
+ * - validHands: hands in public rooms with >= 3 players
+ * - validBetVolume: bet volume from those valid hands only
+ * - bonusBalance: current bonus balance
+ * - bonusUnlocked: whether bonus has been unlocked
+ */
+export async function getUserBonusProgress(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const user = await getUserById(userId);
+  if (!user) return null;
+
+  // Get unlock conditions from config
+  const minHands = parseInt(await getConfigValue("bonus_unlock_min_hands", "20"));
+  const wagerMultiplier = parseFloat(await getConfigValue("bonus_unlock_wager_multiplier", "3"));
+  const bonusAmount = parseFloat(user.bonusBalance);
+  const requiredWager = bonusAmount * wagerMultiplier;
+
+  // Only count hands from PUBLIC rooms with >= 3 players (anti-abuse)
+  const validStats = await db.execute(sql`
+    SELECT 
+      COUNT(*) as validHands,
+      COALESCE(SUM(hp.betAmount), 0) as validBetVolume
+    FROM hand_players hp
+    INNER JOIN game_hands gh ON hp.handId = gh.id
+    INNER JOIN rooms r ON gh.roomId = r.id
+    WHERE hp.userId = ${userId}
+      AND r.type = 'public'
+      AND (SELECT COUNT(*) FROM hand_players hp2 WHERE hp2.handId = gh.id) >= 3
+  `);
+
+  const stats = (validStats as any)[0]?.[0] || { validHands: 0, validBetVolume: "0" };
+
+  return {
+    bonusBalance: user.bonusBalance,
+    bonusUnlocked: user.bonusUnlocked,
+    validHands: Number(stats.validHands) || 0,
+    validBetVolume: String(stats.validBetVolume || "0"),
+    // Unlock requirements
+    requiredHands: minHands,
+    requiredWager: requiredWager.toFixed(2),
+  };
+}
+
+/**
+ * Check if user meets bonus unlock conditions and unlock if so.
+ * Anti-abuse: only public room hands with >= 3 players count.
+ * Returns true if bonus was just unlocked (or already unlocked).
+ */
+export async function checkAndUnlockBonus(userId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  const user = await getUserById(userId);
+  if (!user) return false;
+  if (user.bonusUnlocked) return true; // already unlocked
+  const bonusAmount = parseFloat(user.bonusBalance);
+  if (bonusAmount <= 0) return true; // no bonus to unlock
+
+  // Get unlock conditions from config
+  const minHands = parseInt(await getConfigValue("bonus_unlock_min_hands", "20"));
+  const wagerMultiplier = parseFloat(await getConfigValue("bonus_unlock_wager_multiplier", "3"));
+  const requiredWager = bonusAmount * wagerMultiplier;
+
+  // Only count hands from PUBLIC rooms with >= 3 players (anti-abuse)
+  const validStats = await db.execute(sql`
+    SELECT 
+      COUNT(*) as validHands,
+      COALESCE(SUM(hp.betAmount), 0) as validBetVolume
+    FROM hand_players hp
+    INNER JOIN game_hands gh ON hp.handId = gh.id
+    INNER JOIN rooms r ON gh.roomId = r.id
+    WHERE hp.userId = ${userId}
+      AND r.type = 'public'
+      AND (SELECT COUNT(*) FROM hand_players hp2 WHERE hp2.handId = gh.id) >= 3
+  `);
+
+  const stats = (validStats as any)[0]?.[0] || { validHands: 0, validBetVolume: "0" };
+  const userHands = Number(stats.validHands) || 0;
+  const userWager = parseFloat(String(stats.validBetVolume || "0"));
+
+  if (userHands >= minHands && userWager >= requiredWager) {
+    // Unlock: set bonusUnlocked = true
+    await db.update(users).set({ bonusUnlocked: true }).where(eq(users.id, userId));
+    return true;
+  }
+  return false;
 }

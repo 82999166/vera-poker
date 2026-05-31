@@ -24,6 +24,8 @@ export const users = mysqlTable("users", {
   // Balance
   balance: decimal("balance", { precision: 18, scale: 2 }).default("0.00").notNull(),
   frozenBalance: decimal("frozenBalance", { precision: 18, scale: 2 }).default("0.00").notNull(),
+  bonusBalance: decimal("bonusBalance", { precision: 18, scale: 2 }).default("0.00").notNull(),
+  bonusUnlocked: boolean("bonusUnlocked").default(false).notNull(),
   // Agent
   invitedBy: int("invitedBy"), // user id of inviter (level 1 agent)
   inviteCode: varchar("inviteCode", { length: 32 }).unique(),

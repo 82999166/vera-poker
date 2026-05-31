@@ -3913,6 +3913,9 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
         )}
       </div>
 
+      {/* Registration Bonus Config */}
+      <RegistrationBonusConfig at={at} configs={configs} saveSystemSetting={saveSystemSetting} />
+
       {/* Supported Languages */}
       <div className="glass rounded-xl p-4">
         <h3 className="text-sm font-semibold mb-3">{at("settings.supportedLangs")}</h3>
@@ -5352,6 +5355,127 @@ function LogsPanel({ at }: { at: (k: string) => string }) {
             >
               →
             </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ==================== REGISTRATION BONUS CONFIG ====================
+function RegistrationBonusConfig({ at, configs, saveSystemSetting }: { at: (k: string) => string; configs: any; saveSystemSetting: (key: string, value: string) => void }) {
+  const [bonusAmount, setBonusAmount] = useState("0");
+  const [minHands, setMinHands] = useState("20");
+  const [wagerMultiplier, setWagerMultiplier] = useState("3");
+
+  useEffect(() => {
+    if (configs) {
+      const configMap = new Map((configs as any[])?.map((c: any) => [c.key, c.value]) ?? []);
+      setBonusAmount(configMap.get("registration_bonus_amount") ?? "0");
+      setMinHands(configMap.get("bonus_unlock_min_hands") ?? "20");
+      setWagerMultiplier(configMap.get("bonus_unlock_wager_multiplier") ?? "3");
+    }
+  }, [configs]);
+
+  const saveBonusSetting = (key: string, value: string) => {
+    saveSystemSetting(key, value);
+  };
+
+  const bonusNum = parseFloat(bonusAmount) || 0;
+  const multiplier = parseFloat(wagerMultiplier) || 3;
+  const requiredWager = (bonusNum * multiplier).toFixed(2);
+
+  return (
+    <div className="glass rounded-xl p-4">
+      <h3 className="text-sm font-semibold mb-3">🎁 {at("settings.registrationBonus") || "注册奖金设置"}</h3>
+      <p className="text-xs text-muted-foreground mb-4">
+        {at("settings.registrationBonusDesc") || "新用户注册自动发放奖金，需满足条件后才能提现（防薅羊毛）"}
+      </p>
+      <div className="space-y-3">
+        {/* Bonus Amount */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            {at("settings.bonusAmount") || "注册赠送金额 (USDT)"}
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={bonusAmount}
+              onChange={(e) => setBonusAmount(e.target.value)}
+              placeholder="0"
+              min="0"
+              step="0.5"
+              className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+            <button onClick={() => saveBonusSetting("registration_bonus_amount", bonusAmount)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
+              <Save className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {at("settings.bonusAmountHint") || "设为 0 则不发放注册奖金"}
+          </p>
+        </div>
+
+        {/* Min Hands */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            {at("settings.bonusMinHands") || "解锁最低有效手数"}
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={minHands}
+              onChange={(e) => setMinHands(e.target.value)}
+              placeholder="20"
+              min="1"
+              className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+            <button onClick={() => saveBonusSetting("bonus_unlock_min_hands", minHands)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
+              <Save className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {at("settings.bonusMinHandsHint") || "仅公共房间 ≥3人牌局计入有效手数（私房不计入）"}
+          </p>
+        </div>
+
+        {/* Wager Multiplier */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            {at("settings.bonusWagerMultiplier") || "解锁流水倍数"}
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={wagerMultiplier}
+              onChange={(e) => setWagerMultiplier(e.target.value)}
+              placeholder="3"
+              min="1"
+              step="0.5"
+              className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+            <button onClick={() => saveBonusSetting("bonus_unlock_wager_multiplier", wagerMultiplier)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
+              <Save className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {at("settings.bonusWagerHint") || `需下注流水 ≥ 奖金 × 倍数才能解锁提现`}
+          </p>
+        </div>
+
+        {/* Summary */}
+        {bonusNum > 0 && (
+          <div className="mt-3 rounded-lg border border-gold/30 bg-gold/5 p-3">
+            <p className="text-xs font-medium text-gold mb-1">
+              {at("settings.bonusSummary") || "当前规则摘要"}
+            </p>
+            <ul className="text-[11px] text-muted-foreground space-y-1">
+              <li>• {at("settings.bonusSummary1") || "注册赠送"}: <span className="text-gold font-bold">${bonusAmount} USDT</span></li>
+              <li>• {at("settings.bonusSummary2") || "解锁条件"}: ≥{minHands} {at("settings.bonusSummary2b") || "有效手数"} + ≥${requiredWager} {at("settings.bonusSummary2c") || "有效流水"}</li>
+              <li>• {at("settings.bonusSummary3") || "防薅机制"}: {at("settings.bonusSummary3b") || "仅公共房 ≥3人牌局计入，私房不计入"}</li>
+              <li>• {at("settings.bonusSummary4") || "未充值用户不能进入私人房间"}</li>
+            </ul>
           </div>
         )}
       </div>
