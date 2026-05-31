@@ -170,6 +170,65 @@ export function registerTelegramRoutes(app: Express) {
             return;
           }
         } else {
+          // Try DB-based welcome template first (multi-language with image+buttons)
+          try {
+            const { getWelcomeTemplateByLanguage } = await import("../marketing");
+            const welcomeTemplate = await getWelcomeTemplateByLanguage(userLang || "en");
+            if (welcomeTemplate) {
+              // Build inline keyboard from template buttons
+              let inlineKeyboard: any[][] = [];
+              if (welcomeTemplate.buttons && Array.isArray(welcomeTemplate.buttons) && welcomeTemplate.buttons.length > 0) {
+                const rowMap = new Map<number, any[]>();
+                for (const btn of welcomeTemplate.buttons as Array<{ text: string; url: string; row?: number }>) {
+                  const row = btn.row ?? 0;
+                  if (!rowMap.has(row)) rowMap.set(row, []);
+                  // Check if URL looks like a web_app URL
+                  if (btn.url.includes("t.me") || btn.url.startsWith("http")) {
+                    rowMap.get(row)!.push({ text: btn.text, url: btn.url });
+                  } else {
+                    rowMap.get(row)!.push({ text: btn.text, web_app: { url: btn.url } });
+                  }
+                }
+                inlineKeyboard = [...rowMap.entries()].sort((a, b) => a[0] - b[0]).map(([, btns]) => btns);
+              } else if (miniAppUrl) {
+                // Default: add a "Play Now" button opening the Mini App
+                inlineKeyboard = [[{ text: botTexts.button, web_app: { url: miniAppUrl } }]];
+              }
+
+              if (welcomeTemplate.imageUrl) {
+                // Send photo with caption
+                await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    chat_id: message.chat.id,
+                    photo: welcomeTemplate.imageUrl,
+                    caption: welcomeTemplate.content,
+                    parse_mode: "HTML",
+                    reply_markup: inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined,
+                  }),
+                });
+              } else {
+                // Send text message
+                await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    chat_id: message.chat.id,
+                    text: welcomeTemplate.content,
+                    parse_mode: "HTML",
+                    reply_markup: inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined,
+                  }),
+                });
+              }
+              res.json({ ok: true });
+              return;
+            }
+          } catch (e) {
+            console.warn("[Telegram] Welcome template lookup failed, falling back to hardcoded:", e);
+          }
+
+          // Fallback to hardcoded welcome text
           replyText = botTexts.welcome;
           if (miniAppUrl) {
             const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;

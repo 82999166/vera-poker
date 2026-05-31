@@ -173,6 +173,35 @@ async function startServer() {
     }
   });
 
+  // Marketing image upload endpoint (for message templates, welcome messages, etc.)
+  app.post("/api/upload/marketing", async (req, res) => {
+    try {
+      let isAuthorized = false;
+      const cookies = req.headers.cookie || "";
+      const adminCookieMatch = cookies.match(/vera_admin_session=([^;]+)/);
+      if (adminCookieMatch) {
+        const { verifyAdminSession } = await import("../staffAuth");
+        const decoded = verifyAdminSession(decodeURIComponent(adminCookieMatch[1]));
+        if (decoded) isAuthorized = true;
+      }
+      if (!isAuthorized) {
+        const user = await sdk.authenticateRequest(req).catch(() => null);
+        if (user && ["admin", "super_admin"].includes((user as any).role)) isAuthorized = true;
+      }
+      if (!isAuthorized) return res.status(403).json({ error: "Forbidden" });
+      const { fileName, fileData, contentType } = req.body;
+      if (!fileName || !fileData) return res.status(400).json({ error: "fileName and fileData required" });
+      const { storagePut } = await import("../storage");
+      const buffer = Buffer.from(fileData, "base64");
+      const key = `marketing/${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { url } = await storagePut(key, buffer, contentType || "image/jpeg");
+      res.json({ url });
+    } catch (err: any) {
+      console.error("[upload/marketing]", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

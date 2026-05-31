@@ -2,13 +2,14 @@
  * TG Marketing System Admin Panel
  * Tabs: Broadcast | Auto Reply | Fission | Bot Users
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { formatBalance } from "@/lib/utils";
 import {
   Plus, Trash2, Send, X, Play, Pause, Copy, Check,
-  Megaphone, MessageSquare, Share2, RefreshCw, Eye, Users, Search
+  Megaphone, MessageSquare, Share2, RefreshCw, Eye, Users, Search,
+  Upload, FileText, Globe, Filter, Image as ImageIcon, Edit
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
-type MarketingTab = "broadcast" | "autoReply" | "fission" | "botUsers";
+type MarketingTab = "broadcast" | "autoReply" | "fission" | "botUsers" | "templates" | "welcome";
 
 // ==================== BROADCAST STATUS BADGE ====================
 function BroadcastStatusBadge({ status }: { status: string }) {
@@ -137,8 +138,9 @@ function BroadcastPanel() {
     title: "", content: "", imageUrl: "",
     buttons: [] as Array<{ text: string; url: string; row?: number }>,
     targetType: "all" as "all" | "active" | "deposited" | "custom",
+    targetFilter: undefined as any,
   });
-  const resetForm = () => setForm({ title: "", content: "", imageUrl: "", buttons: [], targetType: "all" });
+  const resetForm = () => setForm({ title: "", content: "", imageUrl: "", buttons: [], targetType: "all", targetFilter: undefined });
 
   const targetTypeLabels: Record<string, string> = {
     all: "全部用户",
@@ -233,10 +235,7 @@ function BroadcastPanel() {
                 <Textarea value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
                   placeholder="消息正文，支持 <b>加粗</b>、<i>斜体</i>、<a href='...'>链接</a>" rows={4} />
               </div>
-              <div>
-                <Label>图片 URL（可选，发送图片+说明）</Label>
-                <Input value={form.imageUrl} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="https://..." />
-              </div>
+              <ImageUploader value={form.imageUrl} onChange={url => setForm(f => ({ ...f, imageUrl: url }))} />
               <ButtonEditor buttons={form.buttons} onChange={buttons => setForm(f => ({ ...f, buttons }))} />
               <div>
                 <Label>目标用户</Label>
@@ -249,6 +248,7 @@ function BroadcastPanel() {
                   </SelectContent>
                 </Select>
               </div>
+              <TargetFilterEditor filter={form.targetFilter} onChange={f => setForm(prev => ({ ...prev, targetFilter: f }))} targetType={form.targetType} />
             </div>
             {/* Right: Preview */}
             <div>
@@ -258,9 +258,12 @@ function BroadcastPanel() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>取消</Button>
             <Button onClick={() => createMutation.mutate({
-              ...form,
+              title: form.title,
+              content: form.content,
+              targetType: form.targetType,
               imageUrl: form.imageUrl || undefined,
               buttons: form.buttons.length > 0 ? form.buttons.filter(b => b.text && b.url) : undefined,
+              targetFilter: form.targetFilter || undefined,
             })}
               disabled={!form.title || !form.content || createMutation.isPending}>
               {createMutation.isPending ? "创建中..." : "创建任务"}
@@ -725,12 +728,497 @@ function BotUsersPanel() {
   );
 }
 
+// ==================== IMAGE UPLOADER COMPONENT ====================
+function ImageUploader({ value, onChange, label }: { value: string; onChange: (url: string) => void; label?: string }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = useCallback(async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("请选择图片文件");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("图片大小不能超过 5MB");
+      return;
+    }
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch("/api/upload/marketing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, fileData: base64, contentType: file.type }),
+      });
+      if (!res.ok) throw new Error("上传失败");
+      const { url } = await res.json();
+      onChange(url);
+      toast.success("图片上传成功");
+    } catch (e: any) {
+      toast.error(e.message || "上传失败");
+    } finally {
+      setUploading(false);
+    }
+  }, [onChange]);
+
+  return (
+    <div className="space-y-1.5">
+      <Label>{label || "图片（可选）"}</Label>
+      <div className="flex gap-2">
+        <Input className="flex-1" value={value} onChange={e => onChange(e.target.value)} placeholder="图片 URL 或点击上传" />
+        <Button type="button" size="sm" variant="outline" disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}>
+          {uploading ? "上传中..." : <><Upload className="w-3 h-3 mr-1" />上传</>}
+        </Button>
+      </div>
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ""; }} />
+      {value && (
+        <div className="rounded overflow-hidden border border-border bg-secondary/30 max-w-[200px]">
+          <img src={value} alt="" className="w-full h-20 object-cover" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">支持 JPG/PNG/GIF，最大 5MB。建议尺寸：800×400px</p>
+    </div>
+  );
+}
+
+// ==================== TARGET FILTER EDITOR ====================
+function TargetFilterEditor({ filter, onChange, targetType }: {
+  filter: any;
+  onChange: (f: any) => void;
+  targetType: string;
+}) {
+  const [showFilter, setShowFilter] = useState(!!filter && Object.keys(filter).length > 0);
+  const estimateQuery = trpc.marketing.estimateTargetCount.useQuery(
+    { targetType: targetType as any, targetFilter: filter || undefined },
+    { enabled: showFilter, refetchOnWindowFocus: false }
+  );
+
+  const languageOptions = [
+    { value: "en", label: "English" },
+    { value: "zh", label: "简体中文" },
+    { value: "zh-hant", label: "繁體中文" },
+    { value: "ja", label: "日本語" },
+    { value: "ko", label: "한국어" },
+    { value: "ar", label: "العربية" },
+    { value: "es", label: "Español" },
+    { value: "pt", label: "Português" },
+    { value: "ru", label: "Русский" },
+    { value: "vi", label: "Tiếng Việt" },
+    { value: "th", label: "ไทย" },
+    { value: "id", label: "Bahasa" },
+  ];
+
+  if (!showFilter) {
+    return (
+      <Button type="button" size="sm" variant="outline" onClick={() => setShowFilter(true)}>
+        <Filter className="w-3 h-3 mr-1" />高级筛选
+      </Button>
+    );
+  }
+
+  return (
+    <div className="border border-border rounded-lg p-3 space-y-2 bg-secondary/20">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-medium">高级筛选条件</Label>
+        <div className="flex items-center gap-2">
+          {estimateQuery.data !== undefined && (
+            <Badge variant="secondary" className="text-xs">预估 {estimateQuery.data.count} 人</Badge>
+          )}
+          <Button type="button" size="sm" variant="ghost" onClick={() => { setShowFilter(false); onChange(undefined); }}>
+            <X className="w-3 h-3" />
+          </Button>
+        </div>
+      </div>
+      {/* Language filter */}
+      <div>
+        <Label className="text-xs">语言</Label>
+        <div className="flex flex-wrap gap-1 mt-1">
+          {languageOptions.map(lang => (
+            <button key={lang.value} type="button"
+              className={`px-2 py-0.5 text-xs rounded border transition-colors ${
+                filter?.languages?.includes(lang.value)
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-secondary/50 border-border hover:border-primary/50"
+              }`}
+              onClick={() => {
+                const current = filter?.languages || [];
+                const updated = current.includes(lang.value)
+                  ? current.filter((l: string) => l !== lang.value)
+                  : [...current, lang.value];
+                onChange({ ...filter, languages: updated.length > 0 ? updated : undefined });
+              }}>
+              {lang.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Deposit range */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs">最低充值</Label>
+          <Input type="number" className="h-7 text-xs" placeholder="0" value={filter?.minDeposit || ""}
+            onChange={e => onChange({ ...filter, minDeposit: e.target.value ? Number(e.target.value) : undefined })} />
+        </div>
+        <div>
+          <Label className="text-xs">最高充值</Label>
+          <Input type="number" className="h-7 text-xs" placeholder="不限" value={filter?.maxDeposit || ""}
+            onChange={e => onChange({ ...filter, maxDeposit: e.target.value ? Number(e.target.value) : undefined })} />
+        </div>
+      </div>
+      {/* Games played */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs">最少游戏局数</Label>
+          <Input type="number" className="h-7 text-xs" placeholder="0" value={filter?.minGamesPlayed || ""}
+            onChange={e => onChange({ ...filter, minGamesPlayed: e.target.value ? Number(e.target.value) : undefined })} />
+        </div>
+        <div>
+          <Label className="text-xs">最多游戏局数</Label>
+          <Input type="number" className="h-7 text-xs" placeholder="不限" value={filter?.maxGamesPlayed || ""}
+            onChange={e => onChange({ ...filter, maxGamesPlayed: e.target.value ? Number(e.target.value) : undefined })} />
+        </div>
+      </div>
+      {/* Registration date */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs">注册时间（起）</Label>
+          <Input type="date" className="h-7 text-xs" value={filter?.registeredAfter || ""}
+            onChange={e => onChange({ ...filter, registeredAfter: e.target.value || undefined })} />
+        </div>
+        <div>
+          <Label className="text-xs">注册时间（止）</Label>
+          <Input type="date" className="h-7 text-xs" value={filter?.registeredBefore || ""}
+            onChange={e => onChange({ ...filter, registeredBefore: e.target.value || undefined })} />
+        </div>
+      </div>
+      {/* Last active */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs">最后活跃（起）</Label>
+          <Input type="date" className="h-7 text-xs" value={filter?.lastActiveAfter || ""}
+            onChange={e => onChange({ ...filter, lastActiveAfter: e.target.value || undefined })} />
+        </div>
+        <div>
+          <Label className="text-xs">最后活跃（止）</Label>
+          <Input type="date" className="h-7 text-xs" value={filter?.lastActiveBefore || ""}
+            onChange={e => onChange({ ...filter, lastActiveBefore: e.target.value || undefined })} />
+        </div>
+      </div>
+      {/* Bonus status */}
+      <div>
+        <Label className="text-xs">奖金状态</Label>
+        <Select value={filter?.bonusStatus || "any"} onValueChange={v => onChange({ ...filter, bonusStatus: v === "any" ? undefined : v })}>
+          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="any">不限</SelectItem>
+            <SelectItem value="locked">有锁定奖金</SelectItem>
+            <SelectItem value="unlocked">奖金已解锁</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
+// ==================== MESSAGE TEMPLATES PANEL ====================
+function TemplatesPanel() {
+  const { data: templates, isLoading, refetch } = trpc.marketing.listTemplates.useQuery();
+  const createMutation = trpc.marketing.createTemplate.useMutation({
+    onSuccess: () => { toast.success("模板已创建"); setShowCreate(false); refetch(); resetForm(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteMutation = trpc.marketing.deleteTemplate.useMutation({
+    onSuccess: () => { toast.success("已删除"); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateMutation = trpc.marketing.updateTemplate.useMutation({
+    onSuccess: () => { toast.success("模板已更新"); setEditingId(null); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    name: "", content: "", imageUrl: "",
+    buttons: [] as Array<{ text: string; url: string; row?: number }>,
+    category: "general",
+  });
+  const resetForm = () => setForm({ name: "", content: "", imageUrl: "", buttons: [], category: "general" });
+
+  const startEdit = (tpl: any) => {
+    setForm({
+      name: tpl.name,
+      content: tpl.content,
+      imageUrl: tpl.imageUrl || "",
+      buttons: tpl.buttons || [],
+      category: tpl.category || "general",
+    });
+    setEditingId(tpl.id);
+    setShowCreate(true);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">消息模板</h3>
+          <p className="text-sm text-muted-foreground">可复用的消息模板，群发时可直接选用</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-4 h-4" /></Button>
+          <Button size="sm" onClick={() => { resetForm(); setEditingId(null); setShowCreate(true); }}><Plus className="w-4 h-4 mr-1" />新建模板</Button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-8 text-muted-foreground">加载中...</div>
+      ) : !templates?.length ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p>暂无消息模板</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {templates.map((tpl) => (
+            <div key={tpl.id} className="border border-border rounded-lg p-3 bg-card">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div>
+                  <span className="font-medium text-sm">{tpl.name}</span>
+                  <Badge variant="outline" className="ml-2 text-xs">{tpl.category}</Badge>
+                </div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => startEdit(tpl)}><Edit className="w-3 h-3" /></Button>
+                  <Button size="sm" variant="ghost" className="text-destructive"
+                    onClick={() => { if (confirm("确认删除？")) deleteMutation.mutate({ id: tpl.id }); }}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+              <MessagePreview content={tpl.content} imageUrl={tpl.imageUrl || undefined} buttons={tpl.buttons || []} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={showCreate} onOpenChange={v => { if (!v) { setShowCreate(false); setEditingId(null); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editingId ? "编辑模板" : "新建消息模板"}</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div>
+                <Label>模板名称</Label>
+                <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="如：活动推广模板" />
+              </div>
+              <div>
+                <Label>消息内容（支持 HTML）</Label>
+                <Textarea value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                  placeholder="消息正文，支持 <b>加粗</b>、<i>斜体</i>、<a href='...'>链接</a>" rows={4} />
+              </div>
+              <ImageUploader value={form.imageUrl} onChange={url => setForm(f => ({ ...f, imageUrl: url }))} />
+              <ButtonEditor buttons={form.buttons} onChange={buttons => setForm(f => ({ ...f, buttons }))} />
+              <div>
+                <Label>分类</Label>
+                <Input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="general" />
+              </div>
+            </div>
+            <div>
+              <MessagePreview content={form.content} imageUrl={form.imageUrl || undefined} buttons={form.buttons} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCreate(false); setEditingId(null); }}>取消</Button>
+            <Button onClick={() => {
+              if (editingId) {
+                updateMutation.mutate({
+                  id: editingId,
+                  name: form.name,
+                  content: form.content,
+                  imageUrl: form.imageUrl || null,
+                  buttons: form.buttons.length > 0 ? form.buttons.filter(b => b.text && b.url) : null,
+                  category: form.category,
+                });
+              } else {
+                createMutation.mutate({
+                  ...form,
+                  imageUrl: form.imageUrl || undefined,
+                  buttons: form.buttons.length > 0 ? form.buttons.filter(b => b.text && b.url) : undefined,
+                });
+              }
+            }} disabled={!form.name || !form.content || createMutation.isPending || updateMutation.isPending}>
+              {(createMutation.isPending || updateMutation.isPending) ? "保存中..." : editingId ? "更新模板" : "创建模板"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ==================== WELCOME TEMPLATES PANEL ====================
+function WelcomePanel() {
+  const { data: templates, isLoading, refetch } = trpc.marketing.listWelcomeTemplates.useQuery();
+  const createMutation = trpc.marketing.createWelcomeTemplate.useMutation({
+    onSuccess: () => { toast.success("欢迎消息已创建"); setShowCreate(false); refetch(); resetForm(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateMutation = trpc.marketing.updateWelcomeTemplate.useMutation({
+    onSuccess: () => { toast.success("已更新"); setEditingId(null); setShowCreate(false); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteMutation = trpc.marketing.deleteWelcomeTemplate.useMutation({
+    onSuccess: () => { toast.success("已删除"); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    language: "en", content: "", imageUrl: "",
+    buttons: [] as Array<{ text: string; url: string; row?: number }>,
+    isActive: true,
+  });
+  const resetForm = () => setForm({ language: "en", content: "", imageUrl: "", buttons: [], isActive: true });
+
+  const languageLabels: Record<string, string> = {
+    en: "English", zh: "简体中文", "zh-hant": "繁體中文", "zh-tw": "繁體中文",
+    ja: "日本語", ko: "한국어", ar: "العربية", es: "Español",
+    pt: "Português", ru: "Русский", vi: "Tiếng Việt", th: "ไทย", id: "Bahasa Indonesia",
+  };
+
+  const startEdit = (tpl: any) => {
+    setForm({
+      language: tpl.language,
+      content: tpl.content,
+      imageUrl: tpl.imageUrl || "",
+      buttons: tpl.buttons || [],
+      isActive: tpl.isActive,
+    });
+    setEditingId(tpl.id);
+    setShowCreate(true);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">多语言欢迎消息</h3>
+          <p className="text-sm text-muted-foreground">用户首次关注 Bot 时，根据 TG 语言自动发送对应欢迎消息（带图片+按钮）</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-4 h-4" /></Button>
+          <Button size="sm" onClick={() => { resetForm(); setEditingId(null); setShowCreate(true); }}><Plus className="w-4 h-4 mr-1" />添加语言</Button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-8 text-muted-foreground">加载中...</div>
+      ) : !templates?.length ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Globe className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p>暂无欢迎消息配置</p>
+          <p className="text-xs mt-1">添加后，新用户首次 /start 将收到对应语言的图文欢迎消息</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {templates.map((tpl) => (
+            <div key={tpl.id} className={`border rounded-lg p-3 bg-card ${tpl.isActive ? "border-border" : "border-border/50 opacity-60"}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant={tpl.isActive ? "default" : "secondary"}>{languageLabels[tpl.language] || tpl.language}</Badge>
+                  {!tpl.isActive && <span className="text-xs text-muted-foreground">已禁用</span>}
+                </div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => startEdit(tpl)}><Edit className="w-3 h-3" /></Button>
+                  <Button size="sm" variant="ghost" className="text-destructive"
+                    onClick={() => { if (confirm("确认删除？")) deleteMutation.mutate({ id: tpl.id }); }}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+              <MessagePreview content={tpl.content} imageUrl={tpl.imageUrl || undefined} buttons={tpl.buttons || []} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={showCreate} onOpenChange={v => { if (!v) { setShowCreate(false); setEditingId(null); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editingId ? "编辑欢迎消息" : "添加欢迎消息"}</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div>
+                <Label>语言</Label>
+                <Select value={form.language} onValueChange={v => setForm(f => ({ ...f, language: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(languageLabels).map(([code, label]) => (
+                      <SelectItem key={code} value={code}>{label} ({code})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>欢迎文案（支持 HTML）</Label>
+                <Textarea value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                  placeholder="欢迎消息内容，支持 HTML 格式" rows={4} />
+              </div>
+              <ImageUploader value={form.imageUrl} onChange={url => setForm(f => ({ ...f, imageUrl: url }))} label="欢迎图片" />
+              <ButtonEditor buttons={form.buttons} onChange={buttons => setForm(f => ({ ...f, buttons }))} />
+              <div className="flex items-center gap-2">
+                <Switch checked={form.isActive} onCheckedChange={v => setForm(f => ({ ...f, isActive: v }))} />
+                <Label>启用</Label>
+              </div>
+            </div>
+            <div>
+              <MessagePreview content={form.content} imageUrl={form.imageUrl || undefined} buttons={form.buttons} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCreate(false); setEditingId(null); }}>取消</Button>
+            <Button onClick={() => {
+              if (editingId) {
+                updateMutation.mutate({
+                  id: editingId,
+                  language: form.language,
+                  content: form.content,
+                  imageUrl: form.imageUrl || null,
+                  buttons: form.buttons.length > 0 ? form.buttons.filter(b => b.text && b.url) : null,
+                  isActive: form.isActive,
+                });
+              } else {
+                createMutation.mutate({
+                  ...form,
+                  imageUrl: form.imageUrl || undefined,
+                  buttons: form.buttons.length > 0 ? form.buttons.filter(b => b.text && b.url) : undefined,
+                });
+              }
+            }} disabled={!form.content || createMutation.isPending || updateMutation.isPending}>
+              {(createMutation.isPending || updateMutation.isPending) ? "保存中..." : editingId ? "更新" : "创建"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ==================== MAIN MARKETING PANEL ====================
 export function MarketingPanel({ at }: { at: (k: string) => string }) {
   const [activeTab, setActiveTab] = useState<MarketingTab>("broadcast");
 
   const tabs: { key: MarketingTab; icon: any; label: string }[] = [
     { key: "broadcast", icon: Megaphone, label: "Bot 群发" },
+    { key: "templates", icon: FileText, label: "消息模板" },
+    { key: "welcome", icon: Globe, label: "欢迎消息" },
     { key: "autoReply", icon: MessageSquare, label: "自动回复" },
     { key: "fission", icon: Share2, label: "裂变活动" },
     { key: "botUsers", icon: Users, label: "Bot 用户" },
@@ -739,11 +1227,11 @@ export function MarketingPanel({ at }: { at: (k: string) => string }) {
   return (
     <div className="space-y-4">
       {/* Tab Navigation */}
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
         {tabs.map(tab => (
           <button key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.key
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -757,6 +1245,8 @@ export function MarketingPanel({ at }: { at: (k: string) => string }) {
       {/* Tab Content */}
       <div className="pt-2">
         {activeTab === "broadcast" && <BroadcastPanel />}
+        {activeTab === "templates" && <TemplatesPanel />}
+        {activeTab === "welcome" && <WelcomePanel />}
         {activeTab === "autoReply" && <AutoReplyPanel />}
         {activeTab === "fission" && <FissionPanel />}
         {activeTab === "botUsers" && <BotUsersPanel />}

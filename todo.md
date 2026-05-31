@@ -299,3 +299,25 @@
 - [x] App.tsx MobileContainer 内层从 overflow-hidden 改为 overflow-y-auto（允许页面垂直滚动）
 - [x] 保留 overscroll-behavior: none（CSS 层面防止 rubber-banding，不阻止正常滚动）
 - [x] TypeScript 零错误，152 个测试全部通过
+
+## 2026-06-01 营销系统三项增强
+
+### 需求2：消息模板 - 图片上传 + 按钮编辑
+- [x] 后端：新增图片上传接口（/api/upload/marketing，S3 storagePut）
+- [x] 前端：群发编辑器中 imageUrl 输入框改为 ImageUploader 组件（上传按钮+URL输入双模式）
+- [x] 数据库：新增 message_templates 表（可保存复用的消息模板）
+- [x] 前端：消息模板管理 Tab（创建/编辑/删除模板）
+- [x] 前端：模板编辑器包含图片上传、文案编辑、多按钮 inline keyboard 配置
+
+### 需求3：群发增加玩家筛选功能
+- [x] 数据库：broadcastTasks 增加 targetFilter JSON 字段（组合筛选条件）
+- [x] 后端：resolveBroadcastTargetsWithFilter 支持动态筛选条件（语言/注册时间/充值金额/活跃时间/游戏局数/奖金状态）
+- [x] 前端：群发编辑器增加 TargetFilterEditor 组件（多维度组合筛选）
+- [x] 前端：实时预估目标人数显示（estimateTargetCount 接口）
+
+### 需求1：首次关注多语言欢迎消息
+- [x] 数据库：新增 welcome_templates 表（language, content, imageUrl, buttons JSON, isActive）
+- [x] 后端：管理后台 CRUD 接口（每种语言独立配置欢迎消息）
+- [x] 前端：管理后台「欢迎消息」配置面板（WelcomePanel，多语言列表+图片上传+按钮编辑）
+- [x] 后端：webhook /start 逻辑改造 - 读取 language_code → getWelcomeTemplateByLanguage → sendPhoto/sendMessage 带图片+caption+buttons
+- [x] 后端：语言 fallback 逻辑（精确匹配 → 前缀匹配 → en 兜底）

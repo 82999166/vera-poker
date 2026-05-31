@@ -456,6 +456,18 @@ export const broadcastTasks = mysqlTable("broadcast_tasks", {
   // Target: "all" = all users with tgId, "active" = users active in last 30 days, "custom" = specific user IDs
   targetType: mysqlEnum("targetType", ["all", "active", "deposited", "custom"]).default("all").notNull(),
   targetUserIds: json("targetUserIds").$type<number[]>(), // Used when targetType = "custom"
+  targetFilter: json("targetFilter").$type<{
+    languages?: string[]; // Filter by user language
+    registeredAfter?: string; // ISO date string
+    registeredBefore?: string;
+    lastActiveAfter?: string;
+    lastActiveBefore?: string;
+    minDeposit?: number;
+    maxDeposit?: number;
+    minGamesPlayed?: number;
+    maxGamesPlayed?: number;
+    bonusStatus?: "locked" | "unlocked" | "any";
+  }>(), // Advanced filter conditions
   // Scheduling
   scheduledAt: timestamp("scheduledAt"), // null = send immediately
   // Status tracking
@@ -583,3 +595,33 @@ export const riskAlerts = mysqlTable("risk_alerts", {
 });
 export type RiskAlert = typeof riskAlerts.$inferSelect;
 export type InsertRiskAlert = typeof riskAlerts.$inferInsert;
+
+// ==================== MESSAGE TEMPLATES (可复用消息模板) ====================
+export const messageTemplates = mysqlTable("message_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(), // Template name for identification
+  content: text("content").notNull(), // Message text (supports HTML)
+  imageUrl: text("imageUrl"), // Optional image URL
+  buttons: json("buttons").$type<Array<{ text: string; url: string; row?: number }>>(), // Inline keyboard buttons
+  category: varchar("category", { length: 64 }).default("general"), // Category for organization
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type MessageTemplate = typeof messageTemplates.$inferSelect;
+export type InsertMessageTemplate = typeof messageTemplates.$inferInsert;
+
+// ==================== WELCOME TEMPLATES (多语言欢迎消息) ====================
+export const welcomeTemplates = mysqlTable("welcome_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  language: varchar("language", { length: 10 }).notNull(), // e.g. "en", "zh", "zh-tw", "ar", "ja"
+  content: text("content").notNull(), // Welcome message text
+  imageUrl: text("imageUrl"), // Optional welcome image
+  buttons: json("buttons").$type<Array<{ text: string; url: string; row?: number }>>(), // Inline keyboard buttons
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type WelcomeTemplate = typeof welcomeTemplates.$inferSelect;
+export type InsertWelcomeTemplate = typeof welcomeTemplates.$inferInsert;

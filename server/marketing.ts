@@ -6,11 +6,12 @@ import { eq, desc, asc, and, gte, sql, inArray } from "drizzle-orm";
 import { getDb } from "./db";
 import {
   broadcastTasks, autoReplyRules, fissionCampaigns, fissionClicks,
-  users, transactions,
+  users, transactions, messageTemplates, welcomeTemplates,
   type BroadcastTask, type InsertBroadcastTask,
   type AutoReplyRule, type InsertAutoReplyRule,
   type FissionCampaign, type InsertFissionCampaign,
   type FissionClick,
+  type InsertMessageTemplate, type InsertWelcomeTemplate,
 } from "../drizzle/schema";
 import * as db from "./db";
 import { nanoid } from "nanoid";
@@ -112,7 +113,8 @@ export async function executeBroadcast(taskId: number): Promise<void> {
     return;
   }
 
-  const targets = await resolveBroadcastTargets(task);
+  // Use enhanced filter if targetFilter is set, otherwise fallback to basic
+  const targets = task.targetFilter ? await resolveBroadcastTargetsWithFilter(task) : await resolveBroadcastTargets(task);
   await updateBroadcastTask(taskId, {
     status: "sending",
     totalCount: targets.length,
@@ -385,4 +387,175 @@ export async function getFissionClicks(campaignId: number, limit = 50) {
     .where(eq(fissionClicks.campaignId, campaignId))
     .orderBy(desc(fissionClicks.createdAt))
     .limit(limit);
+}
+
+
+// ==================== MESSAGE TEMPLATES ====================
+
+export async function listMessageTemplates() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  return dbInstance.select().from(messageTemplates).orderBy(desc(messageTemplates.updatedAt));
+}
+
+export async function createMessageTemplate(data: Omit<InsertMessageTemplate, "id" | "createdAt" | "updatedAt">) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  const [result] = await dbInstance.insert(messageTemplates).values(data);
+  return result.insertId as number;
+}
+
+export async function updateMessageTemplate(id: number, data: Partial<InsertMessageTemplate>) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return;
+  await dbInstance.update(messageTemplates).set(data).where(eq(messageTemplates.id, id));
+}
+
+export async function deleteMessageTemplate(id: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return;
+  await dbInstance.delete(messageTemplates).where(eq(messageTemplates.id, id));
+}
+
+// ==================== WELCOME TEMPLATES ====================
+
+export async function listWelcomeTemplates() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  return dbInstance.select().from(welcomeTemplates).orderBy(asc(welcomeTemplates.language));
+}
+
+export async function getWelcomeTemplateByLanguage(language: string): Promise<typeof welcomeTemplates.$inferSelect | null> {
+  const dbInstance = await getDb();
+  if (!dbInstance) return null;
+  // Try exact match first, then fallback to language prefix (e.g. "zh-hans" -> "zh")
+  const rows = await dbInstance.select().from(welcomeTemplates)
+    .where(and(eq(welcomeTemplates.language, language), eq(welcomeTemplates.isActive, true)));
+  if (rows.length > 0) return rows[0];
+  // Try prefix match (e.g. "zh-hans" -> "zh")
+  const prefix = language.split("-")[0];
+  if (prefix !== language) {
+    const prefixRows = await dbInstance.select().from(welcomeTemplates)
+      .where(and(eq(welcomeTemplates.language, prefix), eq(welcomeTemplates.isActive, true)));
+    if (prefixRows.length > 0) return prefixRows[0];
+  }
+  // Fallback to "en"
+  const enRows = await dbInstance.select().from(welcomeTemplates)
+    .where(and(eq(welcomeTemplates.language, "en"), eq(welcomeTemplates.isActive, true)));
+  return enRows[0] ?? null;
+}
+
+export async function createWelcomeTemplate(data: Omit<InsertWelcomeTemplate, "id" | "createdAt" | "updatedAt">) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  const [result] = await dbInstance.insert(welcomeTemplates).values(data);
+  return result.insertId as number;
+}
+
+export async function updateWelcomeTemplate(id: number, data: Partial<InsertWelcomeTemplate>) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return;
+  await dbInstance.update(welcomeTemplates).set(data).where(eq(welcomeTemplates.id, id));
+}
+
+export async function deleteWelcomeTemplate(id: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return;
+  await dbInstance.delete(welcomeTemplates).where(eq(welcomeTemplates.id, id));
+}
+
+// ==================== ENHANCED TARGET FILTER ====================
+
+/**
+ * Resolve broadcast targets with advanced filter conditions.
+ * Supports: language, registration date, last active, deposit amount, games played, bonus status.
+ */
+export async function resolveBroadcastTargetsWithFilter(task: BroadcastTask): Promise<Array<{ tgId: string; id: number }>> {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+
+  const filter = task.targetFilter as {
+    languages?: string[];
+    registeredAfter?: string;
+    registeredBefore?: string;
+    lastActiveAfter?: string;
+    lastActiveBefore?: string;
+    minDeposit?: number;
+    maxDeposit?: number;
+    minGamesPlayed?: number;
+    maxGamesPlayed?: number;
+    bonusStatus?: "locked" | "unlocked" | "any";
+  } | null;
+
+  // If no filter, fall back to basic targetType logic
+  if (!filter || Object.keys(filter).length === 0) {
+    return resolveBroadcastTargets(task);
+  }
+
+  // Build dynamic WHERE conditions
+  const conditions: string[] = [`${users.tgId.name} IS NOT NULL AND ${users.tgId.name} != ''`];
+
+  // Also apply basic targetType as base filter
+  if (task.targetType === "active") {
+    const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 19).replace("T", " ");
+    conditions.push(`lastSignedIn >= '${cutoff}'`);
+  } else if (task.targetType === "deposited") {
+    conditions.push(`totalDeposited > 0`);
+  } else if (task.targetType === "custom" && Array.isArray(task.targetUserIds) && task.targetUserIds.length > 0) {
+    conditions.push(`id IN (${task.targetUserIds.join(",")})`);
+  }
+
+  // Advanced filter conditions
+  if (filter.languages && filter.languages.length > 0) {
+    const langs = filter.languages.map(l => `'${l.replace(/'/g, "")}'`).join(",");
+    conditions.push(`language IN (${langs})`);
+  }
+  if (filter.registeredAfter) {
+    conditions.push(`createdAt >= '${filter.registeredAfter}'`);
+  }
+  if (filter.registeredBefore) {
+    conditions.push(`createdAt <= '${filter.registeredBefore}'`);
+  }
+  if (filter.lastActiveAfter) {
+    conditions.push(`lastSignedIn >= '${filter.lastActiveAfter}'`);
+  }
+  if (filter.lastActiveBefore) {
+    conditions.push(`lastSignedIn <= '${filter.lastActiveBefore}'`);
+  }
+  if (filter.minDeposit !== undefined && filter.minDeposit > 0) {
+    conditions.push(`totalDeposited >= ${filter.minDeposit}`);
+  }
+  if (filter.maxDeposit !== undefined && filter.maxDeposit > 0) {
+    conditions.push(`totalDeposited <= ${filter.maxDeposit}`);
+  }
+  if (filter.minGamesPlayed !== undefined && filter.minGamesPlayed > 0) {
+    conditions.push(`totalGamesPlayed >= ${filter.minGamesPlayed}`);
+  }
+  if (filter.maxGamesPlayed !== undefined && filter.maxGamesPlayed > 0) {
+    conditions.push(`totalGamesPlayed <= ${filter.maxGamesPlayed}`);
+  }
+  if (filter.bonusStatus === "locked") {
+    conditions.push(`bonusUnlocked = false AND bonusBalance > 0`);
+  } else if (filter.bonusStatus === "unlocked") {
+    conditions.push(`bonusUnlocked = true`);
+  }
+
+  const whereStr = conditions.join(" AND ");
+  const rows = await dbInstance.execute(sql.raw(`SELECT tgId, id FROM users WHERE ${whereStr}`));
+  return (rows as unknown as any[])[0].filter((r: any) => r.tgId).map((r: any) => ({ tgId: r.tgId, id: r.id }));
+}
+
+/** Estimate target count for filter preview */
+export async function estimateFilterTargetCount(targetType: string, targetFilter: any, targetUserIds?: number[]): Promise<number> {
+  const dbInstance = await getDb();
+  if (!dbInstance) return 0;
+
+  const mockTask = {
+    targetType,
+    targetFilter,
+    targetUserIds: targetUserIds || null,
+  } as any;
+
+  const targets = await resolveBroadcastTargetsWithFilter(mockTask);
+  return targets.length;
 }

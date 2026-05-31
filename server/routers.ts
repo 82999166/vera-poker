@@ -2465,6 +2465,18 @@ ${faqContext}
       buttons: z.array(z.object({ text: z.string(), url: z.string(), row: z.number().optional() })).optional(),
       targetType: z.enum(["all", "active", "deposited", "custom"]),
       targetUserIds: z.array(z.number()).optional(),
+      targetFilter: z.object({
+        languages: z.array(z.string()).optional(),
+        registeredAfter: z.string().optional(),
+        registeredBefore: z.string().optional(),
+        lastActiveAfter: z.string().optional(),
+        lastActiveBefore: z.string().optional(),
+        minDeposit: z.number().optional(),
+        maxDeposit: z.number().optional(),
+        minGamesPlayed: z.number().optional(),
+        maxGamesPlayed: z.number().optional(),
+        bonusStatus: z.enum(["locked", "unlocked", "any"]).optional(),
+      }).optional(),
       scheduledAt: z.date().optional(),
     })).mutation(async ({ input, ctx }) => {
       const { createBroadcastTask } = await import("./marketing");
@@ -2616,6 +2628,98 @@ ${faqContext}
         dbInstance.select({ count: sql<number>`count(*)` }).from(users).where(whereClause),
       ]);
       return { users: data, total: countResult[0]?.count ?? 0 };
+    }),
+
+    // --- Message Templates CRUD ---
+    listTemplates: adminProcedure.query(async () => {
+      const { listMessageTemplates } = await import("./marketing");
+      return listMessageTemplates();
+    }),
+    createTemplate: adminProcedure.input(z.object({
+      name: z.string().min(1),
+      content: z.string().min(1),
+      imageUrl: z.string().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), row: z.number().optional() })).optional(),
+      category: z.string().default("general"),
+    })).mutation(async ({ input, ctx }) => {
+      const { createMessageTemplate } = await import("./marketing");
+      const id = await createMessageTemplate({ ...input, createdBy: (ctx.user?.id) ?? 0 });
+      return { id };
+    }),
+    updateTemplate: adminProcedure.input(z.object({
+      id: z.number(),
+      name: z.string().min(1).optional(),
+      content: z.string().min(1).optional(),
+      imageUrl: z.string().nullable().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), row: z.number().optional() })).nullable().optional(),
+      category: z.string().optional(),
+    })).mutation(async ({ input }) => {
+      const { updateMessageTemplate } = await import("./marketing");
+      const { id, ...data } = input;
+      await updateMessageTemplate(id, data as any);
+      return { ok: true };
+    }),
+    deleteTemplate: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { deleteMessageTemplate } = await import("./marketing");
+      await deleteMessageTemplate(input.id);
+      return { ok: true };
+    }),
+
+    // --- Welcome Templates (Multi-language) ---
+    listWelcomeTemplates: adminProcedure.query(async () => {
+      const { listWelcomeTemplates } = await import("./marketing");
+      return listWelcomeTemplates();
+    }),
+    createWelcomeTemplate: adminProcedure.input(z.object({
+      language: z.string().min(1),
+      content: z.string().min(1),
+      imageUrl: z.string().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), row: z.number().optional() })).optional(),
+      isActive: z.boolean().default(true),
+    })).mutation(async ({ input, ctx }) => {
+      const { createWelcomeTemplate } = await import("./marketing");
+      const id = await createWelcomeTemplate({ ...input, createdBy: (ctx.user?.id) ?? 0 });
+      return { id };
+    }),
+    updateWelcomeTemplate: adminProcedure.input(z.object({
+      id: z.number(),
+      language: z.string().optional(),
+      content: z.string().optional(),
+      imageUrl: z.string().nullable().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), row: z.number().optional() })).nullable().optional(),
+      isActive: z.boolean().optional(),
+    })).mutation(async ({ input }) => {
+      const { updateWelcomeTemplate } = await import("./marketing");
+      const { id, ...data } = input;
+      await updateWelcomeTemplate(id, data as any);
+      return { ok: true };
+    }),
+    deleteWelcomeTemplate: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { deleteWelcomeTemplate } = await import("./marketing");
+      await deleteWelcomeTemplate(input.id);
+      return { ok: true };
+    }),
+
+    // --- Estimate target count for filter preview ---
+    estimateTargetCount: adminProcedure.input(z.object({
+      targetType: z.enum(["all", "active", "deposited", "custom"]),
+      targetFilter: z.object({
+        languages: z.array(z.string()).optional(),
+        registeredAfter: z.string().optional(),
+        registeredBefore: z.string().optional(),
+        lastActiveAfter: z.string().optional(),
+        lastActiveBefore: z.string().optional(),
+        minDeposit: z.number().optional(),
+        maxDeposit: z.number().optional(),
+        minGamesPlayed: z.number().optional(),
+        maxGamesPlayed: z.number().optional(),
+        bonusStatus: z.enum(["locked", "unlocked", "any"]).optional(),
+      }).optional(),
+      targetUserIds: z.array(z.number()).optional(),
+    })).query(async ({ input }) => {
+      const { estimateFilterTargetCount } = await import("./marketing");
+      const count = await estimateFilterTargetCount(input.targetType, input.targetFilter, input.targetUserIds);
+      return { count };
     }),
   }),
 });
