@@ -792,6 +792,14 @@ async function settleHand(roomId: number) {
     }
   }
 
+  // Trigger risk checks for all players in this hand (async, non-blocking)
+  try {
+    const { runRiskChecks } = await import("./riskEngine");
+    for (const p of gs.players) {
+      runRiskChecks(p.id, "game_settle").catch(() => {});
+    }
+  } catch (_) { /* risk engine not critical */ }
+
   // Increment playedRounds for private rooms and check if room should close
   const currentRoom = await db.getRoomById(roomId);
   if (currentRoom && currentRoom.type === "private") {

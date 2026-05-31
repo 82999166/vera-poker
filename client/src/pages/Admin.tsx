@@ -3014,14 +3014,156 @@ function RakePanel({ at }: { at: (k: string) => string }) {
 
 // ==================== AGENTS PANEL ====================
 function AgentsPanel({ at }: { at: (k: string) => string }) {
-  const { data: agentData, isLoading } = trpc.admin.agents.useQuery({ page: 1, limit: 50 });
+  const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
+  const { data: agentData, isLoading, refetch } = trpc.admin.agents.useQuery({ page: 1, limit: 50 });
   const { data: commissionData } = trpc.admin.commissions.useQuery({ page: 1, limit: 20 });
+  const { data: agentDetail } = trpc.admin.agentDetail.useQuery(
+    { agentId: selectedAgent! },
+    { enabled: !!selectedAgent }
+  );
+  const unlockMutation = trpc.admin.agentUnlock.useMutation({
+    onSuccess: () => { toast.success("解锁成功"); refetch(); },
+  });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
 
   const relationships = (agentData as any)?.relationships ?? [];
   const commissions = (commissionData as any)?.records ?? [];
 
+  // Agent Detail View
+  if (selectedAgent && agentDetail) {
+    const detail = agentDetail as any;
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setSelectedAgent(null)} className="text-xs text-truth-blue hover:underline">← 返回列表</button>
+          <h2 className="text-lg font-bold">代理详情 - {detail.agent?.nickname || detail.agent?.name || `#${detail.agent?.id}`}</h2>
+        </div>
+
+        {/* Agent Info Card */}
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-sm font-semibold mb-3">代理信息</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div><span className="text-muted-foreground">ID:</span> <span className="font-mono">#{detail.agent?.id}</span></div>
+            <div><span className="text-muted-foreground">昵称:</span> <span>{detail.agent?.nickname || "-"}</span></div>
+            <div><span className="text-muted-foreground">TG用户名:</span> <span className="text-truth-blue">@{detail.agent?.tgUsername || "-"}</span></div>
+            <div><span className="text-muted-foreground">余额:</span> <span className="text-gold font-mono">${formatBalance(detail.agent?.balance)}</span></div>
+          </div>
+        </div>
+
+        {/* Commission Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="glass rounded-xl p-3 text-center">
+            <p className="text-[10px] text-muted-foreground">总佣金</p>
+            <p className="text-lg font-bold text-gold">${formatBalance(detail.commissionStats?.totalEarned)}</p>
+          </div>
+          <div className="glass rounded-xl p-3 text-center">
+            <p className="text-[10px] text-muted-foreground">已结算</p>
+            <p className="text-lg font-bold text-success">${formatBalance(detail.commissionStats?.settledAmount)}</p>
+          </div>
+          <div className="glass rounded-xl p-3 text-center">
+            <p className="text-[10px] text-muted-foreground">待结算</p>
+            <p className="text-lg font-bold text-warning">${formatBalance(detail.commissionStats?.pendingAmount)}</p>
+          </div>
+          <div className="glass rounded-xl p-3 text-center">
+            <p className="text-[10px] text-muted-foreground">佣金记录数</p>
+            <p className="text-lg font-bold text-truth-blue">{detail.commissionStats?.totalRecords ?? 0}</p>
+          </div>
+        </div>
+
+        {/* Downlines */}
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-sm font-semibold mb-3">下线玩家 ({detail.downlines?.length ?? 0})</h3>
+          {detail.downlines?.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead><tr className="border-b border-border/30 text-muted-foreground">
+                  <th className="text-left py-2">ID</th>
+                  <th className="text-left py-2">昵称</th>
+                  <th className="text-left py-2">TG用户名</th>
+                  <th className="text-left py-2">级别</th>
+                  <th className="text-left py-2">解锁进度</th>
+                  <th className="text-left py-2">状态</th>
+                  <th className="text-left py-2">操作</th>
+                </tr></thead>
+                <tbody>
+                  {detail.downlines.map((d: any) => {
+                    const progress = d.unlockProgress ? (typeof d.unlockProgress === "string" ? JSON.parse(d.unlockProgress) : d.unlockProgress) : {};
+                    return (
+                      <tr key={d.id} className="border-b border-border/20">
+                        <td className="py-2 font-mono">#{d.downlineId}</td>
+                        <td className="py-2">{d.userInfo?.nickname || d.userInfo?.name || "-"}</td>
+                        <td className="py-2 text-truth-blue">@{d.userInfo?.tgUsername || "-"}</td>
+                        <td className="py-2"><span className={`px-1.5 py-0.5 rounded text-[10px] ${d.level === 1 ? "bg-gold/20 text-gold" : "bg-truth-blue/20 text-truth-blue"}`}>L{d.level}</span></td>
+                        <td className="py-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-muted-foreground w-6">局数</span>
+                              <div className="flex-1 h-1.5 bg-muted/20 rounded-full overflow-hidden">
+                                <div className="h-full bg-gold rounded-full transition-all" style={{ width: `${Math.min(100, ((progress.gamesPlayed ?? 0) / 20) * 100)}%` }} />
+                              </div>
+                              <span className="text-[9px] font-mono w-8 text-right">{progress.gamesPlayed ?? 0}/20</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-muted-foreground w-6">抽水</span>
+                              <div className="flex-1 h-1.5 bg-muted/20 rounded-full overflow-hidden">
+                                <div className="h-full bg-truth-blue rounded-full transition-all" style={{ width: `${Math.min(100, (Number(progress.totalRake ?? 0) / 1) * 100)}%` }} />
+                              </div>
+                              <span className="text-[9px] font-mono w-8 text-right">${Number(progress.totalRake ?? 0).toFixed(1)}/1</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${d.isUnlocked ? "bg-success/20 text-success" : "bg-warning/20 text-warning"}`}>
+                            {d.isUnlocked ? "已解锁" : "待解锁"}
+                          </span>
+                        </td>
+                        <td className="py-2">
+                          {!d.isUnlocked ? (
+                            <button onClick={() => unlockMutation.mutate({ relationshipId: d.id })} className="px-2 py-0.5 bg-success/20 text-success rounded text-[10px] hover:bg-success/30">
+                              解锁
+                            </button>
+                          ) : (
+                            <button onClick={() => unlockMutation.mutate({ relationshipId: d.id, lock: true })} className="px-2 py-0.5 bg-danger/20 text-danger rounded text-[10px] hover:bg-danger/30">
+                              锁定
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className="text-sm text-muted-foreground">暂无下线</p>}
+        </div>
+
+        {/* Recent Commissions */}
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-sm font-semibold mb-3">最近佣金记录</h3>
+          {detail.recentCommissions?.length > 0 ? (
+            <div className="space-y-1">
+              {detail.recentCommissions.map((c: any) => (
+                <div key={c.id} className="flex items-center justify-between py-1.5 border-b border-border/20 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">来源玩家 #{c.sourceUserId}</span>
+                    <span className="ml-2 text-muted-foreground">L{c.level}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-gold">${formatBalance(c.commissionAmount)}</span>
+                    <span className={`px-1 py-0.5 rounded text-[9px] ${c.status === "settled" ? "bg-success/20 text-success" : "bg-warning/20 text-warning"}`}>{c.status}</span>
+                    <span className="text-[10px] text-muted-foreground">{c.createdAt ? new Date(c.createdAt).toLocaleDateString() : ""}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : <p className="text-sm text-muted-foreground">暂无佣金记录</p>}
+        </div>
+      </div>
+    );
+  }
+
+  // Main List View
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold">{at("agents.title")}</h2>
@@ -3040,23 +3182,44 @@ function AgentsPanel({ at }: { at: (k: string) => string }) {
       <div className="glass rounded-xl p-4">
         <h3 className="text-sm font-semibold mb-3">{at("agents.relationships")}</h3>
         {relationships.length > 0 ? (
-          <div className="space-y-2">
-            {relationships.map((rel: any) => (
-              <div key={rel.id} className="flex items-center justify-between py-2 border-b border-border/30">
-                <div>
-                  <span className="text-xs font-medium">{at("common.agent")} #{rel.agentId}</span>
-                  <span className="text-xs text-muted-foreground ml-2">→ #{rel.downlineId}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                    rel.level === 1 ? "bg-gold/20 text-gold" : "bg-truth-blue/20 text-truth-blue"
-                  }`}>L{rel.level}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                    rel.isUnlocked ? "bg-success/20 text-success" : "bg-warning/20 text-warning"
-                  }`}>{rel.isUnlocked ? at("agents.unlocked") : at("agents.pending")}</span>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead><tr className="border-b border-border/30 text-muted-foreground">
+                <th className="text-left py-2">代理</th>
+                <th className="text-left py-2">TG用户名</th>
+                <th className="text-left py-2">下线</th>
+                <th className="text-left py-2">下线TG</th>
+                <th className="text-left py-2">级别</th>
+                <th className="text-left py-2">状态</th>
+                <th className="text-left py-2">总佣金</th>
+                <th className="text-left py-2">操作</th>
+              </tr></thead>
+              <tbody>
+                {relationships.map((rel: any) => (
+                  <tr key={rel.id} className="border-b border-border/20 hover:bg-white/5">
+                    <td className="py-2">
+                      <span className="font-mono">#{rel.agentId}</span>
+                      <span className="ml-1 text-muted-foreground">{rel.agentInfo?.nickname || ""}</span>
+                    </td>
+                    <td className="py-2 text-truth-blue">@{rel.agentInfo?.tgUsername || "-"}</td>
+                    <td className="py-2">
+                      <span className="font-mono">#{rel.downlineId}</span>
+                      <span className="ml-1 text-muted-foreground">{rel.downlineInfo?.nickname || ""}</span>
+                    </td>
+                    <td className="py-2 text-truth-blue">@{rel.downlineInfo?.tgUsername || "-"}</td>
+                    <td className="py-2"><span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${rel.level === 1 ? "bg-gold/20 text-gold" : "bg-truth-blue/20 text-truth-blue"}`}>L{rel.level}</span></td>
+                    <td className="py-2"><span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${rel.isUnlocked ? "bg-success/20 text-success" : "bg-warning/20 text-warning"}`}>{rel.isUnlocked ? "已解锁" : "待解锁"}</span></td>
+                    <td className="py-2 font-mono text-gold">${formatBalance(rel.totalCommissionEarned)}</td>
+                    <td className="py-2">
+                      <button onClick={() => setSelectedAgent(rel.agentId)} className="px-2 py-0.5 bg-truth-blue/20 text-truth-blue rounded text-[10px] hover:bg-truth-blue/30">详情</button>
+                      {!rel.isUnlocked && (
+                        <button onClick={() => unlockMutation.mutate({ relationshipId: rel.id })} className="ml-1 px-2 py-0.5 bg-success/20 text-success rounded text-[10px] hover:bg-success/30">解锁</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">{at("agents.noRel")}</p>
@@ -3090,69 +3253,325 @@ function AgentsPanel({ at }: { at: (k: string) => string }) {
 
 // ==================== RISK PANEL ====================
 function RiskPanel({ at }: { at: (k: string) => string }) {
-  const { data: events, isLoading } = trpc.admin.riskEvents.useQuery({ page: 1, limit: 20 });
+  const [riskTab, setRiskTab] = useState<"rules" | "alerts" | "analyze">("rules");
+  const [analyzeUserId, setAnalyzeUserId] = useState("");
+  const [earningsUserId, setEarningsUserId] = useState<number | null>(null);
 
-  if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
+  const { data: rulesData, isLoading: rulesLoading, refetch: refetchRules } = trpc.admin.riskRules.useQuery();
+  const { data: alertsData, refetch: refetchAlerts } = trpc.admin.riskAlerts.useQuery({ page: 1, limit: 30 });
+  const { data: earningsData } = trpc.admin.userEarningsFlow.useQuery(
+    { userId: earningsUserId! },
+    { enabled: !!earningsUserId }
+  );
 
-  const riskEvents = (events as any)?.events ?? [];
+  const updateRuleMutation = trpc.admin.riskRuleUpdate.useMutation({
+    onSuccess: () => { toast.success("规则已更新"); refetchRules(); },
+  });
+  const analyzeMutation = trpc.admin.riskAnalyzeUser.useMutation({
+    onSuccess: (data: any) => {
+      if (data?.riskScore !== undefined) {
+        toast.success(`AI分析完成 - 风险分: ${data.riskScore}/100`);
+        refetchAlerts();
+      } else {
+        toast.info("分析完成");
+      }
+    },
+    onError: () => toast.error("分析失败"),
+  });
+  const updateAlertMutation = trpc.admin.riskAlertUpdate.useMutation({
+    onSuccess: () => { toast.success("已更新"); refetchAlerts(); },
+  });
+  const runChecksMutation = trpc.admin.riskRunChecks.useMutation({
+    onSuccess: () => { toast.success("风控检查完成"); refetchAlerts(); },
+  });
+
+  if (rulesLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
+
+  const rules = (rulesData as any) ?? [];
+  const alerts = (alertsData as any)?.alerts ?? [];
+  const pendingAlerts = alerts.filter((a: any) => a.status === "pending");
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">{at("risk.title")}</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">风控管理</h2>
+        <div className="flex gap-1">
+          {(["rules", "alerts", "analyze"] as const).map(tab => (
+            <button key={tab} onClick={() => setRiskTab(tab)} className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${riskTab === tab ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-foreground"}`}>
+              {tab === "rules" ? "规则配置" : tab === "alerts" ? `告警(${pendingAlerts.length})` : "AI分析"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Overview Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="glass rounded-xl p-4">
           <Shield className="w-5 h-5 text-danger mb-2" />
-          <p className="text-xs font-semibold">{at("risk.flagged")}</p>
-          <p className="text-xl font-bold text-danger mt-1">{riskEvents.length}</p>
+          <p className="text-xs font-semibold">待处理告警</p>
+          <p className="text-xl font-bold text-danger mt-1">{pendingAlerts.length}</p>
+        </div>
+        <div className="glass rounded-xl p-4">
+          <Shield className="w-5 h-5 text-success mb-2" />
+          <p className="text-xs font-semibold">启用规则</p>
+          <p className="text-xl font-bold text-success mt-1">{rules.filter((r: any) => r.isEnabled).length}/{rules.length}</p>
         </div>
         <div className="glass rounded-xl p-4">
           <Shield className="w-5 h-5 text-warning mb-2" />
-          <p className="text-xs font-semibold">{at("risk.antiAbuse")}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">{at("risk.layers")}</p>
+          <p className="text-xs font-semibold">总告警数</p>
+          <p className="text-xl font-bold text-warning mt-1">{alerts.length}</p>
+        </div>
+        <div className="glass rounded-xl p-4">
+          <Shield className="w-5 h-5 text-truth-blue mb-2" />
+          <p className="text-xs font-semibold">反欺诈引擎</p>
+          <p className="text-[10px] text-success mt-1">运行中</p>
         </div>
       </div>
 
-      <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">{at("risk.rules")}</h3>
-        <div className="space-y-2 text-xs text-muted-foreground">
-          <div className="flex items-center justify-between py-1.5 border-b border-border/30">
-            <span>{at("risk.regGate")}</span>
-            <span className="text-success font-medium">{at("risk.active")}</span>
-          </div>
-          <div className="flex items-center justify-between py-1.5 border-b border-border/30">
-            <span>{at("risk.deviceFp")}</span>
-            <span className="text-success font-medium">{at("risk.active")}</span>
-          </div>
-          <div className="flex items-center justify-between py-1.5 border-b border-border/30">
-            <span>{at("risk.behavior")}</span>
-            <span className="text-success font-medium">{at("risk.active")}</span>
-          </div>
-          <div className="flex items-center justify-between py-1.5">
-            <span>{at("risk.sameTable")}</span>
-            <span className="text-success font-medium">{at("risk.active")}</span>
-          </div>
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-3">{at("risk.configHint")}</p>
-      </div>
-
-      <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3">{at("risk.log")}</h3>
-        {riskEvents.length > 0 ? (
+      {/* Rules Tab */}
+      {riskTab === "rules" && (
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-sm font-semibold mb-3">风控规则配置 (点击开关启用/禁用)</h3>
           <div className="space-y-2">
-            {riskEvents.map((e: any) => (
-              <div key={e.id} className="flex items-center justify-between py-2 border-b border-border/30">
-                <div>
-                  <span className="text-xs font-medium text-danger">{e.eventType}</span>
-                  <span className="text-xs text-muted-foreground ml-2">{at("common.user")} #{e.userId}</span>
+            {rules.map((rule: any) => (
+              <div key={rule.id} className="flex items-center justify-between py-2.5 px-3 border border-border/30 rounded-lg hover:bg-white/5">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium">{rule.name}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                      rule.severity === "critical" ? "bg-danger/20 text-danger" :
+                      rule.severity === "high" ? "bg-orange-500/20 text-orange-400" :
+                      rule.severity === "medium" ? "bg-warning/20 text-warning" :
+                      "bg-muted/20 text-muted-foreground"
+                    }`}>{rule.severity}</span>
+                    <span className="text-[9px] text-muted-foreground px-1.5 py-0.5 bg-muted/10 rounded">{rule.action}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{rule.description}</p>
                 </div>
-                <span className="text-[10px] text-muted-foreground">{e.createdAt ? new Date(e.createdAt).toLocaleString() : "-"}</span>
+                <button
+                  onClick={() => updateRuleMutation.mutate({ ruleId: rule.id, enabled: !rule.isEnabled })}
+                  className={`w-10 h-5 rounded-full transition-colors relative ${rule.isEnabled ? "bg-success" : "bg-muted/30"}`}
+                >
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${rule.isEnabled ? "right-0.5" : "left-0.5"}`} />
+                </button>
               </div>
             ))}
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">{at("risk.noEvents")}</p>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Alerts Tab */}
+      {riskTab === "alerts" && (
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-sm font-semibold mb-3">风控告警列表</h3>
+          {alerts.length > 0 ? (
+            <div className="space-y-2">
+              {alerts.map((alert: any) => (
+                <div key={alert.id} className="border border-border/30 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                        alert.severity === "critical" ? "bg-danger/20 text-danger" :
+                        alert.severity === "high" ? "bg-orange-500/20 text-orange-400" :
+                        "bg-warning/20 text-warning"
+                      }`}>{alert.severity}</span>
+                      <span className="text-xs font-medium">{alert.ruleType}</span>
+                      <span className="text-xs text-muted-foreground">用户 #{alert.userId}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] ${
+                        alert.status === "pending" ? "bg-warning/20 text-warning" :
+                        alert.status === "resolved" ? "bg-success/20 text-success" :
+                        "bg-muted/20 text-muted-foreground"
+                      }`}>{alert.status}</span>
+                      {alert.status === "pending" && (
+                        <>
+                          <button onClick={() => updateAlertMutation.mutate({ alertId: alert.id, status: "resolved" })} className="px-1.5 py-0.5 bg-success/20 text-success rounded text-[9px] hover:bg-success/30">处理</button>
+                          <button onClick={() => updateAlertMutation.mutate({ alertId: alert.id, status: "ignored" })} className="px-1.5 py-0.5 bg-muted/20 text-muted-foreground rounded text-[9px] hover:bg-muted/30">忽略</button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">{alert.description}</p>
+                  {alert.aiAnalysis && (
+                    <div className="mt-2 p-2 bg-truth-blue/5 rounded text-[10px]">
+                      <span className="text-truth-blue font-medium">AI分析:</span>
+                      <span className="ml-1">{typeof alert.aiAnalysis === "string" ? alert.aiAnalysis : JSON.stringify(alert.aiAnalysis)}</span>
+                    </div>
+                  )}
+                  <span className="text-[9px] text-muted-foreground">{alert.createdAt ? new Date(alert.createdAt).toLocaleString() : ""}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">暂无风控告警</p>
+          )}
+        </div>
+      )}
+
+      {/* AI Analyze Tab */}
+      {riskTab === "analyze" && (
+        <div className="space-y-4">
+          <div className="glass rounded-xl p-4">
+            <h3 className="text-sm font-semibold mb-3">用户风控分析</h3>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                placeholder="输入用户ID"
+                value={analyzeUserId}
+                onChange={e => setAnalyzeUserId(e.target.value)}
+                className="glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-truth-blue flex-1"
+              />
+              <button
+                onClick={() => {
+                  const uid = parseInt(analyzeUserId);
+                  if (uid) {
+                    analyzeMutation.mutate({ userId: uid });
+                    setEarningsUserId(uid);
+                  }
+                }}
+                disabled={analyzeMutation.isPending}
+                className="px-4 py-2 bg-truth-blue/20 text-truth-blue rounded-lg text-xs font-medium hover:bg-truth-blue/30 disabled:opacity-50"
+              >
+                {analyzeMutation.isPending ? "AI分析中..." : "AI分析"}
+              </button>
+              <button
+                onClick={() => {
+                  const uid = parseInt(analyzeUserId);
+                  if (uid) { runChecksMutation.mutate({ userId: uid }); }
+                }}
+                disabled={runChecksMutation.isPending}
+                className="px-4 py-2 bg-warning/20 text-warning rounded-lg text-xs font-medium hover:bg-warning/30 disabled:opacity-50"
+              >
+                {runChecksMutation.isPending ? "检查中..." : "运行风控检查"}
+              </button>
+              <button
+                onClick={() => {
+                  const uid = parseInt(analyzeUserId);
+                  if (uid) setEarningsUserId(uid);
+                }}
+                className="px-4 py-2 bg-gold/20 text-gold rounded-lg text-xs font-medium hover:bg-gold/30"
+              >
+                查看收益图
+              </button>
+            </div>
+
+            {/* AI Analysis Result */}
+            {analyzeMutation.data && (
+              <div className="mt-4 p-4 border border-truth-blue/30 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-semibold">AI风控分析结果</span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    (analyzeMutation.data as any)?.riskScore > 70 ? "bg-danger/20 text-danger" :
+                    (analyzeMutation.data as any)?.riskScore > 40 ? "bg-warning/20 text-warning" :
+                    "bg-success/20 text-success"
+                  }`}>风险分: {(analyzeMutation.data as any)?.riskScore ?? "-"}/100</span>
+                </div>
+                {/* Risk Labels */}
+                {(analyzeMutation.data as any)?.riskLabels?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {((analyzeMutation.data as any).riskLabels as string[]).map((label: string, i: number) => (
+                      <span key={i} className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        label.includes("正常") ? "bg-success/20 text-success" :
+                        label.includes("羊毛") || label.includes("欺诈") || label.includes("洗钱") ? "bg-danger/20 text-danger" :
+                        label.includes("可疑") || label.includes("机器人") ? "bg-warning/20 text-warning" :
+                        "bg-truth-blue/20 text-truth-blue"
+                      }`}>{label}</span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap">{(analyzeMutation.data as any)?.analysis || "无分析结果"}</p>
+                {(analyzeMutation.data as any)?.recommendations && (
+                  <div className="mt-2">
+                    <span className="text-[10px] font-medium text-warning">建议措施:</span>
+                    <ul className="text-[10px] text-muted-foreground mt-1 space-y-0.5">
+                      {((analyzeMutation.data as any).recommendations as string[]).map((r: string, i: number) => (
+                        <li key={i}>• {r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Earnings Flow Chart */}
+          {earningsUserId && earningsData && (
+            <div className="glass rounded-xl p-4">
+              <h3 className="text-sm font-semibold mb-3">用户收益线索图 - #{earningsUserId}</h3>
+              
+              {/* Summary Cards */}
+              <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+                <div className="p-2 bg-success/10 rounded-lg text-center">
+                  <p className="text-[9px] text-muted-foreground">充值</p>
+                  <p className="text-xs font-bold text-success">${Number((earningsData as any)?.summary?.totalDeposit ?? 0).toFixed(2)}</p>
+                </div>
+                <div className="p-2 bg-danger/10 rounded-lg text-center">
+                  <p className="text-[9px] text-muted-foreground">提现</p>
+                  <p className="text-xs font-bold text-danger">${Number((earningsData as any)?.summary?.totalWithdraw ?? 0).toFixed(2)}</p>
+                </div>
+                <div className="p-2 bg-gold/10 rounded-lg text-center">
+                  <p className="text-[9px] text-muted-foreground">游戏赢</p>
+                  <p className="text-xs font-bold text-gold">${Number((earningsData as any)?.summary?.totalGameWin ?? 0).toFixed(2)}</p>
+                </div>
+                <div className="p-2 bg-orange-500/10 rounded-lg text-center">
+                  <p className="text-[9px] text-muted-foreground">游戏输</p>
+                  <p className="text-xs font-bold text-orange-400">${Number((earningsData as any)?.summary?.totalGameLoss ?? 0).toFixed(2)}</p>
+                </div>
+                <div className="p-2 bg-truth-blue/10 rounded-lg text-center">
+                  <p className="text-[9px] text-muted-foreground">佣金</p>
+                  <p className="text-xs font-bold text-truth-blue">${Number((earningsData as any)?.summary?.totalCommission ?? 0).toFixed(2)}</p>
+                </div>
+                <div className="p-2 bg-purple-500/10 rounded-lg text-center">
+                  <p className="text-[9px] text-muted-foreground">净利润</p>
+                  <p className={`text-xs font-bold ${Number((earningsData as any)?.summary?.netProfit ?? 0) >= 0 ? "text-success" : "text-danger"}`}>${Number((earningsData as any)?.summary?.netProfit ?? 0).toFixed(2)}</p>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <div className="border-t border-border/30 pt-3">
+                <h4 className="text-xs font-medium mb-2">收益时间线 (最近30天)</h4>
+                <div className="max-h-60 overflow-y-auto space-y-1">
+                  {((earningsData as any)?.timeline ?? []).map((item: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between py-1 px-2 rounded hover:bg-white/5 text-[10px]">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground w-16">{item.date}</span>
+                        <span className={`px-1.5 py-0.5 rounded ${
+                          item.type === "deposit" ? "bg-success/20 text-success" :
+                          item.type === "withdraw" ? "bg-danger/20 text-danger" :
+                          item.type === "game_win" ? "bg-gold/20 text-gold" :
+                          item.type === "game_loss" ? "bg-orange-500/20 text-orange-400" :
+                          item.type === "commission" ? "bg-truth-blue/20 text-truth-blue" :
+                          "bg-muted/20 text-muted-foreground"
+                        }`}>{item.type}</span>
+                      </div>
+                      <span className={`font-mono ${item.amount >= 0 ? "text-success" : "text-danger"}`}>
+                        {item.amount >= 0 ? "+" : ""}${Number(item.amount).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Related Users */}
+              {((earningsData as any)?.relatedUsers ?? []).length > 0 && (
+                <div className="border-t border-border/30 pt-3 mt-3">
+                  <h4 className="text-xs font-medium mb-2">关联用户</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {((earningsData as any)?.relatedUsers ?? []).map((u: any) => (
+                      <div key={u.id} className="px-2 py-1 bg-muted/10 rounded text-[10px]">
+                        <span className="font-mono">#{u.id}</span>
+                        <span className="ml-1">{u.name || u.tgUsername || "-"}</span>
+                        <span className="ml-1 text-muted-foreground">({u.relationship})</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

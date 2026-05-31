@@ -600,6 +600,8 @@ export const appRouter = router({
       // Notify player that withdrawal request was received
       const { notifyWithdrawalReceived } = await import("./notifications");
       notifyWithdrawalReceived(ctx.user.id, input.amount, input.chain).catch(() => {});
+      // Trigger risk check asynchronously (non-blocking)
+      import("./riskEngine").then(({ runRiskChecks }) => runRiskChecks(ctx.user.id, "withdrawal")).catch(() => {});
       return { success: true, newBalance, autoApproved: isAutoApproved };
     }),
     transactions: protectedProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), category: z.enum(['finance', 'game']).optional() })).query(async ({ ctx, input }) => {
@@ -1519,10 +1521,99 @@ ${faqContext}
     }),
     // Agent management
     agents: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
-      return db.getAllAgentRelationships(input.page, input.limit);
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { relationships: [], total: 0 };
+      const { agentRelationships, users } = await import("../drizzle/schema");
+      const { desc, sql } = await import("drizzle-orm");
+      const offset = (input.page - 1) * input.limit;
+      const data = await dbInstance.select().from(agentRelationships).orderBy(desc(agentRelationships.createdAt)).limit(input.limit).offset(offset);
+      const [countResult] = await dbInstance.select({ count: sql<number>`count(*)` }).from(agentRelationships);
+      const userIds = [...new Set(data.flatMap(r => [r.agentId, r.downlineId]))];
+      const userInfos = userIds.length > 0
+        ? await dbInstance.select({ id: users.id, name: users.name, tgUsername: users.tgUsername, nickname: users.nickname }).from(users).where(sql`${users.id} IN (${sql.raw(userIds.join(","))})`)
+        : [];
+      const userMap = Object.fromEntries(userInfos.map(u => [u.id, u]));
+      const enriched = data.map(r => ({ ...r, agentInfo: userMap[r.agentId] || null, downlineInfo: userMap[r.downlineId] || null }));
+      return { relationships: enriched, total: countResult?.count ?? 0 };
+    }),
+    agentDetail: adminProcedure.input(z.object({ agentId: z.number() })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return null;
+      const { agentRelationships, users, commissionRecords } = await import("../drizzle/schema");
+      const { eq, desc, sql } = await import("drizzle-orm");
+      const [agentUser] = await dbInstance.select().from(users).where(eq(users.id, input.agentId)).limit(1);
+      if (!agentUser) return null;
+      const downlines = await dbInstance.select().from(agentRelationships).where(eq(agentRelationships.agentId, input.agentId));
+      const downlineIds = downlines.map(d => d.downlineId);
+      const downlineUsers = downlineIds.length > 0
+        ? await dbInstance.select({ id: users.id, name: users.name, tgUsername: users.tgUsername, nickname: users.nickname, balance: users.balance, riskLevel: users.riskLevel, lastSignedIn: users.lastSignedIn }).from(users).where(sql`${users.id} IN (${sql.raw(downlineIds.join(","))})`)
+        : [];
+      const [commStats] = await dbInstance.select({
+        totalEarned: sql<number>`COALESCE(SUM(CAST(commissionAmount AS DECIMAL(18,2))), 0)`,
+        totalRecords: sql<number>`count(*)`,
+        settledAmount: sql<number>`COALESCE(SUM(CASE WHEN status='settled' THEN CAST(commissionAmount AS DECIMAL(18,2)) ELSE 0 END), 0)`,
+        pendingAmount: sql<number>`COALESCE(SUM(CASE WHEN status='pending' THEN CAST(commissionAmount AS DECIMAL(18,2)) ELSE 0 END), 0)`,
+      }).from(commissionRecords).where(eq(commissionRecords.agentId, input.agentId));
+      const recentCommissions = await dbInstance.select().from(commissionRecords).where(eq(commissionRecords.agentId, input.agentId)).orderBy(desc(commissionRecords.createdAt)).limit(20);
+      return {
+        agent: { id: agentUser.id, name: agentUser.name, tgUsername: agentUser.tgUsername, nickname: agentUser.nickname, balance: agentUser.balance },
+        downlines: downlines.map(d => ({ ...d, userInfo: downlineUsers.find(u => u.id === d.downlineId) })),
+        commissionStats: commStats,
+        recentCommissions,
+      };
+    }),
+    agentUnlock: adminProcedure.input(z.object({ relationshipId: z.number(), lock: z.boolean().optional() })).mutation(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { success: false };
+      const { agentRelationships } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      await dbInstance.update(agentRelationships).set({ isUnlocked: input.lock ? false : true }).where(eq(agentRelationships.id, input.relationshipId));
+      return { success: true };
     }),
     commissions: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       return db.getAllCommissions(input.page, input.limit);
+    }),
+    // Risk Control Management
+    riskRules: adminProcedure.query(async () => {
+      const { getRiskRules } = await import("./riskEngine");
+      return getRiskRules();
+    }),
+    riskRuleUpdate: adminProcedure.input(z.object({
+      ruleId: z.number(),
+      enabled: z.boolean().optional(),
+      severity: z.enum(["low", "medium", "high", "critical"]).optional(),
+      params: z.any().optional(),
+      action: z.enum(["alert_only", "freeze_balance", "ban_account", "notify_admin"]).optional(),
+    })).mutation(async ({ input }) => {
+      const { updateRiskRule } = await import("./riskEngine");
+      const { ruleId, ...updates } = input;
+      return updateRiskRule(ruleId, updates);
+    }),
+    riskAlerts: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), status: z.string().optional() })).query(async ({ input }) => {
+      const { getRiskAlerts } = await import("./riskEngine");
+      return getRiskAlerts(input.page, input.limit, input.status);
+    }),
+    riskAlertUpdate: adminProcedure.input(z.object({
+      alertId: z.number(),
+      status: z.enum(["pending", "reviewed", "resolved", "ignored"]),
+      resolution: z.string().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const { updateAlertStatus } = await import("./riskEngine");
+      const adminId = ctx.adminUser?.adminId || ctx.user?.id;
+      return updateAlertStatus(input.alertId, input.status, adminId, input.resolution);
+    }),
+    riskAnalyzeUser: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
+      const { analyzeUserRisk } = await import("./riskEngine");
+      return analyzeUserRisk(input.userId);
+    }),
+    riskRunChecks: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
+      const { runRiskChecks } = await import("./riskEngine");
+      await runRiskChecks(input.userId, "manual_check");
+      return { success: true };
+    }),
+    userEarningsFlow: adminProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
+      const { getUserEarningsFlow } = await import("./riskEngine");
+      return getUserEarningsFlow(input.userId);
     }),
     // Staff management (uses admin_users table - separate from game users)
     staffList: adminProcedure.query(async () => {

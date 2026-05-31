@@ -536,3 +536,47 @@ export const fissionClicks = mysqlTable("fission_clicks", {
 });
 export type FissionClick = typeof fissionClicks.$inferSelect;
 export type InsertFissionClick = typeof fissionClicks.$inferInsert;
+
+// ==================== RISK CONTROL RULES ====================
+export const riskRules = mysqlTable("risk_rules", {
+  id: int("id").autoincrement().primaryKey(),
+  ruleKey: varchar("ruleKey", { length: 64 }).notNull().unique(), // e.g. "same_ip_multi_account"
+  name: varchar("name", { length: 128 }).notNull(),
+  description: text("description"),
+  category: mysqlEnum("category", ["fraud", "collusion", "bonus_abuse", "bot", "money_laundering"]).notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).default("medium").notNull(),
+  // Configurable thresholds (JSON object with rule-specific params)
+  params: json("params"), // e.g. { "maxAccounts": 3, "timeWindowMinutes": 60 }
+  // Action when triggered
+  action: mysqlEnum("action", ["alert_only", "freeze_balance", "ban_account", "notify_admin"]).default("alert_only").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type RiskRule = typeof riskRules.$inferSelect;
+export type InsertRiskRule = typeof riskRules.$inferInsert;
+
+// ==================== RISK ALERTS ====================
+export const riskAlerts = mysqlTable("risk_alerts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  ruleId: int("ruleId").notNull(),
+  ruleKey: varchar("ruleKey", { length: 64 }).notNull(),
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).default("medium").notNull(),
+  status: mysqlEnum("status", ["pending", "reviewed", "resolved", "ignored"]).default("pending").notNull(),
+  // Details
+  title: varchar("title", { length: 256 }).notNull(),
+  description: text("description"),
+  evidence: json("evidence"), // { ip, deviceFingerprint, relatedUsers, amounts, etc. }
+  aiAnalysis: text("aiAnalysis"), // AI-generated analysis text
+  riskScore: int("riskScore"), // 0-100
+  // Resolution
+  resolvedBy: int("resolvedBy"), // admin user id
+  resolvedAt: timestamp("resolvedAt"),
+  resolution: text("resolution"), // admin notes
+  // Notification
+  notificationSent: boolean("notificationSent").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type RiskAlert = typeof riskAlerts.$inferSelect;
+export type InsertRiskAlert = typeof riskAlerts.$inferInsert;
