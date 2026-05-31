@@ -215,3 +215,8 @@
 - [x] 4. 验证 totalRounds=2 限制逻辑正确性（incrementHandCount + forceFinishByChips 链路完整）
 - [x] 5. 锦标赛断线重连（Lobby 检测进行中锦标赛自动跳转 - trpc.tournaments.myTable + useEffect navigate）
 - [x] 6. 个人中心锦标赛历史页面（参赛记录+排名+奖金 - TournamentHistorySection in Profile.tsx）
+
+## 2026-05-31 锦标赛排行榜
+
+- [x] 后端：添加锦标赛排行榜查询接口（冠军榜 + 总奖金榜）
+- [x] 前端：大厅添加排行榜 Tab/面板展示

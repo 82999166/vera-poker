@@ -4,7 +4,7 @@ import { t } from "@/lib/i18n";
 import { formatAmount, formatBalance } from "@/lib/utils";
 import { useLocation } from "wouter";
 import React, { useState, useCallback } from "react";
-import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine, BookOpen } from "lucide-react";
+import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine, BookOpen, Crown } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 
@@ -344,7 +344,12 @@ export default function Lobby() {
         )}
 
         {/* Tournament List */}
-        {activeTab === "tourneys" && <TournamentList />}
+        {activeTab === "tourneys" && (
+          <>
+            <TournamentList />
+            <TournamentLeaderboardPreview />
+          </>
+        )}
 
         {/* Cash Tab: Stake Groups */}
         {activeTab === "cash" && (isLoading ? (
@@ -896,6 +901,56 @@ function InfoItem({ label, value, highlight }: { label: string; value: string; h
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className={`text-sm font-semibold ${highlight ? "text-gold" : "text-foreground"}`}>{value}</p>
+    </div>
+  );
+}
+
+
+function TournamentLeaderboardPreview() {
+  const [, navigate] = useLocation();
+  const { data, isLoading } = trpc.tournaments.leaderboard.useQuery();
+
+  if (isLoading || !data) return null;
+
+  const topChampions = (data.champions || []).slice(0, 3);
+  if (topChampions.length === 0) return null;
+
+  return (
+    <div className="mt-4 glass rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Crown className="w-4 h-4 text-gold" />
+          <span className="text-sm font-semibold">{t("leaderboard.champions")}</span>
+        </div>
+        <button
+          onClick={() => navigate("/leaderboard")}
+          className="text-xs text-gold hover:underline"
+        >
+          {t("lobby.leaderboard")} →
+        </button>
+      </div>
+      <div className="space-y-2">
+        {topChampions.map((entry: any, index: number) => (
+          <div key={entry.userId} className="flex items-center gap-2">
+            <span className={`w-5 text-center text-xs font-bold ${
+              index === 0 ? "text-gold" : index === 1 ? "text-gray-300" : "text-amber-600"
+            }`}>
+              {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+            </span>
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center overflow-hidden shrink-0">
+              {entry.avatar ? (
+                <img src={entry.avatar} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-[10px] font-bold text-gold">
+                  {(entry.name || "?").charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <span className="text-xs flex-1 truncate">{entry.name || `Player ${entry.userId}`}</span>
+            <span className="text-xs font-bold text-gold">{entry.wins}{t("leaderboard.winsUnit")}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1382,3 +1382,53 @@ export async function getUserTournamentHistory(userId: number) {
     .where(eq(tournamentResults.userId, userId))
     .orderBy(desc(tournamentResults.createdAt));
 }
+
+// ==================== TOURNAMENT LEADERBOARD ====================
+
+// Get champions leaderboard (most 1st place finishes)
+export async function getTournamentChampions(limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const results = await db.execute(sql`
+    SELECT 
+      tr.userId,
+      u.displayName as name,
+      u.avatar,
+      COUNT(*) as wins,
+      SUM(CAST(tr.prizeAmount AS DECIMAL(12,2))) as totalPrize
+    FROM tournament_results tr
+    LEFT JOIN users u ON tr.userId = u.id
+    WHERE tr.rank = 1
+    GROUP BY tr.userId, u.displayName, u.avatar
+    ORDER BY wins DESC, totalPrize DESC
+    LIMIT ${limit}
+  `);
+  
+  return (results as any)[0] || [];
+}
+
+// Get total prize leaderboard (most total prize money earned)
+export async function getTournamentPrizeLeaderboard(limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const results = await db.execute(sql`
+    SELECT 
+      tr.userId,
+      u.displayName as name,
+      u.avatar,
+      COUNT(*) as tournaments,
+      SUM(CASE WHEN tr.rank = 1 THEN 1 ELSE 0 END) as wins,
+      SUM(CAST(tr.prizeAmount AS DECIMAL(12,2))) as totalPrize,
+      MIN(tr.rank) as bestRank
+    FROM tournament_results tr
+    LEFT JOIN users u ON tr.userId = u.id
+    WHERE CAST(tr.prizeAmount AS DECIMAL(12,2)) > 0
+    GROUP BY tr.userId, u.displayName, u.avatar
+    ORDER BY totalPrize DESC
+    LIMIT ${limit}
+  `);
+  
+  return (results as any)[0] || [];
+}

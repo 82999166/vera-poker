@@ -2117,6 +2117,14 @@ ${faqContext}
     myHistory: protectedProcedure.query(async ({ ctx }) => {
       return db.getUserTournamentHistory(ctx.user.id);
     }),
+    // Public: tournament leaderboard (champions + prize rankings)
+    leaderboard: publicProcedure.query(async () => {
+      const [champions, prizeLeaders] = await Promise.all([
+        db.getTournamentChampions(20),
+        db.getTournamentPrizeLeaderboard(20),
+      ]);
+      return { champions, prizeLeaders };
+    }),
   }),
   // Admin Tournaments Management
   adminTournaments: router({
