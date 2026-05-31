@@ -4,6 +4,66 @@ import { getDb } from "./db";
 import { adminUsers } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 
+// SECURITY FIX #4: Enforce JWT_SECRET - no fallback
+const ADMIN_SESSION_SECRET = process.env.JWT_SECRET;
+if (!ADMIN_SESSION_SECRET) {
+  console.error("[SECURITY] FATAL: JWT_SECRET environment variable is not set! Admin sessions will be insecure.");
+}
+function getSessionSecret(): string {
+  if (!ADMIN_SESSION_SECRET) throw new Error("JWT_SECRET not configured");
+  return ADMIN_SESSION_SECRET;
+}
+
+// SECURITY FIX #7: In-memory rate limiter for login attempts
+const loginAttempts = new Map<string, { count: number; firstAttempt: number; lockedUntil: number }>();
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 30 * 60 * 1000; // 30 minutes lockout
+
+function checkRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const record = loginAttempts.get(ip);
+  if (!record) return { allowed: true };
+  // Check lockout
+  if (record.lockedUntil > now) {
+    return { allowed: false, retryAfter: Math.ceil((record.lockedUntil - now) / 1000) };
+  }
+  // Reset if window expired
+  if (now - record.firstAttempt > RATE_LIMIT_WINDOW) {
+    loginAttempts.delete(ip);
+    return { allowed: true };
+  }
+  if (record.count >= MAX_ATTEMPTS) {
+    record.lockedUntil = now + LOCKOUT_DURATION;
+    return { allowed: false, retryAfter: Math.ceil(LOCKOUT_DURATION / 1000) };
+  }
+  return { allowed: true };
+}
+
+function recordFailedAttempt(ip: string): void {
+  const now = Date.now();
+  const record = loginAttempts.get(ip);
+  if (!record || now - record.firstAttempt > RATE_LIMIT_WINDOW) {
+    loginAttempts.set(ip, { count: 1, firstAttempt: now, lockedUntil: 0 });
+  } else {
+    record.count++;
+  }
+}
+
+function clearFailedAttempts(ip: string): void {
+  loginAttempts.delete(ip);
+}
+
+// Cleanup stale entries every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of loginAttempts.entries()) {
+    if (now - record.firstAttempt > RATE_LIMIT_WINDOW && record.lockedUntil < now) {
+      loginAttempts.delete(ip);
+    }
+  }
+}, 10 * 60 * 1000);
+
 const staffRouter = Router();
 
 // Hash password with salt
@@ -23,6 +83,13 @@ function verifyPassword(password: string, stored: string): boolean {
 // Staff login endpoint - uses admin_users table (separate from game users)
 staffRouter.post("/api/staff/login", async (req: Request, res: Response) => {
   try {
+    // SECURITY FIX #7: Rate limiting
+    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket.remoteAddress || "unknown";
+    const rateCheck = checkRateLimit(clientIp);
+    if (!rateCheck.allowed) {
+      return res.status(429).json({ error: `Too many login attempts. Try again in ${rateCheck.retryAfter}s` });
+    }
+
     const { username, password } = req.body;
     if (!username || !password) {
       return res.status(400).json({ error: "用户名和密码必填" });
@@ -32,19 +99,24 @@ staffRouter.post("/api/staff/login", async (req: Request, res: Response) => {
 
     const [staff] = await db.select().from(adminUsers).where(eq(adminUsers.username, username)).limit(1);
     if (!staff) {
+      recordFailedAttempt(clientIp);
       return res.status(401).json({ error: "用户名或密码错误" });
     }
     if (!verifyPassword(password, staff.passwordHash)) {
+      recordFailedAttempt(clientIp);
       return res.status(401).json({ error: "用户名或密码错误" });
     }
     if (!staff.isActive) {
       return res.status(403).json({ error: "账户已被禁用" });
     }
 
+    // Clear failed attempts on successful login
+    clearFailedAttempts(clientIp);
+
     // Update last login
-    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket.remoteAddress || "";
     await db.update(adminUsers).set({ lastLoginAt: new Date(), lastLoginIp: clientIp }).where(eq(adminUsers.id, staff.id));
 
+    // SECURITY FIX #4: Use enforced secret (no fallback)
     // Issue admin session cookie (separate from game user session)
     const sessionData = {
       adminId: staff.id,
@@ -55,7 +127,7 @@ staffRouter.post("/api/staff/login", async (req: Request, res: Response) => {
       exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
     };
     const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString("base64");
-    const sig = createHmac("sha256", process.env.JWT_SECRET || "vera-admin-secret")
+    const sig = createHmac("sha256", getSessionSecret())
       .update(sessionToken)
       .digest("hex");
     const cookie = `${sessionToken}.${sig}`;
@@ -99,9 +171,12 @@ export function verifyAdminSession(cookieValue: string): {
   permissions: string[];
 } | null {
   try {
+    // SECURITY FIX #4: Use enforced secret (no fallback)
+    const secret = process.env.JWT_SECRET;
+    if (!secret) return null; // Cannot verify without secret
     const [token, sig] = cookieValue.split(".");
     if (!token || !sig) return null;
-    const expectedSig = createHmac("sha256", process.env.JWT_SECRET || "vera-admin-secret")
+    const expectedSig = createHmac("sha256", secret)
       .update(token)
       .digest("hex");
     if (expectedSig !== sig) return null;
@@ -208,7 +283,7 @@ export async function migrateStaffFromUsers(): Promise<void> {
   }
 }
 
-// Bootstrap default super admin account if none exists (uses admin_users table)
+// SECURITY FIX #12: Bootstrap super admin with random password (not hardcoded)
 export async function bootstrapSuperAdmin() {
   try {
     const db = await getDb();
@@ -218,7 +293,9 @@ export async function bootstrapSuperAdmin() {
       console.log("[StaffAuth] Super admin account already exists in admin_users table");
       return;
     }
-    const { hash } = hashPassword("admin123");
+    // Generate cryptographically random password
+    const randomPwd = randomBytes(12).toString("base64url");
+    const { hash } = hashPassword(randomPwd);
     await db.insert(adminUsers).values({
       username: "admin",
       passwordHash: hash,
@@ -227,7 +304,14 @@ export async function bootstrapSuperAdmin() {
       permissions: [],
       isActive: true,
     });
-    console.log("[StaffAuth] Default super admin created in admin_users table (admin/admin123)");
+    // Log password securely (should be changed immediately after first login)
+    console.log(`[StaffAuth] Super admin created. Initial password: ${randomPwd}`);
+    console.log("[StaffAuth] ⚠️  CHANGE THIS PASSWORD IMMEDIATELY after first login!");
+    // Try to notify owner via TG
+    try {
+      const { notifyOwner } = await import("./_core/notification");
+      await notifyOwner({ title: "管理员账户已创建", content: `用户名: admin\n初始密码: ${randomPwd}\n请立即登录后台修改密码！` });
+    } catch { /* notification is best-effort */ }
   } catch (error) {
     console.error("[StaffAuth] Failed to bootstrap super admin:", error);
   }

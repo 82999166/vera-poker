@@ -524,6 +524,18 @@ export const appRouter = router({
       if (depositAmount < minDeposit) {
         throw new TRPCError({ code: "BAD_REQUEST", message: `Minimum deposit is $${minDeposit}` });
       }
+      // SECURITY FIX #9: Check txHash uniqueness to prevent replay attacks
+      if (input.txHash) {
+        const dbInstance = await db.getDb();
+        if (dbInstance) {
+          const { transactions: txTable } = await import("../drizzle/schema");
+          const { eq: eqOp } = await import("drizzle-orm");
+          const [existingTx] = await dbInstance.select({ id: txTable.id }).from(txTable).where(eqOp(txTable.txHash, input.txHash)).limit(1);
+          if (existingTx) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "This transaction hash has already been submitted" });
+          }
+        }
+      }
       // Create pending transaction (balance NOT updated until admin confirms)
       await db.createTransaction({
         userId: ctx.user.id,
@@ -552,7 +564,6 @@ export const appRouter = router({
       const user = await db.getUserById(ctx.user.id);
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
       const currentBalance = parseFloat(user.balance);
-      const currentFrozen = parseFloat(user.frozenBalance ?? "0");
       const withdrawAmount = parseFloat(input.amount);
       
       if (isNaN(withdrawAmount) || withdrawAmount <= 0) {
@@ -584,14 +595,23 @@ export const appRouter = router({
         }
       }
       
-      // Deduct from balance and add to frozen
-      const newBalance = (currentBalance - withdrawAmount).toFixed(2);
-      const newFrozen = (currentFrozen + withdrawAmount).toFixed(2);
+      // SECURITY FIX #1: Atomic balance deduction + frozen increment to prevent race condition
       const dbInstance = await db.getDb();
       if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const { users: usersTable } = await import("../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
-      await dbInstance.update(usersTable).set({ balance: newBalance, frozenBalance: newFrozen }).where(eq(usersTable.id, ctx.user.id));
+      const { eq, sql: sqlTag } = await import("drizzle-orm");
+      // Atomic conditional update: only deduct if balance >= withdrawAmount
+      const result = await dbInstance.execute(
+        sqlTag`UPDATE users SET balance = ROUND(balance - ${withdrawAmount}, 2), frozen_balance = ROUND(COALESCE(frozen_balance, 0) + ${withdrawAmount}, 2) WHERE id = ${ctx.user.id} AND balance >= ${withdrawAmount}`
+      );
+      const affectedRows = (result as any)[0]?.affectedRows ?? 0;
+      if (affectedRows === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance (concurrent request detected)" });
+      }
+      // Read updated balance
+      const [updatedUser] = await dbInstance.select({ balance: usersTable.balance, frozenBalance: usersTable.frozenBalance }).from(usersTable).where(eq(usersTable.id, ctx.user.id)).limit(1);
+      const newBalance = updatedUser?.balance ?? "0";
+      const newFrozen = updatedUser?.frozenBalance ?? "0";
       
       // Check auto-approve threshold
       const autoApproveLimit = parseFloat(await db.getConfigValue("auto_approve_limit") || "0");
@@ -643,18 +663,26 @@ export const appRouter = router({
       const dbInstance = await db.getDb();
       if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const { transactions, users } = await import("../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
+      const { eq, sql: sqlTag } = await import("drizzle-orm");
       const [tx] = await dbInstance.select().from(transactions).where(eq(transactions.id, input.transactionId)).limit(1);
       if (!tx) throw new TRPCError({ code: "NOT_FOUND", message: "Transaction not found" });
-      if (tx.status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "Transaction already processed" });
       if (tx.type !== "deposit") throw new TRPCError({ code: "BAD_REQUEST", message: "Not a deposit transaction" });
-      // Update user balance
-      const [user] = await dbInstance.select().from(users).where(eq(users.id, tx.userId)).limit(1);
-      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
-      const newBalance = (parseFloat(user.balance) + parseFloat(tx.amount)).toFixed(2);
-      await dbInstance.update(users).set({ balance: newBalance }).where(eq(users.id, tx.userId));
-      // Update transaction status
-      await dbInstance.update(transactions).set({ status: "confirmed", balanceAfter: newBalance }).where(eq(transactions.id, input.transactionId));
+      // SECURITY FIX #3b: Atomic conditional status update to prevent double-confirmation
+      const updateResult = await dbInstance.execute(
+        sqlTag`UPDATE transactions SET status = 'confirmed' WHERE id = ${input.transactionId} AND status = 'pending'`
+      );
+      const affected = (updateResult as any)[0]?.affectedRows ?? 0;
+      if (affected === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Transaction already processed (concurrent confirmation detected)" });
+      // Atomic balance addition
+      const depositAmount = parseFloat(tx.amount);
+      await dbInstance.execute(
+        sqlTag`UPDATE users SET balance = ROUND(CAST(balance AS DECIMAL(12,2)) + ${depositAmount}, 2) WHERE id = ${tx.userId}`
+      );
+      // Read new balance for response and transaction record
+      const [updatedUser] = await dbInstance.select({ balance: users.balance }).from(users).where(eq(users.id, tx.userId)).limit(1);
+      const newBalance = updatedUser?.balance ?? "0";
+      // Update transaction with new balance
+      await dbInstance.update(transactions).set({ balanceAfter: newBalance }).where(eq(transactions.id, input.transactionId));
       // Log
       db.createAdminLog({ action: "confirm_deposit", category: "finance", targetType: "transaction", targetId: String(input.transactionId), detail: { amount: tx.amount, userId: tx.userId, chain: tx.chain } });
       // TG notifications
@@ -1478,16 +1506,52 @@ ${faqContext}
       riskLevel: z.enum(["normal", "watch", "frozen", "banned"]).optional(),
       role: z.enum(["user", "admin"]).optional(),
       balance: z.string().optional(),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ input, ctx }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { success: false };
       const { users } = await import("../drizzle/schema");
       const { eq } = await import("drizzle-orm");
+      
+      // SECURITY FIX #8: Read old values for audit trail before modification
+      const [oldUser] = await dbInstance.select().from(users).where(eq(users.id, input.id)).limit(1);
+      if (!oldUser) return { success: false };
+      
       const updateData: any = {};
       if (input.riskLevel) updateData.riskLevel = input.riskLevel;
       if (input.role) updateData.role = input.role;
       if (input.balance) updateData.balance = input.balance;
       await dbInstance.update(users).set(updateData).where(eq(users.id, input.id));
+      
+      // SECURITY FIX #8: Audit log for admin modifications (especially balance changes)
+      const changes: Record<string, { from: any; to: any }> = {};
+      if (input.riskLevel && input.riskLevel !== oldUser.riskLevel) changes.riskLevel = { from: oldUser.riskLevel, to: input.riskLevel };
+      if (input.role && input.role !== oldUser.role) changes.role = { from: oldUser.role, to: input.role };
+      if (input.balance && input.balance !== oldUser.balance) changes.balance = { from: oldUser.balance, to: input.balance };
+      
+      if (Object.keys(changes).length > 0) {
+        db.createAdminLog({
+          action: "admin_update_user",
+          category: "system",
+          targetType: "user",
+          targetId: String(input.id),
+          detail: { changes, adminId: (ctx as any).admin?.adminId || "unknown" },
+        });
+      }
+      
+      // If balance was changed, create a transaction record for traceability
+      if (input.balance && input.balance !== oldUser.balance) {
+        const diff = parseFloat(input.balance) - parseFloat(oldUser.balance);
+        await db.createTransaction({
+          userId: input.id,
+          type: "adjustment",
+          amount: Math.abs(diff).toFixed(2),
+          balanceBefore: oldUser.balance,
+          balanceAfter: input.balance,
+          status: "confirmed",
+          note: `Admin manual adjustment by admin#${(ctx as any).admin?.adminId || "unknown"}`,
+        });
+      }
+      
       return { success: true };
     }),
     userDetail: adminProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {

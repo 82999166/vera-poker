@@ -327,11 +327,12 @@ export function registerTelegramAuthRoutes(app: Express) {
 
       if (!id || !hash || !auth_date) {
         // If no query params, it might be a postMessage flow - serve a page that posts to opener
+        // SECURITY FIX #6: Use window.location.origin instead of '*' for postMessage
         res.send(`<!DOCTYPE html><html><body><script>
           const params = new URLSearchParams(window.location.hash.slice(1) || window.location.search);
           const data = Object.fromEntries(params.entries());
           if (data.id && window.opener) {
-            window.opener.postMessage(data, '*');
+            window.opener.postMessage(data, window.location.origin);
             window.close();
           } else {
             window.location.href = '/';
@@ -393,10 +394,10 @@ export function registerTelegramAuthRoutes(app: Express) {
         maxAge: ONE_YEAR_MS,
       });
 
-      // Serve a page that notifies the opener and redirects
+      // SECURITY FIX #6: Use window.location.origin instead of '*' for postMessage
       res.send(`<!DOCTYPE html><html><body><script>
         if (window.opener) {
-          window.opener.postMessage({ id: ${widgetData.id}, success: true }, '*');
+          window.opener.postMessage({ id: ${widgetData.id}, success: true }, window.location.origin);
           window.close();
         } else {
           window.location.href = '/lobby';

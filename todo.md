@@ -321,3 +321,25 @@
 - [x] 前端：管理后台「欢迎消息」配置面板（WelcomePanel，多语言列表+图片上传+按钮编辑）
 - [x] 后端：webhook /start 逻辑改造 - 读取 language_code → getWelcomeTemplateByLanguage → sendPhoto/sendMessage 带图片+caption+buttons
 - [x] 后端：语言 fallback 逻辑（精确匹配 → 前缀匹配 → en 兜底）
+
+## 2026-06-01 安全审计漏洞修复
+
+### Critical
+- [x] #1 提现竞态条件 - 改为原子 SQL 条件更新
+- [x] #2 SQL 注入（营销筛选）- 改为 Drizzle ORM 参数化查询
+- [x] #3 充值双重确认 - confirmDepositById 添加原子条件更新
+
+### High
+- [x] #4 管理员 Token 伪造 - 移除 fallback secret
+- [x] #5 Telegram Webhook 无签名验证 - 添加 secret_token 验证
+- [x] #6 postMessage targetOrigin 通配符 - 改为明确 origin
+- [x] #7 无速率限制 - 添加登录速率限制
+
+### Medium
+- [x] #8 admin updateUser 余额修改无审计 - 添加审计日志
+- [x] #9 txHash 重放攻击 - 添加唯一性检查
+- [x] #10 定时任务堆栈信息泄露 - 生产环境隐藏堆栈
+
+### Low
+- [x] #11 SameSite=None CSRF - 改为 SameSite=Lax
+- [x] #12 默认密码硬编码 - 改为随机生成并通知 Owner

@@ -39,10 +39,14 @@ export function getSessionCookieOptions(
   //       ? hostname
   //       : undefined;
 
+  // SECURITY FIX #11: Use 'lax' by default for CSRF protection
+  // SameSite=None is only needed for cross-site iframe embedding (not our use case)
+  // Telegram Mini App runs in a WebView which is same-origin
+  const secure = isSecureRequest(req);
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req),
+    sameSite: secure ? "lax" : "lax",
+    secure,
   };
 }

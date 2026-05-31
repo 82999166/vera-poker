@@ -1005,18 +1005,23 @@ export async function getPendingDeposits() {
 export async function confirmDepositById(transactionId: number) {
   const db = await getDb();
   if (!db) return null;
+  
+  // SECURITY FIX #3: Atomic conditional update to prevent double-confirmation race condition
+  // Only update status from 'pending' to 'confirmed' - if another process already confirmed, affectedRows = 0
+  const result = await db.execute(
+    sql`UPDATE transactions SET status = 'confirmed' WHERE id = ${transactionId} AND status = 'pending'`
+  );
+  const affectedRows = (result as any)[0]?.affectedRows ?? 0;
+  if (affectedRows === 0) return null; // Already confirmed by another process or not pending
+  
+  // Re-read the transaction to get amount and userId
   const [tx] = await db.select().from(transactions).where(eq(transactions.id, transactionId)).limit(1);
-  if (!tx || tx.status !== "pending") return null;
+  if (!tx) return null;
   
-  // Update transaction status
-  await db.update(transactions).set({ status: "confirmed" }).where(eq(transactions.id, transactionId));
-  
-  // Update user balance
-  const [user] = await db.select().from(users).where(eq(users.id, tx.userId)).limit(1);
-  if (user) {
-    const newBalance = (parseFloat(user.balance ?? "0") + parseFloat(tx.amount)).toFixed(2);
-    await db.update(users).set({ balance: newBalance }).where(eq(users.id, tx.userId));
-  }
+  // Atomic balance addition (no read-then-write)
+  await db.execute(
+    sql`UPDATE users SET balance = ROUND(CAST(balance AS DECIMAL(12,2)) + ${parseFloat(tx.amount)}, 2) WHERE id = ${tx.userId}`
+  );
   
   return tx;
 }

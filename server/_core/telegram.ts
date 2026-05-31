@@ -97,7 +97,19 @@ function getBotWelcomeText(langCode: string | undefined): { welcome: string; but
 export function registerTelegramRoutes(app: Express) {
   app.post("/api/telegram/webhook", async (req: Request, res: Response) => {
     try {
-      // Validate webhook signature (optional but recommended)
+      // SECURITY FIX #5: Validate Telegram webhook secret_token header
+      const webhookSecret = await db.getConfigValue("tg_webhook_secret");
+      if (webhookSecret) {
+        const headerToken = req.headers["x-telegram-bot-api-secret-token"];
+        if (headerToken !== webhookSecret) {
+          console.warn("[Telegram] Webhook request rejected: invalid secret_token");
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+      } else {
+        console.warn("[Telegram] tg_webhook_secret not configured - webhook requests are not verified!");
+      }
+
       const botToken = await db.getConfigValue("tg_bot_token");
       if (!botToken) {
         console.warn("[Telegram] Bot token not configured (key: tg_bot_token)");

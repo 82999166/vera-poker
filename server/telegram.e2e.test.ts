@@ -14,7 +14,8 @@ describe("Telegram Webhook E2E Tests", () => {
   });
 
   it("should handle webhook request with /start command", async () => {
-    vi.spyOn(db, "getConfigValue").mockResolvedValueOnce("test-token-123");
+    // First call: tg_webhook_secret (null = skip verification), second: tg_bot_token
+    vi.spyOn(db, "getConfigValue").mockResolvedValueOnce(null).mockResolvedValueOnce("test-token-123");
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       text: () => Promise.resolve("{}"),
@@ -53,7 +54,8 @@ describe("Telegram Webhook E2E Tests", () => {
   });
 
   it("should return 400 when bot token is not configured", async () => {
-    vi.spyOn(db, "getConfigValue").mockResolvedValueOnce(null);
+    // First call: tg_webhook_secret (null = skip verification), second: tg_bot_token (null = not configured)
+    vi.spyOn(db, "getConfigValue").mockResolvedValueOnce(null).mockResolvedValueOnce(null);
 
     const update = {
       update_id: 2,
@@ -89,7 +91,7 @@ describe("Telegram Webhook E2E Tests", () => {
   });
 
   it("should handle webhook without message gracefully", async () => {
-    vi.spyOn(db, "getConfigValue").mockResolvedValueOnce("test-token-123");
+    vi.spyOn(db, "getConfigValue").mockResolvedValueOnce(null).mockResolvedValueOnce("test-token-123");
 
     const update = {
       update_id: 3,
@@ -122,7 +124,7 @@ describe("Telegram Webhook E2E Tests", () => {
   });
 
   it("should handle Telegram API failures gracefully", async () => {
-    vi.spyOn(db, "getConfigValue").mockResolvedValueOnce("test-token-123");
+    vi.spyOn(db, "getConfigValue").mockResolvedValueOnce(null).mockResolvedValueOnce("test-token-123");
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: false,
       text: () => Promise.resolve("Invalid token"),

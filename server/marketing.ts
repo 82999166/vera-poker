@@ -2,7 +2,7 @@
  * Marketing system DB helpers
  * Covers: broadcast tasks, auto-reply rules, fission campaigns & clicks
  */
-import { eq, desc, asc, and, gte, sql, inArray } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, sql, inArray, isNotNull, ne, gt, lt } from "drizzle-orm";
 import { getDb } from "./db";
 import {
   broadcastTasks, autoReplyRules, fissionCampaigns, fissionClicks,
@@ -492,57 +492,59 @@ export async function resolveBroadcastTargetsWithFilter(task: BroadcastTask): Pr
     return resolveBroadcastTargets(task);
   }
 
-  // Build dynamic WHERE conditions
-  const conditions: string[] = [`${users.tgId.name} IS NOT NULL AND ${users.tgId.name} != ''`];
+  // SECURITY FIX #2: Use parameterized Drizzle ORM queries instead of raw SQL string concatenation
+  // Build type-safe WHERE conditions to prevent SQL injection
+  const conditions: any[] = [isNotNull(users.tgId), ne(users.tgId, "")];
 
   // Also apply basic targetType as base filter
   if (task.targetType === "active") {
-    const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 19).replace("T", " ");
-    conditions.push(`lastSignedIn >= '${cutoff}'`);
+    const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000);
+    conditions.push(gte(users.lastSignedIn, cutoff));
   } else if (task.targetType === "deposited") {
-    conditions.push(`totalDeposited > 0`);
+    conditions.push(gt(users.totalDeposited, "0"));
   } else if (task.targetType === "custom" && Array.isArray(task.targetUserIds) && task.targetUserIds.length > 0) {
-    conditions.push(`id IN (${task.targetUserIds.join(",")})`);
+    conditions.push(inArray(users.id, task.targetUserIds.map(Number)));
   }
 
-  // Advanced filter conditions
+  // Advanced filter conditions - all parameterized
   if (filter.languages && filter.languages.length > 0) {
-    const langs = filter.languages.map(l => `'${l.replace(/'/g, "")}'`).join(",");
-    conditions.push(`language IN (${langs})`);
+    conditions.push(inArray(users.language, filter.languages));
   }
   if (filter.registeredAfter) {
-    conditions.push(`createdAt >= '${filter.registeredAfter}'`);
+    conditions.push(gte(users.createdAt, new Date(filter.registeredAfter)));
   }
   if (filter.registeredBefore) {
-    conditions.push(`createdAt <= '${filter.registeredBefore}'`);
+    conditions.push(lte(users.createdAt, new Date(filter.registeredBefore)));
   }
   if (filter.lastActiveAfter) {
-    conditions.push(`lastSignedIn >= '${filter.lastActiveAfter}'`);
+    conditions.push(gte(users.lastSignedIn, new Date(filter.lastActiveAfter)));
   }
   if (filter.lastActiveBefore) {
-    conditions.push(`lastSignedIn <= '${filter.lastActiveBefore}'`);
+    conditions.push(lte(users.lastSignedIn, new Date(filter.lastActiveBefore)));
   }
   if (filter.minDeposit !== undefined && filter.minDeposit > 0) {
-    conditions.push(`totalDeposited >= ${filter.minDeposit}`);
+    conditions.push(gte(users.totalDeposited, String(filter.minDeposit)));
   }
   if (filter.maxDeposit !== undefined && filter.maxDeposit > 0) {
-    conditions.push(`totalDeposited <= ${filter.maxDeposit}`);
+    conditions.push(lte(users.totalDeposited, String(filter.maxDeposit)));
   }
   if (filter.minGamesPlayed !== undefined && filter.minGamesPlayed > 0) {
-    conditions.push(`totalGamesPlayed >= ${filter.minGamesPlayed}`);
+    conditions.push(gte(users.totalGamesPlayed, filter.minGamesPlayed));
   }
   if (filter.maxGamesPlayed !== undefined && filter.maxGamesPlayed > 0) {
-    conditions.push(`totalGamesPlayed <= ${filter.maxGamesPlayed}`);
+    conditions.push(lte(users.totalGamesPlayed, filter.maxGamesPlayed));
   }
   if (filter.bonusStatus === "locked") {
-    conditions.push(`bonusUnlocked = false AND bonusBalance > 0`);
+    conditions.push(eq(users.bonusUnlocked, false));
+    conditions.push(gt(users.bonusBalance, "0"));
   } else if (filter.bonusStatus === "unlocked") {
-    conditions.push(`bonusUnlocked = true`);
+    conditions.push(eq(users.bonusUnlocked, true));
   }
 
-  const whereStr = conditions.join(" AND ");
-  const rows = await dbInstance.execute(sql.raw(`SELECT tgId, id FROM users WHERE ${whereStr}`));
-  return (rows as unknown as any[])[0].filter((r: any) => r.tgId).map((r: any) => ({ tgId: r.tgId, id: r.id }));
+  const rows = await dbInstance.select({ tgId: users.tgId, id: users.id })
+    .from(users)
+    .where(and(...conditions));
+  return rows.filter((r) => r.tgId).map((r) => ({ tgId: r.tgId!, id: r.id }));
 }
 
 /** Estimate target count for filter preview */

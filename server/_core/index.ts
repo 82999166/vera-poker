@@ -94,7 +94,9 @@ async function startServer() {
       ]);
       res.json({ ok: true, hashVerification: hashResult, addressMonitoring: monitorResult });
     } catch (err: any) {
-      res.status(500).json({ error: err.message, stack: err.stack, timestamp: new Date().toISOString() });
+      // SECURITY FIX #10: Hide stack traces in production
+      console.error("[Cron] autoConfirmDeposits error:", err);
+      res.status(500).json({ error: process.env.NODE_ENV === "production" ? "Internal error" : err.message, timestamp: new Date().toISOString() });
     }
   });
 
@@ -107,7 +109,9 @@ async function startServer() {
       const result = await processTournamentReminders();
       res.json({ ok: true, ...result });
     } catch (err: any) {
-      res.status(500).json({ error: err.message, stack: err.stack, timestamp: new Date().toISOString() });
+      // SECURITY FIX #10: Hide stack traces in production
+      console.error("[Cron] tournamentReminders error:", err);
+      res.status(500).json({ error: process.env.NODE_ENV === "production" ? "Internal error" : err.message, timestamp: new Date().toISOString() });
     }
   });
 
