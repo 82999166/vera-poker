@@ -562,7 +562,7 @@ async function forceFinishByChips(tournamentId: number): Promise<void> {
     });
 
     // Notify player with top-3 summary
-    await notifyTournamentResult(r.userId, t.name, r.rank, r.prizeAmount.toFixed(2), topRankings).catch(() => {});
+    await notifyTournamentResult(r.userId, t.name, r.rank, r.prizeAmount.toFixed(2), topRankings, rankings.length).catch(() => {});
   }
 
   // Close all tournament tables and remove from activeTables (prevents auto-start race)
@@ -923,7 +923,7 @@ async function finishTournament(tournamentId: number, winner: TournamentPlayer):
     });
 
     // Notify player with top-3 summary
-    await notifyTournamentResult(r.userId, t.name, r.rank, r.prizeAmount.toFixed(2), topRankings).catch(() => {});
+    await notifyTournamentResult(r.userId, t.name, r.rank, r.prizeAmount.toFixed(2), topRankings, rankings.length).catch(() => {});
   }
 
   // Update tournament status

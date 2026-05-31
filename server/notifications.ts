@@ -341,31 +341,37 @@ export async function notifyTournamentResult(
   tournamentName: string,
   rank: number,
   prize: string,
-  topRankings?: TopRanking[]
+  topRankings?: TopRanking[],
+  totalPlayers?: number
 ): Promise<boolean> {
   const isWinner = rank <= 3;
+  const totalStr = totalPlayers ? `/${totalPlayers}人` : "";
   
   // Build top-3 summary
   let topSummary = "";
   if (topRankings && topRankings.length > 0) {
     const medals = ["🥇", "🥈", "🥉"];
-    topSummary = "\n\n--- 比赛结果 ---";
+    topSummary = "\n\n━━━ 🏆 比赛排名 ━━━";
     for (const tr of topRankings) {
       const medal = medals[tr.rank - 1] || `#${tr.rank}`;
       topSummary += `\n${medal} ${tr.name}: $${tr.prize}`;
     }
   }
 
+  // Build personal result line
+  const rankLine = `\n\n━━━ 📊 您的成绩 ━━━\n排名: 第${rank}名${totalStr}`;
+  const prizeLine = parseFloat(prize) > 0 ? `\n奖金: $${prize} ✅ 已到账` : "";
+
   const myResult = isWinner
-    ? `恭喜您在「${tournamentName}」中获得第${rank}名！\n奖金 $${prize} 已发放到您的账户`
-    : `「${tournamentName}」已结束，您的最终排名为第${rank}名${parseFloat(prize) > 0 ? `\n奖金 $${prize} 已发放到您的账户` : ""}`;
+    ? `🎉 恭喜您在「${tournamentName}」中获得第${rank}名${totalStr}！\n奖金 $${prize} 已发放到您的账户`
+    : `「${tournamentName}」已结束`;
 
   return sendNotification({
     type: "balance_change",
     userId,
-    title: isWinner ? `🏆 比赛获奖 - 第${rank}名` : `比赛结束 - 第${rank}名`,
-    body: myResult + topSummary,
-    data: { tournamentName, rank, prize, topRankings },
+    title: isWinner ? `🏆 比赛获奖 - 第${rank}名${totalStr}` : `比赛结束 - 第${rank}名${totalStr}`,
+    body: myResult + rankLine + prizeLine + topSummary,
+    data: { tournamentName, rank, prize, totalPlayers, topRankings },
   });
 }
 
