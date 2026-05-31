@@ -634,7 +634,7 @@ export default function Table() {
       kickDetectedRef.current = false;
       if (data.message === "WAITING_FOR_NEXT_HAND") {
         // Player joined mid-game as sitting_out (Wait for Big Blind)
-        toast.success(t("table.waitingForNextHand") || "等待下一局开始，将自动参与", { duration: 3000 });
+        toast.success(t("table.waitingForNextHand"), { duration: 3000 });
       } else {
         toast.success(t("table.seatJoined", { seat: data.seatIndex + 1 }), { duration: 1000 });
       }
@@ -650,7 +650,7 @@ export default function Table() {
         setTimeout(() => navigate("/lobby"), 1500);
       } else if (err.message?.includes("ALREADY_SEATED_THIS_TABLE")) {
         // Same account is already seated at this table from another device
-        toast.error(t("table.alreadySeatedOtherDevice") || "该账号已在其他设备上游戏，请勿重复入座");
+        toast.error(t("table.alreadySeatedOtherDevice"));
         setTimeout(() => navigate("/lobby"), 2000);
       } else {
         toast.error(err.message);
@@ -997,7 +997,7 @@ export default function Table() {
       navigate(`/table/${result.newRoomId}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(msg || t("table.switchTableFailed") || "换桌失败，请稍后重试");
+      toast.error(msg || t("table.switchTableFailed"));
     } finally {
       setIsSwitchingTable(false);
     }
@@ -1309,7 +1309,7 @@ export default function Table() {
                         ) : (
                           <RefreshCw className="w-3 h-3" />
                         )}
-                        {t("table.switchTable") || "换桌"}
+                        {t("table.switchTable")}
                       </button>
                     )}
                   </div>
@@ -1379,7 +1379,7 @@ export default function Table() {
                   {/* Sitting out badge (waiting for next hand) */}
                   {(player as any).isSittingOut && (
                     <div className="mb-0.5 px-1.5 py-0.5 rounded text-[8px] font-semibold bg-amber-500/20 border border-amber-500/40 text-amber-300 text-center">
-                      {t("table.waitingBigBlind") || "等待大盲"}
+                      {t("table.waitingBigBlind")}
                     </div>
                   )}
 
@@ -1611,7 +1611,7 @@ export default function Table() {
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/15 border border-amber-500/30">
                 <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                 <span className="text-sm text-amber-300 font-medium">
-                  {t("table.waitingForNextHand") || "等待下一局，将自动参与游戏"}
+                  {t("table.waitingForNextHand")}
                 </span>
               </div>
             </div>
@@ -1861,7 +1861,7 @@ export default function Table() {
                 className="flex-1 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.97] disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg,#c0392b,#e74c3c,#ff6b6b)', color: '#fff', boxShadow: '0 2px 14px rgba(231,76,60,0.5)' }}
               >
-                {actionMutation.isPending ? "..." : (t("table.allInConfirm") || "确认全押")}
+                {actionMutation.isPending ? "..." : t("table.allInConfirm")}
               </button>
             </div>
           </div>

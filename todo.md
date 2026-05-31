@@ -139,3 +139,17 @@
 - [x] 新建新手教程页面：手牌排行榜（10种牌型）+ 游戏流程 + 结算说明 + 操作说明
 - [x] 大厅、Profile、Support 客服页均添加新手教程入口；Support 添加快捷问题按鈕
 - [x] TypeScript 零错误，103 个测试全部通过
+
+## 2026-05-31 Admin.tsx Toast 翻译 + 全局中文回退清理
+- [x] Admin.tsx: adminI18n 中添加 banner/tournament toast 翻译键（zh-CN/zh-TW/en 三语）
+- [x] Admin.tsx: BannersPanel 中 7 个硬编码中文 toast 替换为 at() 调用
+- [x] Admin.tsx: TournamentsPanel 中 8 个硬编码中文 toast 替换为 at() 调用
+- [x] Admin.tsx: CopyableUrl 组件使用 useAdminLang 获取翻译
+- [x] Lobby.tsx: 移除 lobby.playersOnline / lobby.findingTable 中文回退
+- [x] Table.tsx: 移除 table.waitingForNextHand / alreadySeatedOtherDevice / waitingBigBlind / allInConfirm / switchTableFailed 中文回退
+- [x] Wallet.tsx: 移除 wallet.enterAmountFirst / minDeposit / minWithdraw / minDepositHint / minWithdrawHint 中文回退
+- [x] Agent.tsx: 移除所有 poster 相关中文回退（15处）
+- [x] Profile.tsx: 备用密码 toast 改用 t() 调用
+- [x] i18n.ts: 补充 lobby.playersOnline / lobby.findingTable / table.waitingForNextHand / table.alreadySeatedOtherDevice / table.waitingBigBlind / profile.backupPassword* / admin.banner* 翻译键（12种语言）
+- [x] Toaster duration 从 1500ms 改为 1000ms
+- [x] TypeScript 零错误

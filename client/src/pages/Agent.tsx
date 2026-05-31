@@ -170,7 +170,7 @@ export default function Agent() {
           className="w-full glass rounded-xl p-4 flex items-center justify-center gap-2 border border-gold/30 hover:border-gold/60 transition-all active:scale-[0.97]"
         >
           <Image className="w-5 h-5 text-gold" />
-          <span className="text-sm font-semibold text-gold">{t("agent.generatePoster") || "生成推广海报"}</span>
+          <span className="text-sm font-semibold text-gold">{t("agent.generatePoster")}</span>
         </button>
       </div>
 
@@ -285,16 +285,16 @@ function PosterModal({ inviteLink, inviteCode, userName, onClose, t }: {
     // Slogan
     ctx.fillStyle = "#ffffff";
     ctx.font = "28px sans-serif";
-    ctx.fillText(t("agent.posterSlogan") || "全球顶级德州扑克平台", W / 2, 220);
+    ctx.fillText(t("agent.posterSlogan"), W / 2, 220);
 
     // Features
     ctx.font = "24px sans-serif";
     ctx.fillStyle = "#b0c4de";
     const features = [
-      t("agent.posterFeature1") || "🎯 公平公正，区块链验证",
-      t("agent.posterFeature2") || "💰 秒速充提，安全可靠",
-      t("agent.posterFeature3") || "🏆 丰富赛事，高额奖池",
-      t("agent.posterFeature4") || "🤝 推荐好友，共享佣金",
+      t("agent.posterFeature1"),
+      t("agent.posterFeature2"),
+      t("agent.posterFeature3"),
+      t("agent.posterFeature4"),
     ];
     features.forEach((f, i) => {
       ctx.fillText(f, W / 2, 340 + i * 50);
@@ -311,7 +311,7 @@ function PosterModal({ inviteLink, inviteCode, userName, onClose, t }: {
     // Invite section
     ctx.fillStyle = "#d4a853";
     ctx.font = "bold 32px sans-serif";
-    ctx.fillText(t("agent.posterInviteTitle") || "专属邀请码", W / 2, 650);
+    ctx.fillText(t("agent.posterInviteTitle"), W / 2, 650);
 
     // Invite code box
     ctx.fillStyle = "#ffffff10";
@@ -326,7 +326,7 @@ function PosterModal({ inviteLink, inviteCode, userName, onClose, t }: {
     // Agent name
     ctx.fillStyle = "#b0c4de";
     ctx.font = "22px sans-serif";
-    ctx.fillText(`${t("agent.posterBy") || "推荐人"}: ${userName}`, W / 2, 810);
+    ctx.fillText(`${t("agent.posterBy")}: ${userName}`, W / 2, 810);
 
     // QR Code area placeholder (text-based link)
     ctx.fillStyle = "#ffffff10";
@@ -338,7 +338,7 @@ function PosterModal({ inviteLink, inviteCode, userName, onClose, t }: {
     // QR placeholder text
     ctx.fillStyle = "#ffffff";
     ctx.font = "18px sans-serif";
-    ctx.fillText(t("agent.posterScanQR") || "扫码加入", W / 2, 1000);
+    ctx.fillText(t("agent.posterScanQR"), W / 2, 1000);
     ctx.fillStyle = "#b0c4de";
     ctx.font = "14px sans-serif";
     // Wrap long link
@@ -350,7 +350,7 @@ function PosterModal({ inviteLink, inviteCode, userName, onClose, t }: {
     // Bottom CTA
     ctx.fillStyle = "#d4a853";
     ctx.font = "bold 28px sans-serif";
-    ctx.fillText(t("agent.posterCTA") || "立即注册，领取新人奖励！", W / 2, 1200);
+    ctx.fillText(t("agent.posterCTA"), W / 2, 1200);
 
     // Footer
     ctx.fillStyle = "#ffffff50";
@@ -371,14 +371,14 @@ function PosterModal({ inviteLink, inviteCode, userName, onClose, t }: {
     link.download = `vera-poker-invite-${inviteCode}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
-    toast.success(t("agent.posterSaved") || "海报已保存");
+    toast.success(t("agent.posterSaved"));
   };
 
   const sharePoster = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     // Share via TG with the invite link
-    const text = encodeURIComponent(`${t("agent.posterSlogan") || "全球顶级德州扑克平台"}\n${t("agent.posterCTA") || "立即注册，领取新人奖励！"}\n\n${t("agent.posterInviteTitle") || "邀请码"}: ${inviteCode}`);
+    const text = encodeURIComponent(`${t("agent.posterSlogan")}\n${t("agent.posterCTA")}\n\n${t("agent.posterInviteTitle")}: ${inviteCode}`);
     const url = encodeURIComponent(inviteLink);
     const tgShareUrl = `https://t.me/share/url?url=${url}&text=${text}`;
     window.open(tgShareUrl, "_blank");
@@ -389,7 +389,7 @@ function PosterModal({ inviteLink, inviteCode, userName, onClose, t }: {
       <div className="bg-card rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-4" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-bold">{t("agent.generatePoster") || "推广海报"}</h3>
+          <h3 className="text-base font-bold">{t("agent.generatePoster")}</h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="w-5 h-5" />
           </button>
@@ -412,7 +412,7 @@ function PosterModal({ inviteLink, inviteCode, userName, onClose, t }: {
             className="flex-1 bg-gold text-background font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
-            {t("agent.posterDownload") || "保存图片"}
+            {t("agent.posterDownload")}
           </button>
           <button
             onClick={sharePoster}
@@ -420,7 +420,7 @@ function PosterModal({ inviteLink, inviteCode, userName, onClose, t }: {
             className="flex-1 bg-truth-blue text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             <Share2 className="w-4 h-4" />
-            {t("agent.posterShare") || "分享到TG"}
+            {t("agent.posterShare")}
           </button>
         </div>
       </div>

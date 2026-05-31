@@ -69,10 +69,10 @@ export default function Wallet() {
 
   const handleDeposit = () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      return toast.error(t("wallet.enterAmountFirst") || "请先输入充值金额");
+      return toast.error(t("wallet.enterAmountFirst"));
     }
     if (Number(amount) < 10) {
-      return toast.error(t("wallet.minDeposit") || "最低充值金额为 10 USDT");
+      return toast.error(t("wallet.minDeposit"));
     }
     // Use the exact amount with unique suffix for auto-matching
     const exactAmount = `${Number(amount).toFixed(0)}.${amountSuffix}`;
@@ -82,7 +82,7 @@ export default function Wallet() {
   const handleWithdraw = () => {
     if (!amount || !address) return toast.error(t("wallet.fillAll"));
     if (isNaN(Number(amount)) || Number(amount) < 20) {
-      return toast.error(t("wallet.minWithdraw") || "最低提现金额为 20 USDT");
+      return toast.error(t("wallet.minWithdraw"));
     }
     withdrawMutation.mutate({ amount, chain, walletAddress: address });
   };
@@ -238,9 +238,9 @@ export default function Wallet() {
                   </>
                 ) : (
                   <>
-                    <p className="text-sm font-bold text-gold">{t("wallet.enterAmountFirst") || "请先输入充值金额"}</p>
+                    <p className="text-sm font-bold text-gold">{t("wallet.enterAmountFirst")}</p>
                     <p className="text-[11px] text-gold/70 mt-0.5 font-semibold">
-                      {t("wallet.minDepositHint") || "最低充值 10 USDT，系统将为您生成专属标识码"}
+                      {t("wallet.minDepositHint")}
                     </p>
                   </>
                 )}
@@ -289,7 +289,7 @@ export default function Wallet() {
               {/* Minimum withdrawal hint */}
               <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2.5">
                 <p className="text-sm font-bold text-gold">
-                  {t("wallet.minWithdrawHint") || "最低提现 20 USDT"}
+                  {t("wallet.minWithdrawHint")}
                 </p>
               </div>
             </div>

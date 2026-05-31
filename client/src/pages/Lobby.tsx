@@ -314,7 +314,7 @@ export default function Lobby() {
         </div>
         {activeTab === "cash" && totalOnline > 0 && (
           <span className="text-xs text-muted-foreground">
-            {filteredGroups.reduce((sum, g) => sum + g.totalPlayers, 0)} {t("lobby.playersOnline") || "人在线"}
+            {filteredGroups.reduce((sum, g) => sum + g.totalPlayers, 0)} {t("lobby.playersOnline")}
           </span>
         )}
       </div>
@@ -425,7 +425,7 @@ export default function Lobby() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="glass-strong rounded-2xl px-8 py-6 flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-foreground font-medium">{t("lobby.findingTable") || "正在寻找桌子..."}</p>
+            <p className="text-sm text-foreground font-medium">{t("lobby.findingTable")}</p>
           </div>
         </div>
       )}

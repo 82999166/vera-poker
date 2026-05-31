@@ -395,6 +395,22 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "config.catFinance": "财务设置",
     "config.catRisk": "风控设置",
     "config.catRoom": "私人房设置",
+    "toast.copied": "已复制",
+    "toast.bannerUploading": "图片正在上传中，请稍候...",
+    "toast.bannerTitleRequired": "请填写标题",
+    "toast.bannerImageRequired": "请上传图片或输入图片 URL",
+    "toast.bannerSizeExceeded": "图片不能超过 5MB",
+    "toast.bannerUploadSuccess": "图片上传成功，可点击创建",
+    "toast.bannerUploadFailed": "图片上传失败",
+    "toast.bannerReadFileFailed": "读取文件失败",
+    "toast.tournamentCreated": "创建成功",
+    "toast.tournamentUpdated": "更新成功",
+    "toast.tournamentDeleted": "删除成功",
+    "toast.tournamentRegOpen": "已开放报名，前端大厅现在可见",
+    "toast.tournamentStarted": "比赛已开始，系统已自动分桌",
+    "toast.tournamentCancelled": "比赛已取消，已退款",
+    "toast.tournamentPrizesDone": "奖金发放完成！共发放 {count} 人，比赛已结束",
+    "toast.tournamentNameTimeRequired": "请填写比赛名称和开赛时间",
   },
   "zh-TW": {
     "admin.title": "Vera 管理後台",
@@ -751,6 +767,22 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "config.catFinance": "財務設置",
     "config.catRisk": "風控設置",
     "config.catRoom": "私人房設置",
+    "toast.copied": "已複製",
+    "toast.bannerUploading": "圖片正在上傳中，請稍候...",
+    "toast.bannerTitleRequired": "請填寫標題",
+    "toast.bannerImageRequired": "請上傳圖片或輸入圖片 URL",
+    "toast.bannerSizeExceeded": "圖片不能超過 5MB",
+    "toast.bannerUploadSuccess": "圖片上傳成功，可點擊建立",
+    "toast.bannerUploadFailed": "圖片上傳失敗",
+    "toast.bannerReadFileFailed": "讀取檔案失敗",
+    "toast.tournamentCreated": "建立成功",
+    "toast.tournamentUpdated": "更新成功",
+    "toast.tournamentDeleted": "刪除成功",
+    "toast.tournamentRegOpen": "已開放報名，前端大廳現在可見",
+    "toast.tournamentStarted": "比賽已開始，系統已自動分桌",
+    "toast.tournamentCancelled": "比賽已取消，已退款",
+    "toast.tournamentPrizesDone": "獎金發放完成！共發放 {count} 人，比賽已結束",
+    "toast.tournamentNameTimeRequired": "請填寫比賽名稱和開賽時間",
   },
   "en": {
     "admin.title": "Vera Admin",
@@ -1107,6 +1139,22 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "config.catFinance": "Finance",
     "config.catRisk": "Risk Control",
     "config.catRoom": "Private Room",
+    "toast.copied": "Copied",
+    "toast.bannerUploading": "Image is uploading, please wait...",
+    "toast.bannerTitleRequired": "Please enter a title",
+    "toast.bannerImageRequired": "Please upload an image or enter image URL",
+    "toast.bannerSizeExceeded": "Image cannot exceed 5MB",
+    "toast.bannerUploadSuccess": "Image uploaded successfully",
+    "toast.bannerUploadFailed": "Image upload failed",
+    "toast.bannerReadFileFailed": "Failed to read file",
+    "toast.tournamentCreated": "Created successfully",
+    "toast.tournamentUpdated": "Updated successfully",
+    "toast.tournamentDeleted": "Deleted successfully",
+    "toast.tournamentRegOpen": "Registration opened, now visible in lobby",
+    "toast.tournamentStarted": "Tournament started, tables assigned automatically",
+    "toast.tournamentCancelled": "Tournament cancelled, refunds issued",
+    "toast.tournamentPrizesDone": "Prizes distributed to {count} players, tournament ended",
+    "toast.tournamentNameTimeRequired": "Please enter tournament name and start time",
   },
 };
 
@@ -3831,10 +3879,11 @@ function TrendChart({ data, dataKey, color, label, isVolume, noDataText }: { dat
 
 function CopyableUrl({ value, small }: { value: string; small?: boolean }) {
   const [copied, setCopied] = useState(false);
+  const { at } = useAdminLang();
   const handleCopy = () => {
     navigator.clipboard.writeText(value).then(() => {
       setCopied(true);
-      toast.success("已复制");
+      toast.success(at("toast.copied"));
       setTimeout(() => setCopied(false), 2000);
     });
   };
@@ -3889,15 +3938,15 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
 
   const handleSubmit = () => {
     if (uploading) {
-      toast.error("图片正在上传中，请稍候...");
+      toast.error(at("toast.bannerUploading"));
       return;
     }
     if (!formData.title) {
-      toast.error("请填写标题");
+      toast.error(at("toast.bannerTitleRequired"));
       return;
     }
     if (!formData.imageUrl) {
-      toast.error("请上传图片或输入图片 URL");
+      toast.error(at("toast.bannerImageRequired"));
       return;
     }
     if (editingBanner) {
@@ -3951,7 +4000,7 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
                     const file = e.target.files?.[0];
                     if (!file) return;
                     if (file.size > 5 * 1024 * 1024) {
-                      toast.error("图片不能超过 5MB");
+                      toast.error(at("toast.bannerSizeExceeded"));
                       return;
                     }
                     setUploading(true);
@@ -3972,16 +4021,16 @@ function BannersPanel({ at }: { at: (k: string) => string }) {
                         }
                         const result = await resp.json();
                         setFormData(p => ({ ...p, imageUrl: result.url }));
-                        toast.success("图片上传成功，可点击创建");
+                        toast.success(at("toast.bannerUploadSuccess"));
                       } catch (err) {
-                        toast.error("图片上传失败：" + (err instanceof Error ? err.message : "请重试"));
+                        toast.error(at("toast.bannerUploadFailed") + ": " + (err instanceof Error ? err.message : ""));
                       } finally {
                         setUploading(false);
                       }
                     };
                     reader.onerror = () => {
                       setUploading(false);
-                      toast.error("读取文件失败");
+                      toast.error(at("toast.bannerReadFileFailed"));
                     };
                     reader.readAsDataURL(file);
                   }}
@@ -4111,18 +4160,18 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const { data: listData, refetch } = trpc.adminTournaments.list.useQuery({});
-  const createMutation = trpc.adminTournaments.create.useMutation({ onSuccess: () => { refetch(); setShowForm(false); toast.success("创建成功"); } });
-  const updateMutation = trpc.adminTournaments.update.useMutation({ onSuccess: () => { refetch(); setShowForm(false); setEditingId(null); toast.success("更新成功"); } });
-  const deleteMutation = trpc.adminTournaments.delete.useMutation({ onSuccess: () => { refetch(); toast.success("删除成功"); } });
-  const openRegMutation = trpc.adminTournaments.openRegistration.useMutation({ onSuccess: () => { refetch(); toast.success("已开放报名，前端大厅现在可见"); } });
-  const startMutation = trpc.adminTournaments.start.useMutation({ onSuccess: () => { refetch(); toast.success("比赛已开始，系统已自动分桌"); } });
-  const cancelMutation = trpc.adminTournaments.cancel.useMutation({ onSuccess: () => { refetch(); toast.success("比赛已取消，已退款"); } });
+  const createMutation = trpc.adminTournaments.create.useMutation({ onSuccess: () => { refetch(); setShowForm(false); toast.success(at("toast.tournamentCreated")); } });
+  const updateMutation = trpc.adminTournaments.update.useMutation({ onSuccess: () => { refetch(); setShowForm(false); setEditingId(null); toast.success(at("toast.tournamentUpdated")); } });
+  const deleteMutation = trpc.adminTournaments.delete.useMutation({ onSuccess: () => { refetch(); toast.success(at("toast.tournamentDeleted")); } });
+  const openRegMutation = trpc.adminTournaments.openRegistration.useMutation({ onSuccess: () => { refetch(); toast.success(at("toast.tournamentRegOpen")); } });
+  const startMutation = trpc.adminTournaments.start.useMutation({ onSuccess: () => { refetch(); toast.success(at("toast.tournamentStarted")); } });
+  const cancelMutation = trpc.adminTournaments.cancel.useMutation({ onSuccess: () => { refetch(); toast.success(at("toast.tournamentCancelled")); } });
   const distributePrizesMutation = trpc.adminTournaments.distributePrizes.useMutation({
     onSuccess: (data) => {
       refetch();
       setShowDistributeModal(false);
       setDistributeResults([]);
-      toast.success(`奖金发放完成！共发放 ${data.distributed} 人，比赛已结束`);
+      toast.success(at("toast.tournamentPrizesDone").replace("{count}", String(data.distributed)));
     },
     onError: (err) => toast.error(err.message),
   });
@@ -4163,7 +4212,7 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
 
   const handleSubmit = () => {
     if (!form.name || !form.scheduledStartTime) {
-      toast.error("请填写比赛名称和开赛时间");
+      toast.error(at("toast.tournamentNameTimeRequired"));
       return;
     }
     // Generate default blind structure based on starting chips
