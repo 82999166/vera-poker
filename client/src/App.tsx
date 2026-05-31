@@ -44,8 +44,8 @@ function MobileRouter() {
 
 function MobileContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-full min-h-screen bg-deep-space flex justify-center overflow-hidden">
-      <div className="w-full max-w-[430px] h-full min-h-screen relative shadow-2xl overflow-hidden">
+    <div className="h-full min-h-screen bg-deep-space flex justify-center overflow-x-hidden">
+      <div className="w-full max-w-[430px] h-full min-h-screen relative shadow-2xl overflow-y-auto overflow-x-hidden">
         {children}
       </div>
     </div>

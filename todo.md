@@ -288,3 +288,14 @@
 - [x] index.css safe-top/safe-bottom 改用 var(--tg-content-safe-area-inset-*) 优先
 - [x] index.html viewport meta 添加 shrink-to-fit=no
 - [x] 防止 body rubber-banding（touchmove 拦截，允许内部滚动容器）
+
+## 2026-05-31 iOS 滚动修复（第三轮 - 回退过度拦截）
+
+- [x] 移除 main.tsx 中 visualViewport 高度锁定（导致内容被截断）
+- [x] 移除 main.tsx 中 touchmove 拦截（导致所有页面无法滚动）
+- [x] 移除 main.tsx 中 window.scrollTo(0,0) 强制锁定（阻止正常滚动）
+- [x] 保留 tg.ready() + tg.expand() + setHeaderColor/setBackgroundColor('#1a1a2e') 使顶部色带与 app 背景融合
+- [x] index.css 移除 touch-action: pan-x pan-y（阻止了正常触摸滚动）
+- [x] App.tsx MobileContainer 内层从 overflow-hidden 改为 overflow-y-auto（允许页面垂直滚动）
+- [x] 保留 overscroll-behavior: none（CSS 层面防止 rubber-banding，不阻止正常滚动）
+- [x] TypeScript 零错误，152 个测试全部通过
