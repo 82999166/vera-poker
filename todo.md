@@ -186,3 +186,9 @@
 - [x] 后端: 风控告警触发时自动发送Bot通知
 - [x] 后端: 告警状态管理（处理/忽略）
 - [x] 前端: 告警通知面板集成到Admin
+
+## 2026-05-31 余额异常 + UI修改
+
+- [x] 排查 QQXL9999 账号余额自动减少原因：updateUserBalance 函数被错误使用（设绝对值而非增减）
+- [x] 修复余额异常减少的 bug：所有 updateUserBalance 改为 deductUserBalanceAtomic/addUserBalanceAtomic，恢复7个受影响用户余额（user 31800 余额偏高未调整）
+- [x] Lobby 顶部：将 "Vera Poker / 真相发牌" 替换为用户头像+用户名+TG用户名

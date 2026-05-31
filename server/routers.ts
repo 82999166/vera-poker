@@ -1349,10 +1349,9 @@ ${faqContext}
           }
         }
       }
-      // Apply accumulated reward in one operation
-      if (totalReward > 0 && user) {
-        const newBalance = (parseFloat(user.balance) + totalReward).toFixed(2);
-        await db.updateUserBalance(ctx.user.id, newBalance);
+      // Apply accumulated reward atomically
+      if (totalReward > 0) {
+        await db.addUserBalanceAtomic(ctx.user.id, totalReward);
       }
       return { newlyUnlocked };
     }),
@@ -2037,8 +2036,9 @@ ${faqContext}
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
       const entryFee = parseFloat(tournament.entryFee);
       if (parseFloat(user.balance) < entryFee) throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
-      // Deduct balance
-      await db.updateUserBalance(ctx.user.id, String(-entryFee));
+      // Deduct balance atomically
+      const deductResult = await db.deductUserBalanceAtomic(ctx.user.id, entryFee);
+      if (deductResult === null) throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
       // Register
       await db.registerForTournament(input.tournamentId, ctx.user.id, tournament.startingChips);
       // Update registered count
@@ -2057,9 +2057,9 @@ ${faqContext}
       if (tournament.status !== "registration") throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot cancel after tournament started" });
       const reg = await db.getRegistration(input.tournamentId, ctx.user.id);
       if (!reg || reg.status !== "registered") throw new TRPCError({ code: "BAD_REQUEST", message: "Not registered" });
-      // Refund entry fee
+      // Refund entry fee atomically
       const entryFee = parseFloat(tournament.entryFee);
-      await db.updateUserBalance(ctx.user.id, String(entryFee));
+      await db.addUserBalanceAtomic(ctx.user.id, entryFee);
       await db.cancelRegistration(input.tournamentId, ctx.user.id);
       // Update count
       const count = await db.getRegistrationCount(input.tournamentId);
@@ -2217,7 +2217,7 @@ ${faqContext}
       const entryFee = parseFloat(tournament.entryFee);
       for (const r of regs) {
         if (r.reg.status === "registered" || r.reg.status === "playing") {
-          await db.updateUserBalance(r.reg.userId, String(entryFee));
+          await db.addUserBalanceAtomic(r.reg.userId, entryFee);
           await db.cancelRegistration(input.id, r.reg.userId);
         }
       }
@@ -2245,7 +2245,7 @@ ${faqContext}
         // Credit prize to player balance if > 0
         const prizeAmt = parseFloat(r.prizeAmount);
         if (prizeAmt > 0) {
-          await db.updateUserBalance(r.userId, r.prizeAmount);
+          await db.addUserBalanceAtomic(r.userId, prizeAmt);
           distributed++;
         }
         // Save result record

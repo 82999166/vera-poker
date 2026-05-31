@@ -152,12 +152,16 @@ export default function Lobby() {
       <header className="glass-strong sticky top-0 z-50 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center">
-              <span className="text-sm font-bold text-background">V</span>
-            </div>
+            {user?.avatar ? (
+              <img src={user.avatar} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-gold/50" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center">
+                <span className="text-sm font-bold text-background">{(user?.nickname || user?.name || "V").charAt(0).toUpperCase()}</span>
+              </div>
+            )}
             <div>
-              <h1 className="text-lg font-bold text-foreground">Vera Poker</h1>
-              <p className="text-xs text-muted-foreground">{t("app.slogan")}</p>
+              <h1 className="text-lg font-bold text-foreground">{user?.nickname || user?.name || "Vera Poker"}</h1>
+              <p className="text-xs text-muted-foreground">{user?.tgUsername ? `@${user.tgUsername}` : t("app.slogan")}</p>
             </div>
           </div>
           <div className="glass rounded-full px-3 py-1.5 flex items-center gap-2">

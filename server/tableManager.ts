@@ -1369,9 +1369,9 @@ export async function processAutoRebuy(roomId: number, userId: number, threshold
     if (currentChips + needed > maxBuyIn) return { success: false };
   }
 
-  // Execute rebuy
-  const newBalance = (balance - needed).toFixed(2);
-  await db.updateUserBalance(userId, newBalance);
+  // Execute rebuy atomically
+  const deducted = await db.deductUserBalanceAtomic(userId, needed);
+  if (deducted === null) return { success: false };
   await addPlayerChips(roomId, userId, needed);
 
   return { success: true, added: needed };
