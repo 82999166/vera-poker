@@ -69,7 +69,7 @@ export default function Profile() {
   const { data: hasPasswordData, refetch: refetchHasPassword } = trpc.auth.hasPassword.useQuery(undefined, { enabled: !!user });
   const setPasswordMutation = trpc.auth.setPassword.useMutation({
     onSuccess: () => {
-      toast.success(t("profile.backupPasswordSetSuccess"));
+      toast.success(locale === "zh-CN" || locale === "zh-TW" ? "备用密码设置成功" : "Backup password set successfully");
       setPwdCurrentPwd(""); setPwdNewPwd(""); setPwdConfirm(""); setShowPasswordSection(false);
       refetchHasPassword();
     },
@@ -77,7 +77,7 @@ export default function Profile() {
   });
   const removePasswordMutation = trpc.auth.removePassword.useMutation({
     onSuccess: () => {
-      toast.success(t("profile.backupPasswordRemoved"));
+      toast.success(locale === "zh-CN" || locale === "zh-TW" ? "备用密码已移除" : "Backup password removed");
       setPwdCurrentPwd(""); setShowPasswordSection(false);
       refetchHasPassword();
     },
@@ -85,10 +85,10 @@ export default function Profile() {
   });
   const handleSetPassword = () => {
     if (pwdNewPwd.length < 6) {
-      toast.error(t("profile.passwordMinLength")); return;
+      toast.error(locale === "zh-CN" || locale === "zh-TW" ? "密码至少6位" : "Password must be at least 6 characters"); return;
     }
     if (pwdNewPwd !== pwdConfirm) {
-      toast.error(t("profile.passwordMismatch")); return;
+      toast.error(locale === "zh-CN" || locale === "zh-TW" ? "两次密码不一致" : "Passwords do not match"); return;
     }
     setPasswordMutation.mutate({ newPassword: pwdNewPwd, currentPassword: hasPasswordData?.hasPassword ? pwdCurrentPwd : undefined });
   };
