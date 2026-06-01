@@ -398,3 +398,7 @@
 - [x] hooks / lib / shared 文件添加中文注释
 - [x] drizzle/schema.ts 所有表 section 注释中文化
 - [x] gameEngine.ts 核心函数和 section 注释中文化
+
+## 2026-06-01 用户显示名称修复
+
+- [ ] 用户注册/登录时使用 TG 显示名称（first_name + last_name）而非 username

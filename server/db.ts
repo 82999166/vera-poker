@@ -811,6 +811,10 @@ export async function findOrCreateTelegramUser(params: {
         ? `${params.firstName} ${params.lastName}`
         : params.firstName;
       updates.name = fullName;
+      // 如果 nickname 仍然是 tgUsername，同步更新为显示名称
+      if (!existing.nickname || existing.nickname === existing.tgUsername) {
+        updates.nickname = fullName;
+      }
     }
     if (params.languageCode) updates.language = params.languageCode;
 
@@ -827,18 +831,28 @@ export async function findOrCreateTelegramUser(params: {
   // Generate unique invite code for new user
   const inviteCode = await generateUniqueInviteCode();
 
+  // 检查注册赠送配置
+  const bonusAmountStr = await getConfigValue("registration_bonus_amount", "0");
+  const bonus = parseFloat(bonusAmountStr);
+
   const insertValues: InsertUser = {
     openId,
     name: fullName,
     tgId: params.tgId,
     tgUsername: params.tgUsername,
     avatar: params.photoUrl,
-    nickname: params.tgUsername || params.firstName,
+    nickname: fullName,
     language: params.languageCode,
     loginMethod: "telegram",
     lastSignedIn: new Date(),
     inviteCode,
   };
+
+  // 注册赠送：设置初始余额和奖励余额
+  if (bonus > 0) {
+    (insertValues as any).balance = bonus.toFixed(2);
+    (insertValues as any).bonusBalance = bonus.toFixed(2);
+  }
 
   // Check if owner
   if (openId === ENV.ownerOpenId) {
