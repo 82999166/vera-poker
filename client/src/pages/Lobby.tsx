@@ -98,13 +98,14 @@ export default function Lobby() {
   }, [cashRooms]);
 
   // Filter stake groups by level
+  // 筛选逻辑：初级场 bb<=2，中级场 2<bb<=10，高级场 10<bb<=50，VIP场 bb>50
   const filteredGroups = stakeGroups.filter(g => {
     if (filterLevel === "all") return true;
     const bb = parseFloat(g.bigBlind);
-    if (filterLevel === "low") return bb <= 0.10;
-    if (filterLevel === "mid") return bb > 0.10 && bb <= 1;
-    if (filterLevel === "high") return bb > 1 && bb <= 10;
-    if (filterLevel === "vip") return bb > 10;
+    if (filterLevel === "low") return bb <= 2;
+    if (filterLevel === "mid") return bb > 2 && bb <= 10;
+    if (filterLevel === "high") return bb > 10 && bb <= 50;
+    if (filterLevel === "vip") return bb > 50;
     return true;
   });
 
@@ -112,10 +113,10 @@ export default function Lobby() {
 
   const tableCountByLevel = {
     all: stakeGroups.length,
-    low: stakeGroups.filter(g => parseFloat(g.bigBlind) <= 0.10).length,
-    mid: stakeGroups.filter(g => parseFloat(g.bigBlind) > 0.10 && parseFloat(g.bigBlind) <= 1).length,
-    high: stakeGroups.filter(g => parseFloat(g.bigBlind) > 1 && parseFloat(g.bigBlind) <= 10).length,
-    vip: stakeGroups.filter(g => parseFloat(g.bigBlind) > 10).length,
+    low: stakeGroups.filter(g => parseFloat(g.bigBlind) <= 2).length,
+    mid: stakeGroups.filter(g => parseFloat(g.bigBlind) > 2 && parseFloat(g.bigBlind) <= 10).length,
+    high: stakeGroups.filter(g => parseFloat(g.bigBlind) > 10 && parseFloat(g.bigBlind) <= 50).length,
+    vip: stakeGroups.filter(g => parseFloat(g.bigBlind) > 50).length,
   };
 
   // 点「入座」：先找到可用桌，直接跳转到游戏桌，在游戏桌内弹出买入弹窗
