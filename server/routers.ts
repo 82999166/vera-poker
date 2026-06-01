@@ -1336,6 +1336,47 @@ ${faqContext}
       await dbInstance.update(users).set(updateData).where(eq(users.id, ctx.user.id));
       return { success: true };
     }),
+    // 获取通知偏好设置
+    getNotificationPrefs: protectedProcedure.query(async ({ ctx }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const [user] = await dbInstance.select({ notificationPrefs: users.notificationPrefs }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+      // null 表示全部开启，返回默认值
+      return user?.notificationPrefs || {
+        privateRoomInvite: true,
+        turnAction: true,
+        gameStarting: true,
+        deposit: true,
+        withdrawal: true,
+        commission: true,
+        tournament: true,
+        system: true,
+      };
+    }),
+    // 更新通知偏好设置
+    updateNotificationPrefs: protectedProcedure.input(z.object({
+      privateRoomInvite: z.boolean().optional(),
+      turnAction: z.boolean().optional(),
+      gameStarting: z.boolean().optional(),
+      deposit: z.boolean().optional(),
+      withdrawal: z.boolean().optional(),
+      commission: z.boolean().optional(),
+      tournament: z.boolean().optional(),
+      system: z.boolean().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      // 合并现有偏好和新输入
+      const [user] = await dbInstance.select({ notificationPrefs: users.notificationPrefs }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+      const currentPrefs = user?.notificationPrefs || {};
+      const newPrefs = { ...currentPrefs, ...input };
+      await dbInstance.update(users).set({ notificationPrefs: newPrefs }).where(eq(users.id, ctx.user.id));
+      return { success: true, prefs: newPrefs };
+    }),
     unbindTelegram: protectedProcedure.mutation(async ({ ctx }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });

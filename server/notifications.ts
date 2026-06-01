@@ -93,8 +93,39 @@ function formatNotification(payload: NotificationPayload): string {
   return `${emoji} <b>${title}</b>\n\n${body}`;
 }
 
+// 通知类型到偏好 key 的映射
+const typeToPrefsKey: Record<NotificationType, string> = {
+  private_room_invite: "privateRoomInvite",
+  turn_action: "turnAction",
+  game_starting: "gameStarting",
+  balance_change: "deposit",
+  deposit_confirmed: "deposit",
+  withdrawal_approved: "withdrawal",
+  withdrawal_rejected: "withdrawal",
+  commission_earned: "commission",
+  system_announcement: "system",
+};
+
+// 检查用户是否开启了该类型的通知
+async function checkNotificationPrefs(userId: number, type: NotificationType): Promise<boolean> {
+  const dbInstance = await db.getDb();
+  if (!dbInstance) return true; // 数据库不可用时默认允许
+  const { users } = await import("../drizzle/schema");
+  const { eq } = await import("drizzle-orm");
+  const [user] = await dbInstance.select({ notificationPrefs: users.notificationPrefs }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!user?.notificationPrefs) return true; // null 表示全部开启
+  const prefsKey = typeToPrefsKey[type];
+  if (!prefsKey) return true;
+  const val = (user.notificationPrefs as any)[prefsKey];
+  return val !== false; // 只有明确设为 false 才禁止
+}
+
 // 主通知发送函数
 export async function sendNotification(payload: NotificationPayload): Promise<boolean> {
+  // 检查用户通知偏好
+  const allowed = await checkNotificationPrefs(payload.userId, payload.type);
+  if (!allowed) return false;
+
   const tgId = await getUserTgId(payload.userId);
   if (!tgId) return false;
 

@@ -11,7 +11,7 @@ import { useSoundEffects } from "@/hooks/useSoundEffects";
 import {
   User, Trophy, TrendingUp, Gamepad2, Edit2, Check, X,
   Link2, Unlink, ArrowLeft, Shield, Coins, Award, Globe, ChevronRight,
-  Volume2, Users, ChevronRight as ArrowRight, Lock, Eye, EyeOff, BookOpen, History
+  Volume2, Users, ChevronRight as ArrowRight, Lock, Eye, EyeOff, BookOpen, History, Bell
 } from "lucide-react";
 
 export default function Profile() {
@@ -424,6 +424,9 @@ export default function Profile() {
         </div>
       </div>
 
+      {/* Notification Preferences */}
+      <NotificationPrefsSection locale={locale} />
+
       {/* Telegram Binding */}
       <div className="px-4 pb-3">
         <div className="glass rounded-2xl p-4">
@@ -673,6 +676,64 @@ function TournamentHistorySection({ locale }: { locale: string }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** 通知偏好设置组件 */
+function NotificationPrefsSection({ locale }: { locale: string }) {
+  const { data: prefs, isLoading } = trpc.profile.getNotificationPrefs.useQuery();
+  const updateMutation = trpc.profile.updateNotificationPrefs.useMutation({
+    onSuccess: () => {
+      toast.success(locale.startsWith("zh") ? "保存成功" : "Saved");
+    },
+  });
+
+  const items: { key: string; label: string; labelEn: string }[] = [
+    { key: "privateRoomInvite", label: "私人房邀请", labelEn: "Room Invites" },
+    { key: "turnAction", label: "轮到操作提醒", labelEn: "Turn Reminders" },
+    { key: "gameStarting", label: "游戏开始通知", labelEn: "Game Starting" },
+    { key: "deposit", label: "充值到账通知", labelEn: "Deposit Alerts" },
+    { key: "withdrawal", label: "提现状态通知", labelEn: "Withdrawal Alerts" },
+    { key: "commission", label: "佣金到账通知", labelEn: "Commission Alerts" },
+    { key: "tournament", label: "锦标赛通知", labelEn: "Tournament Alerts" },
+    { key: "system", label: "系统公告", labelEn: "System Notices" },
+  ];
+
+  const handleToggle = (key: string, currentVal: boolean) => {
+    updateMutation.mutate({ [key]: !currentVal });
+  };
+
+  if (isLoading) return null;
+
+  return (
+    <div className="px-4 pb-3">
+      <div className="glass rounded-2xl p-4">
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Bell className="w-4 h-4 text-gold" />
+          {locale.startsWith("zh") ? "TG 通知设置" : "TG Notifications"}
+        </h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          {locale.startsWith("zh") ? "选择哪些通知通过 Telegram Bot 推送" : "Choose which notifications to receive via Telegram Bot"}
+        </p>
+        <div className="space-y-1">
+          {items.map((item) => {
+            const val = (prefs as any)?.[item.key] !== false;
+            return (
+              <div key={item.key} className="flex items-center justify-between py-2">
+                <p className="text-sm">{locale.startsWith("zh") ? item.label : item.labelEn}</p>
+                <button
+                  onClick={() => handleToggle(item.key, val)}
+                  disabled={updateMutation.isPending}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${val ? "bg-gold" : "bg-muted"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${val ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

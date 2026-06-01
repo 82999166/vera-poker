@@ -816,7 +816,10 @@ export async function findOrCreateTelegramUser(params: {
         updates.nickname = fullName;
       }
     }
-    if (params.languageCode) updates.language = params.languageCode;
+    // 只在用户数据库中 language 为空时才从 TG 同步，避免覆盖用户手动设置的语言
+    if (params.languageCode && !existing.language) {
+      updates.language = params.languageCode;
+    }
 
     await db.update(users).set(updates).where(eq(users.id, existing.id));
     return { ...existing, ...updates };

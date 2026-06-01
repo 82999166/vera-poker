@@ -411,3 +411,11 @@
 - [x] 改造 db.ts 中注册欢迎通知和 bonus unlock 通知支持多语言
 - [x] 改造 formatNotification 中的固定中文文本为多语言
 - [x] 支持 12 种语言（中/繁/英/日/韩/西/葡/俄/阿/越/泰/印尼）
+
+## 2026-06-01 首次登录语言同步 + 通知偏好设置
+
+- [x] 首次登录时自动同步 TG 语言到数据库（仅在用户未手动设置过时同步）
+- [x] 通知偏好设置：数据库新增 notificationPrefs JSON 字段
+- [x] 通知偏好设置：后端 API（getNotificationPrefs / updateNotificationPrefs）
+- [x] 通知偏好设置：发送通知时检查用户偏好（checkNotificationPrefs）
+- [x] 通知偏好设置：前端个人中心 UI（8类通知开关）

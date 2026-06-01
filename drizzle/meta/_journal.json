@@ -134,6 +134,13 @@
       "when": 1780299212384,
       "tag": "0018_fearless_skin",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1780307444798,
+      "tag": "0019_damp_titanium_man",
+      "breakpoints": true
     }
   ]
 }

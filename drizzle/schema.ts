@@ -24,6 +24,17 @@ export const users = mysqlTable("users", {
   avatar: text("avatar"),
   nickname: varchar("nickname", { length: 64 }),
   language: varchar("language", { length: 10 }).default("en"),
+  // 通知偏好设置（JSON）：各类型通知开关，null 表示全部开启
+  notificationPrefs: json("notificationPrefs").$type<{
+    privateRoomInvite?: boolean;
+    turnAction?: boolean;
+    gameStarting?: boolean;
+    deposit?: boolean;
+    withdrawal?: boolean;
+    commission?: boolean;
+    tournament?: boolean;
+    system?: boolean;
+  }>(),
   // Balance
   balance: decimal("balance", { precision: 18, scale: 2 }).default("0.00").notNull(),
   frozenBalance: decimal("frozenBalance", { precision: 18, scale: 2 }).default("0.00").notNull(),
