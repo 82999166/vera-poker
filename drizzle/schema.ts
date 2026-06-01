@@ -1,6 +1,9 @@
+/**
+ * 数据库表结构定义 (Drizzle ORM Schema)
+ * 包含：用户、房间、牌局、交易、代理、风控、营销、锦标赛等全部表
+ */
 import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, json, bigint } from "drizzle-orm/mysql-core";
-
-// ==================== USERS ====================
+// ==================== 用户表 ====================
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
@@ -47,7 +50,7 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// ==================== SYSTEM CONFIG ====================
+// ==================== 系统配置表 ====================
 export const systemConfigs = mysqlTable("system_configs", {
   id: int("id").autoincrement().primaryKey(),
   category: varchar("category", { length: 64 }).notNull(), // game, finance, agent, risk, room, notification
@@ -63,7 +66,7 @@ export const systemConfigs = mysqlTable("system_configs", {
 
 export type SystemConfig = typeof systemConfigs.$inferSelect;
 
-// ==================== ROOMS ====================
+// ==================== 房间表 ====================
 export const rooms = mysqlTable("rooms", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 128 }).notNull(),
@@ -97,7 +100,7 @@ export const rooms = mysqlTable("rooms", {
 
 export type Room = typeof rooms.$inferSelect;
 
-// ==================== ROOM PLAYERS ====================
+// ==================== 房间玩家表 ====================
 export const roomPlayers = mysqlTable("room_players", {
   id: int("id").autoincrement().primaryKey(),
   roomId: int("roomId").notNull(),
@@ -108,7 +111,7 @@ export const roomPlayers = mysqlTable("room_players", {
   joinedAt: timestamp("joinedAt").defaultNow().notNull(),
 });
 
-// ==================== GAME HANDS ====================
+// ==================== 牌局记录表 ====================
 export const gameHands = mysqlTable("game_hands", {
   id: int("id").autoincrement().primaryKey(),
   roomId: int("roomId").notNull(),
@@ -122,6 +125,24 @@ export const gameHands = mysqlTable("game_hands", {
   deckHash: varchar("deckHash", { length: 128 }),
   // On-chain verification (for high-stakes)
   txHash: varchar("txHash", { length: 256 }),
+  // Replay data (牌局回放数据)
+  actionTimeline: json("actionTimeline").$type<Array<{
+    seq: number; // 操作序号
+    phase: string; // 当前阶段 preflop/flop/turn/river
+    playerId: number;
+    playerName: string;
+    action: string; // fold/check/call/raise/all_in/post_blind
+    amount: number;
+    potAfter: number; // 操作后底池
+    timestamp: number;
+  }>>(),
+  playerSnapshot: json("playerSnapshot").$type<Array<{
+    id: number;
+    name: string;
+    seatIndex: number;
+    startChips: number; // 本局开始时筹码
+    holeCards: string[]; // 手牌（回放时展示）
+  }>>(),
   // Results
   potSize: decimal("potSize", { precision: 18, scale: 2 }).default("0.00"),
   rakeAmount: decimal("rakeAmount", { precision: 18, scale: 2 }).default("0.00"),
@@ -136,7 +157,7 @@ export const gameHands = mysqlTable("game_hands", {
 
 export type GameHand = typeof gameHands.$inferSelect;
 
-// ==================== HAND PLAYERS ====================
+// ==================== 牌局玩家表 ====================
 export const handPlayers = mysqlTable("hand_players", {
   id: int("id").autoincrement().primaryKey(),
   handId: int("handId").notNull(),
@@ -150,7 +171,7 @@ export const handPlayers = mysqlTable("hand_players", {
   finalHand: varchar("finalHand", { length: 64 }), // hand rank description
 });
 
-// ==================== TRANSACTIONS ====================
+// ==================== 交易记录表 ====================
 export const transactions = mysqlTable("transactions", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
@@ -178,7 +199,7 @@ export const transactions = mysqlTable("transactions", {
 
 export type Transaction = typeof transactions.$inferSelect;
 
-// ==================== AGENT RELATIONSHIPS ====================
+// ==================== 代理关系表 ====================
 export const agentRelationships = mysqlTable("agent_relationships", {
   id: int("id").autoincrement().primaryKey(),
   agentId: int("agentId").notNull(), // the agent (inviter)
@@ -194,7 +215,7 @@ export const agentRelationships = mysqlTable("agent_relationships", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-// ==================== COMMISSION RECORDS ====================
+// ==================== 佣金记录表 ====================
 export const commissionRecords = mysqlTable("commission_records", {
   id: int("id").autoincrement().primaryKey(),
   agentId: int("agentId").notNull(),
@@ -208,7 +229,7 @@ export const commissionRecords = mysqlTable("commission_records", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-// ==================== RISK EVENTS ====================
+// ==================== 风控事件表 ====================
 export const riskEvents = mysqlTable("risk_events", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
@@ -219,7 +240,7 @@ export const riskEvents = mysqlTable("risk_events", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-// ==================== CUSTOMER SERVICE ====================
+// ==================== 客服会话表 ====================
 export const csConversations = mysqlTable("cs_conversations", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
@@ -231,7 +252,7 @@ export const csConversations = mysqlTable("cs_conversations", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
-// ==================== FAQ KNOWLEDGE BASE ====================
+// ==================== FAQ 知识库表 ====================
 export const faqEntries = mysqlTable("faq_entries", {
   id: int("id").autoincrement().primaryKey(),
   category: varchar("category", { length: 64 }).notNull(),
@@ -245,7 +266,7 @@ export const faqEntries = mysqlTable("faq_entries", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
-// ==================== NOTIFICATIONS ====================
+// ==================== 通知表 ====================
 export const notifications = mysqlTable("notifications", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
@@ -257,7 +278,7 @@ export const notifications = mysqlTable("notifications", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-// ==================== ACHIEVEMENTS ====================
+// ==================== 成就表 ====================
 export const achievements = mysqlTable("achievements", {
   id: int("id").autoincrement().primaryKey(),
   key: varchar("key", { length: 64 }).notNull().unique(),
@@ -284,7 +305,7 @@ export const playerAchievements = mysqlTable("player_achievements", {
 });
 
 
-// ==================== ADMIN USERS (Platform Staff - Separate from Game Users) ====================
+// ==================== 管理员表（平台员工，独立于游戏用户） ====================
 export const adminUsers = mysqlTable("admin_users", {
   id: int("id").autoincrement().primaryKey(),
   username: varchar("username", { length: 64 }).notNull().unique(),
@@ -303,7 +324,7 @@ export const adminUsers = mysqlTable("admin_users", {
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type InsertAdminUser = typeof adminUsers.$inferInsert;
 
-// ==================== ADMIN LOGS (Audit Trail) ====================
+// ==================== 管理日志表（审计追踪） ====================
 export const adminLogs = mysqlTable("admin_logs", {
   id: int("id").autoincrement().primaryKey(),
   // Who performed the action
@@ -329,7 +350,7 @@ export const adminLogs = mysqlTable("admin_logs", {
 export type AdminLog = typeof adminLogs.$inferSelect;
 export type InsertAdminLog = typeof adminLogs.$inferInsert;
 
-// ==================== CS MESSAGES (Chat History) ====================
+// ==================== 客服消息表（聊天记录） ====================
 export const csMessages = mysqlTable("cs_messages", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
@@ -341,7 +362,7 @@ export const csMessages = mysqlTable("cs_messages", {
 export type CsMessage = typeof csMessages.$inferSelect;
 export type InsertCsMessage = typeof csMessages.$inferInsert;
 
-// ==================== BANNERS (Activity/Promotion) ====================
+// ==================== 横幅表（活动/推广） ====================
 export const banners = mysqlTable("banners", {
   id: int("id").autoincrement().primaryKey(),
   title: varchar("title", { length: 128 }).notNull(),
@@ -552,7 +573,7 @@ export const fissionClicks = mysqlTable("fission_clicks", {
 export type FissionClick = typeof fissionClicks.$inferSelect;
 export type InsertFissionClick = typeof fissionClicks.$inferInsert;
 
-// ==================== RISK CONTROL RULES ====================
+// ==================== 风控规则表 ====================
 export const riskRules = mysqlTable("risk_rules", {
   id: int("id").autoincrement().primaryKey(),
   ruleKey: varchar("ruleKey", { length: 64 }).notNull().unique(), // e.g. "same_ip_multi_account"
@@ -571,7 +592,7 @@ export const riskRules = mysqlTable("risk_rules", {
 export type RiskRule = typeof riskRules.$inferSelect;
 export type InsertRiskRule = typeof riskRules.$inferInsert;
 
-// ==================== RISK ALERTS ====================
+// ==================== 风控告警表 ====================
 export const riskAlerts = mysqlTable("risk_alerts", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),

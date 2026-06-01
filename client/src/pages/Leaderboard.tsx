@@ -1,3 +1,4 @@
+/** 排行榜页面 - 展示玩家盈利/手数排名 */
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useState } from "react";

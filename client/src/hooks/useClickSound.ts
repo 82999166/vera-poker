@@ -1,8 +1,7 @@
 /**
- * Global Button Click Sound
- * Attaches a document-level event listener that plays a subtle click sound
- * whenever a button, link, or interactive element is tapped/clicked.
- * Uses Web Audio API for zero-latency playback.
+ * 全局按钮点击音效
+ * 在 document 级别监听事件，当用户点击按钮/链接/交互元素时播放微妙点击声
+ * 使用 Web Audio API 实现零延迟播放
  */
 import { useEffect, useRef } from "react";
 

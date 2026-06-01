@@ -1,6 +1,6 @@
 /**
- * Marketing system DB helpers
- * Covers: broadcast tasks, auto-reply rules, fission campaigns & clicks
+ * 营销系统数据库帮助函数
+ * 包含：广播任务、自动回复规则、裂变活动与点击跟踪、消息模板、欢迎语
  */
 import { eq, desc, asc, and, gte, lte, sql, inArray, isNotNull, ne, gt, lt } from "drizzle-orm";
 import { getDb } from "./db";
@@ -16,7 +16,7 @@ import {
 import * as db from "./db";
 import { nanoid } from "nanoid";
 
-// ==================== BROADCAST ====================
+// ==================== 广播任务 ====================
 
 export async function createBroadcastTask(data: Omit<InsertBroadcastTask, "id" | "createdAt" | "sentCount" | "failCount" | "totalCount" | "status">) {
   const dbInstance = await getDb();
@@ -94,7 +94,7 @@ export async function resolveBroadcastTargets(task: BroadcastTask): Promise<Arra
   return [];
 }
 
-// ==================== BROADCAST ENGINE ====================
+// ==================== 广播执行引擎 ====================
 
 /**
  * Execute a broadcast task: send messages in batches of 30/s to avoid TG rate limits.
@@ -197,7 +197,7 @@ export async function executeBroadcast(taskId: number): Promise<void> {
   });
 }
 
-// ==================== AUTO REPLY RULES ====================
+// ==================== 自动回复规则 ====================
 
 export async function listAutoReplyRules() {
   const dbInstance = await getDb();
@@ -267,7 +267,7 @@ export async function matchAutoReply(text: string): Promise<AutoReplyRule | null
   return null;
 }
 
-// ==================== FISSION CAMPAIGNS ====================
+// ==================== 裂变活动 ====================
 
 export async function listFissionCampaigns() {
   const dbInstance = await getDb();
@@ -390,7 +390,7 @@ export async function getFissionClicks(campaignId: number, limit = 50) {
 }
 
 
-// ==================== MESSAGE TEMPLATES ====================
+// ==================== 消息模板 ====================
 
 export async function listMessageTemplates() {
   const dbInstance = await getDb();

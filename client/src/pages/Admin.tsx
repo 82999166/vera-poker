@@ -1,3 +1,4 @@
+/** 管理后台页面 - 用户管理、财务审核、系统配置、营销工具 */
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";

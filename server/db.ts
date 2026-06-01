@@ -1,3 +1,7 @@
+/**
+ * 数据库操作层 - 封装所有 Drizzle ORM 查询帮助函数
+ * 包含：用户、房间、牌局、交易、代理、风控、通知、锦标赛等模块的 CRUD
+ */
 import { eq, and, desc, asc, sql, gte, lte, like, or, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, systemConfigs, rooms, roomPlayers, gameHands, handPlayers, transactions, agentRelationships, commissionRecords, riskEvents, csConversations, faqEntries, notifications, csMessages, banners, tournaments, tournamentRegistrations, tournamentResults } from "../drizzle/schema";
@@ -707,6 +711,61 @@ export async function getPlayerRecentHands(userId: number, limit: number = 5) {
     };
   }));
   return results;
+}
+
+// ==================== 牌局回放查询 ====================
+
+/**
+ * 获取用户参与的已完成牌局列表（分页，用于回放）
+ */
+export async function getPlayerReplayList(userId: number, page: number = 1, limit: number = 20) {
+  const db = await getDb();
+  if (!db) return { hands: [], total: 0 };
+  const offset = (page - 1) * limit;
+  // 查找用户参与的所有已完成牌局
+  const playerHandIds = await db.select({ handId: handPlayers.handId })
+    .from(handPlayers)
+    .where(eq(handPlayers.userId, userId));
+  if (playerHandIds.length === 0) return { hands: [], total: 0 };
+  const handIds = playerHandIds.map(h => h.handId);
+  // 获取总数
+  const [countResult] = await db.select({ count: sql<number>`count(*)` })
+    .from(gameHands)
+    .where(and(inArray(gameHands.id, handIds), eq(gameHands.status, "completed")));
+  const total = countResult?.count ?? 0;
+  // 获取分页数据
+  const hands = await db.select()
+    .from(gameHands)
+    .where(and(inArray(gameHands.id, handIds), eq(gameHands.status, "completed")))
+    .orderBy(desc(gameHands.completedAt))
+    .limit(limit)
+    .offset(offset);
+  // 带上用户在该局的结果
+  const results = await Promise.all(hands.map(async (hand) => {
+    const myData = await db.select().from(handPlayers).where(
+      and(eq(handPlayers.handId, hand.id), eq(handPlayers.userId, userId))
+    );
+    const playerData = myData[0];
+    const room = await db.select().from(rooms).where(eq(rooms.id, hand.roomId)).limit(1);
+    return {
+      id: hand.id,
+      roomId: hand.roomId,
+      roomName: room[0]?.name || "Unknown",
+      handNumber: hand.handNumber,
+      potSize: hand.potSize,
+      winningHand: hand.winningHand,
+      communityCards: hand.communityCards,
+      completedAt: hand.completedAt,
+      hasReplay: !!(hand.actionTimeline && (hand.actionTimeline as any[]).length > 0),
+      myResult: playerData ? {
+        isWinner: playerData.isWinner,
+        winAmount: playerData.winAmount,
+        betAmount: playerData.betAmount,
+        holeCards: playerData.holeCards,
+      } : null,
+    };
+  }));
+  return { hands: results, total };
 }
 
 // ==================== TELEGRAM USER QUERIES ====================

@@ -1,16 +1,16 @@
 /**
- * Tournament Engine - Multi-Table Tournament (MTT) System
+ * 锦标赛引擎 - 多桌锦标赛（MTT）系统
  * 
- * Architecture: PokerStars-style MTT with real room integration:
- * - Creates actual database rooms via db.createRoom()
- * - Seats players via db.addRoomPlayer()
- * - Uses existing tableManager for per-table game logic
- * - Blind level progression (time-based)
- * - Table balancing (move players when diff >= 2)
- * - Table breaking (merge when table too small)
- * - Final table formation
- * - Elimination tracking & ranking
- * - Prize distribution
+ * 架构：仿 PokerStars 的 MTT，与真实房间集成：
+ * - 通过 db.createRoom() 创建实际数据库房间
+ * - 通过 db.addRoomPlayer() 入座玩家
+ * - 使用现有 tableManager 处理每桌游戏逻辑
+ * - 盲注级别递增（基于时间）
+ * - 桌子平衡（人数差 >= 2 时移动玩家）
+ * - 桌子合并（人数过少时合并）
+ * - 决赛桌形成
+ * - 淘汰跟踪与排名
+ * - 奖金分配
  */
 
 import * as db from "./db";

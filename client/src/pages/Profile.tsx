@@ -1,3 +1,4 @@
+/** 个人中心页面 - 用户信息、统计数据、设置入口 */
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useState, useEffect } from "react";
@@ -10,7 +11,7 @@ import { useSoundEffects } from "@/hooks/useSoundEffects";
 import {
   User, Trophy, TrendingUp, Gamepad2, Edit2, Check, X,
   Link2, Unlink, ArrowLeft, Shield, Coins, Award, Globe, ChevronRight,
-  Volume2, Users, ChevronRight as ArrowRight, Lock, Eye, EyeOff, BookOpen
+  Volume2, Users, ChevronRight as ArrowRight, Lock, Eye, EyeOff, BookOpen, History
 } from "lucide-react";
 
 export default function Profile() {
@@ -235,6 +236,23 @@ export default function Profile() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 牌局回放入口 */}
+      <div className="px-4 pb-3">
+        <button
+          onClick={() => navigate("/replay")}
+          className="w-full glass rounded-2xl p-4 flex items-center gap-3 hover:border-emerald-400/30 border border-transparent transition-all active:scale-[0.98]"
+        >
+          <div className="w-10 h-10 rounded-full bg-emerald-400/10 flex items-center justify-center">
+            <History className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-semibold">{t("replay.title")}</p>
+            <p className="text-xs text-muted-foreground">{t("replay.subtitle")}</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+        </button>
       </div>
 
       {/* Quick Links: Agent Center */}

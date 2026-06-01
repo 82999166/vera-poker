@@ -1,8 +1,8 @@
 /**
- * Sound Effects Hook for Poker Table
- * Uses Web Audio API for low-latency sound playback
- * Uses Audio element + server-side TTS proxy for voice announcements (Android WebView compatible)
- * Voice announcements follow the system language setting
+ * 牌桌音效 Hook
+ * 使用 Web Audio API 实现低延迟音效播放
+ * 使用 Audio 元素 + 服务端 TTS 代理实现语音播报（兼容 Android WebView）
+ * 语音播报跟随系统语言设置
  * 
  * Voice Mode:
  * - "off": No voice announcements at all

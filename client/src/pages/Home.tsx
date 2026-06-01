@@ -1,3 +1,4 @@
+/** 首页 - 应用入口，Telegram 认证、引导注册、快速开始 */
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useEffect, useState, useCallback, useRef } from "react";

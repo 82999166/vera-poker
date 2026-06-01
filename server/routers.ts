@@ -1,3 +1,7 @@
+/**
+ * tRPC 路由定义 - 所有 API 接口的入口
+ * 包含：认证、游戏操作、钱包、代理、管理后台、AI客服、锦标赛等
+ */
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { COOKIE_NAME } from "@shared/const";
@@ -1130,6 +1134,40 @@ export const appRouter = router({
     myRecentHands: protectedProcedure.input(z.object({ limit: z.number().default(5) })).query(async ({ ctx, input }) => {
       const hands = await db.getPlayerRecentHands(ctx.user.id, input.limit);
       return hands;
+    }),
+    // 牌局回放列表（个人中心）
+    myReplayList: protectedProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ ctx, input }) => {
+      return db.getPlayerReplayList(ctx.user.id, input.page, input.limit);
+    }),
+    // 牌局回放详情（包含完整操作时间线）
+    replayDetail: protectedProcedure.input(z.object({ handId: z.number() })).query(async ({ ctx, input }) => {
+      const hand = await db.getGameHandById(input.handId);
+      if (!hand) throw new TRPCError({ code: "NOT_FOUND", message: "Hand not found" });
+      // 确保用户参与了这局牌
+      const players = await db.getHandPlayers(input.handId);
+      const participated = players.some(p => p.userId === ctx.user.id);
+      if (!participated) throw new TRPCError({ code: "FORBIDDEN", message: "You did not participate in this hand" });
+      // 获取房间信息
+      const room = await db.getRoomById(hand.roomId);
+      return {
+        id: hand.id,
+        roomId: hand.roomId,
+        roomName: room?.name || "Unknown",
+        handNumber: hand.handNumber,
+        communityCards: hand.communityCards,
+        potSize: hand.potSize,
+        winnerId: hand.winnerId,
+        winningHand: hand.winningHand,
+        status: hand.status,
+        startedAt: hand.startedAt,
+        completedAt: hand.completedAt,
+        actionTimeline: hand.actionTimeline || [],
+        playerSnapshot: hand.playerSnapshot || [],
+        players: await Promise.all(players.map(async (p) => {
+          const user = await db.getUserById(p.userId);
+          return { ...p, name: user?.nickname || user?.name || `Player ${p.seatIndex + 1}` };
+        })),
+      };
     }),
   }),
 

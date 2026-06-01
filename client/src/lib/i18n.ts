@@ -1,3 +1,4 @@
+/** 国际化模块 - 中英文翻译、语言切换 */
 // Vera Poker i18n System
 import { useState, useCallback, useEffect } from "react";
 
@@ -595,6 +596,29 @@ const en: Record<string, string> = {
   "table.settling": "Settling",
   "table.raiseAtMax": "Stack limit reached",
   "table.showdownReveal": "Showdown",
+  // Replay
+  "replay.title": "Hand Replay",
+  "replay.subtitle": "Review your past hands step by step",
+  "replay.noHands": "No completed hands yet",
+  "replay.hasReplay": "Replay Available",
+  "replay.noReplayData": "No replay data (older hand)",
+  "replay.watchReplay": "Watch Replay",
+  "replay.speed": "Speed",
+  "replay.step": "Step",
+  "replay.autoPlay": "Auto Play",
+  "replay.pause": "Pause",
+  "replay.restart": "Restart",
+  "replay.preflop": "Preflop",
+  "replay.flop": "Flop",
+  "replay.turn": "Turn",
+  "replay.river": "River",
+  "replay.showdown": "Showdown",
+  "replay.pot": "Pot",
+  "replay.blind": "Post Blind",
+  "replay.winner": "Winner",
+  "replay.result": "Result",
+  "replay.won": "Won",
+  "replay.lost": "Lost",
 };
 
 // Simplified Chinese
@@ -1157,6 +1181,29 @@ const zhCN: Record<string, string> = {
   "table.settling": "结算中",
   "table.raiseAtMax": "已达筹码上限",
   "table.showdownReveal": "摊牌",
+  // 牌局回放
+  "replay.title": "牌局回放",
+  "replay.subtitle": "回顾历史牌局，逐步重现每一手",
+  "replay.noHands": "暂无已完成牌局",
+  "replay.hasReplay": "可回放",
+  "replay.noReplayData": "无回放数据（早期牌局）",
+  "replay.watchReplay": "观看回放",
+  "replay.speed": "速度",
+  "replay.step": "步骤",
+  "replay.autoPlay": "自动播放",
+  "replay.pause": "暂停",
+  "replay.restart": "重新开始",
+  "replay.preflop": "翻牌前",
+  "replay.flop": "翻牌",
+  "replay.turn": "转牌",
+  "replay.river": "河牌",
+  "replay.showdown": "摊牌",
+  "replay.pot": "底池",
+  "replay.blind": "发盲注",
+  "replay.winner": "赢家",
+  "replay.result": "结果",
+  "replay.won": "赢",
+  "replay.lost": "输",
 };
 // Traditional Chinese
 const zhTW: Record<string, string> = {

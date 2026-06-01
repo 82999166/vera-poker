@@ -1,17 +1,18 @@
 /**
- * Vera Poker - Texas Hold'em Game Engine
- * Complete state machine for dealing, betting rounds, and settlement
+ * Vera Poker - 德州找扔克游戏引擎
+ * 完整的状态机：发牌、下注轮次、结算
+ * 支持可证公平（Provably Fair）洗牌算法
  */
 import crypto from "crypto";
 
-// ==================== PRECISION HELPER ====================
-/** Round to 6 decimal places to eliminate floating-point drift */
+// ==================== 精度工具 ====================
+/** 四舍五入到小数点6位，消除浮点数累积误差 */
 function r6(n: number): number {
   return Math.round(n * 1_000_000) / 1_000_000;
 }
 
-// ==================== TYPES ====================
-export type Suit = "h" | "d" | "c" | "s"; // hearts, diamonds, clubs, spades
+// ==================== 类型定义 ====================
+export type Suit = "h" | "d" | "c" | "s"; // 红心、方片、梅花、黑桃
 export type Rank = "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "T" | "J" | "Q" | "K" | "A";
 export type Card = `${Rank}${Suit}`;
 
@@ -55,7 +56,7 @@ export interface GameState {
   deckHash: string;
 }
 
-// ==================== DECK & SHUFFLE ====================
+// ==================== 牌组与洗牌 ====================
 const SUITS: Suit[] = ["h", "d", "c", "s"];
 const RANKS: Rank[] = ["2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"];
 
@@ -70,8 +71,8 @@ export function createDeck(): Card[] {
 }
 
 /**
- * Provably Fair shuffle using server seed + client seed
- * Fisher-Yates shuffle with cryptographic randomness
+ * 可证公平洗牌：基于服务器种子 + 客户端种子
+ * 使用 Fisher-Yates 算法 + 加密随机数
  */
 export function shuffleDeck(deck: Card[], serverSeed: string, clientSeed: string): Card[] {
   const combined = `${serverSeed}:${clientSeed}`;
@@ -98,7 +99,7 @@ export function hashDeck(deck: Card[]): string {
   return crypto.createHash("sha256").update(deck.join(",")).digest("hex");
 }
 
-// ==================== GAME STATE MACHINE ====================
+// ==================== 游戏状态机 ====================
 export function initializeGame(players: { id: number; seatIndex: number; chips: number }[], dealerIndex: number, clientSeed: string): GameState {
   const serverSeed = generateServerSeed();
   const serverSeedHash = hashSeed(serverSeed);
@@ -121,11 +122,11 @@ export function initializeGame(players: { id: number; seatIndex: number; chips: 
   }));
 
   const numPlayers = gamePlayers.length;
-  // Heads-up (2 players): Dealer = Small Blind, other = Big Blind
-  // 3+ players: SB = dealer+1, BB = dealer+2
+  // 单挑（2人）：庄家 = 小盲注，对手 = 大盲注
+  // 3+人：小盲 = 庄家+1，大盲 = 庄家+2
   const smallBlindIndex = numPlayers === 2 ? dealerIndex : (dealerIndex + 1) % numPlayers;
   const bigBlindIndex = numPlayers === 2 ? (dealerIndex + 1) % numPlayers : (dealerIndex + 2) % numPlayers;
-  // Preflop action: starts left of BB (which is SB/dealer in heads-up, UTG in 3+)
+  // 翻牌前行动：从大盲左侧开始（单挑时为庄家/小盲，3+人时为UTG）
   const firstToAct = numPlayers === 2 ? dealerIndex : (bigBlindIndex + 1) % numPlayers;
 
   return {
@@ -312,7 +313,7 @@ export function isBettingRoundComplete(state: GameState): boolean {
 export function advancePhase(state: GameState, bigBlind?: number): GameState {
   const newState = { ...state, players: state.players.map(p => ({ ...p })) };
   
-  // Reset current bets and action tracking for new round
+  // 重置当前下注和行动跟踪（新一轮开始）
   for (const player of newState.players) {
     player.currentBet = 0;
     player.hasActedThisRound = false;
@@ -322,7 +323,7 @@ export function advancePhase(state: GameState, bigBlind?: number): GameState {
   // If bigBlind is provided, use it; otherwise keep previous minRaise as fallback
   newState.minRaise = bigBlind ?? state.minRaise;
 
-  // Find first active player after dealer
+  // 找到庄家后第一个活跃玩家
   newState.currentPlayerIndex = getNextActivePlayer(newState, newState.dealerIndex);
 
   switch (state.phase) {
@@ -352,7 +353,7 @@ export function isHandComplete(state: GameState): boolean {
   return activePlayers.length <= 1 || state.phase === "showdown";
 }
 
-// ==================== HAND EVALUATION ====================
+// ==================== 牌力评估 ====================
 const RANK_VALUES: Record<Rank, number> = {
   "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8,
   "9": 9, "T": 10, "J": 11, "Q": 12, "K": 13, "A": 14,
@@ -487,7 +488,7 @@ export function compareHands(a: HandEvaluation, b: HandEvaluation): number {
   return 0;
 }
 
-// ==================== SETTLEMENT ====================
+// ==================== 结算逻辑 ====================
 export interface SettlementResult {
   winners: { playerId: number; amount: number; hand: HandEvaluation }[];
   rakeAmount: number;
@@ -496,7 +497,7 @@ export interface SettlementResult {
 export function settleHand(state: GameState, rakePercent: number, rakeCap: number): SettlementResult {
   const activePlayers = getActivePlayers(state);
   
-  // If only one player remains (everyone else folded)
+  // 只剩一个玩家（其他人都弃牌了）
   if (activePlayers.length === 1) {
     const winner = activePlayers[0];
     const rakeAmount = r6(Math.min(r6(state.pot * rakePercent / 100), rakeCap));
@@ -507,16 +508,16 @@ export function settleHand(state: GameState, rakePercent: number, rakeCap: numbe
     };
   }
 
-  // Evaluate all active players' hands
+  // 评估所有活跃玩家的牌力
   const evaluations = activePlayers.map(p => ({
     player: p,
     hand: evaluateHand(p.holeCards, state.communityCards),
   }));
 
-  // Sort by hand strength (descending)
+  // 按牌力降序排列
   evaluations.sort((a, b) => compareHands(b.hand, a.hand));
 
-  // Find winner(s) - handle ties
+  // 找出赢家（处理平分情况）
   const bestHand = evaluations[0].hand;
   const winners = evaluations.filter(e => compareHands(e.hand, bestHand) === 0);
 
@@ -530,7 +531,7 @@ export function settleHand(state: GameState, rakePercent: number, rakeCap: numbe
   };
 }
 
-// ==================== VERIFICATION ====================
+// ==================== 公平性验证 ====================
 export function verifyFairness(serverSeed: string, clientSeed: string, serverSeedHash: string, deckHash: string): { isValid: boolean; message: string } {
   const computedHash = hashSeed(serverSeed);
   if (computedHash !== serverSeedHash) {

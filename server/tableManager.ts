@@ -1,6 +1,7 @@
 /**
- * Table Manager - In-memory game state management for HTTP polling mode
- * Manages active tables, player actions, and game flow without WebSocket
+ * 牌桌管理器 - 内存中的游戏状态管理（HTTP 轮询模式）
+ * 管理活跃牌桌、玩家操作、游戏流程（无 WebSocket）
+ * 包含：开局、下注、超时处理、结算、回放记录
  */
 import * as gameEngine from "./gameEngine";
 import * as db from "./db";
@@ -17,7 +18,7 @@ interface SettlementDetail {
   showdownPlayers: { playerId: number; name: string; holeCards: string[]; handRank: string; handDescription: string }[];
 }
 
-// Player info cache to reduce DB queries during polling (TTL: 30s)
+// 玩家信息缓存，减少轮询时的 DB 查询（TTL: 30秒）
 const playerInfoCache = new Map<number, { name: string; avatar: string | null; cachedAt: number }>();
 const PLAYER_CACHE_TTL = 30000; // 30 seconds
 
@@ -55,6 +56,24 @@ interface ActiveTable {
   settlementStartedAt?: number; // timestamp when settlement started (for delayed ready)
   afkFoldCount: Map<number, number>; // playerId -> consecutive auto-fold count (zombie detection)
   lastAggressorId?: number; // playerId of the last player who raised/bet (for showdown reveal order)
+  // 牌局回放数据：记录每步操作用于回放
+  actionTimeline: Array<{
+    seq: number;
+    phase: string;
+    playerId: number;
+    playerName: string;
+    action: string;
+    amount: number;
+    potAfter: number;
+    timestamp: number;
+  }>;
+  playerSnapshot: Array<{
+    id: number;
+    name: string;
+    seatIndex: number;
+    startChips: number;
+    holeCards: string[];
+  }>;
 }
 
 // In-memory store of active tables
@@ -460,6 +479,21 @@ export async function processPlayerAction(
     timestamp: Date.now(),
   };
 
+  // 记录操作到回放时间线
+  if (table.actionTimeline) {
+    const playerName = table.playerSnapshot?.find(p => p.id === userId)?.name || `Player ${currentPlayer.seatIndex + 1}`;
+    table.actionTimeline.push({
+      seq: table.actionTimeline.length,
+      phase: gs.phase,
+      playerId: userId,
+      playerName,
+      action,
+      amount: amount || 0,
+      potAfter: table.gameState.pot,
+      timestamp: Date.now(),
+    });
+  }
+
   // Check if betting round is complete and advance game
   await checkAndAdvanceGame(roomId);
 
@@ -840,6 +874,9 @@ async function settleHand(roomId: number) {
       winningHand,
       rakeAmount: totalRake.toFixed(2),
       completedAt: new Date(),
+      // 保存回放数据
+      actionTimeline: table.actionTimeline || [],
+      playerSnapshot: table.playerSnapshot || [],
     });
   }
 
@@ -1083,6 +1120,55 @@ async function startNewHand(roomId: number) {
   // Update room status
   await db.updateRoom(roomId, { status: "playing" });
 
+  // 构建玩家名称映射（回放用）
+  const playerNames = new Map<number, string>();
+  for (const p of gameState.players) {
+    const info = await getCachedPlayerInfo(p.id);
+    playerNames.set(p.id, info.name);
+  }
+
+  // 构建玩家快照（回放用）
+  const playerSnapshotData = gameState.players.map(p => ({
+    id: p.id,
+    name: playerNames.get(p.id) || `Player ${p.seatIndex + 1}`,
+    seatIndex: p.seatIndex,
+    startChips: p.chips + p.totalBet, // 开始时筹码 = 当前筹码 + 已下注（因为已发过盲注）
+    holeCards: p.holeCards,
+  }));
+
+  // 初始化操作时间线，记录盲注操作
+  const initialTimeline: ActiveTable["actionTimeline"] = [];
+  let seq = 0;
+  // 记录小盲注
+  const sbPlayerIdx = (dealerIndex + 1) % players.length;
+  const bbPlayerIdx = (dealerIndex + 2) % players.length;
+  const sbPlayer = gameState.players[sbPlayerIdx];
+  const bbPlayer = gameState.players[bbPlayerIdx];
+  if (sbPlayer) {
+    initialTimeline.push({
+      seq: seq++,
+      phase: "preflop",
+      playerId: sbPlayer.id,
+      playerName: playerNames.get(sbPlayer.id) || `Player ${sbPlayer.seatIndex + 1}`,
+      action: "post_blind",
+      amount: effectiveSmallBlind,
+      potAfter: effectiveSmallBlind,
+      timestamp: Date.now(),
+    });
+  }
+  if (bbPlayer) {
+    initialTimeline.push({
+      seq: seq++,
+      phase: "preflop",
+      playerId: bbPlayer.id,
+      playerName: playerNames.get(bbPlayer.id) || `Player ${bbPlayer.seatIndex + 1}`,
+      action: "post_blind",
+      amount: effectiveBigBlind,
+      potAfter: effectiveSmallBlind + effectiveBigBlind,
+      timestamp: Date.now(),
+    });
+  }
+
   activeTables.set(roomId, {
     roomId,
     gameState,
@@ -1101,6 +1187,9 @@ async function startNewHand(roomId: number) {
     readyDeadline: undefined,
     // Preserve afkFoldCount across hands (reset only on manual action)
     afkFoldCount: activeTables.get(roomId)?.afkFoldCount ?? new Map(),
+    // 牌局回放数据
+    actionTimeline: initialTimeline,
+    playerSnapshot: playerSnapshotData,
   });
 }
 
@@ -1131,6 +1220,21 @@ export function checkTimeouts() {
         const timeoutAction: PlayerAction = canCheck ? "check" : "fold";
         table.gameState = gameEngine.processAction(table.gameState, timedOutPlayerId, timeoutAction);
         table.lastActionAt = now;
+
+        // 超时操作也记录到回放时间线
+        if (table.actionTimeline) {
+          const pName = table.playerSnapshot?.find(p => p.id === timedOutPlayerId)?.name || `Player ${currentPlayer.seatIndex + 1}`;
+          table.actionTimeline.push({
+            seq: table.actionTimeline.length,
+            phase: table.gameState.phase,
+            playerId: timedOutPlayerId,
+            playerName: pName,
+            action: timeoutAction,
+            amount: 0,
+            potAfter: table.gameState.pot,
+            timestamp: now,
+          });
+        }
 
         // === Zombie player detection: kick after 3 consecutive auto-folds (not auto-checks) ===
         const AFK_KICK_THRESHOLD = 3;

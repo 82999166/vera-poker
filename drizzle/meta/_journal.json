@@ -127,6 +127,13 @@
       "when": 1780243368760,
       "tag": "0017_married_albert_cleary",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1780299212384,
+      "tag": "0018_fearless_skin",
+      "breakpoints": true
     }
   ]
 }

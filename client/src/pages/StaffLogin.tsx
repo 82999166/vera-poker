@@ -1,3 +1,4 @@
+/** 管理员登录页面 */
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Shield, Eye, EyeOff, LogIn } from "lucide-react";

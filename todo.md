@@ -375,3 +375,26 @@
 - [x] #1 加注上限提示前置：raise slider 拖到最大值时显示「已达筹码上限」灰色提示
 - [x] #2 比牌动画增强：showdown 时逐个翻开各玩家手牌 + 牌力文字标签（赢家金色发光，输家暗色），hero 也显示最终牌力
 - [x] #3 比牌音效：showdown 阶段每个对手翻牌时播放 cardFlip 音效（已有，间隔600ms）
+
+## 2026-06-01 牌局回放功能
+
+- [x] 数据库：gameHands 表新增 actionTimeline + playerSnapshot JSON 列
+- [x] 后端：settleHand 时自动保存完整操作时间线和玩家快照
+- [x] 后端：startNewHand 初始化 timeline 并记录盲注操作
+- [x] 后端：processPlayerAction 中每步操作追加到 timeline
+- [x] 后端：超时自动操作也记录到 timeline
+- [x] 后端：查询接口 game.myReplayList（分页）
+- [x] 后端：查询接口 game.replayDetail（完整时间线）
+- [x] 前端：个人中心添加「牌局回放」入口
+- [x] 前端：ReplayList 页面（时间、盲注、盈亏、对手数、分页）
+- [x] 前端：ReplayPlayer 回放播放器（逐步操作 + 公共牌 + 底池变化 + 结果）
+- [x] i18n：添加回放相关多语言 key（中/英）
+
+## 2026-06-01 代码清理与中文注释
+
+- [x] 删除无用的 ComponentShowcase.tsx（未被任何路由引用）
+- [x] 所有 server/*.ts 文件添加中文文件头注释
+- [x] 所有 client/src/pages/*.tsx 文件添加中文文件头注释
+- [x] hooks / lib / shared 文件添加中文注释
+- [x] drizzle/schema.ts 所有表 section 注释中文化
+- [x] gameEngine.ts 核心函数和 section 注释中文化

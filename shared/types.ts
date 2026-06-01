@@ -1,7 +1,10 @@
-// ==================== SHARED TYPES ====================
+// ==================== 共享类型定义 - 前后端通用 ====================
 
+/** 游戏阶段：等待 | 发牌 | 翻牌前 | 翻牌 | 转牌 | 河牌 | 比牌 | 完成 */
 export type GamePhase = "waiting" | "dealing" | "preflop" | "flop" | "turn" | "river" | "showdown" | "completed";
+/** 玩家操作：弃牌 | 过牌 | 跟注 | 加注 | 全下 */
 export type PlayerAction = "fold" | "check" | "call" | "raise" | "all_in";
+/** 房间类型：公开 | 私人 */
 export type RoomType = "public" | "private";
 export type RoomStatus = "waiting" | "playing" | "paused" | "closed";
 export type TransactionType = "deposit" | "withdraw" | "game_win" | "game_loss" | "rake" | "commission" | "room_fee" | "refund" | "adjustment";
@@ -82,7 +85,7 @@ export interface FairnessVerification {
   isVerified?: boolean;
 }
 
-// i18n supported languages
+// 支持的语言列表
 export const SUPPORTED_LANGUAGES = ["en", "zh-CN", "zh-TW", "ja", "ko", "es", "pt", "ru", "ar", "vi", "th", "id"] as const;
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 

@@ -1,3 +1,4 @@
+/** 教程页面 - 德州扑克规则和玩法指南 */
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, Trophy, GitBranch, Coins } from "lucide-react";

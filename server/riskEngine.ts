@@ -1,8 +1,8 @@
 /**
- * Risk Control Engine
- * - Configurable risk rules with on/off toggle
- * - AI-powered user behavior analysis
- * - Automated alert generation and Bot notification
+ * 风控引擎
+ * - 可配置的风控规则（支持开关）
+ * - AI 驱动的用户行为分析
+ * - 自动告警生成与 Bot 通知
  */
 import * as db from "./db";
 import { invokeLLM } from "./_core/llm";

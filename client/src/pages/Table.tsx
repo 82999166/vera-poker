@@ -1,3 +1,4 @@
+/** 牌桌页面 - 核心游戏界面，包含座位、公共牌、下注操作、比牌动画 */
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";

@@ -1,8 +1,8 @@
 /**
- * TON On-Chain Service
- * Writes hand batch hashes to TON blockchain for provably fair verification.
- * Strategy: batch hash per hand (SHA-256 of serverSeed + clientSeed + deckHash + handId)
- * is stored as a comment in a TON transfer transaction to the same wallet (self-transfer).
+ * TON 链上服务
+ * 将牌局批次哈希写入 TON 区块链，用于可证公平验证
+ * 策略：每手牌生成 SHA-256(serverSeed + clientSeed + deckHash + handId)
+ * 作为备注存储在 TON 自转账交易中
  */
 import crypto from "crypto";
 import * as db from "./db";

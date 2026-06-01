@@ -1,11 +1,11 @@
 /**
- * Tournament Reminder Service
- * Sends TG notifications to registered players before tournament starts:
- * - 3 hours before
- * - 1 hour before
- * - 10 minutes before
+ * 锦标赛提醒服务
+ * 在比赛开始前向已报名玩家发送 Telegram 通知：
+ * - 提前 3 小时
+ * - 提前 1 小时
+ * - 提前 10 分钟
  * 
- * This runs as a Heartbeat cron job every 5 minutes.
+ * 通过 Heartbeat 定时任务每 5 分钟执行一次
  */
 import * as db from "./db";
 import { sendBatchNotification } from "./notifications";

@@ -1,14 +1,15 @@
 /**
- * Blockchain Transaction Verification Service
- * Supports: TRC20 (TronGrid), ERC20 (Etherscan), BEP20 (BscScan), Polygon (PolygonScan)
- * TON uses a different API structure
+ * 区块链交易验证服务
+ * 支持：TRC20 (TronGrid)、ERC20 (Etherscan)、BEP20 (BscScan)、Polygon (PolygonScan)
+ * TON 使用不同的 API 结构
+ * 功能：自动确认充值、地址监控、交易匹配
  */
 
 import { getConfigValue, getPendingDeposits, confirmDepositById } from "./db";
 import { notifyDepositConfirmed, notifyAdmins } from "./notifications";
 import { createAdminLog } from "./db";
 
-// USDT contract addresses per chain
+// 各链 USDT 合约地址
 const USDT_CONTRACTS: Record<string, string> = {
   TRC20: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", // Tron USDT
   ERC20: "0xdAC17F958D2ee523a2206206994597C13D831ec7", // Ethereum USDT
@@ -25,9 +26,7 @@ interface TxVerifyResult {
   error?: string;
 }
 
-/**
- * Verify a TRC20 transaction on Tron network via TronGrid
- */
+/** 验证 TRC20 交易（Tron 网络，通过 TronGrid API） */
 async function verifyTRC20(txHash: string, apiKey: string): Promise<TxVerifyResult> {
   try {
     const url = `https://api.trongrid.io/v1/transactions/${txHash}/events`;
@@ -67,9 +66,7 @@ async function verifyTRC20(txHash: string, apiKey: string): Promise<TxVerifyResu
   }
 }
 
-/**
- * Verify an EVM-based transaction (ERC20/BEP20/Polygon) via Etherscan-like API
- */
+/** 验证 EVM 交易（ERC20/BEP20/Polygon，通过 Etherscan 类 API） */
 async function verifyEVM(txHash: string, chain: string, apiKey: string): Promise<TxVerifyResult> {
   try {
     const baseUrls: Record<string, string> = {
@@ -128,9 +125,7 @@ async function verifyEVM(txHash: string, chain: string, apiKey: string): Promise
   }
 }
 
-/**
- * Verify a TON transaction
- */
+/** 验证 TON 交易 */
 async function verifyTON(txHash: string): Promise<TxVerifyResult> {
   try {
     // TON uses a different hash format, try toncenter API
@@ -155,9 +150,7 @@ async function verifyTON(txHash: string): Promise<TxVerifyResult> {
   }
 }
 
-/**
- * Verify a transaction on the appropriate blockchain
- */
+/** 根据链类型路由到对应的验证函数 */
 export async function verifyTransaction(txHash: string, chain: string): Promise<TxVerifyResult> {
   const apiKeyMap: Record<string, string> = {
     TRC20: "trongrid_api_key",
@@ -183,10 +176,7 @@ export async function verifyTransaction(txHash: string, chain: string): Promise<
   return verifyEVM(txHash, chain, apiKey);
 }
 
-/**
- * Scan incoming transfers to the deposit address for a specific chain
- * Used for auto-detection when user doesn't provide txHash
- */
+/** 扫描充值地址的入账转账（用于自动检测，用户未提供 txHash 时） */
 async function scanIncomingTransfers(chain: string, depositAddress: string, sinceMinutes: number = 30): Promise<Array<{ txHash: string; amount: string; from: string; timestamp: number }>> {
   const transfers: Array<{ txHash: string; amount: string; from: string; timestamp: number }> = [];
   
@@ -274,10 +264,7 @@ async function scanIncomingTransfers(chain: string, depositAddress: string, sinc
   return transfers;
 }
 
-/**
- * Process pending deposits without txHash by scanning the deposit address
- * Matches incoming transfers by amount and time window
- */
+/** 处理无 txHash 的待处理充值：扫描地址并按金额+时间窗口匹配 */
 export async function processAddressMonitoring(): Promise<{ matched: number; errors: string[] }> {
   const autoDetectEnabled = await getConfigValue("auto_detect_enabled", "true");
   if (autoDetectEnabled !== "true") {
@@ -357,10 +344,7 @@ export async function processAddressMonitoring(): Promise<{ matched: number; err
   return { matched, errors };
 }
 
-/**
- * Process all pending deposits - called by scheduled task
- * Checks each pending deposit's txHash on the blockchain and auto-confirms if valid
- */
+/** 处理所有待处理充值（定时任务调用）：检查 txHash 并自动确认 */
 export async function processAutoConfirmDeposits(): Promise<{ processed: number; confirmed: number; failed: number; errors: string[] }> {
   const autoConfirmEnabled = await getConfigValue("auto_confirm_enabled", "false");
   if (autoConfirmEnabled !== "true") {

@@ -1,6 +1,9 @@
 // Preconfigured storage helpers for Manus WebDev templates
-// Uploads via Forge Server presigned URL to S3 (PUT direct).
-// Downloads return /manus-storage/{key} paths served via 307 redirect.
+/**
+ * S3 文件存储服务
+ * 上传：通过 Forge Server 预签名 URL 直传 S3
+ * 下载：返回 /manus-storage/{key} 路径，通过 307 重定向提供
+ */
 
 import { ENV } from "./_core/env";
 

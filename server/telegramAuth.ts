@@ -1,3 +1,8 @@
+/**
+ * Telegram 认证服务
+ * 处理 Telegram Mini App / Login Widget 的用户认证流程
+ * 包含：签名验证、用户创建/更新、会话 Cookie 签发
+ */
 import crypto from "crypto";
 import type { Express, Request, Response } from "express";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";

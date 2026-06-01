@@ -1,3 +1,4 @@
+/** Telegram 认证 Hook - 处理 Mini App / Login Widget 的自动登录 */
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // Telegram WebApp types

@@ -1,3 +1,4 @@
+/** 钱包页面 - 充值、提现、交易记录 */
 import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";

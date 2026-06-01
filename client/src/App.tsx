@@ -19,6 +19,8 @@ import Leaderboard from "./pages/Leaderboard";
 import Admin from "./pages/Admin";
 import StaffLogin from "./pages/StaffLogin";
 import Tutorial from "./pages/Tutorial";
+import ReplayList from "./pages/ReplayList";
+import ReplayPlayer from "./pages/ReplayPlayer";
 import { useClickSound } from "./hooks/useClickSound";
 
 function MobileRouter() {
@@ -36,6 +38,8 @@ function MobileRouter() {
       <Route path="/profile" component={Profile} />
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/tutorial" component={Tutorial} />
+      <Route path="/replay" component={ReplayList} />
+      <Route path="/replay/:id" component={ReplayPlayer} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

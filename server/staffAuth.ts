@@ -1,3 +1,7 @@
+/**
+ * 后台管理员认证服务
+ * 处理 admin_users 表的登录、会话管理、密码验证
+ */
 import { Router, Request, Response } from "express";
 import { createHmac, randomBytes } from "crypto";
 import { getDb } from "./db";

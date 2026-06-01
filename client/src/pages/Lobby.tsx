@@ -1,3 +1,4 @@
+/** 大厅页面 - 展示所有房间列表，支持筛选和快速加入 */
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";

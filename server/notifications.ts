@@ -1,6 +1,7 @@
 /**
- * Telegram Push Notification Service
- * Sends notifications to players via Telegram Bot
+ * Telegram 推送通知服务
+ * 通过 Telegram Bot 向玩家发送各类通知
+ * 包含：房间邀请、轮到操作、充值到账、代理佣金、锦标赛等
  */
 import * as db from "./db";
 

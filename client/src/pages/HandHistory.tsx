@@ -1,3 +1,4 @@
+/** 牌局历史详情页 - 展示单手牌的完整信息和公平性验证 */
 import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
 import { fmtAmt, formatAmount } from "@/lib/utils";

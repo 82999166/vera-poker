@@ -1,3 +1,4 @@
+/** 创建房间页面 - 自定义盲注、人数、私人房设置 */
 import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";

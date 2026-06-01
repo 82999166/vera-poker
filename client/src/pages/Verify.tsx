@@ -1,3 +1,4 @@
+/** 公平性验证页面 - 验证牌局的可证公平性 */
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
