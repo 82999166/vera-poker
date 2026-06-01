@@ -1,9 +1,10 @@
 /**
- * Telegram 推送通知服务
+ * Telegram 推送通知服务（多语言版）
  * 通过 Telegram Bot 向玩家发送各类通知
- * 包含：房间邀请、轮到操作、充值到账、代理佣金、锦标赛等
+ * 所有通知文本根据用户 languageCode 自动翻译
  */
 import * as db from "./db";
+import { nt, getUserLang } from "./notificationI18n";
 
 export type NotificationType = 
   | "private_room_invite"   // 被邀请加入私人房
@@ -24,7 +25,7 @@ interface NotificationPayload {
   data?: Record<string, any>;
 }
 
-// Send a Telegram message to a user by their tgId
+// 向指定 TG Chat ID 发送消息
 async function sendTelegramMessage(tgChatId: string, text: string, parseMode: "HTML" | "Markdown" = "HTML"): Promise<boolean> {
   try {
     const botToken = await db.getConfigValue("tg_bot_token");
@@ -56,7 +57,7 @@ async function sendTelegramMessage(tgChatId: string, text: string, parseMode: "H
   }
 }
 
-// Get user's TG chat ID (same as tgId for private chats)
+// 获取用户的 TG Chat ID
 async function getUserTgId(userId: number): Promise<string | null> {
   const dbInstance = await db.getDb();
   if (!dbInstance) return null;
@@ -66,43 +67,33 @@ async function getUserTgId(userId: number): Promise<string | null> {
   return user?.tgId || null;
 }
 
-// Check if notifications are enabled for this user (could be extended with per-user preferences)
+// 检查用户是否启用通知
 async function isNotificationEnabled(userId: number): Promise<boolean> {
   const tgId = await getUserTgId(userId);
   return !!tgId;
 }
 
-// Format notification message based on type
+// 格式化通知消息（根据类型添加 emoji 前缀）
 function formatNotification(payload: NotificationPayload): string {
-  const { type, title, body, data } = payload;
+  const { type, title, body } = payload;
   
-  switch (type) {
-    case "private_room_invite":
-      return `🎯 <b>${title}</b>\n\n${body}\n\n${data?.roomName ? `房间: ${data.roomName}` : ""}`;
-    case "turn_action":
-      return data?.isTimeout
-        ? `⏱ <b>${title}</b>\n\n${body}`
-        : `⏰ <b>${title}</b>\n\n${body}\n\n${data?.timeLeft ? `剩余时间: ${data.timeLeft}秒` : ""}`;
-    case "game_starting":
-      return `🎮 <b>${title}</b>\n\n${body}`;
-    case "balance_change":
-      return `💰 <b>${title}</b>\n\n${body}\n\n${data?.amount ? `金额: ${data.amount}` : ""}`;
-    case "deposit_confirmed":
-      return `✅ <b>${title}</b>\n\n${body}\n\n${data?.amount ? `金额: $${data.amount}` : ""}${data?.chain ? `\n链: ${data.chain}` : ""}`;
-    case "withdrawal_approved":
-      return `💸 <b>${title}</b>\n\n${body}\n\n${data?.amount ? `金额: $${data.amount}` : ""}${data?.txHash ? `\nTX: ${data.txHash}` : ""}`;
-    case "withdrawal_rejected":
-      return `❌ <b>${title}</b>\n\n${body}\n\n${data?.amount ? `金额: $${data.amount}` : ""}${data?.reason ? `\n原因: ${data.reason}` : ""}`;
-    case "commission_earned":
-      return `💵 <b>${title}</b>\n\n${body}\n\n${data?.amount ? `佣金: $${data.amount}` : ""}`;
-    case "system_announcement":
-      return `📢 <b>${title}</b>\n\n${body}`;
-    default:
-      return `<b>${title}</b>\n\n${body}`;
-  }
+  const emojiMap: Record<NotificationType, string> = {
+    private_room_invite: "🎯",
+    turn_action: "⏰",
+    game_starting: "🎮",
+    balance_change: "💰",
+    deposit_confirmed: "✅",
+    withdrawal_approved: "💸",
+    withdrawal_rejected: "❌",
+    commission_earned: "💵",
+    system_announcement: "📢",
+  };
+
+  const emoji = emojiMap[type] || "";
+  return `${emoji} <b>${title}</b>\n\n${body}`;
 }
 
-// Main notification sender
+// 主通知发送函数
 export async function sendNotification(payload: NotificationPayload): Promise<boolean> {
   const tgId = await getUserTgId(payload.userId);
   if (!tgId) return false;
@@ -111,7 +102,7 @@ export async function sendNotification(payload: NotificationPayload): Promise<bo
   return sendTelegramMessage(tgId, message);
 }
 
-// Batch send to multiple users
+// 批量发送通知
 export async function sendBatchNotification(
   userIds: number[],
   type: NotificationType,
@@ -126,211 +117,233 @@ export async function sendBatchNotification(
     const success = await sendNotification({ type, userId, title, body, data });
     if (success) sent++;
     else failed++;
-    // Rate limit: 30 messages per second for Telegram
+    // Telegram 限速：每秒 30 条
     await new Promise(resolve => setTimeout(resolve, 35));
   }
 
   return { sent, failed };
 }
 
-// Convenience functions for common notifications
+// ==================== 多语言便捷通知函数 ====================
+
+/** 私人房邀请通知 */
 export async function notifyPrivateRoomInvite(userId: number, roomName: string, inviterName: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
   return sendNotification({
     type: "private_room_invite",
     userId,
-    title: "私人房邀请",
-    body: `${inviterName} 邀请你加入私人房`,
-    data: { roomName },
+    title: nt(lang, "privateRoomInvite.title"),
+    body: nt(lang, "privateRoomInvite.body", { inviter: inviterName }) + "\n\n" + nt(lang, "format.room", { value: roomName }),
   });
 }
 
+/** 轮到操作 / 操作超时通知 */
 export async function notifyTurnAction(userId: number, roomName: string, timeLeft: number): Promise<boolean> {
+  const lang = await getUserLang(userId);
   const isTimeout = timeLeft === 0;
   return sendNotification({
     type: "turn_action",
     userId,
-    title: isTimeout ? "操作超时，已自动弃牌" : "轮到你操作",
+    title: isTimeout ? nt(lang, "turnTimeout.title") : nt(lang, "turnAction.title"),
     body: isTimeout
-      ? `你在 ${roomName} 中操作超时，已自动弃牌并离开游戏`
-      : `在 ${roomName} 中轮到你行动了`,
+      ? nt(lang, "turnTimeout.body", { room: roomName })
+      : nt(lang, "turnAction.body", { room: roomName }) + "\n\n" + nt(lang, "format.timeLeft", { value: String(timeLeft) }),
     data: { timeLeft, isTimeout },
   });
 }
 
+/** 游戏即将开始通知 */
 export async function notifyGameStarting(userId: number, roomName: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
   return sendNotification({
     type: "game_starting",
     userId,
-    title: "游戏即将开始",
-    body: `${roomName} 的游戏即将开始，请准备就绪！`,
+    title: nt(lang, "gameStarting.title"),
+    body: nt(lang, "gameStarting.body", { room: roomName }),
   });
 }
 
+/** 余额变动通知 */
 export async function notifyBalanceChange(userId: number, amount: string, reason: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
   return sendNotification({
     type: "balance_change",
     userId,
-    title: "余额变动",
-    body: reason,
+    title: nt(lang, "balanceChange.title"),
+    body: reason + "\n\n" + nt(lang, "format.amount", { value: amount }),
     data: { amount },
   });
 }
 
-// ==================== ADMIN NOTIFICATIONS ====================
-// Notify all admins about important events (supports comma-separated multiple Chat IDs)
+/** 充值到账通知 */
+export async function notifyDepositConfirmed(userId: number, amount: string, chain?: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
+  return sendNotification({
+    type: "deposit_confirmed",
+    userId,
+    title: nt(lang, "deposit.title"),
+    body: nt(lang, "deposit.body") + "\n\n" + nt(lang, "format.amount", { value: amount }) + (chain ? nt(lang, "format.chain", { value: chain }) : ""),
+    data: { amount, chain },
+  });
+}
+
+/** 充值申请已收到通知 */
+export async function notifyDepositReceived(userId: number, amount: string, chain?: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
+  const chainStr = chain ? ` (${chain})` : "";
+  return sendNotification({
+    type: "deposit_confirmed",
+    userId,
+    title: nt(lang, "depositReceived.title"),
+    body: nt(lang, "depositReceived.body", { amount, chain: chainStr }),
+    data: { amount, chain },
+  });
+}
+
+/** 充值被拒绝通知 */
+export async function notifyDepositRejected(userId: number, amount: string, reason?: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
+  const reasonStr = reason ? ` (${reason})` : "";
+  return sendNotification({
+    type: "deposit_confirmed",
+    userId,
+    title: nt(lang, "depositRejected.title"),
+    body: nt(lang, "depositRejected.body", { amount, reason: reasonStr }),
+    data: { amount, reason },
+  });
+}
+
+/** 提现已审批通知 */
+export async function notifyWithdrawalApproved(userId: number, amount: string, txHash?: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
+  return sendNotification({
+    type: "withdrawal_approved",
+    userId,
+    title: nt(lang, "withdrawalApproved.title"),
+    body: nt(lang, "withdrawalApproved.body") + "\n\n" + nt(lang, "format.amount", { value: amount }) + (txHash ? nt(lang, "format.txHash", { value: txHash }) : ""),
+    data: { amount, txHash },
+  });
+}
+
+/** 提现被拒绝通知 */
+export async function notifyWithdrawalRejected(userId: number, amount: string, reason?: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
+  return sendNotification({
+    type: "withdrawal_rejected",
+    userId,
+    title: nt(lang, "withdrawalRejected.title"),
+    body: nt(lang, "withdrawalRejected.body") + "\n\n" + nt(lang, "format.amount", { value: amount }) + (reason ? nt(lang, "format.reason", { value: reason }) : ""),
+    data: { amount, reason },
+  });
+}
+
+/** 提现申请已收到通知 */
+export async function notifyWithdrawalReceived(userId: number, amount: string, chain?: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
+  const chainStr = chain ? ` (${chain})` : "";
+  return sendNotification({
+    type: "withdrawal_approved",
+    userId,
+    title: nt(lang, "withdrawalReceived.title"),
+    body: nt(lang, "withdrawalReceived.body", { amount, chain: chainStr }),
+    data: { amount, chain },
+  });
+}
+
+/** 代理佣金到账通知 */
+export async function notifyCommissionEarned(userId: number, amount: string, fromUser?: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
+  return sendNotification({
+    type: "commission_earned",
+    userId,
+    title: nt(lang, "commission.title"),
+    body: nt(lang, "commission.body") + "\n\n" + nt(lang, "format.commission", { value: amount }),
+    data: { amount, fromUser },
+  });
+}
+
+/** 新下线绑定通知 */
+export async function notifyNewDownline(agentId: number, downlineName: string): Promise<boolean> {
+  const lang = await getUserLang(agentId);
+  return sendNotification({
+    type: "commission_earned",
+    userId: agentId,
+    title: nt(lang, "newDownline.title"),
+    body: nt(lang, "newDownline.body", { name: downlineName }),
+    data: { downlineName },
+  });
+}
+
+// ==================== 管理员通知（不需要多语言） ====================
+
+/** 通知所有管理员（支持逗号分隔多个 Chat ID） */
 export async function notifyAdmins(title: string, body: string, data?: Record<string, any>): Promise<void> {
   try {
-    // Get admin notification chat IDs from config (supports comma-separated multiple IDs)
     const adminChatIdRaw = await db.getConfigValue("admin_tg_chat_id");
     if (!adminChatIdRaw) {
       console.warn("[Notifications] Admin TG chat ID not configured");
       return;
     }
-    // Parse comma-separated IDs, trim whitespace
     const adminChatIds = adminChatIdRaw.split(",").map((id: string) => id.trim()).filter(Boolean);
     if (adminChatIds.length === 0) return;
     const message = `🔔 <b>[Admin] ${title}</b>\n\n${body}${data ? `\n\n<pre>${JSON.stringify(data, null, 2)}</pre>` : ""}`;
-    // Send to all admins concurrently
     await Promise.allSettled(adminChatIds.map((chatId: string) => sendTelegramMessage(chatId, message)));
   } catch (e) {
     console.error("[Notifications] Admin notify failed:", e);
   }
 }
 
-// Notify user about deposit confirmation
-export async function notifyDepositConfirmed(userId: number, amount: string, chain?: string): Promise<boolean> {
-  return sendNotification({
-    type: "deposit_confirmed",
-    userId,
-    title: "充值到账",
-    body: `您的充值已确认到账`,
-    data: { amount, chain },
-  });
-}
+// ==================== 锦标赛通知（多语言） ====================
 
-// Notify user about withdrawal approval
-export async function notifyWithdrawalApproved(userId: number, amount: string, txHash?: string): Promise<boolean> {
-  return sendNotification({
-    type: "withdrawal_approved",
-    userId,
-    title: "提现已审批",
-    body: `您的提现申请已通过并完成转账`,
-    data: { amount, txHash },
-  });
-}
-
-// Notify user about withdrawal rejection
-export async function notifyWithdrawalRejected(userId: number, amount: string, reason?: string): Promise<boolean> {
-  return sendNotification({
-    type: "withdrawal_rejected",
-    userId,
-    title: "提现被拒绝",
-    body: `您的提现申请未通过审核，资金已退回`,
-    data: { amount, reason },
-  });
-}
-
-// Notify agent about commission earned
-export async function notifyCommissionEarned(userId: number, amount: string, fromUser?: string): Promise<boolean> {
-  return sendNotification({
-    type: "commission_earned",
-    userId,
-    title: "佣金到账",
-    body: `您获得了一笔代理佣金`,
-    data: { amount, fromUser },
-  });
-}
-
-// Notify user that deposit request was received (pending review)
-export async function notifyDepositReceived(userId: number, amount: string, chain?: string): Promise<boolean> {
-  return sendNotification({
-    type: "deposit_confirmed",
-    userId,
-    title: "充值申请已收到",
-    body: `您的充值申请 $${amount}${chain ? ` (${chain})` : ""} 已提交，请等待管理员确认到账`,
-    data: { amount, chain },
-  });
-}
-
-// Notify user that deposit was rejected
-export async function notifyDepositRejected(userId: number, amount: string, reason?: string): Promise<boolean> {
-  return sendNotification({
-    type: "deposit_confirmed",
-    userId,
-    title: "充值申请被拒绝",
-    body: `您的充值申请 $${amount} 未通过审核${reason ? `，原因：${reason}` : "，请联系客服确认"}`,
-    data: { amount, reason },
-  });
-}
-
-// Notify user that withdrawal request was received (pending review)
-export async function notifyWithdrawalReceived(userId: number, amount: string, chain?: string): Promise<boolean> {
-  return sendNotification({
-    type: "withdrawal_approved",
-    userId,
-    title: "提现申请已收到",
-    body: `您的提现申请 $${amount}${chain ? ` (${chain})` : ""} 已提交，请等待管理员审核处理`,
-    data: { amount, chain },
-  });
-}
-
-// Notify agent that a new downline has bound their invite code
-export async function notifyNewDownline(agentId: number, downlineName: string): Promise<boolean> {
-  return sendNotification({
-    type: "commission_earned",
-    userId: agentId,
-    title: "新下线绑定成功",
-    body: `${downlineName} 已通过您的邀请码成功注册并绑定，开始为您产生佣金`,
-    data: { downlineName },
-  });
-}
-
-// ==================== TOURNAMENT NOTIFICATIONS ====================
-// Notify user that tournament registration was successful
+/** 锦标赛报名成功通知 */
 export async function notifyTournamentRegistered(userId: number, tournamentName: string, entryFee: string, startTime: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
   return sendNotification({
     type: "system_announcement",
     userId,
-    title: "比赛报名成功",
-    body: `您已成功报名参加「${tournamentName}」\n报名费: $${entryFee}\n开赛时间: ${startTime}\n请准时参赛，祝您好运！`,
+    title: nt(lang, "tournamentRegistered.title"),
+    body: nt(lang, "tournamentRegistered.body", { name: tournamentName, fee: entryFee, time: startTime }),
     data: { tournamentName, entryFee, startTime },
   });
 }
 
-// Notify user that tournament registration was cancelled (refunded)
+/** 锦标赛报名取消通知 */
 export async function notifyTournamentCancelled(userId: number, tournamentName: string, entryFee: string): Promise<boolean> {
+  const lang = await getUserLang(userId);
   return sendNotification({
     type: "balance_change",
     userId,
-    title: "比赛报名已取消",
-    body: `您已取消报名「${tournamentName}」\n报名费 $${entryFee} 已退回到您的账户`,
+    title: nt(lang, "tournamentCancelled.title"),
+    body: nt(lang, "tournamentCancelled.body", { name: tournamentName, fee: entryFee }),
     data: { tournamentName, entryFee },
   });
 }
 
-// Notify all registered users that tournament is starting soon
+/** 锦标赛即将开始通知 */
 export async function notifyTournamentStartingSoon(userId: number, tournamentName: string, minutesLeft: number): Promise<boolean> {
+  const lang = await getUserLang(userId);
   return sendNotification({
     type: "game_starting",
     userId,
-    title: "比赛即将开始",
-    body: `「${tournamentName}」将在 ${minutesLeft} 分钟后开始，请做好准备！`,
+    title: nt(lang, "tournamentStartingSoon.title"),
+    body: nt(lang, "tournamentStartingSoon.body", { name: tournamentName, minutes: String(minutesLeft) }),
     data: { tournamentName, minutesLeft },
   });
 }
 
-// Notify user that tournament has officially started (admin manually triggered)
+/** 锦标赛正式开始通知 */
 export async function notifyTournamentStarted(userId: number, tournamentName: string, playerCount: number, startingChips: number): Promise<boolean> {
+  const lang = await getUserLang(userId);
   return sendNotification({
     type: "game_starting",
     userId,
-    title: "🚀 比赛正式开始！",
-    body: `「${tournamentName}」已正式开始！\n参赛人数: ${playerCount} 人 | 初始筹码: ${startingChips.toLocaleString()}\n请立即进入游戏大厅参赛，祝您好运！`,
+    title: nt(lang, "tournamentStarted.title"),
+    body: nt(lang, "tournamentStarted.body", { name: tournamentName, players: String(playerCount), chips: startingChips.toLocaleString() }),
     data: { tournamentName, playerCount, startingChips },
   });
 }
 
-// Notify user of their tournament result
+/** 锦标赛结果通知 */
 export interface TopRanking {
   rank: number;
   name: string;
@@ -345,33 +358,36 @@ export async function notifyTournamentResult(
   topRankings?: TopRanking[],
   totalPlayers?: number
 ): Promise<boolean> {
+  const lang = await getUserLang(userId);
   const isWinner = rank <= 3;
-  const totalStr = totalPlayers ? `/${totalPlayers}人` : "";
-  
-  // Build top-3 summary
+  const totalStr = totalPlayers ? `/${totalPlayers}` : "";
+
+  // 构建排行榜摘要
   let topSummary = "";
   if (topRankings && topRankings.length > 0) {
     const medals = ["🥇", "🥈", "🥉"];
-    topSummary = "\n\n━━━ 🏆 比赛排名 ━━━";
+    topSummary = nt(lang, "tournamentResult.topHeader");
     for (const tr of topRankings) {
       const medal = medals[tr.rank - 1] || `#${tr.rank}`;
       topSummary += `\n${medal} ${tr.name}: $${tr.prize}`;
     }
   }
 
-  // Build personal result line
-  const rankLine = `\n\n━━━ 📊 您的成绩 ━━━\n排名: 第${rank}名${totalStr}`;
-  const prizeLine = parseFloat(prize) > 0 ? `\n奖金: $${prize} ✅ 已到账` : "";
+  // 个人成绩
+  const rankLine = nt(lang, "tournamentResult.rankLine", { rank: String(rank), total: totalStr });
+  const prizeLine = parseFloat(prize) > 0 ? nt(lang, "tournamentResult.prizeLine", { prize }) : "";
 
-  const myResult = isWinner
-    ? `🎉 恭喜您在「${tournamentName}」中获得第${rank}名${totalStr}！\n奖金 $${prize} 已发放到您的账户`
-    : `「${tournamentName}」已结束`;
+  const bodyText = isWinner
+    ? nt(lang, "tournamentResult.winner.body", { name: tournamentName, rank: String(rank), total: totalStr, prize })
+    : nt(lang, "tournamentResult.loser.body", { name: tournamentName });
 
   return sendNotification({
     type: "balance_change",
     userId,
-    title: isWinner ? `🏆 比赛获奖 - 第${rank}名${totalStr}` : `比赛结束 - 第${rank}名${totalStr}`,
-    body: myResult + rankLine + prizeLine + topSummary,
+    title: isWinner
+      ? nt(lang, "tournamentResult.winner.title", { rank: String(rank), total: totalStr })
+      : nt(lang, "tournamentResult.loser.title", { rank: String(rank), total: totalStr }),
+    body: bodyText + rankLine + prizeLine + topSummary,
     data: { tournamentName, rank, prize, totalPlayers, topRankings },
   });
 }

@@ -403,3 +403,11 @@
 
 - [x] 用户注册/登录时使用 TG 显示名称（first_name + last_name）而非 username
 - [x] TG 注册用户未收到注册赠送 - findOrCreateTelegramUser 中新增读取 registration_bonus_amount 配置
+
+## 2026-06-01 平台通知全面多语言化
+
+- [x] 创建服务端通知多语言翻译模块 (server/notificationI18n.ts)
+- [x] 改造 notifications.ts 中所有通知函数支持多语言（根据用户 languageCode）
+- [x] 改造 db.ts 中注册欢迎通知和 bonus unlock 通知支持多语言
+- [x] 改造 formatNotification 中的固定中文文本为多语言
+- [x] 支持 12 种语言（中/繁/英/日/韩/西/葡/俄/阿/越/泰/印尼）

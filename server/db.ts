@@ -861,16 +861,19 @@ export async function findOrCreateTelegramUser(params: {
 
   await db.insert(users).values(insertValues);
 
-  // 新用户注册成功，发送欢迎通知
+  // 新用户注册成功，发送多语言欢迎通知
   const newUser = await getUserByTgId(params.tgId);
   if (newUser) {
+    const { nt } = await import("./notificationI18n");
+    const lang = params.languageCode || "en";
+    const welcomeTitle = nt(lang, "welcome.title");
     const welcomeMsg = bonus > 0
-      ? `欢迎加入 Vera Poker！您已获得 $${bonus.toFixed(2)} 注册奖金，在公共房间玩牌即可解锁提现。祝您好运！`
-      : `欢迎加入 Vera Poker！祝您游戏愉快！`;
+      ? nt(lang, "welcome.body", { amount: bonus.toFixed(2) })
+      : nt(lang, "welcome.bodyNoBonus");
     await createNotification({
       userId: newUser.id,
       type: "system",
-      title: "注册成功",
+      title: welcomeTitle,
       content: welcomeMsg,
     });
   }
@@ -1620,14 +1623,16 @@ export async function checkAndUnlockBonus(userId: number): Promise<boolean> {
   if (userHands >= minHands && userWager >= requiredWager) {
     // Unlock: set bonusUnlocked = true
     await db.update(users).set({ bonusUnlocked: true }).where(eq(users.id, userId));
-    // Send TG Bot notification about bonus unlock
+    // 发送多语言奖金解锁通知
     try {
       const { sendNotification } = await import("./notifications");
+      const { nt, getUserLang } = await import("./notificationI18n");
+      const lang = await getUserLang(userId);
       await sendNotification({
         type: "balance_change",
         userId,
-        title: "\ud83c\udf89 Bonus Unlocked!",
-        body: `Congratulations! Your registration bonus of $${bonusAmount.toFixed(2)} has been unlocked and is now fully withdrawable. Keep playing and winning!`,
+        title: nt(lang, "bonusUnlock.title"),
+        body: nt(lang, "bonusUnlock.body", { amount: bonusAmount.toFixed(2) }),
         data: { subType: "bonus_unlocked", amount: bonusAmount.toFixed(2) },
       });
     } catch (e) {
