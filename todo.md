@@ -343,3 +343,9 @@
 ### Low
 - [x] #11 SameSite=None CSRF - 改为 SameSite=Lax
 - [x] #12 默认密码硬编码 - 改为随机生成并通知 Owner
+
+## 2026-06-01 三项修复
+
+- [x] #1 webhook secret 自动配置：管理后台设置 tg_webhook_secret 时自动调用 setWebhook API 传入 secret_token
+- [x] #2 提现手续费改为固定U金额（不按百分比）
+- [x] #3 新手教程返回大厅显示404 - 修复路由，返回按钮应直接导航到游戏大厅

@@ -165,8 +165,31 @@ export const appRouter = router({
       description: z.string().optional(),
       isPublic: z.boolean().default(false),
     })).mutation(async ({ input }) => {
-            await db.upsertConfig(input.key, input.value, input.category, input.label, input.valueType, input.description, input.isPublic);
+      await db.upsertConfig(input.key, input.value, input.category, input.label, input.valueType, input.description, input.isPublic);
       db.createAdminLog({ action: "update_config", category: "config", targetType: "config", targetId: input.key, detail: { value: input.value, category: input.category } });
+      
+      // FIX #1: When tg_webhook_secret is saved, auto-call Telegram setWebhook with secret_token
+      if (input.key === "tg_webhook_secret" || input.key === "tg_bot_token" || input.key === "tg_webhook_url") {
+        try {
+          const botToken = input.key === "tg_bot_token" ? input.value : await db.getConfigValue("tg_bot_token");
+          const webhookUrl = input.key === "tg_webhook_url" ? input.value : await db.getConfigValue("tg_webhook_url");
+          const webhookSecret = input.key === "tg_webhook_secret" ? input.value : await db.getConfigValue("tg_webhook_secret");
+          if (botToken && webhookUrl) {
+            const params: Record<string, string> = { url: webhookUrl };
+            if (webhookSecret) params.secret_token = webhookSecret;
+            const resp = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(params),
+            });
+            const result = await resp.json();
+            console.log("[Config] Auto setWebhook result:", result);
+          }
+        } catch (err) {
+          console.error("[Config] Failed to auto-set webhook:", err);
+        }
+      }
+      
       return { success: true };
     }),
   }),
@@ -574,8 +597,11 @@ export const appRouter = router({
       if (withdrawAmount < minWithdraw) {
         throw new TRPCError({ code: "BAD_REQUEST", message: `Minimum withdrawal is $${minWithdraw}` });
       }
-      if (withdrawAmount > currentBalance) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
+      // FIX #2: Fixed withdrawal fee in USDT (not percentage)
+      const withdrawFee = parseFloat(await db.getConfigValue("withdrawal_fee") || "1");
+      const totalDeduction = withdrawAmount + withdrawFee;
+      if (totalDeduction > currentBalance) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Insufficient balance. Need $${totalDeduction.toFixed(2)} (amount $${withdrawAmount} + fee $${withdrawFee})` });
       }
 
       // Bonus lock check: if bonus not unlocked, cannot withdraw bonus portion
@@ -600,9 +626,9 @@ export const appRouter = router({
       if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const { users: usersTable } = await import("../drizzle/schema");
       const { eq, sql: sqlTag } = await import("drizzle-orm");
-      // Atomic conditional update: only deduct if balance >= withdrawAmount
+      // Atomic conditional update: deduct totalDeduction (amount + fee), freeze only the withdraw amount
       const result = await dbInstance.execute(
-        sqlTag`UPDATE users SET balance = ROUND(balance - ${withdrawAmount}, 2), frozen_balance = ROUND(COALESCE(frozen_balance, 0) + ${withdrawAmount}, 2) WHERE id = ${ctx.user.id} AND balance >= ${withdrawAmount}`
+        sqlTag`UPDATE users SET balance = ROUND(balance - ${totalDeduction}, 2), frozen_balance = ROUND(COALESCE(frozen_balance, 0) + ${withdrawAmount}, 2) WHERE id = ${ctx.user.id} AND balance >= ${totalDeduction}`
       );
       const affectedRows = (result as any)[0]?.affectedRows ?? 0;
       if (affectedRows === 0) {
@@ -626,8 +652,20 @@ export const appRouter = router({
         chain: input.chain,
         walletAddress: input.walletAddress,
         status: isAutoApproved ? "confirmed" : "pending",
-        note: isAutoApproved ? "auto_approved" : undefined,
+        note: isAutoApproved ? `auto_approved | fee: ${withdrawFee} USDT` : `fee: ${withdrawFee} USDT`,
       });
+      // Record fee as a separate transaction for accounting clarity
+      if (withdrawFee > 0) {
+        await db.createTransaction({
+          userId: ctx.user.id,
+          type: "rake",
+          amount: withdrawFee.toFixed(2),
+          balanceBefore: user.balance,
+          balanceAfter: newBalance,
+          status: "confirmed",
+          note: `Withdrawal fee for $${input.amount} withdraw`,
+        });
+      }
 
       // If auto-approved, release frozen balance immediately (amount was already frozen above)
       if (isAutoApproved) {

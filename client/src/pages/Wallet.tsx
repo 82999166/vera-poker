@@ -38,6 +38,8 @@ export default function Wallet() {
   const [amountSuffix] = useState(() => String(Math.floor(Math.random() * 99) + 1).padStart(2, "0"));
 
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
+  const { data: publicConfig } = trpc.config.getPublic.useQuery();
+  const withdrawFee = parseFloat((publicConfig as any)?.withdrawal_fee || "1");
   const { data: bonusData } = trpc.wallet.bonusProgress.useQuery(undefined, { enabled: !!user });
   const { data: txData } = trpc.wallet.transactions.useQuery(
     { page: 1, limit: 50, category: "finance" },
@@ -329,10 +331,13 @@ export default function Wallet() {
                 placeholder="0.00"
                 className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold"
               />
-              {/* Minimum withdrawal hint */}
-              <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2.5">
+              {/* Withdrawal fee + minimum hint */}
+              <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2.5 space-y-1">
                 <p className="text-sm font-bold text-gold">
                   {t("wallet.minWithdrawHint")}
+                </p>
+                <p className="text-xs text-gold/80">
+                  手续费: {withdrawFee} USDT/笔{amount && !isNaN(Number(amount)) ? ` | 实际到账: ${Math.max(0, Number(amount)).toFixed(2)} USDT | 总扣除: ${(Number(amount) + withdrawFee).toFixed(2)} USDT` : ""}
                 </p>
               </div>
             </div>

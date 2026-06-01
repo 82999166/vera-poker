@@ -182,7 +182,7 @@ export default function Tutorial() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="glass-strong px-4 py-3 flex items-center gap-3 z-10 sticky top-0 safe-top">
-        <button onClick={() => navigate(-1 as never)} className="text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="text-base font-bold flex-1 text-center">{t("tutorial.title")}</h1>

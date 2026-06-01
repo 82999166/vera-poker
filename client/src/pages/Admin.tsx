@@ -1654,7 +1654,8 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
     min_deposit: "最低充值金额",
     min_withdrawal: "最低提现金额",
     auto_approve_limit: "自动审批限额",
-    withdrawal_fee_rate: "提现手续费率 (%)",
+    withdrawal_fee: "提现手续费 (固定U)",
+    withdrawal_fee_rate: "提现手续费率 (%) [已废弃]",
     daily_withdrawal_limit: "每日提现限额",
     min_account_age_days: "最低账龄 (天)",
     observation_period_days: "观察期 (天)",
@@ -1686,12 +1687,13 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
   const configGroups: Record<string, string[]> = {
     [at("config.gameSettings")]: ["rake_percentage", "rake_cap", "min_players_to_start", "turn_timeout_seconds", "max_players_per_table"],
     [at("config.agentSystem")]: ["agent_level1_rate", "agent_level2_rate", "unlock_min_hands", "unlock_min_deposit", "unlock_min_rake", "max_daily_commission"],
-    [at("config.finance")]: ["min_deposit", "min_withdrawal", "auto_approve_limit", "withdrawal_fee_rate", "daily_withdrawal_limit"],
+    [at("config.finance")]: ["min_deposit", "min_withdrawal", "auto_approve_limit", "withdrawal_fee", "daily_withdrawal_limit"],
     [at("config.riskControl")]: ["min_account_age_days", "observation_period_days", "max_same_table_ratio"],
     [at("config.privateRoom")]: ["room_fee_micro", "room_fee_low", "room_fee_mid", "room_fee_high", "room_fee_premium", "discount_5_rounds", "discount_10_rounds", "discount_20_rounds", "discount_50_rounds"],
     [at("config.walletAddress")]: ["deposit_wallet_trc20", "deposit_wallet_erc20", "deposit_wallet_bep20", "deposit_wallet_ton", "deposit_wallet_polygon"],
     [at("config.blockchainApi")]: ["trongrid_api_key", "etherscan_api_key", "bscscan_api_key", "polygonscan_api_key", "auto_confirm_enabled", "auto_confirm_min_confirmations"],
     [at("config.tonOnchain")]: ["ton_onchain_wallet_address", "ton_onchain_wallet_mnemonic"],
+    ["Telegram Bot"]: ["tg_bot_token", "tg_bot_username", "tg_webhook_url", "tg_webhook_secret"],
   };
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
