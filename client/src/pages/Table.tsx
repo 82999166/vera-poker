@@ -903,18 +903,20 @@ export default function Table() {
     }
   }, [phase, showdownRevealOrder, players, user?.id, muted, playSound]);
 
-  // Countdown timer with urgency feedback
+  // Countdown timer with urgency feedback - runs for ALL players' turns (not just hero)
   const [countdown, setCountdown] = useState(30);
+  const currentPlayerId = tableState?.currentPlayerId;
+  const hasActivePlayer = !!currentPlayerId && phase !== "waiting" && phase !== "showdown" && phase !== "completed";
   useEffect(() => {
-    if (!isMyTurn) return;
+    if (!hasActivePlayer) return;
     const elapsed = Math.floor((Date.now() - lastActionAt) / 1000);
     const remaining = Math.max(0, turnTimeout - elapsed);
     setCountdown(remaining);
     const timer = setInterval(() => {
       setCountdown(prev => {
         const next = Math.max(0, prev - 1);
-        // Vibrate + sound on last 5 seconds
-        if (next <= 5 && next > 0) {
+        // Vibrate + sound on last 5 seconds (only for hero's turn)
+        if (isMyTurn && next <= 5 && next > 0) {
           if (navigator.vibrate) navigator.vibrate(50);
           if (!muted) playSound("timer");
         }
@@ -922,9 +924,10 @@ export default function Table() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isMyTurn, lastActionAt, turnTimeout]);
+  }, [hasActivePlayer, isMyTurn, lastActionAt, turnTimeout, muted, playSound]);
 
-  const isUrgent = isMyTurn && countdown <= 5 && countdown > 0;
+  const isUrgent = hasActivePlayer && countdown <= 5 && countdown > 0;
+  const countdownProgress = hasActivePlayer ? countdown / turnTimeout : 1;
 
   // Set raise amount based on current bet
   useEffect(() => {
@@ -1343,7 +1346,7 @@ export default function Table() {
       {/* Table Area - flex-1 min-h-0 ensures it fills all remaining vertical space */}
       {/* max-h limits table to ~55% of screen so it doesn't look oversized on tall phones */}
       <div ref={tableAreaRef} className="flex-1 min-h-0 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
-        {/* Vertical Countdown Timer - pinned to far left edge, slim bar so it never overlaps cards */}
+        {/* Vertical Countdown Timer - pinned to far left edge, only for hero's turn */}
         {displayIsMyTurn && (
           <div className="absolute -left-0.5 top-[10%] bottom-[10%] z-20 flex flex-col items-center gap-0.5">
             <div className={`relative w-1.5 flex-1 bg-secondary/40 rounded-full overflow-hidden ${isUrgent ? 'animate-pulse' : ''}`}>
@@ -1548,22 +1551,52 @@ export default function Table() {
                     </div>
                   )}
 
-                  {/* Avatar circle */}
-                  <div className={`relative w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-200 ${
-                    isWinner ? "border-gold shadow-[0_0_20px_rgba(234,179,8,0.8)] scale-110" :
-                    isCurrentTurn ? "border-gold shadow-[0_0_12px_rgba(212,175,55,0.6)]" :
-                    isHero ? "border-truth-blue/60" :
-                    (player as any).isSittingOut ? "border-amber-500/40 opacity-70" :
-                    player.isFolded ? "border-white/10 opacity-40" : "border-white/30"
-                  }`}>
-                    <img
-                      src={(player as any).avatar || DEFAULT_AVATAR}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_AVATAR; }}
-                    />
+                  {/* Avatar circle with countdown ring */}
+                  <div className={`relative w-10 h-10 rounded-full overflow-visible transition-all duration-200`}>
+                    {/* SVG countdown ring - shown for active player */}
                     {isCurrentTurn && (
-                      <div className="absolute inset-0 rounded-full border-2 border-gold animate-pulse" />
+                      <div className={`turn-timer-ring ${isUrgent ? 'turn-timer-ring--urgent' : ''}`}>
+                        <svg viewBox="0 0 50 50">
+                          {/* Background track */}
+                          <circle
+                            cx="25" cy="25" r="23"
+                            stroke="rgba(212,175,55,0.2)"
+                            strokeWidth="3"
+                          />
+                          {/* Countdown progress */}
+                          <circle
+                            cx="25" cy="25" r="23"
+                            stroke={countdown > 10 ? '#d4af37' : countdown > 5 ? '#f59e0b' : '#ef4444'}
+                            strokeWidth="3.5"
+                            strokeDasharray={`${2 * Math.PI * 23}`}
+                            strokeDashoffset={`${2 * Math.PI * 23 * (1 - countdownProgress)}`}
+                            style={{ filter: `drop-shadow(0 0 ${isUrgent ? '6px' : '3px'} ${countdown > 10 ? '#d4af37' : countdown > 5 ? '#f59e0b' : '#ef4444'})` }}
+                          />
+                        </svg>
+                      </div>
+                    )}
+                    {/* Avatar image */}
+                    <div className={`w-10 h-10 rounded-full overflow-hidden border-2 ${
+                      isWinner ? "border-gold shadow-[0_0_20px_rgba(234,179,8,0.8)] scale-110" :
+                      isCurrentTurn ? "border-gold shadow-[0_0_12px_rgba(212,175,55,0.6)]" :
+                      isHero ? "border-truth-blue/60" :
+                      (player as any).isSittingOut ? "border-amber-500/40 opacity-70" :
+                      player.isFolded ? "border-white/10 opacity-40" : "border-white/30"
+                    }`}>
+                      <img
+                        src={(player as any).avatar || DEFAULT_AVATAR}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_AVATAR; }}
+                      />
+                    </div>
+                    {/* Countdown number badge */}
+                    {isCurrentTurn && (
+                      <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold z-20 ${
+                        countdown > 10 ? 'bg-gold/90 text-black' : countdown > 5 ? 'bg-amber-500/90 text-black' : 'bg-red-500/90 text-white animate-pulse'
+                      }`}>
+                        {countdown}
+                      </div>
                     )}
                   </div>
 

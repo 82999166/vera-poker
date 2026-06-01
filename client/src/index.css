@@ -340,3 +340,28 @@ html, body, #root {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Turn timer ring - SVG circle countdown around active player avatar */
+.turn-timer-ring {
+  position: absolute;
+  inset: -5px;
+  pointer-events: none;
+  z-index: 10;
+}
+.turn-timer-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.turn-timer-ring circle {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
+}
+@keyframes turn-ring-pulse {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 3px currentColor); }
+  50% { opacity: 0.5; filter: drop-shadow(0 0 8px currentColor); }
+}
+.turn-timer-ring--urgent circle {
+  animation: turn-ring-pulse 0.5s ease-in-out infinite;
+}
