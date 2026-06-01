@@ -186,15 +186,15 @@ export default function Lobby() {
       {showWelcome && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in">
           <div className="glass-strong rounded-2xl p-6 mx-4 max-w-sm w-full text-center space-y-4 animate-in zoom-in-95">
-            <div className="text-4xl">\ud83c\udf89</div>
-            <h2 className="text-xl font-bold text-gold">{t("lobby.welcomeTitle")}</h2>
+            <h2 className="text-xl font-bold text-foreground">{user?.nickname || user?.name || "Player"}</h2>
+            <p className="text-lg font-bold text-gold">{t("lobby.welcomeTitle")}</p>
             <p className="text-sm text-muted-foreground">
               {t("lobby.welcomeBonus").replace("{amount}", walletData?.bonusBalance || "0")}
             </p>
             <div className="glass rounded-lg p-3 text-left space-y-1">
-              <p className="text-xs text-muted-foreground">\u2022 {t("lobby.welcomeRule1")}</p>
-              <p className="text-xs text-muted-foreground">\u2022 {t("lobby.welcomeRule2")}</p>
-              <p className="text-xs text-muted-foreground">\u2022 {t("lobby.welcomeRule3")}</p>
+              <p className="text-xs text-muted-foreground">{'\u2022'} {t("lobby.welcomeRule1")}</p>
+              <p className="text-xs text-muted-foreground">{'\u2022'} {t("lobby.welcomeRule2")}</p>
+              <p className="text-xs text-muted-foreground">{'\u2022'} {t("lobby.welcomeRule3")}</p>
             </div>
             <button
               onClick={dismissWelcome}
