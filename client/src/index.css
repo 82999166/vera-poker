@@ -365,3 +365,12 @@ html, body, #root {
 .turn-timer-ring--urgent circle {
   animation: turn-ring-pulse 0.5s ease-in-out infinite;
 }
+
+/* 隐藏滚动条但保留滚动功能（用于筛选标签等） */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

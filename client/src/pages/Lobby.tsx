@@ -325,12 +325,12 @@ export default function Lobby() {
 
       {/* Filter Pills - show table count */}
       {activeTab === "cash" && (
-        <div className="px-4 pt-3 flex gap-2 overflow-x-auto pb-1">
+        <div className="px-4 pt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
           {(["all", "low", "mid", "high", "vip"] as FilterLevel[]).map(level => (
             <button
               key={level}
               onClick={() => setFilterLevel(level)}
-              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all flex items-center gap-0.5 ${
                 filterLevel === level
                   ? "bg-truth-blue text-white glow-blue"
                   : "glass text-muted-foreground hover:text-foreground"
