@@ -158,7 +158,7 @@ export default function Profile() {
             {(Object.keys(LOCALE_NAMES) as Locale[]).map((loc) => (
               <button
                 key={loc}
-                onClick={() => { changeLocale(loc); setShowLangPicker(false); }}
+                onClick={() => { changeLocale(loc); setShowLangPicker(false); updateMutation.mutate({ language: loc }); }}
                 className={`flex flex-col items-center gap-0.5 px-1.5 py-2 rounded-lg text-xs transition-colors ${
                   locale === loc
                     ? "bg-gold/20 text-gold border border-gold/30"

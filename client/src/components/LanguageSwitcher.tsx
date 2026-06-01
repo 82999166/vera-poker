@@ -1,10 +1,16 @@
+/**
+ * 语言切换器组件
+ * 切换语言时同步更新到后端数据库，确保通知语言一致
+ */
 import { useState } from "react";
 import { useI18n, LOCALE_NAMES, LOCALE_FLAGS, type Locale } from "@/lib/i18n";
 import { Globe } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
 export default function LanguageSwitcher() {
   const { locale, changeLocale } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
+  const updateLang = trpc.profile.update.useMutation();
 
   return (
     <div className="relative">
@@ -27,6 +33,7 @@ export default function LanguageSwitcher() {
                 onClick={() => {
                   changeLocale(loc);
                   setIsOpen(false);
+                  updateLang.mutate({ language: loc });
                 }}
                 className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${
                   locale === loc
