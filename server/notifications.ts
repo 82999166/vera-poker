@@ -7,15 +7,18 @@ import * as db from "./db";
 import { nt, getUserLang } from "./notificationI18n";
 
 export type NotificationType = 
-  | "private_room_invite"   // 被邀请加入私人房
-  | "turn_action"           // 轮到操作
-  | "game_starting"         // 游戏即将开始
-  | "balance_change"        // 余额变动
-  | "deposit_confirmed"     // 充值到账
-  | "withdrawal_approved"   // 提现已审批
-  | "withdrawal_rejected"   // 提现被拒绝
-  | "commission_earned"     // 佣金到账
-  | "system_announcement";  // 系统公告
+  | "private_room_invite"     // 被邀请加入私人房
+  | "turn_action"             // 轮到操作
+  | "game_starting"           // 游戏即将开始
+  | "balance_change"          // 余额变动
+  | "deposit_confirmed"       // 充值到账
+  | "withdrawal_approved"     // 提现已审批
+  | "withdrawal_rejected"     // 提现被拒绝
+  | "commission_earned"       // 佣金到账
+  | "tournament_registered"   // 锦标赛报名成功
+  | "tournament_starting"     // 锦标赛即将/已开始
+  | "tournament_result"       // 锦标赛结果
+  | "system_announcement";    // 系统公告
 
 interface NotificationPayload {
   type: NotificationType;
@@ -86,6 +89,9 @@ function formatNotification(payload: NotificationPayload): string {
     withdrawal_approved: "💸",
     withdrawal_rejected: "❌",
     commission_earned: "💵",
+    tournament_registered: "🏆",
+    tournament_starting: "🚨",
+    tournament_result: "🏅",
     system_announcement: "📢",
   };
 
@@ -103,6 +109,9 @@ const typeToPrefsKey: Record<NotificationType, string> = {
   withdrawal_approved: "withdrawal",
   withdrawal_rejected: "withdrawal",
   commission_earned: "commission",
+  tournament_registered: "tournament",
+  tournament_starting: "tournament",
+  tournament_result: "tournament",
   system_announcement: "system",
 };
 
@@ -330,7 +339,7 @@ export async function notifyAdmins(title: string, body: string, data?: Record<st
 export async function notifyTournamentRegistered(userId: number, tournamentName: string, entryFee: string, startTime: string): Promise<boolean> {
   const lang = await getUserLang(userId);
   return sendNotification({
-    type: "system_announcement",
+    type: "tournament_registered",
     userId,
     title: nt(lang, "tournamentRegistered.title"),
     body: nt(lang, "tournamentRegistered.body", { name: tournamentName, fee: entryFee, time: startTime }),
@@ -342,7 +351,7 @@ export async function notifyTournamentRegistered(userId: number, tournamentName:
 export async function notifyTournamentCancelled(userId: number, tournamentName: string, entryFee: string): Promise<boolean> {
   const lang = await getUserLang(userId);
   return sendNotification({
-    type: "balance_change",
+    type: "tournament_registered",
     userId,
     title: nt(lang, "tournamentCancelled.title"),
     body: nt(lang, "tournamentCancelled.body", { name: tournamentName, fee: entryFee }),
@@ -354,7 +363,7 @@ export async function notifyTournamentCancelled(userId: number, tournamentName: 
 export async function notifyTournamentStartingSoon(userId: number, tournamentName: string, minutesLeft: number): Promise<boolean> {
   const lang = await getUserLang(userId);
   return sendNotification({
-    type: "game_starting",
+    type: "tournament_starting",
     userId,
     title: nt(lang, "tournamentStartingSoon.title"),
     body: nt(lang, "tournamentStartingSoon.body", { name: tournamentName, minutes: String(minutesLeft) }),
@@ -366,7 +375,7 @@ export async function notifyTournamentStartingSoon(userId: number, tournamentNam
 export async function notifyTournamentStarted(userId: number, tournamentName: string, playerCount: number, startingChips: number): Promise<boolean> {
   const lang = await getUserLang(userId);
   return sendNotification({
-    type: "game_starting",
+    type: "tournament_starting",
     userId,
     title: nt(lang, "tournamentStarted.title"),
     body: nt(lang, "tournamentStarted.body", { name: tournamentName, players: String(playerCount), chips: startingChips.toLocaleString() }),
@@ -413,7 +422,7 @@ export async function notifyTournamentResult(
     : nt(lang, "tournamentResult.loser.body", { name: tournamentName });
 
   return sendNotification({
-    type: "balance_change",
+    type: "tournament_result",
     userId,
     title: isWinner
       ? nt(lang, "tournamentResult.winner.title", { rank: String(rank), total: totalStr })

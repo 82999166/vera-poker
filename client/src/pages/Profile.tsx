@@ -682,23 +682,24 @@ function TournamentHistorySection({ locale }: { locale: string }) {
 
 /** 通知偏好设置组件 */
 function NotificationPrefsSection({ locale }: { locale: string }) {
+  const { t } = useI18n();
   const { data: prefs, isLoading } = trpc.profile.getNotificationPrefs.useQuery();
   const updateMutation = trpc.profile.updateNotificationPrefs.useMutation({
     onSuccess: () => {
-      toast.success(locale.startsWith("zh") ? "保存成功" : "Saved");
+      toast.success(t("profile.notifPrefs.saved"));
     },
   });
 
-  const items: { key: string; label: string; labelEn: string }[] = [
-    { key: "privateRoomInvite", label: "私人房邀请", labelEn: "Room Invites" },
-    { key: "turnAction", label: "轮到操作提醒", labelEn: "Turn Reminders" },
-    { key: "gameStarting", label: "游戏开始通知", labelEn: "Game Starting" },
-    { key: "deposit", label: "充值到账通知", labelEn: "Deposit Alerts" },
-    { key: "withdrawal", label: "提现状态通知", labelEn: "Withdrawal Alerts" },
-    { key: "commission", label: "佣金到账通知", labelEn: "Commission Alerts" },
-    { key: "tournament", label: "锦标赛通知", labelEn: "Tournament Alerts" },
-    { key: "system", label: "系统公告", labelEn: "System Notices" },
-  ];
+  const prefsKeys = [
+    "privateRoomInvite",
+    "turnAction",
+    "gameStarting",
+    "deposit",
+    "withdrawal",
+    "commission",
+    "tournament",
+    "system",
+  ] as const;
 
   const handleToggle = (key: string, currentVal: boolean) => {
     updateMutation.mutate({ [key]: !currentVal });
@@ -711,19 +712,19 @@ function NotificationPrefsSection({ locale }: { locale: string }) {
       <div className="glass rounded-2xl p-4">
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
           <Bell className="w-4 h-4 text-gold" />
-          {locale.startsWith("zh") ? "TG 通知设置" : "TG Notifications"}
+          {t("profile.notifPrefs.title")}
         </h3>
         <p className="text-xs text-muted-foreground mb-3">
-          {locale.startsWith("zh") ? "选择哪些通知通过 Telegram Bot 推送" : "Choose which notifications to receive via Telegram Bot"}
+          {t("profile.notifPrefs.desc")}
         </p>
         <div className="space-y-1">
-          {items.map((item) => {
-            const val = (prefs as any)?.[item.key] !== false;
+          {prefsKeys.map((key) => {
+            const val = (prefs as any)?.[key] !== false;
             return (
-              <div key={item.key} className="flex items-center justify-between py-2">
-                <p className="text-sm">{locale.startsWith("zh") ? item.label : item.labelEn}</p>
+              <div key={key} className="flex items-center justify-between py-2">
+                <p className="text-sm">{t(`profile.notifPrefs.${key}`)}</p>
                 <button
-                  onClick={() => handleToggle(item.key, val)}
+                  onClick={() => handleToggle(key, val)}
                   disabled={updateMutation.isPending}
                   className={`relative w-11 h-6 rounded-full transition-colors ${val ? "bg-gold" : "bg-muted"}`}
                 >

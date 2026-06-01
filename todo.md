@@ -419,3 +419,11 @@
 - [x] 通知偏好设置：后端 API（getNotificationPrefs / updateNotificationPrefs）
 - [x] 通知偏好设置：发送通知时检查用户偏好（checkNotificationPrefs）
 - [x] 通知偏好设置：前端个人中心 UI（8类通知开关）
+
+## 2026-06-01 通知偏好多语言化 + 锦标赛通知独立
+
+- [x] 通知偏好 UI 多语言化：NotificationPrefsSection 标签扩展到 12 种语言
+- [x] 锦标赛通知类型独立：新增 tournament_registered / tournament_starting / tournament_result NotificationType
+- [x] 锦标赛通知偏好：typeToPrefsKey 映射锦标赛类型到 "tournament" key
+- [x] 锦标赛通知多语言文案：notificationI18n.ts 已有锦标赛翻译 + tournamentReminders.ts 改用多语言
+- [x] 前端通知偏好 i18n：i18n.ts 添加 profile.notifPrefs.* 翻译 key（12种语言）
