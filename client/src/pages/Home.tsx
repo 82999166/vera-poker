@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { getLoginUrl } from "@/const";
 import { useTelegramAuth, isTelegramMiniApp, getTelegramStartParam } from "@/hooks/useTelegramAuth";
 import { trpc } from "@/lib/trpc";
-import { useI18n, detectLocale, setLocale, applyLocale } from "@/lib/i18n";
+import { useI18n, detectLocale, applyLocale } from "@/lib/i18n";
 import { Shield, Zap, Globe, Users, ArrowRight, Loader2, Lock, Eye, EyeOff } from "lucide-react";
 
 // Storage key for pending referral code
@@ -108,12 +108,24 @@ export default function Home() {
       if (result?.success) {
         setTgLoginSuccess(true);
         localStorage.setItem("vera_auth_method", "telegram");
-        // Apply TG language on every login unless user has manually set a preference.
-        // We use applyLocale (not setLocale) so we don't overwrite a manual choice,
-        // but we DO re-detect every time so new users always get their TG language.
-        const manualLocale = localStorage.getItem("vera-locale");
-        if (!manualLocale) {
-          // No manual preference: always re-detect (picks up TG language_code)
+        // Always apply TG language on login.
+        // Priority: backend-returned language > TG SDK language_code > browser language
+        // We use applyLocale (not setLocale) so we don't write to localStorage,
+        // allowing TG language to be re-evaluated fresh on every load.
+        const backendLang = (result as any).user?.language;
+        if (backendLang) {
+          // Use the language from backend (which is the TG user's language_code)
+          const langMap: Record<string, string> = {
+            "en": "en", "zh": "zh-CN", "zh-cn": "zh-CN", "zh-tw": "zh-TW",
+            "zh-hans": "zh-CN", "zh-hant": "zh-TW",
+            "ja": "ja", "ko": "ko", "es": "es", "pt": "pt", "ru": "ru",
+            "ar": "ar", "vi": "vi", "th": "th", "id": "id",
+          };
+          const normalized = backendLang.toLowerCase();
+          const mapped = langMap[normalized] || langMap[normalized.split("-")[0]] || "en";
+          applyLocale(mapped as any);
+        } else {
+          // Fallback: re-detect from TG SDK
           const detectedLocale = detectLocale();
           applyLocale(detectedLocale);
         }

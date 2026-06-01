@@ -816,8 +816,11 @@ export async function findOrCreateTelegramUser(params: {
         updates.nickname = fullName;
       }
     }
-    // 只在用户数据库中 language 为空时才从 TG 同步，避免覆盖用户手动设置的语言
-    if (params.languageCode && !existing.language) {
+    // 每次 TG 登录时，始终用 TG language_code 更新数据库语言
+    // 这确保了用户切换 TG 语言后，数据库能同步更新
+    // 用户在个人中心手动设置的语言会通过 profile.update 保存，
+    // 但下次 TG 登录时会被 TG 客户端的语言覆盖（以 TG 语言为准）
+    if (params.languageCode) {
       updates.language = params.languageCode;
     }
 

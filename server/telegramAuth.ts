@@ -240,6 +240,7 @@ export function registerTelegramAuthRoutes(app: Express) {
           name: user.name,
           tgUsername: user.tgUsername,
           avatar: user.avatar,
+          language: user.language || tgUser.language_code || "en",
         },
       });
     } catch (error) {

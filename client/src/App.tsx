@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, detectLocale, applyLocale } from "@/lib/i18n";
+import { useEffect } from "react";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -58,6 +59,31 @@ function MobileContainer({ children }: { children: React.ReactNode }) {
 
 function AppContent() {
   const { locale } = useI18n();
+
+  // Global TG language sync: ensure TG Mini App users always see their language.
+  // This handles the case where the user is already authenticated (session cookie valid)
+  // and Home.tsx Step 2 is skipped. Also handles late TG SDK initialization.
+  useEffect(() => {
+    const syncTgLanguage = () => {
+      // Don't override if user has manually set a language preference
+      const manualLocale = localStorage.getItem("vera-locale");
+      if (manualLocale) return;
+      // Only run in TG Mini App environment
+      const tg = (window as any).Telegram?.WebApp;
+      if (!tg?.initDataUnsafe?.user?.language_code) return;
+      // Re-detect locale (will pick up TG language_code)
+      const detected = detectLocale();
+      if (detected !== locale) {
+        applyLocale(detected);
+      }
+    };
+    // Run immediately
+    syncTgLanguage();
+    // Also retry after a short delay in case TG SDK initializes late
+    const timer = setTimeout(syncTgLanguage, 300);
+    return () => clearTimeout(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Staff login and Admin use full-screen layout
   const isStaffLogin = window.location.pathname === "/staff-login";
   const isAdmin = window.location.pathname.startsWith("/admin");

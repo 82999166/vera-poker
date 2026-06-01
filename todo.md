@@ -427,3 +427,7 @@
 - [x] 锦标赛通知偏好：typeToPrefsKey 映射锦标赛类型到 "tournament" key
 - [x] 锦标赛通知多语言文案：notificationI18n.ts 已有锦标赛翻译 + tournamentReminders.ts 改用多语言
 - [x] 前端通知偏好 i18n：i18n.ts 添加 profile.notifPrefs.* 翻译 key（12种语言）
+
+## 2026-06-01 Bug 修复
+
+- [x] 分享链接注册时，前端语言自动识别当前 TG 用户的语言（三层修复：App级别全局同步 + 后端返回 language + 每次登录更新DB）
