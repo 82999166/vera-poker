@@ -401,4 +401,5 @@
 
 ## 2026-06-01 用户显示名称修复
 
-- [ ] 用户注册/登录时使用 TG 显示名称（first_name + last_name）而非 username
+- [x] 用户注册/登录时使用 TG 显示名称（first_name + last_name）而非 username
+- [x] TG 注册用户未收到注册赠送 - findOrCreateTelegramUser 中新增读取 registration_bonus_amount 配置

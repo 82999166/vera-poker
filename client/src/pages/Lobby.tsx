@@ -59,6 +59,15 @@ export default function Lobby() {
   const cashRooms = (rooms ?? []).filter(r => r.type !== "private" && r.status !== "closed");
   const privateRooms = (rooms ?? []).filter(r => r.type === "private" && r.status !== "closed");
 
+  // 根据盲注级别返回多语言房间名称
+  const getRoomLevelName = (bigBlind: string) => {
+    const bb = parseFloat(bigBlind);
+    if (bb <= 2) return `${t("lobby.roomLevel.beginner")} ${bigBlind}`;
+    if (bb <= 10) return `${t("lobby.roomLevel.intermediate")} ${bigBlind}`;
+    if (bb <= 50) return `${t("lobby.roomLevel.advanced")} ${bigBlind}`;
+    return `${t("lobby.roomLevel.vip")} ${bigBlind}`;
+  };
+
   // Group cash rooms by blinds into stake groups
   const stakeGroups = React.useMemo((): StakeGroup[] => {
     const map = new Map<string, StakeGroup>();
@@ -409,7 +418,7 @@ export default function Lobby() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-semibold text-foreground">{group.name}</span>
+                      <span className="text-sm font-semibold text-foreground">{getRoomLevelName(group.bigBlind)}</span>
                       {group.fairnessLevel === "high" && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-truth-blue/20 text-truth-blue-bright">{t("lobby.onChain")}</span>
                       )}
