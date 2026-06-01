@@ -860,7 +860,21 @@ export async function findOrCreateTelegramUser(params: {
   }
 
   await db.insert(users).values(insertValues);
-  return getUserByTgId(params.tgId);
+
+  // 新用户注册成功，发送欢迎通知
+  const newUser = await getUserByTgId(params.tgId);
+  if (newUser) {
+    const welcomeMsg = bonus > 0
+      ? `欢迎加入 Vera Poker！您已获得 $${bonus.toFixed(2)} 注册奖金，在公共房间玩牌即可解锁提现。祝您好运！`
+      : `欢迎加入 Vera Poker！祝您游戏愉快！`;
+    await createNotification({
+      userId: newUser.id,
+      type: "system",
+      title: "注册成功",
+      content: welcomeMsg,
+    });
+  }
+  return newUser;
 }
 
 /**
