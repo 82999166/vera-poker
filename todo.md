@@ -363,3 +363,9 @@
 - [x] 右下角显示倒计时秒数 badge
 - [x] 对所有玩家（不仅自己）都显示倒计时环，让对方操作时也能看到剩余时间
 - [x] 最后5秒进度条脉冲闪烁 + 发光效果增强紧迫感
+
+## 2026-06-01 比牌提示 + 错误消息翻译补全
+
+- [x] #1 比牌时增加视觉提示：showdown 阶段在牌桌中央显示「比牌中...」横幅（金色脉冲动画）
+- [x] #2 "Cannot raise more than your stack" 等错误消息翻译补全：新增 5 个 error key（raiseExceedsStack/minimumRaise/roomNotAvailable/noAvailableSeats/cannotLeaveTournament），中/繁/英三语
+- [x] #3 比牌提示 i18n key（table.comparingHands）添加到中/繁/英三语

@@ -349,6 +349,11 @@ export default function Table() {
       "This transaction hash has already been submitted": "error.txHashDuplicate",
       "Insufficient balance (concurrent request detected)": "error.concurrentRequest",
       "Private room requires deposit": "error.privateRoomDeposit",
+      "Cannot raise more than your stack": "error.raiseExceedsStack",
+      "Minimum raise is": "error.minimumRaise",
+      "Room is not available": "error.roomNotAvailable",
+      "No available seats": "error.noAvailableSeats",
+      "Cannot leave during a tournament": "error.cannotLeaveTournament",
     };
     for (const [eng, key] of Object.entries(errorMap)) {
       if (msg?.includes(eng)) return t(key);
@@ -1386,6 +1391,17 @@ export default function Table() {
                 <CardView key={`${card}-${i}`} card={card} className="!w-[44px] !h-[62px]" animate={animateCards} delay={i * 150} />
               ))}
             </div>
+
+            {/* Showdown / Comparing Hands Banner */}
+            {(displayPhase === "showdown") && !showWinner && (
+              <div className="absolute top-[58%] left-1/2 -translate-x-1/2 z-20 animate-banner">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/80 border border-gold/50 backdrop-blur-sm shadow-[0_0_20px_rgba(234,179,8,0.2)]">
+                  <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                  <span className="text-xs font-bold text-gold">{t("table.comparingHands")}</span>
+                  <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                </div>
+              </div>
+            )}
 
             {/* Tournament HUD - show blind level, players remaining, next blind timer */}
             {isTournamentTable && tournamentInfo && !showWinner && (
