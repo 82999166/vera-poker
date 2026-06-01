@@ -593,6 +593,8 @@ const en: Record<string, string> = {
   "table.enteringShowdown": "Entering Showdown",
   "table.showdownDesc": "Revealing cards and determining winner...",
   "table.settling": "Settling",
+  "table.raiseAtMax": "Stack limit reached",
+  "table.showdownReveal": "Showdown",
 };
 
 // Simplified Chinese
@@ -1153,6 +1155,8 @@ const zhCN: Record<string, string> = {
   "table.enteringShowdown": "进入摊牌",
   "table.showdownDesc": "正在亮牌并决定赢家...",
   "table.settling": "结算中",
+  "table.raiseAtMax": "已达筹码上限",
+  "table.showdownReveal": "摊牌",
 };
 // Traditional Chinese
 const zhTW: Record<string, string> = {
@@ -1703,6 +1707,8 @@ const zhTW: Record<string, string> = {
   "table.enteringShowdown": "進入攞牌",
   "table.showdownDesc": "正在亮牌並決定贏家...",
   "table.settling": "結算中",
+  "table.raiseAtMax": "已達籌碼上限",
+  "table.showdownReveal": "攞牌",
 };
 // Japanese
 const ja: Record<string, string> = {

@@ -369,3 +369,9 @@
 - [x] #1 比牌时增加视觉提示：showdown 阶段在牌桌中央显示「比牌中...」横幅（金色脉冲动画）
 - [x] #2 "Cannot raise more than your stack" 等错误消息翻译补全：新增 5 个 error key（raiseExceedsStack/minimumRaise/roomNotAvailable/noAvailableSeats/cannotLeaveTournament），中/繁/英三语
 - [x] #3 比牌提示 i18n key（table.comparingHands）添加到中/繁/英三语
+
+## 2026-06-01 比牌体验增强三项
+
+- [x] #1 加注上限提示前置：raise slider 拖到最大值时显示「已达筹码上限」灰色提示
+- [x] #2 比牌动画增强：showdown 时逐个翻开各玩家手牌 + 牌力文字标签（赢家金色发光，输家暗色），hero 也显示最终牌力
+- [x] #3 比牌音效：showdown 阶段每个对手翻牌时播放 cardFlip 音效（已有，间隔600ms）

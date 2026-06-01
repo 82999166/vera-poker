@@ -1536,20 +1536,56 @@ export default function Table() {
                           </div>
                         ) : null;
                       })()}
+                      {/* Final hand label in showdown/completed */}
+                      {(displayPhase === "showdown" || displayPhase === "completed") && showSettlement?.showdownPlayers && user && (() => {
+                        const sp = showSettlement.showdownPlayers.find((s: any) => s.playerId === user.id);
+                        if (!sp || !sp.handDescription) return null;
+                        const isWinner = winnerPlayerIds.includes(user.id);
+                        const handKey = HAND_RANK_MAP[sp.handDescription];
+                        const handName = handKey ? t(handKey) : sp.handDescription;
+                        return (
+                          <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold border backdrop-blur-sm transition-all duration-300 animate-in fade-in slide-in-from-bottom-1 ${
+                            isWinner
+                              ? 'bg-gold/20 border-gold/50 text-gold shadow-[0_0_8px_rgba(234,179,8,0.3)]'
+                              : 'bg-black/40 border-white/20 text-white/80'
+                          }`}>
+                            {handName}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                   {/* Opponent cards: only show face-up in showdown/completed phase with sequential flip animation */}
                   {!isHero && (displayPhase === "showdown" || displayPhase === "completed") && player.holeCards && player.holeCards.length > 0 && !waitingForReady && (
-                    <div className="flex gap-0.5 mb-0.5">
-                      {player.holeCards.map((card, i) => (
-                        <CardView
-                          key={i}
-                          card={card}
-                          className="!w-[52px] !h-[70px]"
-                          flip={revealedOpponentIds.has(player.id)}
-                          delay={i * 200}
-                        />
-                      ))}
+                    <div className="flex flex-col items-center gap-0.5 mb-0.5">
+                      <div className="flex gap-0.5">
+                        {player.holeCards.map((card, i) => (
+                          <CardView
+                            key={i}
+                            card={card}
+                            className="!w-[52px] !h-[70px]"
+                            flip={revealedOpponentIds.has(player.id)}
+                            delay={i * 200}
+                          />
+                        ))}
+                      </div>
+                      {/* Hand strength label - shows after cards are revealed */}
+                      {revealedOpponentIds.has(player.id) && showSettlement?.showdownPlayers && (() => {
+                        const sp = showSettlement.showdownPlayers.find((s: any) => s.playerId === player.id);
+                        if (!sp || !sp.handDescription) return null;
+                        const isWinner = winnerPlayerIds.includes(player.id);
+                        const handKey = HAND_RANK_MAP[sp.handDescription];
+                        const handName = handKey ? t(handKey) : sp.handDescription;
+                        return (
+                          <div className={`mt-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold border backdrop-blur-sm transition-all duration-300 animate-in fade-in slide-in-from-bottom-1 ${
+                            isWinner
+                              ? 'bg-gold/20 border-gold/50 text-gold shadow-[0_0_8px_rgba(234,179,8,0.3)]'
+                              : 'bg-black/40 border-white/20 text-white/80'
+                          }`}>
+                            {handName}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                   {/* Show face-down cards for opponents during active hand (preflop/flop/turn/river) */}
@@ -1859,6 +1895,14 @@ export default function Table() {
                 />
                 <span className="text-[10px] text-gold font-bold min-w-[36px] text-right">{fmtAmt(raiseAmount)}</span>
               </div>
+              {/* Stack limit hint */}
+              {myPlayer && raiseAmount >= myPlayer.chips + myPlayer.currentBet - 0.01 && (
+                <div className="text-center mb-1">
+                  <span className="text-[9px] text-muted-foreground/70 bg-muted/30 px-2 py-0.5 rounded-full">
+                    {t("table.raiseAtMax")}
+                  </span>
+                </div>
+              )}
 
               {/* Action buttons - single row, always visible (disabled when not your turn) */}
               <div className="flex gap-1.5 mb-1">
