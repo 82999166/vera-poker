@@ -17,6 +17,26 @@ interface SettlementDetail {
   showdownPlayers: { playerId: number; name: string; holeCards: string[]; handRank: string; handDescription: string }[];
 }
 
+// Player info cache to reduce DB queries during polling (TTL: 30s)
+const playerInfoCache = new Map<number, { name: string; avatar: string | null; cachedAt: number }>();
+const PLAYER_CACHE_TTL = 30000; // 30 seconds
+
+async function getCachedPlayerInfo(userId: number): Promise<{ name: string; avatar: string | null }> {
+  const cached = playerInfoCache.get(userId);
+  if (cached && Date.now() - cached.cachedAt < PLAYER_CACHE_TTL) {
+    return { name: cached.name, avatar: cached.avatar };
+  }
+  const user = await db.getUserById(userId);
+  const info = { name: user?.nickname || user?.name || `Player`, avatar: user?.avatar || null };
+  playerInfoCache.set(userId, { ...info, cachedAt: Date.now() });
+  return info;
+}
+
+// Invalidate cache when user updates profile
+export function invalidatePlayerCache(userId: number) {
+  playerInfoCache.delete(userId);
+}
+
 interface ActiveTable {
   roomId: number;
   gameState: GameState;
@@ -59,7 +79,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
     const seatedPlayers = await db.getRoomPlayers(roomId);
     const waitingPlayers = [];
     for (const sp of seatedPlayers) {
-      const user = await db.getUserById(sp.userId);
+      const info = await getCachedPlayerInfo(sp.userId);
       waitingPlayers.push({
         id: sp.userId,
         seatIndex: sp.seatIndex,
@@ -69,8 +89,8 @@ export async function getPlayerView(roomId: number, playerId: number) {
         isFolded: false,
         isAllIn: false,
         isActive: true,
-        name: user?.nickname || user?.name || `Player ${sp.seatIndex + 1}`,
-        avatar: user?.avatar || null,
+        name: info.name || `Player ${sp.seatIndex + 1}`,
+        avatar: info.avatar,
         holeCards: [],
       });
     }
@@ -84,11 +104,11 @@ export async function getPlayerView(roomId: number, playerId: number) {
   const myPlayer = gs.players.find(p => p.id === playerId);
   const myCards = myPlayer?.holeCards || [];
 
-  // Fetch player names and avatars from DB
+  // Fetch player names and avatars (cached to reduce DB load during polling)
   const playerInfo = new Map<number, { name: string; avatar: string | null }>();
   for (const p of gs.players) {
-    const user = await db.getUserById(p.id);
-    playerInfo.set(p.id, { name: user?.nickname || user?.name || `Player ${p.seatIndex + 1}`, avatar: user?.avatar || null });
+    const info = await getCachedPlayerInfo(p.id);
+    playerInfo.set(p.id, { name: info.name || `Player ${p.seatIndex + 1}`, avatar: info.avatar });
   }
 
   const players = gs.players.map(p => ({
@@ -116,7 +136,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
   // Append sitting_out players (waiting for next hand) to the player list
   const sittingOutList = await db.getRoomPlayersSittingOut(roomId);
   for (const sp of sittingOutList) {
-    const user = await db.getUserById(sp.userId);
+    const info = await getCachedPlayerInfo(sp.userId);
     players.push({
       id: sp.userId,
       seatIndex: sp.seatIndex,
@@ -126,8 +146,8 @@ export async function getPlayerView(roomId: number, playerId: number) {
       isFolded: false,
       isAllIn: false,
       isActive: false,
-      name: user?.nickname || user?.name || `Player ${sp.seatIndex + 1}`,
-      avatar: user?.avatar || null,
+      name: info.name || `Player ${sp.seatIndex + 1}`,
+      avatar: info.avatar,
       holeCards: [],
       isSittingOut: true, // Waiting for next hand (Wait for Big Blind)
     });

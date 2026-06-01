@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -327,6 +327,34 @@ export default function Table() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { t } = useI18n();
+
+  // Map backend English error messages to i18n keys for localized display
+  const translateError = useCallback((msg: string): string => {
+    const errorMap: Record<string, string> = {
+      "Insufficient balance": "error.insufficientBalance",
+      "Room not found": "error.roomNotFound",
+      "Table is full": "error.tableFull",
+      "Not your turn": "error.notYourTurn",
+      "Cannot check, must call or raise": "error.cannotCheck",
+      "Nothing to call, use check instead": "error.nothingToCall",
+      "Raise amount must be positive": "error.raisePositive",
+      "You have already folded": "error.alreadyFolded",
+      "You are already all-in": "error.alreadyAllIn",
+      "No active game": "error.noActiveGame",
+      "Game is not in an active betting phase": "error.notInBettingPhase",
+      "Cannot join table": "error.cannotJoinTable",
+      "No available tables for this stake level": "error.noAvailableTables",
+      "Already in another game": "error.alreadySeated",
+      "Not seated at this table": "error.notSeated",
+      "This transaction hash has already been submitted": "error.txHashDuplicate",
+      "Insufficient balance (concurrent request detected)": "error.concurrentRequest",
+      "Private room requires deposit": "error.privateRoomDeposit",
+    };
+    for (const [eng, key] of Object.entries(errorMap)) {
+      if (msg?.includes(eng)) return t(key);
+    }
+    return msg || t("error.generic");
+  }, [t]);
   const { play: playSound, toggle: toggleSound, isEnabled: isSoundEnabled, announceAction, speak, voiceMode, setVoiceMode } = useSoundEffects();
   const [muted, setMuted] = useState(() => localStorage.getItem("vera-sound-enabled") === "false");
   const [raiseAmount, setRaiseAmount] = useState(4.00);
@@ -418,7 +446,7 @@ export default function Table() {
 
   const utils = trpc.useUtils();
 
-  // Poll game state every 2 seconds with error recovery
+  // Poll game state with adaptive interval for responsiveness
   const { data: tableState, error: tableError } = trpc.game.tableState.useQuery(
     { roomId },
     {
@@ -427,10 +455,14 @@ export default function Table() {
       refetchInterval: (data) => {
         // Stop polling if room is closed and we've already started navigating
         if ((data as any)?.roomClosed && isLeavingRef.current) return false;
-        return 2000;
+        // Adaptive polling: faster during active play, slower when waiting
+        const phase = (data as any)?.phase;
+        if (phase === "waiting" || phase === "completed") return 1500;
+        // During active betting, poll faster for responsiveness
+        return 800;
       },
       retry: 3,
-      retryDelay: 1000,
+      retryDelay: 500,
     }
   );
 
@@ -444,19 +476,26 @@ export default function Table() {
     }
   }, [tableError, tableState]);
 
-  // Detect phase changes for card animations + sound effects
+  // Detect phase changes for card animations + sound effects + settlement notifications
   useEffect(() => {
     if (tableState?.phase && tableState.phase !== lastPhase) {
       if (["flop", "turn", "river"].includes(tableState.phase) && lastPhase !== "") {
         setAnimateCards(true);
         setTimeout(() => setAnimateCards(false), 1000);
         if (!muted) playSound("cardFlip");
+        // Detect all-in runout: if all non-folded players are all-in, show notification
+        const activePlayers = (tableState.players || []).filter((p: any) => !p.isFolded && p.isActive !== false);
+        const allInCount = activePlayers.filter((p: any) => p.isAllIn).length;
+        if (allInCount >= activePlayers.length - 1 && activePlayers.length >= 2 && lastPhase !== "") {
+          toast.info(t("table.allInRunout"), { description: t("table.allInRunoutDesc"), duration: 2500 });
+        }
       }
-      // Showdown: animate opponent card reveal
-      if (tableState.phase === "showdown" && lastPhase === "river") {
+      // Showdown: animate opponent card reveal + show entering showdown notification
+      if (tableState.phase === "showdown" && lastPhase !== "showdown") {
         setAnimateCards(true);
         setTimeout(() => setAnimateCards(false), 2000);
         if (!muted) playSound("cardFlip");
+        toast.info(t("table.enteringShowdown"), { description: t("table.showdownDesc"), duration: 2500 });
       }
       if (tableState.phase === "preflop" && lastPhase !== "" && lastPhase !== "preflop") {
         if (!muted) playSound("deal");
@@ -466,7 +505,7 @@ export default function Table() {
       }
       setLastPhase(tableState.phase);
     }
-  }, [tableState?.phase, lastPhase, muted, playSound]);
+  }, [tableState?.phase, tableState?.players, lastPhase, muted, playSound, t]);
 
   // Also trigger dealing animation when myCards first arrive (e.g. on reconnect mid-hand)
   const myCardsLen = tableState?.myCards?.length ?? 0;
@@ -694,7 +733,7 @@ export default function Table() {
         toast.error(t("table.privateRoomDepositRequired"));
         setTimeout(() => navigate("/lobby"), 2000);
       } else {
-        toast.error(err.message);
+        toast.error(translateError(err.message));
       }
     },
   });
@@ -712,12 +751,16 @@ export default function Table() {
       // Navigate back to lobby after leaving
       navigate("/lobby");
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(translateError(err.message)),
   });
 
   // allRooms query removed - auto-switch after fold disabled
 
   const actionMutation = trpc.game.action.useMutation({
+    onMutate: () => {
+      // Optimistic: immediately refetch to get new state faster
+      utils.game.tableState.invalidate({ roomId });
+    },
     onSuccess: (_, variables) => {
       utils.game.tableState.invalidate({ roomId });
       // Play sound based on action type + voice announcement
@@ -747,7 +790,7 @@ export default function Table() {
         // Just refresh the state silently - no toast needed
         utils.game.tableState.invalidate({ roomId });
       } else {
-        toast.error(err.message);
+        toast.error(translateError(err.message));
       }
     },
   });
@@ -757,7 +800,7 @@ export default function Table() {
       utils.game.tableState.invalidate({ roomId });
       if (!muted) playSound("check");
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(translateError(err.message)),
   });
 
   // === Rebuy ===
@@ -800,7 +843,7 @@ export default function Table() {
       utils.game.tableState.invalidate({ roomId });
       utils.wallet.balance.invalidate();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(translateError(err.message)),
   });
 
   const autoRebuyTriggeredRef = useRef<number>(0);
