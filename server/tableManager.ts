@@ -377,15 +377,58 @@ export async function leaveTable(roomId: number, userId: number): Promise<{ succ
     }
   }
 
-  // If game is active, fold the player first
+  // If game is active, fold the player first then safely remove from players array
   if (table) {
-    const playerIndex = table.gameState.players.findIndex(p => p.id === userId);
-    if (playerIndex !== -1 && !table.gameState.players[playerIndex].isFolded) {
-      table.gameState = gameEngine.processAction(table.gameState, userId, "fold");
-      await checkAndAdvanceGame(roomId);
+    const gs = table.gameState;
+    const playerIndex = gs.players.findIndex(p => p.id === userId);
+    if (playerIndex !== -1) {
+      // If player hasn't folded yet, fold them and advance game
+      if (!gs.players[playerIndex].isFolded) {
+        table.gameState = gameEngine.processAction(gs, userId, "fold");
+        await checkAndAdvanceGame(roomId);
+      }
+      // Now safely remove the player and fix currentPlayerIndex
+      const gsAfter = table.gameState;
+      const removeIdx = gsAfter.players.findIndex(p => p.id === userId);
+      if (removeIdx !== -1) {
+        // Fix currentPlayerIndex: if it points at or after the removed player, shift it back
+        if (gsAfter.currentPlayerIndex > removeIdx) {
+          gsAfter.currentPlayerIndex--;
+        } else if (gsAfter.currentPlayerIndex === removeIdx) {
+          // Current turn was on the leaving player (edge case: already folded but index stuck)
+          // After removal, the same index now points to the next player - validate it
+          // Will be corrected below after splice
+        }
+        gsAfter.players.splice(removeIdx, 1);
+        // Ensure currentPlayerIndex is within bounds
+        if (gsAfter.players.length > 0) {
+          if (gsAfter.currentPlayerIndex >= gsAfter.players.length) {
+            gsAfter.currentPlayerIndex = gsAfter.currentPlayerIndex % gsAfter.players.length;
+          }
+          // If the current player is folded/all-in, we need to find the next active player
+          const cur = gsAfter.players[gsAfter.currentPlayerIndex];
+          if (cur && (cur.isFolded || cur.isAllIn)) {
+            // Find next active player from current position
+            let next = gsAfter.currentPlayerIndex;
+            let found = false;
+            for (let i = 0; i < gsAfter.players.length; i++) {
+              next = (gsAfter.currentPlayerIndex + i) % gsAfter.players.length;
+              const p = gsAfter.players[next];
+              if (!p.isFolded && !p.isAllIn && p.isActive) {
+                found = true;
+                break;
+              }
+            }
+            gsAfter.currentPlayerIndex = found ? next : -1;
+          }
+        } else {
+          gsAfter.currentPlayerIndex = -1;
+        }
+        // After removing player, re-check if game needs to advance
+        // (e.g. only 1 active player left after removal)
+        await checkAndAdvanceGame(roomId);
+      }
     }
-    // Remove player from in-memory game state
-    table.gameState.players = table.gameState.players.filter(p => p.id !== userId);
   }
 
     await db.removeRoomPlayer(roomId, userId);
