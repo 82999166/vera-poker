@@ -29,18 +29,17 @@ export default function ReplayList() {
     try { return JSON.parse(cardsJson); } catch { return []; }
   };
 
-  /** 渲染单张扑克牌 */
+  /** 渲染单张扑克牌 - 白底矩形扑克牌样式 */
   const renderCard = (card: string, idx: number) => {
     const suit = card.slice(-1);
     const rank = card.slice(0, -1);
     const suitSymbol: Record<string, string> = { h: "♥", d: "♦", c: "♣", s: "♠" };
     const isRed = suit === "h" || suit === "d";
     return (
-      <span key={idx} className={`inline-flex items-center justify-center w-6 h-8 rounded text-[10px] font-bold border ${
-        isRed ? "text-red-400 border-red-400/30 bg-red-400/10" : "text-foreground border-border bg-secondary/50"
-      }`}>
-        {rank}{suitSymbol[suit] || suit}
-      </span>
+      <div key={idx} className="flex flex-col items-center justify-between bg-white rounded-[3px] px-0.5 py-0.5 w-[24px] h-[34px] shadow-sm border border-gray-200/50 flex-shrink-0">
+        <span className={`text-[9px] font-bold leading-none ${isRed ? "text-red-600" : "text-gray-900"}`}>{rank}</span>
+        <span className={`text-[13px] leading-none ${isRed ? "text-red-600" : "text-gray-900"}`}>{suitSymbol[suit] || suit}</span>
+      </div>
     );
   };
 

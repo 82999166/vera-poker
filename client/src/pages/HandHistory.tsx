@@ -47,11 +47,10 @@ export default function HandHistory() {
     const suitSymbol: Record<string, string> = { h: "♥", d: "♦", c: "♣", s: "♠" };
     const isRed = suit === "h" || suit === "d";
     return (
-      <span key={idx} className={`inline-flex items-center justify-center w-7 h-9 rounded text-xs font-bold border ${
-        isRed ? "text-red-400 border-red-400/30 bg-red-400/10" : "text-foreground border-border bg-secondary/50"
-      }`}>
-        {rank}{suitSymbol[suit] || suit}
-      </span>
+      <div key={idx} className="flex flex-col items-center justify-between bg-white rounded-[3px] px-0.5 py-0.5 w-[28px] h-[38px] shadow-sm border border-gray-200/50 flex-shrink-0">
+        <span className={`text-[11px] font-bold leading-none ${isRed ? "text-red-600" : "text-gray-900"}`}>{rank}</span>
+        <span className={`text-[15px] leading-none ${isRed ? "text-red-600" : "text-gray-900"}`}>{suitSymbol[suit] || suit}</span>
+      </div>
     );
   };
 

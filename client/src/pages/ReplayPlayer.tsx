@@ -113,23 +113,25 @@ export default function ReplayPlayer() {
     const rank = card.slice(0, -1);
     const suitSymbol: Record<string, string> = { h: "♥", d: "♦", c: "♣", s: "♠" };
     const isRed = suit === "h" || suit === "d";
-    const sizeClass = size === "sm" ? "w-6 h-8 text-[10px]" : "w-8 h-11 text-xs";
+    const sizeClass = size === "sm"
+      ? "w-[24px] h-[34px] text-[9px]"
+      : "w-[32px] h-[44px] text-[11px]";
+    const suitSize = size === "sm" ? "text-[13px]" : "text-[17px]";
     return (
-      <span key={idx} className={`inline-flex items-center justify-center rounded font-bold border ${sizeClass} ${
-        isRed ? "text-red-400 border-red-400/30 bg-red-400/10" : "text-foreground border-border bg-secondary/50"
-      }`}>
-        {rank}{suitSymbol[suit] || suit}
-      </span>
+      <div key={idx} className={`flex flex-col items-center justify-between bg-white rounded-[3px] px-0.5 py-0.5 shadow-sm border border-gray-200/50 flex-shrink-0 ${sizeClass}`}>
+        <span className={`font-bold leading-none ${size === "sm" ? "text-[9px]" : "text-[11px]"} ${isRed ? "text-red-600" : "text-gray-900"}`}>{rank}</span>
+        <span className={`leading-none ${suitSize} ${isRed ? "text-red-600" : "text-gray-900"}`}>{suitSymbol[suit] || suit}</span>
+      </div>
     );
   };
 
   /** 渲染牌背 */
   const renderCardBack = (idx: number, size: "sm" | "md" = "md") => {
-    const sizeClass = size === "sm" ? "w-6 h-8" : "w-8 h-11";
+    const sizeClass = size === "sm" ? "w-[24px] h-[34px]" : "w-[32px] h-[44px]";
     return (
-      <span key={`back-${idx}`} className={`inline-flex items-center justify-center rounded border border-border/50 bg-gradient-to-br from-blue-900/50 to-purple-900/50 ${sizeClass}`}>
-        <span className="text-[8px] text-muted-foreground">🂠</span>
-      </span>
+      <div key={`back-${idx}`} className={`flex items-center justify-center rounded-[3px] border border-blue-300/30 bg-gradient-to-br from-blue-800 to-indigo-900 shadow-sm flex-shrink-0 ${sizeClass}`}>
+        <span className="text-[10px] text-blue-200/60">♦</span>
+      </div>
     );
   };
 
