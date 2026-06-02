@@ -313,20 +313,19 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
     return { success: false, seatIndex: -1, message: "No available seats" };
   }
 
-  // Check if a game is currently in progress
-  const gameInProgress = activeTables.has(roomId);
-  const table = activeTables.get(roomId);
-  const activePhase = table?.gameState.phase;
-  const isActiveGame = gameInProgress && activePhase && activePhase !== 'waiting' && activePhase !== 'completed';
-
-  if (isActiveGame) {
-    // Game in progress: add as sitting_out (waiting for next hand / Wait for Big Blind)
+  // Check if a game session exists (active hand, showdown, completed/ready phase, etc.)
+  // If activeTables has this room, a game session is in progress or between hands.
+  // New players must ALWAYS sit out and wait for the next hand to start.
+  // This prevents: joining during completed/ready phase → being dealt cards without readying up.
+  const existingTable = activeTables.get(roomId);
+  if (existingTable) {
+    // Game session exists: add as sitting_out (waiting for next hand)
     await db.addRoomPlayerSittingOut(roomId, userId, seatIndex, buyIn.toString());
     await db.updateRoom(roomId, { currentPlayers: existingPlayers.length + 1 });
     return { success: true, seatIndex, message: "WAITING_FOR_NEXT_HAND" };
   }
 
-  // No active game: add as active player
+  // No active game session: add as active player
   await db.addRoomPlayer(roomId, userId, seatIndex, buyIn.toString());
   
   // Update room player count

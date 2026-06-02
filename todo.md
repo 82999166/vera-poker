@@ -435,3 +435,8 @@
 ## 2026-06-02 手牌历史牌面显示优化
 
 - [x] 手牌历史页面：牌面从圆形图标改为白底矩形扑克牌样式（HandHistory + ReplayList + ReplayPlayer 三个页面统一更新）
+
+## 2026-06-02 Bug 修复：中途加入玩家不应被发牌
+
+- [x] 后端：牌局进行中新加入的玩家不应被发牌（修复：只要 activeTables 存在就标记为 sitting_out，包括 completed/ready 阶段）
+- [x] 前端：等待中的玩家显示提示“等待下一局开始，将自动参与”（已有 amISittingOut UI）
