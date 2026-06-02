@@ -476,7 +476,7 @@ export default function Table() {
     }
   );
 
-  // Connection state tracking
+  // Connection state tracking + auto-recovery on reconnect/visibility
   const [connectionLost, setConnectionLost] = useState(false);
   useEffect(() => {
     if (tableError) {
@@ -485,6 +485,26 @@ export default function Table() {
       setConnectionLost(false);
     }
   }, [tableError, tableState]);
+
+  // Auto-recover on network reconnect or app resume (critical for mobile/TG)
+  useEffect(() => {
+    const handleOnline = () => {
+      // Network restored: immediately refetch game state
+      utils.game.tableState.invalidate({ roomId });
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        // App resumed from background: refetch to sync state
+        utils.game.tableState.invalidate({ roomId });
+      }
+    };
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [roomId, utils]);
 
   // Detect phase changes for card animations + sound effects + settlement notifications
   useEffect(() => {

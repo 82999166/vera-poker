@@ -555,6 +555,13 @@ async function checkAndAdvanceGame(roomId: number) {
 
   const gs = table.gameState;
 
+  // Safety: validate currentPlayerIndex is within bounds
+  if (gs.players.length > 0 && gs.currentPlayerIndex >= gs.players.length) {
+    gs.currentPlayerIndex = gs.currentPlayerIndex % gs.players.length;
+  } else if (gs.players.length === 0) {
+    gs.currentPlayerIndex = -1;
+  }
+
   // Check if only 1 player left (everyone else folded) → settle immediately, no showdown
   const activePlayers = gameEngine.getActivePlayers(gs);
   if (activePlayers.length <= 1 && gs.phase !== 'showdown' && gs.phase !== 'completed' && gs.phase !== 'waiting') {
@@ -1288,56 +1295,71 @@ export function checkTimeouts() {
         if (newCount >= AFK_KICK_THRESHOLD) {
           // Tournament tables: don't kick AFK players, just keep auto-folding them
           // In tournaments, players can only be eliminated by losing all chips
-          // Use synchronous import (already cached after first dynamic import)
           const { isTournamentTable: isTourneyTable } = require("./tournamentEngine");
           if (isTourneyTable(roomId)) {
-            // Reset count so we don't spam this check every hand
             table.afkFoldCount.set(timedOutPlayerId, 0);
             checkAndAdvanceGame(roomId);
             continue;
           }
-          // Kick the zombie player: return chips and remove from room
+          // Kick the zombie player synchronously to avoid race conditions
           table.afkFoldCount.delete(timedOutPlayerId);
           const playerInGame = table.gameState.players.find(p => p.id === timedOutPlayerId);
           const chipsToReturn = playerInGame?.chips ?? 0;
-          db.getUserById(timedOutPlayerId).then(async user => {
-            if (user && chipsToReturn > 0) {
-              const balanceBefore = user.balance;
-              const newBalance = await db.addUserBalanceAtomic(timedOutPlayerId, chipsToReturn);
-              // Record leave_table transaction for audit trail
-              const room = await db.getRoomById(roomId);
-              await db.createTransaction({
-                userId: timedOutPlayerId,
-                type: "leave_table",
-                amount: chipsToReturn.toFixed(2),
-                balanceBefore,
-                balanceAfter: newBalance || balanceBefore,
-                status: "confirmed",
-                referenceType: "room",
-                referenceId: roomId,
-                note: `Leave table (AFK kicked): ${room?.name || 'Unknown'}`,
-              });
-            } else if (user && chipsToReturn === 0) {
-              // Zero chips - still record for audit
-              const room = await db.getRoomById(roomId);
-              await db.createTransaction({
-                userId: timedOutPlayerId,
-                type: "leave_table",
-                amount: "0.00",
-                balanceBefore: user.balance,
-                balanceAfter: user.balance,
-                status: "confirmed",
-                referenceType: "room",
-                referenceId: roomId,
-                note: `Leave table (AFK kicked): ${room?.name || 'Unknown'}`,
-              });
+          // Remove from in-memory gameState SYNCHRONOUSLY with index fix
+          const removeIdx = table.gameState.players.findIndex(p => p.id === timedOutPlayerId);
+          if (removeIdx !== -1) {
+            if (table.gameState.currentPlayerIndex > removeIdx) {
+              table.gameState.currentPlayerIndex--;
+            } else if (table.gameState.currentPlayerIndex === removeIdx) {
+              // Will point to next player after splice
             }
-            await db.removeRoomPlayer(roomId, timedOutPlayerId);
-            // Remove from in-memory gameState
-            table.gameState.players = table.gameState.players.filter(p => p.id !== timedOutPlayerId);
-            const remaining = await db.getRoomPlayers(roomId);
-            await db.updateRoom(roomId, { currentPlayers: remaining.length });
-          }).catch(() => {});
+            table.gameState.players.splice(removeIdx, 1);
+            if (table.gameState.players.length > 0) {
+              if (table.gameState.currentPlayerIndex >= table.gameState.players.length) {
+                table.gameState.currentPlayerIndex = table.gameState.currentPlayerIndex % table.gameState.players.length;
+              }
+            } else {
+              table.gameState.currentPlayerIndex = -1;
+            }
+          }
+          // Async DB cleanup (fire-and-forget, game state already consistent)
+          (async () => {
+            try {
+              const user = await db.getUserById(timedOutPlayerId);
+              if (user && chipsToReturn > 0) {
+                const balanceBefore = user.balance;
+                const newBalance = await db.addUserBalanceAtomic(timedOutPlayerId, chipsToReturn);
+                const room = await db.getRoomById(roomId);
+                await db.createTransaction({
+                  userId: timedOutPlayerId,
+                  type: "leave_table",
+                  amount: chipsToReturn.toFixed(2),
+                  balanceBefore,
+                  balanceAfter: newBalance || balanceBefore,
+                  status: "confirmed",
+                  referenceType: "room",
+                  referenceId: roomId,
+                  note: `Leave table (AFK kicked): ${room?.name || 'Unknown'}`,
+                });
+              } else if (user) {
+                const room = await db.getRoomById(roomId);
+                await db.createTransaction({
+                  userId: timedOutPlayerId,
+                  type: "leave_table",
+                  amount: "0.00",
+                  balanceBefore: user.balance,
+                  balanceAfter: user.balance,
+                  status: "confirmed",
+                  referenceType: "room",
+                  referenceId: roomId,
+                  note: `Leave table (AFK kicked): ${room?.name || 'Unknown'}`,
+                });
+              }
+              await db.removeRoomPlayer(roomId, timedOutPlayerId);
+              const remaining = await db.getRoomPlayers(roomId);
+              await db.updateRoom(roomId, { currentPlayers: remaining.length });
+            } catch (e) { /* non-critical */ }
+          })();
         }
 
         checkAndAdvanceGame(roomId);

@@ -459,3 +459,14 @@
 ## 2026-06-02 Bug 修复：玩家弃牌返回大厅导致整桌卡死
 
 - [x] 修复：4人局中玩家弃牌后返回大厅，其他玩家卡死无法继续游戏
+
+## 2026-06-02 优化：游戏中异常场景状态处理
+
+- [x] 后端：玩家断网后超时处理（checkTimeouts zombie kick 同步化 + currentPlayerIndex 修正）
+- [x] 后端：玩家重进游戏时正确恢复牌桌状态（getPlayerView 已正确返回当前状态）
+- [x] 后端：玩家中途离开（关闭页面/返回大厅）后游戏正常推进（leaveTable + checkAndAdvanceGame 完善）
+- [x] 后端：多人同时断线的极端场景处理（checkAndAdvanceGame 增加 currentPlayerIndex 有效性校验）
+- [x] 后端：settlement/showdown 阶段玩家离开不影响结算（leaveTable 在 showdown/completed 不强制 fold）
+- [x] 前端：断网检测和重连提示 UI（connectionLost banner + retry 按钮）
+- [x] 前端：重连后正确恢复牌桌视觉状态（online/visibilitychange 事件监听 + invalidate）
+- [x] 前端：网络恢复后自动刷新牌桌数据（QueryClient refetchOnReconnect/refetchOnWindowFocus: always）
