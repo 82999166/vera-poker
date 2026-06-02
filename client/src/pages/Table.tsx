@@ -1590,7 +1590,7 @@ export default function Table() {
                     </div>
                   )}
                   {/* Show face-down cards for opponents during active hand (preflop/flop/turn/river) */}
-                  {!isHero && displayPhase !== "showdown" && displayPhase !== "completed" && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && (
+                  {!isHero && displayPhase !== "showdown" && displayPhase !== "completed" && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && !(player as any).isSittingOut && (
                     <div className="flex gap-0.5 mb-0.5">
                       <CardView faceDown className="!w-9 !h-[50px]" />
                       <CardView faceDown className="!w-9 !h-[50px]" />
