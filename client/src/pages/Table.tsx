@@ -376,6 +376,10 @@ export default function Table() {
   const [showWinner, setShowWinner] = useState<{ name: string; amount: number; handDescription?: string } | null>(null);
   const [showSettlement, setShowSettlement] = useState<any>(null);
   const [winnerPlayerIds, setWinnerPlayerIds] = useState<number[]>([]);
+  // Refs for cancellable timers (prevent previous-hand callbacks firing into new hand)
+  const winnerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const revealTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const prevHandNumberRef = useRef<number>(0);
   // Settlement dedup is handled purely by lastSettledHandRef (in-memory).
   // localStorage was removed because handNumber resets on server restart,
   // causing false "already seen" matches that block settlement animation.
@@ -585,7 +589,8 @@ export default function Table() {
           }, 800);
         }
       }
-      setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); }, 5000);
+      if (winnerTimeoutRef.current) clearTimeout(winnerTimeoutRef.current);
+      winnerTimeoutRef.current = setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); winnerTimeoutRef.current = null; }, 5000);
     }
     
     prevPhaseRef.current = currentPhase;
@@ -874,8 +879,28 @@ export default function Table() {
   const readyPlayers = tableState?.readyPlayers ?? [];
   const readyCountdown = tableState?.readyCountdown ?? null;
   const amIReady = user ? readyPlayers.includes(user.id) : false;
+  const handNumber = tableState?.handNumber ?? 0;
   const showdownRevealOrder: number[] = (tableState as any)?.showdownRevealOrder ?? [];
   const amISittingOut = (tableState as any)?.amISittingOut ?? false;
+
+  // === Hand number change: reset all visual state from previous hand ===
+  useEffect(() => {
+    if (handNumber > 0 && handNumber !== prevHandNumberRef.current && prevHandNumberRef.current > 0) {
+      // Clear winner banner & settlement
+      if (winnerTimeoutRef.current) { clearTimeout(winnerTimeoutRef.current); winnerTimeoutRef.current = null; }
+      setShowWinner(null);
+      setShowSettlement(null);
+      setWinnerPlayerIds([]);
+      // Clear showdown reveal timers
+      revealTimersRef.current.forEach(t => clearTimeout(t));
+      revealTimersRef.current = [];
+      setRevealedOpponentIds(new Set());
+      // Reset animation states
+      setAnimateCards(false);
+      setDealingMyCards(false);
+    }
+    prevHandNumberRef.current = handNumber;
+  }, [handNumber]);
 
   // === Tournament context ===
   const tournamentInfo = (tableState as any)?.tournamentInfo ?? null;
@@ -897,11 +922,14 @@ export default function Table() {
       setRevealedOpponentIds(new Set()); // reset
       const order = showdownRevealOrder.length > 0 ? showdownRevealOrder
         : players.filter(p => p.id !== user?.id && !p.isFolded && p.holeCards?.length > 0).map(p => p.id);
+      revealTimersRef.current.forEach(t => clearTimeout(t));
+      revealTimersRef.current = [];
       order.forEach((pid, idx) => {
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           setRevealedOpponentIds(prev => new Set([...prev, pid]));
           if (!muted) playSound("cardFlip");
         }, idx * 600 + 300);
+        revealTimersRef.current.push(timer);
       });
     } else if (!isShowdown) {
       prevShowdownPhaseRef.current = false;
@@ -1389,7 +1417,7 @@ export default function Table() {
             {/* Community Cards - responsive size for small screens */}
             <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5">
               {displayCommunity.map((card, i) => (
-                <CardView key={`${card}-${i}`} card={card} className="!w-[44px] !h-[62px]" animate={animateCards} delay={i * 150} />
+                <CardView key={`h${handNumber}-c${i}`} card={card} className="!w-[44px] !h-[62px]" animate={animateCards} delay={i * 150} />
               ))}
             </div>
 
@@ -1525,7 +1553,7 @@ export default function Table() {
                     <div className="flex flex-col items-center gap-0.5 mb-0.5">
                       <div className="flex gap-1">
                         {displayMyCards.map((card, i) => (
-                          <CardView key={i} card={card} className={`!w-12 !h-[64px]${dealingMyCards ? (i === 0 ? ' animate-deal' : ' animate-deal-2') : ''}`} animate delay={i * 200} />
+                          <CardView key={`h${handNumber}-m${i}`} card={card} className={`!w-12 !h-[64px]${dealingMyCards ? (i === 0 ? ' animate-deal' : ' animate-deal-2') : ''}`} animate delay={i * 200} />
                         ))}
                       </div>
                       {/* Real-time hand strength hint: only show during flop/turn/river */}
@@ -1562,7 +1590,7 @@ export default function Table() {
                       <div className="flex gap-0.5">
                         {player.holeCards.map((card, i) => (
                           <CardView
-                            key={i}
+                            key={`h${handNumber}-o${player.id}-${i}`}
                             card={card}
                             className="!w-[52px] !h-[70px]"
                             flip={revealedOpponentIds.has(player.id)}
