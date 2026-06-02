@@ -440,3 +440,14 @@
 
 - [x] 后端：牌局进行中新加入的玩家不应被发牌（修复：只要 activeTables 存在就标记为 sitting_out，包括 completed/ready 阶段）
 - [x] 前端：等待中的玩家显示提示“等待下一局开始，将自动参与”（已有 amISittingOut UI）
+
+## 2026-06-02 观战视角增强
+
+- [x] sitting_out 玩家不显示操作按钮区域（弃牌/过牌/加注/全押）
+- [x] sitting_out 玩家显示“观战中，下一局自动参与”的大提示
+- [x] 确保 sitting_out 玩家头像边不显示任何牌面（牌背也不显示）
+
+## 2026-06-02 Bug 修复：sitting_out 玩家退出/重入�- [x] 后端：sitting_out 玩家退出时正确清理 room_players 记录（leaveTable 已支持）
+- [x] 后端：重新加入时不再误判“已在游戏中”（sitting_out 玩家重新 join 直接恢复座位）
+- [x] 前端：大厅显示“返回游戏”按钮（getPlayerActiveRoom 同时查 active + sitting_out）
+- [x] 前端：观战视角增强 - 操作按钮区域改为大提示“观战中” + 离开按钮 + 12种语言翻译��动参与"

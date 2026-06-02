@@ -276,14 +276,16 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
     return { success: false, seatIndex: -1, message: "Room is not available" };
   }
 
-  // Use getRoomPlayersAll to include both active + sitting_out players for seat occupancy checks
+    // Use getRoomPlayersAll to include both active + sitting_out players for seat occupancy checks
   const existingPlayers = await db.getRoomPlayersAll(roomId);
-  
   // Check if already seated at THIS table (active or sitting_out)
   const alreadySeated = existingPlayers.find((p: any) => p.userId === userId);
   if (alreadySeated) {
-    // Return a special error so the second device knows this account is already seated here
-    // This prevents two devices from both thinking they are "seated" and causing a deadlock
+    // If player is sitting_out, treat as a successful rejoin (resume their seat)
+    if (alreadySeated.status === "sitting_out") {
+      return { success: true, seatIndex: alreadySeated.seatIndex, message: "WAITING_FOR_NEXT_HAND" };
+    }
+    // If player is active in the game, reject (second device scenario)
     return { success: false, seatIndex: alreadySeated.seatIndex, message: "ALREADY_SEATED_THIS_TABLE" };
   }
 
@@ -386,13 +388,11 @@ export async function leaveTable(roomId: number, userId: number): Promise<{ succ
     table.gameState.players = table.gameState.players.filter(p => p.id !== userId);
   }
 
-  await db.removeRoomPlayer(roomId, userId);
-  
-  // Update player count
-  const remaining = await db.getRoomPlayers(roomId);
+    await db.removeRoomPlayer(roomId, userId);
+  // Update player count (include sitting_out players)
+  const remaining = await db.getRoomPlayersAll(roomId);
   await db.updateRoom(roomId, { currentPlayers: remaining.length });
-
-  // If less than 2 players, end the table
+  // If less than 2 total players (active + sitting_out), end the table
   if (remaining.length < 2) {
     activeTables.delete(roomId);
   }

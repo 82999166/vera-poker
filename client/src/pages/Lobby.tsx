@@ -240,11 +240,13 @@ export default function Lobby() {
             className="w-full glass rounded-xl p-3 flex items-center justify-between border border-gold/40 hover:border-gold/70 transition-all active:scale-[0.98]"
           >
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                <Zap className="w-4 h-4 text-green-400" />
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${activeRoom.status === 'sitting_out' ? 'bg-amber-500/20' : 'bg-green-500/20'}`}>
+                <Zap className={`w-4 h-4 ${activeRoom.status === 'sitting_out' ? 'text-amber-400' : 'text-green-400'}`} />
               </div>
               <div className="text-left">
-                <p className="text-xs font-semibold text-foreground">{t("lobby.returnToTable")}</p>
+                <p className="text-xs font-semibold text-foreground">
+                  {activeRoom.status === 'sitting_out' ? t("table.spectatingMode") + ' - ' : ''}{t("lobby.returnToTable")}
+                </p>
                 <p className="text-[10px] text-muted-foreground">{activeRoom.roomName} · {t("lobby.blinds")}: ${activeRoom.blinds}</p>
               </div>
             </div>

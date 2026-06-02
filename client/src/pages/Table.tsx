@@ -1868,15 +1868,26 @@ export default function Table() {
             </div>
           )}
 
-          {/* Sitting out: waiting for next hand (Wait for Big Blind) */}
+          {/* Sitting out: spectating mode with prominent banner */}
           {amISittingOut && !isDemoMode && (
-            <div className="flex items-center justify-center py-3">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/15 border border-amber-500/30">
-                <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-sm text-amber-300 font-medium">
-                  {t("table.waitingForNextHand")}
-                </span>
+            <div className="flex flex-col items-center gap-2 py-3">
+              <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 shadow-lg shadow-amber-500/5">
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                <div className="flex flex-col">
+                  <span className="text-sm text-amber-300 font-bold">
+                    {t("table.spectatingMode")}
+                  </span>
+                  <span className="text-[11px] text-amber-300/70">
+                    {t("table.waitingForNextHand")}
+                  </span>
+                </div>
               </div>
+              <button
+                onClick={handleLeave}
+                className="text-[11px] text-red-400/80 hover:text-red-300 transition-colors"
+              >
+                {t("table.leaveTable")}
+              </button>
             </div>
           )}
 

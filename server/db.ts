@@ -567,12 +567,13 @@ export async function getAllCommissions(page = 1, limit = 20) {
  * Check if a player is currently active in any room
  * Returns the roomId if found, null otherwise
  */
-export async function getPlayerActiveRoom(userId: number): Promise<{ roomId: number; seatIndex: number } | null> {
+export async function getPlayerActiveRoom(userId: number): Promise<{ roomId: number; seatIndex: number; status: string } | null> {
   const db = await getDb();
   if (!db) return null;
-  const result = await db.select({ roomId: roomPlayers.roomId, seatIndex: roomPlayers.seatIndex })
+  // Check both active and sitting_out status - player is "at a table" in either case
+  const result = await db.select({ roomId: roomPlayers.roomId, seatIndex: roomPlayers.seatIndex, status: roomPlayers.status })
     .from(roomPlayers)
-    .where(and(eq(roomPlayers.userId, userId), eq(roomPlayers.status, "active")))
+    .where(and(eq(roomPlayers.userId, userId), or(eq(roomPlayers.status, "active"), eq(roomPlayers.status, "sitting_out"))))
     .limit(1);
   return result.length > 0 ? result[0] : null;
 }

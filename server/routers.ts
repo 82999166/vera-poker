@@ -206,7 +206,8 @@ export const appRouter = router({
       return db.getRoomById(input.id);
     }),
     getPlayers: publicProcedure.input(z.object({ roomId: z.number() })).query(async ({ input }) => {
-      return db.getRoomPlayers(input.roomId);
+      // Return both active and sitting_out players so frontend can correctly identify seated players
+      return db.getRoomPlayersAll(input.roomId);
     }),
     create: protectedProcedure.input(z.object({
       name: z.string().min(1).max(128),
@@ -397,7 +398,7 @@ export const appRouter = router({
       if (!activeRoom) return null;
       const room = await db.getRoomById(activeRoom.roomId);
       if (!room) return null;
-      return { roomId: activeRoom.roomId, seatIndex: activeRoom.seatIndex, roomName: room.name, blinds: `${room.smallBlind}/${room.bigBlind}` };
+      return { roomId: activeRoom.roomId, seatIndex: activeRoom.seatIndex, roomName: room.name, blinds: `${room.smallBlind}/${room.bigBlind}`, status: activeRoom.status };
     }),
     // Join by stake level - auto-assign to best available table
     // buyIn=0: only find & return roomId (navigate to table, buy-in dialog shown there)
@@ -920,11 +921,15 @@ export const appRouter = router({
       if (parseFloat(user.balance) < input.buyIn) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
       }
-      // Pre-check: if already seated at this table (second device scenario), reject early without deducting
-      const existingPlayers = await db.getRoomPlayers(input.roomId);
-      const alreadySeated = existingPlayers.find((p: any) => p.userId === ctx.user.id);
+      // Pre-check: if already seated at this table (active or sitting_out)
+      const existingPlayersAll = await db.getRoomPlayersAll(input.roomId);
+      const alreadySeated = existingPlayersAll.find((p: any) => p.userId === ctx.user.id);
       if (alreadySeated) {
-        // This account is already seated at this table from another device
+        if (alreadySeated.status === "sitting_out") {
+          // Player is sitting_out (waiting for next hand) - allow rejoin without deducting balance
+          return { success: true, seatIndex: alreadySeated.seatIndex, message: "WAITING_FOR_NEXT_HAND" };
+        }
+        // Active player on another device - reject
         throw new TRPCError({ 
           code: "CONFLICT", 
           message: "ALREADY_SEATED_THIS_TABLE" 
