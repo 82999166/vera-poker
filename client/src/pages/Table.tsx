@@ -1981,7 +1981,7 @@ export default function Table() {
             </div>
           )}
 
-          {(displayPhase !== "waiting" || isDemoMode) && !waitingForReady && !amISittingOut && (
+          {(displayPhase !== "waiting" || isDemoMode) && !waitingForReady && !amISittingOut && displayPhase !== "showdown" && displayPhase !== "completed" && !showWinner && (
             <>
               {/* Raise slider */}
               <div className="flex items-center gap-2 mb-1.5">
@@ -2229,7 +2229,7 @@ export default function Table() {
                   if (isDemoMode) return toast.info(t("table.demoMode"));
                   actionMutation.mutate({ roomId, action: "all_in" });
                 }}
-                disabled={actionMutation.isPending}
+                disabled={actionMutation.isPending || phase === "showdown" || phase === "completed" || !!showWinner}
                 className="flex-1 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.97] disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg,#c0392b,#e74c3c,#ff6b6b)', color: '#fff', boxShadow: '0 2px 14px rgba(231,76,60,0.5)' }}
               >
