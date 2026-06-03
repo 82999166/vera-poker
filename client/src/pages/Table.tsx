@@ -1404,15 +1404,45 @@ export default function Table() {
           </div>
           {/* Winner banner */}
           <div className="animate-banner bg-black/80 backdrop-blur-md rounded-2xl px-6 py-5 text-center max-w-[320px] border-2 border-gold/50 shadow-[0_0_30px_rgba(234,179,8,0.3)]">
-            <div className="relative">
-              <Trophy className="w-10 h-10 text-gold mx-auto mb-2 drop-shadow-[0_0_10px_rgba(234,179,8,0.6)]" />
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-gold/10 animate-ping" />
-            </div>
-            <p className="text-base font-bold text-gold drop-shadow-[0_0_4px_rgba(234,179,8,0.4)]">{showWinner.name} {t("table.won")}</p>
-            <p className="text-2xl font-black text-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)] mt-1">{fmtAmt(showWinner.amount)}</p>
-            {showWinner.handDescription && showWinner.handDescription !== "Last Standing" && (
-              <p className="text-sm text-gold/80 mt-1 font-medium">{HAND_RANK_MAP[showWinner.handDescription] ? t(HAND_RANK_MAP[showWinner.handDescription]) : showWinner.handDescription}</p>
-            )}
+            {/* Winners list sorted by amount descending */}
+            {(() => {
+              const sortedWinners = showSettlement?.winners?.length > 0
+                ? [...showSettlement.winners].sort((a: any, b: any) => b.amount - a.amount)
+                : [{ playerId: 0, name: showWinner.name, amount: showWinner.amount, handDescription: showWinner.handDescription, handRank: '' }];
+              const topAmount = sortedWinners[0]?.amount || 0;
+              return (
+                <div className="space-y-3">
+                  {sortedWinners.map((w: any, idx: number) => {
+                    const isTopWinner = w.amount === topAmount && idx === 0;
+                    return (
+                      <div key={w.playerId || idx} className={`${isTopWinner ? 'pb-2' : ''}`}>
+                        {isTopWinner && (
+                          <div className="relative mb-1">
+                            <Trophy className="w-9 h-9 text-gold mx-auto drop-shadow-[0_0_10px_rgba(234,179,8,0.6)]" />
+                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-11 h-11 rounded-full bg-gold/10 animate-ping" />
+                          </div>
+                        )}
+                        <p className={`font-bold drop-shadow-[0_0_4px_rgba(234,179,8,0.4)] ${isTopWinner ? 'text-base text-gold' : 'text-sm text-foreground/80'}`}>
+                          {!isTopWinner && <span className="text-foreground/50 mr-1">#{idx + 1}</span>}
+                          {w.name} {t("table.won")}
+                        </p>
+                        <p className={`font-black drop-shadow-[0_0_8px_rgba(234,179,8,0.6)] mt-0.5 ${isTopWinner ? 'text-2xl text-yellow-300' : 'text-lg text-yellow-300/70'}`}>
+                          {fmtAmt(w.amount)}
+                        </p>
+                        {w.handDescription && w.handDescription !== "Last Standing" && (
+                          <p className={`mt-0.5 font-medium ${isTopWinner ? 'text-sm text-gold/80' : 'text-xs text-foreground/60'}`}>
+                            {HAND_RANK_MAP[w.handDescription] ? t(HAND_RANK_MAP[w.handDescription]) : w.handDescription}
+                          </p>
+                        )}
+                        {isTopWinner && sortedWinners.length > 1 && (
+                          <div className="border-b border-gold/20 mt-3" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
             {/* Side pots info */}
             {showSettlement?.sidePots?.length > 1 && (
               <div className="mt-3 border-t border-gold/20 pt-2">
@@ -1424,7 +1454,7 @@ export default function Table() {
                 ))}
               </div>
             )}
-            {/* Showdown players */}
+            {/* Showdown players hand comparison */}
             {showSettlement?.showdownPlayers?.length > 1 && (
               <div className="mt-3 border-t border-gold/20 pt-2 space-y-1.5">
                 {showSettlement.showdownPlayers.map((sp: any) => (
