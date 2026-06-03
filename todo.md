@@ -504,3 +504,14 @@
 - [x] 游戏结算时操作按钮不可点击（showdown/completed/showWinner 阶段完全隐藏按钮区域 + all-in弹窗也禁用）
 - [x] Bot入口路由修复（统一 tg_mini_app_url config key）
 - [x] Admin.tsx 移除已删除的 MarketingPanel 引用（修复 Vite pre-transform 错误）
+
+## 2026-06-03 比赛流水 + 钱包流水完善
+
+- [x] 后端：比赛报名时写入 transaction 记录（type 新增 tournament_entry）
+- [x] 后端：取消报名退费时写入 transaction 记录（type 新增 tournament_refund）
+- [x] 后端：发放奖金时写入 transaction 记录（type 新增 tournament_prize）
+- [x] 数据库：transactions.type 枚举扩展（tournament_entry, tournament_refund, tournament_prize）
+- [x] 后端：financeTypes 过滤列表添加新类型 + 修复 withdrawal→withdraw 不匹配
+- [x] 前端：typeLabels 添加新类型的翻译标签
+- [x] 前端：isPositive 判断添加新的正向类型（tournament_refund, tournament_prize）
+- [x] i18n：添加新流水类型的多语言翻译 key（11种语言全部覆盖）

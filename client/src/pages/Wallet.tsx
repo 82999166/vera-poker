@@ -123,6 +123,9 @@ export default function Wallet() {
     buy_in: t("wallet.buyIn"),
     leave_table: t("wallet.leaveTable"),
     rebuy: t("wallet.rebuy"),
+    tournament_entry: t("wallet.tournamentEntry"),
+    tournament_refund: t("wallet.tournamentRefund"),
+    tournament_prize: t("wallet.tournamentPrize"),
   };
 
   // Game flow summary
@@ -376,7 +379,7 @@ export default function Wallet() {
               </div>
             ) : (
               transactions.map((tx: any, i: number) => {
-                const isPositive = tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund";
+                const isPositive = tx.type === "deposit" || tx.type === "game_win" || tx.type === "commission" || tx.type === "refund" || tx.type === "tournament_refund" || tx.type === "tournament_prize" || tx.type === "leave_table";
                 return (
                   <div key={i} className="glass rounded-lg p-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">

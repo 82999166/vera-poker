@@ -319,7 +319,7 @@ export async function getUserTransactions(userId: number, page = 1, limit = 20, 
   const offset = (page - 1) * limit;
   // finance: deposit/withdraw; game: buy_in/leave_table/rebuy
   const gameTypes = ['buy_in', 'leave_table', 'rebuy'];
-  const financeTypes = ['deposit', 'withdrawal', 'refund', 'adjustment', 'commission'];
+  const financeTypes = ['deposit', 'withdraw', 'refund', 'adjustment', 'commission', 'tournament_entry', 'tournament_refund', 'tournament_prize'];
   const typeFilter = category === 'game'
     ? inArray(transactions.type, gameTypes as any)
     : category === 'finance'

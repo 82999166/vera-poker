@@ -2260,8 +2260,22 @@ ${faqContext}
       const entryFee = parseFloat(tournament.entryFee);
       if (parseFloat(user.balance) < entryFee) throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
       // Deduct balance atomically
+      const balanceBefore = user.balance;
       const deductResult = await db.deductUserBalanceAtomic(ctx.user.id, entryFee);
       if (deductResult === null) throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
+      const balanceAfter = (parseFloat(balanceBefore) - entryFee).toFixed(2);
+      // Write tournament entry transaction
+      await db.createTransaction({
+        userId: ctx.user.id,
+        type: "tournament_entry",
+        amount: entryFee.toFixed(2),
+        balanceBefore,
+        balanceAfter,
+        status: "confirmed",
+        referenceType: "tournament",
+        referenceId: input.tournamentId,
+        note: `报名比赛: ${tournament.name}`,
+      });
       // Register
       await db.registerForTournament(input.tournamentId, ctx.user.id, tournament.startingChips);
       // Update registered count
@@ -2282,7 +2296,22 @@ ${faqContext}
       if (!reg || reg.status !== "registered") throw new TRPCError({ code: "BAD_REQUEST", message: "Not registered" });
       // Refund entry fee atomically
       const entryFee = parseFloat(tournament.entryFee);
+      const userBefore = await db.getUserById(ctx.user.id);
+      const balanceBefore = userBefore?.balance ?? "0";
       await db.addUserBalanceAtomic(ctx.user.id, entryFee);
+      const balanceAfter = (parseFloat(balanceBefore) + entryFee).toFixed(2);
+      // Write tournament refund transaction
+      await db.createTransaction({
+        userId: ctx.user.id,
+        type: "tournament_refund",
+        amount: entryFee.toFixed(2),
+        balanceBefore,
+        balanceAfter,
+        status: "confirmed",
+        referenceType: "tournament",
+        referenceId: input.tournamentId,
+        note: `取消报名退费: ${tournament.name}`,
+      });
       await db.cancelRegistration(input.tournamentId, ctx.user.id);
       // Update count
       const count = await db.getRegistrationCount(input.tournamentId);
@@ -2480,7 +2509,22 @@ ${faqContext}
         // Credit prize to player balance if > 0
         const prizeAmt = parseFloat(r.prizeAmount);
         if (prizeAmt > 0) {
+          const prizeUser = await db.getUserById(r.userId);
+          const prizeBefore = prizeUser?.balance ?? "0";
           await db.addUserBalanceAtomic(r.userId, prizeAmt);
+          const prizeAfter = (parseFloat(prizeBefore) + prizeAmt).toFixed(2);
+          // Write tournament prize transaction
+          await db.createTransaction({
+            userId: r.userId,
+            type: "tournament_prize",
+            amount: prizeAmt.toFixed(2),
+            balanceBefore: prizeBefore,
+            balanceAfter: prizeAfter,
+            status: "confirmed",
+            referenceType: "tournament",
+            referenceId: input.id,
+            note: `比赛奖金 #${r.rank}: ${tournament.name}`,
+          });
           distributed++;
         }
         // Save result record
