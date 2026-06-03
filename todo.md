@@ -490,3 +490,16 @@
 - [x] 3. Tournament list: add register button on the right side of each tournament item
 - [x] 4. Tournament start: auto-navigate to table without requiring manual refresh
 - [x] 5. Table game responsiveness: reduce polling interval to minimize 1-2s delay between actions
+
+## 2026-06-03 UI 优化 + 代码清理
+
+- [x] SSE 实时推送替代轮询（sseHub.ts + useTableSSE.ts）
+- [x] 比赛列表已报名状态标签
+- [x] 牌桌操作乐观更新（Optimistic UI）
+- [x] 成就徽章：插入10种成就定义数据
+- [x] Profile 头像区域紧凑化（水平布局：头像左侧 + 名称/ID/TG右侧 + 余额/局数/等级统计行）
+- [x] 账户信息合并为紧凑单行（注册时间 + 最后登录）
+- [x] 通知设置紧凑化（移除描述段落，减少间距 py-2→py-1.5，缩小开关 w-11→w-10 h-6→h-5）
+- [x] 游戏结算时操作按钮不可点击
+- [x] Bot入口路由修复（统一 tg_mini_app_url config key）
+- [x] Admin.tsx 移除已删除的 MarketingPanel 引用（修复 Vite pre-transform 错误）
