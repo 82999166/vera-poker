@@ -566,3 +566,9 @@
 - [x] DB: scheduled_notifications 表
 - [x] 后端: 创建定时推送、执行推送、查看历史
 - [x] 前端: Admin 推送管理面板（创建、定时、历史）
+
+## 2026-06-03 AI客服API配置接口
+
+- [x] 后端：cs.chat 从 systemConfigs 读取自定义 AI API 配置（apiUrl, apiKey, model, systemPrompt, temperature）
+- [x] 前端：Admin 系统设置中添加 AI 客服配置区块（API地址、API Key、模型名称、系统提示词、温度）
+- [x] 当配置为空时使用内置默认值（当前 forge API）

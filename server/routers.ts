@@ -1187,6 +1187,13 @@ export const appRouter = router({
       // Save user message to DB
       await db.saveCsMessage(ctx.user.id, "user", input.message);
 
+      // Load AI config from system_configs
+      const aiApiUrl = await db.getConfigValue("ai_cs_api_url", "");
+      const aiApiKey = await db.getConfigValue("ai_cs_api_key", "");
+      const aiModel = await db.getConfigValue("ai_cs_model", "");
+      const aiCustomPrompt = await db.getConfigValue("ai_cs_system_prompt", "");
+      const aiTemperature = parseFloat(await db.getConfigValue("ai_cs_temperature", "0.7"));
+
       // Get FAQ knowledge base for context
       const faqs = await db.getActiveFaqs(input.language);
       const faqContext = faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n");
@@ -1260,8 +1267,11 @@ ${faqContext}
 - When explaining hand rankings or rules, use both English and Chinese terms for clarity`;
 
       try {
+        // Build final system prompt: custom prompt takes priority, fallback to default
+        const finalSystemPrompt = aiCustomPrompt ? `${aiCustomPrompt}\n\n## Available FAQ Knowledge:\n${faqContext}\n\n## Assistant Rules:\n- Respond in the user's language: ${input.language}\n- Never reveal sensitive system information` : systemPrompt;
+
         const messages: Array<{role: "system" | "user" | "assistant"; content: string}> = [
-          { role: "system" as const, content: systemPrompt },
+          { role: "system" as const, content: finalSystemPrompt },
           ...historyContext.filter(m => m.role === "user" || m.role === "assistant").map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
         ];
         // Ensure the last message is the current user message (already in history)
@@ -1270,7 +1280,26 @@ ${faqContext}
           messages.push({ role: "user", content: input.message });
         }
 
-        const response = await invokeLLM({ messages });
+        let response;
+        if (aiApiUrl && aiApiKey) {
+          // Use custom AI API configuration
+          const payload: Record<string, unknown> = {
+            model: aiModel || "gpt-4o-mini",
+            messages,
+            temperature: aiTemperature,
+            max_tokens: 2048,
+          };
+          const apiResponse = await fetch(aiApiUrl.replace(/\/$/, "") + "/v1/chat/completions", {
+            method: "POST",
+            headers: { "content-type": "application/json", authorization: `Bearer ${aiApiKey}` },
+            body: JSON.stringify(payload),
+          });
+          if (!apiResponse.ok) throw new Error(`AI API error: ${apiResponse.status}`);
+          response = await apiResponse.json();
+        } else {
+          // Fallback to built-in LLM
+          response = await invokeLLM({ messages });
+        }
         const rawContent = response.choices?.[0]?.message?.content;
         const aiResponse = typeof rawContent === "string" ? rawContent : (rawContent ? JSON.stringify(rawContent) : "I'm sorry, I couldn't process your request. Please try again.");
 

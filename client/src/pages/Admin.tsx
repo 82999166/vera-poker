@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import {
   Settings, Users, DollarSign, Shield, BarChart3, Save, RefreshCw,
   Plus, Trash2, ArrowLeft, UserCheck, Pause, Play, X, MessageSquare,
-  Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn, Pencil, Trophy, Megaphone
+  Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn, Pencil, Trophy, Megaphone, Bot
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatBalance, formatAmount } from "@/lib/utils";
@@ -209,6 +209,17 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "settings.csTgDesc": "玩家在在线客服中点击\u201c转人工\u201d时，将跳转到此 Telegram 账号的对话",
     "settings.supportedLangs": "支持语言列表",
     "settings.saved": "设置已保存！",
+    "settings.aiCsTitle": "AI 客服 API 配置",
+    "settings.aiCsDesc": "配置自定义 AI 模型接口。留空则使用内置 AI 服务。",
+    "settings.aiCsApiUrl": "API 地址",
+    "settings.aiCsApiUrlHint": "兼容 OpenAI 格式的 API 地址，如 https://api.openai.com",
+    "settings.aiCsApiKey": "API Key",
+    "settings.aiCsModel": "模型名称",
+    "settings.aiCsModelHint": "如 gpt-4o-mini、gpt-4o、claude-3-haiku 等",
+    "settings.aiCsTemperature": "温度（创造性）",
+    "settings.aiCsPrompt": "自定义系统提示词",
+    "settings.aiCsPromptPlaceholder": "输入自定义的 AI 客服系统提示词。留空则使用内置的德州扑克客服提示词。",
+    "settings.aiCsDefault": "当前使用内置 AI 服务（无需配置）",
     "stats.title": "数据看板",
     "stats.totalUsers": "总用户数",
     "stats.totalRooms": "总房间数",
@@ -3792,6 +3803,12 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
   const [csTgUsername, setCsTgUsername] = useState("");
   const [tgMiniAppUrl, setTgMiniAppUrl] = useState("");
   const [adminTgChatId, setAdminTgChatId] = useState("");
+  // AI Customer Service config
+  const [aiCsApiUrl, setAiCsApiUrl] = useState("");
+  const [aiCsApiKey, setAiCsApiKey] = useState("");
+  const [aiCsModel, setAiCsModel] = useState("");
+  const [aiCsSystemPrompt, setAiCsSystemPrompt] = useState("");
+  const [aiCsTemperature, setAiCsTemperature] = useState("0.7");
 
   useEffect(() => {
     if (configs) {
@@ -3805,6 +3822,12 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
       setCsTgUsername(configMap.get("cs_tg_username") ?? "");
       setTgMiniAppUrl(configMap.get("tg_mini_app_url") ?? "");
       setAdminTgChatId(configMap.get("admin_tg_chat_id") ?? "");
+      // AI CS config
+      setAiCsApiUrl(configMap.get("ai_cs_api_url") ?? "");
+      setAiCsApiKey(configMap.get("ai_cs_api_key") ?? "");
+      setAiCsModel(configMap.get("ai_cs_model") ?? "");
+      setAiCsSystemPrompt(configMap.get("ai_cs_system_prompt") ?? "");
+      setAiCsTemperature(configMap.get("ai_cs_temperature") ?? "0.7");
     }
   }, [configs]);
 
@@ -4030,6 +4053,58 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
         {csTgUsername && (
           <p className="text-[10px] text-muted-foreground mt-2">t.me/{csTgUsername.replace(/^@/, "")}</p>
         )}
+      </div>
+
+      {/* AI Customer Service API Config */}
+      <div className="glass rounded-xl p-4">
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Bot className="w-4 h-4 text-gold" />
+          {at("settings.aiCsTitle")}
+        </h3>
+        <p className="text-xs text-muted-foreground mb-3">{at("settings.aiCsDesc")}</p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.aiCsApiUrl")}</label>
+            <div className="flex gap-2">
+              <input type="text" value={aiCsApiUrl} onChange={(e) => setAiCsApiUrl(e.target.value)} placeholder="https://api.openai.com" className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold" />
+              <button onClick={() => saveSystemSetting("ai_cs_api_url", aiCsApiUrl)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
+            </div>
+            <p className="text-[10px] text-muted-foreground/60 mt-1">{at("settings.aiCsApiUrlHint")}</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.aiCsApiKey")}</label>
+            <div className="flex gap-2">
+              <input type="password" value={aiCsApiKey} onChange={(e) => setAiCsApiKey(e.target.value)} placeholder="sk-..." className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold" />
+              <button onClick={() => saveSystemSetting("ai_cs_api_key", aiCsApiKey)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.aiCsModel")}</label>
+            <div className="flex gap-2">
+              <input type="text" value={aiCsModel} onChange={(e) => setAiCsModel(e.target.value)} placeholder="gpt-4o-mini" className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold" />
+              <button onClick={() => saveSystemSetting("ai_cs_model", aiCsModel)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
+            </div>
+            <p className="text-[10px] text-muted-foreground/60 mt-1">{at("settings.aiCsModelHint")}</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.aiCsTemperature")}</label>
+            <div className="flex gap-2 items-center">
+              <input type="range" min="0" max="2" step="0.1" value={aiCsTemperature} onChange={(e) => setAiCsTemperature(e.target.value)} className="flex-1" />
+              <span className="text-xs text-gold w-8 text-center">{aiCsTemperature}</span>
+              <button onClick={() => saveSystemSetting("ai_cs_temperature", aiCsTemperature)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.aiCsPrompt")}</label>
+            <textarea value={aiCsSystemPrompt} onChange={(e) => setAiCsSystemPrompt(e.target.value)} placeholder={at("settings.aiCsPromptPlaceholder")} rows={4} className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold resize-y" />
+            <div className="flex justify-end mt-2">
+              <button onClick={() => saveSystemSetting("ai_cs_system_prompt", aiCsSystemPrompt)} className="px-3 py-1.5 rounded-lg bg-gold/10 text-gold hover:bg-gold/20 text-xs flex items-center gap-1"><Save className="w-3 h-3" /> {at("settings.saved").replace("！", "").replace("!", "")}</button>
+            </div>
+          </div>
+          {!aiCsApiUrl && !aiCsApiKey && (
+            <p className="text-[10px] text-emerald-400 bg-emerald-400/10 rounded-lg px-3 py-2">{at("settings.aiCsDefault")}</p>
+          )}
+        </div>
       </div>
 
       {/* Registration Bonus Config */}
