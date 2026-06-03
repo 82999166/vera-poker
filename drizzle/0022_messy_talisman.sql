@@ -1,0 +1,2 @@
+ALTER TABLE `transactions` MODIFY COLUMN `type` enum('deposit','withdraw','game_win','game_loss','rake','commission','room_fee','refund','adjustment','buy_in','leave_table','rebuy','tournament_entry','tournament_refund','tournament_prize','bonus','invite_reward','checkin','first_deposit_bonus') NOT NULL;--> statement-breakpoint
+ALTER TABLE `transactions` MODIFY COLUMN `status` enum('pending','confirmed','failed','cancelled','completed') NOT NULL DEFAULT 'pending';

@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
-type MarketingTab = "broadcast" | "autoReply" | "fission" | "botUsers" | "templates" | "welcome";
+type MarketingTab = "broadcast" | "autoReply" | "fission" | "botUsers" | "templates" | "welcome" | "coupons" | "checkin" | "invite" | "events" | "notifications";
 
 // ==================== BROADCAST STATUS BADGE ====================
 function BroadcastStatusBadge({ status }: { status: string }) {
@@ -1211,12 +1211,360 @@ function WelcomePanel() {
   );
 }
 
+// ==================== COUPONS PANEL ====================
+function CouponsPanel() {
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ code: "", type: "fixed" as "fixed" | "percent", amount: "", minDeposit: "0", maxUses: "100", perUserLimit: "1", expiresAt: "" });
+  const { data: coupons, refetch } = trpc.marketing.couponList.useQuery();
+  const createMut = trpc.marketing.couponCreate.useMutation({ onSuccess: () => { refetch(); setShowCreate(false); toast.success("创建成功"); } });
+  const deleteMut = trpc.marketing.couponDelete.useMutation({ onSuccess: () => { refetch(); toast.success("已删除"); } });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">优惠券/红包管理</h3>
+        <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" />创建优惠券</Button>
+      </div>
+
+      <div className="grid gap-3">
+        {coupons?.map((c: any) => (
+          <div key={c.id} className="bg-card border border-border rounded-lg p-4 flex justify-between items-center">
+            <div>
+              <div className="flex items-center gap-2">
+                <code className="bg-muted px-2 py-0.5 rounded text-sm font-mono">{c.code}</code>
+                <Badge variant={c.isActive ? "default" : "secondary"}>{c.isActive ? "活跃" : "停用"}</Badge>
+                <Badge variant="outline">{c.type === "fixed" ? `固定 ${c.amount}` : `${c.amount}% 加赠`}</Badge>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                已使用 {c.usedCount}/{c.maxUses} | 单人限{c.perUserLimit}次 | {c.expiresAt ? `过期: ${new Date(c.expiresAt).toLocaleDateString()}` : "永不过期"}
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => deleteMut.mutate({ id: c.id })}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+          </div>
+        ))}
+        {(!coupons || coupons.length === 0) && <div className="text-center text-muted-foreground py-8">暂无优惠券</div>}
+      </div>
+
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>创建优惠券</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>兑换码</Label><Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="留空自动生成" /></div>
+            <div><Label>类型</Label>
+              <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as any }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="fixed">固定金额</SelectItem><SelectItem value="percent">充值加赠%</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <div><Label>{form.type === "fixed" ? "奖励金额" : "加赠比例(%)"}</Label><Input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></div>
+            <div><Label>最低充值金额</Label><Input type="number" value={form.minDeposit} onChange={e => setForm(f => ({ ...f, minDeposit: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label>总次数</Label><Input type="number" value={form.maxUses} onChange={e => setForm(f => ({ ...f, maxUses: e.target.value }))} /></div>
+              <div><Label>单人限领</Label><Input type="number" value={form.perUserLimit} onChange={e => setForm(f => ({ ...f, perUserLimit: e.target.value }))} /></div>
+            </div>
+            <div><Label>过期时间(可选)</Label><Input type="datetime-local" value={form.expiresAt} onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))} /></div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => createMut.mutate({ code: form.code || "AUTO", name: form.code || "Coupon", type: form.type as "fixed" | "percent" | "chips", amount: String(form.amount), minDeposit: form.minDeposit ? String(form.minDeposit) : undefined, maxUses: Number(form.maxUses), maxPerUser: Number(form.perUserLimit), expiresAt: form.expiresAt ? new Date(form.expiresAt) : undefined })} disabled={!form.amount || createMut.isPending}>
+              {createMut.isPending ? "创建中..." : "创建"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ==================== CHECKIN PANEL ====================
+function CheckinPanel() {
+  const { data: configList, refetch } = trpc.marketing.checkinConfig.useQuery();
+  const updateMut = trpc.marketing.checkinConfigUpdate.useMutation({ onSuccess: () => { refetch(); toast.success("保存成功"); } });
+  const [rewards, setRewards] = useState<string>("");
+
+  // configList is array of { dayNumber, reward }
+  const configDisplay = configList ? JSON.stringify(configList.map((c: any) => Number(c.reward))) : "[1,1.5,2,2.5,3,4,5]";
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">签到奖励配置</h3>
+      <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+        <div>
+          <Label>每日奖励金额 (JSON数组，第1-7天)</Label>
+          <Input value={rewards || configDisplay} onChange={e => setRewards(e.target.value)} placeholder='[1,1.5,2,2.5,3,4,5]' />
+          <p className="text-xs text-muted-foreground mt-1">例: [1,1.5,2,2.5,3,4,5] 表示第1天得1，第7天得5</p>
+        </div>
+        <Button onClick={() => {
+          try {
+            const parsed = JSON.parse(rewards || configDisplay) as number[];
+            const input = parsed.map((r, i) => ({ dayNumber: i + 1, reward: String(r) }));
+            updateMut.mutate(input);
+          } catch { toast.error("奖励数组格式错误"); }
+        }} disabled={updateMut.isPending}>
+          {updateMut.isPending ? "保存中..." : "保存配置"}
+        </Button>
+      </div>
+      <div className="bg-muted/30 rounded-lg p-4">
+        <p className="text-sm text-muted-foreground">当前配置：每{configList?.length || 7}天一个周期</p>
+        <p className="text-sm text-muted-foreground">每日奖励: {configDisplay}</p>
+      </div>
+    </div>
+  );
+}
+
+// ==================== INVITE REWARD PANEL ====================
+function InviteRewardPanel() {
+  const { data: config, refetch } = trpc.marketing.inviteRewardConfig.useQuery();
+  const { data: stats } = trpc.marketing.inviteRewardStats.useQuery();
+  const updateMut = trpc.marketing.inviteRewardConfigUpdate.useMutation({ onSuccess: () => { refetch(); toast.success("保存成功"); } });
+  const [inviterReward, setInviterReward] = useState("");
+  const [inviteeReward, setInviteeReward] = useState("");
+  const [maxRewards, setMaxRewards] = useState("");
+
+  const { data: fdConfig, refetch: fdRefetch } = trpc.marketing.firstDepositConfig.useQuery();
+  const fdUpdateMut = trpc.marketing.firstDepositConfigUpdate.useMutation({ onSuccess: () => { fdRefetch(); toast.success("首充配置已保存"); } });
+  const [bonusPercent, setBonusPercent] = useState("");
+  const [maxBonus, setMaxBonus] = useState("");
+
+  return (
+    <div className="space-y-6">
+      {/* Invite Reward Config */}
+      <div>
+        <h3 className="text-lg font-semibold mb-3">邀请奖励配置</h3>
+        <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div><Label>邀请人奖励</Label><Input type="number" value={inviterReward || String(config?.inviterReward || "5.00")} onChange={e => setInviterReward(e.target.value)} /></div>
+            <div><Label>被邀请人奖励</Label><Input type="number" value={inviteeReward || String(config?.inviteeReward || "3.00")} onChange={e => setInviteeReward(e.target.value)} /></div>
+            <div><Label>每人最多邀请次数</Label><Input type="number" value={maxRewards || String(config?.maxRewardsPerUser || 0)} onChange={e => setMaxRewards(e.target.value)} /></div>
+          </div>
+          <Button onClick={() => updateMut.mutate({
+            inviterReward: inviterReward || String(config?.inviterReward || "5.00"),
+            inviteeReward: inviteeReward || String(config?.inviteeReward || "3.00"),
+            maxRewardsPerUser: Number(maxRewards || config?.maxRewardsPerUser || 0),
+            requireDeposit: config?.requireDeposit ?? false,
+            minDepositAmount: config?.minDepositAmount || "0.00",
+            enabled: config?.enabled ?? true,
+          })} disabled={updateMut.isPending}>
+            {updateMut.isPending ? "保存中..." : "保存配置"}
+          </Button>
+        </div>
+        {stats && (
+          <div className="mt-3 grid grid-cols-3 gap-3">
+            <div className="bg-muted/30 rounded-lg p-3 text-center"><div className="text-2xl font-bold">{stats.totalRewards}</div><div className="text-xs text-muted-foreground">总邀请数</div></div>
+            <div className="bg-muted/30 rounded-lg p-3 text-center"><div className="text-2xl font-bold">{stats.totalAmount}</div><div className="text-xs text-muted-foreground">总发放奖励</div></div>
+            <div className="bg-muted/30 rounded-lg p-3 text-center"><div className="text-2xl font-bold">{stats.recentRewards.length}</div><div className="text-xs text-muted-foreground">近期记录</div></div>
+          </div>
+        )}
+      </div>
+
+      {/* First Deposit Config */}
+      <div>
+        <h3 className="text-lg font-semibold mb-3">首充优惠配置</h3>
+        <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>加赠比例 (%)</Label><Input type="number" value={bonusPercent || String(fdConfig?.bonusPercent || 50)} onChange={e => setBonusPercent(e.target.value)} /></div>
+            <div><Label>最高加赠金额</Label><Input value={maxBonus || String(fdConfig?.maxBonus || "100.00")} onChange={e => setMaxBonus(e.target.value)} /></div>
+          </div>
+          <p className="text-xs text-muted-foreground">用户首次充值时，额外赠送充值金额的 {bonusPercent || fdConfig?.bonusPercent || 50}%，最高 {maxBonus || fdConfig?.maxBonus || "100.00"}</p>
+          <Button onClick={() => fdUpdateMut.mutate({
+            bonusPercent: Number(bonusPercent || fdConfig?.bonusPercent || 50),
+            maxBonus: maxBonus || String(fdConfig?.maxBonus || "100.00"),
+            enabled: fdConfig?.enabled ?? true,
+          })} disabled={fdUpdateMut.isPending}>
+            {fdUpdateMut.isPending ? "保存中..." : "保存配置"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==================== TIME-LIMITED EVENTS PANEL ====================
+function TimeLimitedEventsPanel() {
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ name: "", type: "double_points" as string, description: "", startAt: "", endAt: "", config: "{}" });
+  const { data: events, refetch } = trpc.marketing.eventList.useQuery();
+  const createMut = trpc.marketing.eventCreate.useMutation({ onSuccess: () => { refetch(); setShowCreate(false); toast.success("创建成功"); } });
+  const deleteMut = trpc.marketing.eventDelete.useMutation({ onSuccess: () => { refetch(); toast.success("已删除"); } });
+
+  const eventTypeLabels: Record<string, string> = {
+    double_points: "双倍积分",
+    free_commission: "免佣金",
+    deposit_bonus: "充值加赠",
+    cashback: "返现活动",
+    custom: "自定义",
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">限时活动管理</h3>
+        <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" />创建活动</Button>
+      </div>
+
+      <div className="grid gap-3">
+        {events?.map((ev: any) => {
+          const now = Date.now();
+          const started = new Date(ev.startAt).getTime() <= now;
+          const ended = new Date(ev.endAt).getTime() <= now;
+          const status = ended ? "已结束" : started ? "进行中" : "未开始";
+          const statusColor = ended ? "text-muted-foreground" : started ? "text-green-400" : "text-yellow-400";
+          return (
+            <div key={ev.id} className="bg-card border border-border rounded-lg p-4 flex justify-between items-center">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{ev.name}</span>
+                  <Badge variant="outline">{eventTypeLabels[ev.type] || ev.type}</Badge>
+                  <span className={`text-xs ${statusColor}`}>{status}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {new Date(ev.startAt).toLocaleString()} ~ {new Date(ev.endAt).toLocaleString()}
+                </div>
+                {ev.description && <div className="text-xs text-muted-foreground mt-0.5">{ev.description}</div>}
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => deleteMut.mutate({ id: ev.id })}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+            </div>
+          );
+        })}
+        {(!events || events.length === 0) && <div className="text-center text-muted-foreground py-8">暂无限时活动</div>}
+      </div>
+
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>创建限时活动</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>活动名称</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+            <div><Label>活动类型</Label>
+              <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="double_points">双倍积分</SelectItem>
+                  <SelectItem value="free_commission">免佣金</SelectItem>
+                  <SelectItem value="deposit_bonus">充值加赠</SelectItem>
+                  <SelectItem value="cashback">返现活动</SelectItem>
+                  <SelectItem value="custom">自定义</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>活动描述</Label><Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label>开始时间</Label><Input type="datetime-local" value={form.startAt} onChange={e => setForm(f => ({ ...f, startAt: e.target.value }))} /></div>
+              <div><Label>结束时间</Label><Input type="datetime-local" value={form.endAt} onChange={e => setForm(f => ({ ...f, endAt: e.target.value }))} /></div>
+            </div>
+            <div><Label>配置(JSON)</Label><Input value={form.config} onChange={e => setForm(f => ({ ...f, config: e.target.value }))} placeholder='{"multiplier": 2}' /></div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => {
+              if (!form.name || !form.startAt || !form.endAt) { toast.error("请填写必填字段"); return; }
+              createMut.mutate({ name: form.name, type: form.type as "double_points" | "no_rake" | "deposit_bonus" | "free_chips" | "custom", description: form.description, startTime: new Date(form.startAt), endTime: new Date(form.endAt), config: form.config ? JSON.parse(form.config) : undefined });
+            }} disabled={createMut.isPending}>
+              {createMut.isPending ? "创建中..." : "创建"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ==================== NOTIFICATIONS PANEL ====================
+function NotificationsPanel() {
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ title: "", content: "", targetType: "all" as string, scheduledAt: "" });
+  const { data: notifications, refetch } = trpc.marketing.notificationList.useQuery();
+  const createMut = trpc.marketing.notificationCreate.useMutation({ onSuccess: () => { refetch(); setShowCreate(false); toast.success("创建成功"); } });
+  const cancelMut = trpc.marketing.notificationCancel.useMutation({ onSuccess: () => { refetch(); toast.success("已取消"); } });
+  const executeMut = trpc.marketing.notificationExecute.useMutation({ onSuccess: () => { refetch(); toast.success("已发送"); } });
+
+  const statusLabels: Record<string, { label: string; color: string }> = {
+    pending: { label: "待发送", color: "text-yellow-400" },
+    sent: { label: "已发送", color: "text-green-400" },
+    cancelled: { label: "已取消", color: "text-muted-foreground" },
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">推送通知管理</h3>
+        <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" />创建通知</Button>
+      </div>
+
+      <div className="grid gap-3">
+        {notifications?.map((n: any) => {
+          const st = statusLabels[n.status] || { label: n.status, color: "" };
+          return (
+            <div key={n.id} className="bg-card border border-border rounded-lg p-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{n.title}</span>
+                    <span className={`text-xs ${st.color}`}>{st.label}</span>
+                    <Badge variant="outline">{n.targetType === "all" ? "全部用户" : n.targetType === "active" ? "活跃用户" : "指定用户"}</Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{n.content}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {n.scheduledAt ? `计划: ${new Date(n.scheduledAt).toLocaleString()}` : "立即发送"}
+                    {n.sentAt && ` | 已发送: ${new Date(n.sentAt).toLocaleString()}`}
+                    {n.sentCount != null && ` | 发送: ${n.sentCount}人`}
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  {n.status === "pending" && (
+                    <>
+                      <Button variant="ghost" size="sm" onClick={() => executeMut.mutate({ id: n.id })}><Send className="w-4 h-4 text-green-400" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => cancelMut.mutate({ id: n.id })}><X className="w-4 h-4 text-destructive" /></Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {(!notifications || notifications.length === 0) && <div className="text-center text-muted-foreground py-8">暂无推送通知</div>}
+      </div>
+
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>创建推送通知</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>标题</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+            <div><Label>内容</Label><Textarea value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} rows={4} /></div>
+            <div><Label>目标用户</Label>
+              <Select value={form.targetType} onValueChange={v => setForm(f => ({ ...f, targetType: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部用户</SelectItem>
+                  <SelectItem value="active">活跃用户 (7天内)</SelectItem>
+                  <SelectItem value="inactive">流失用户 (30天未登录)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>定时发送(可选，留空则立即发送)</Label><Input type="datetime-local" value={form.scheduledAt} onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))} /></div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => {
+              if (!form.title || !form.content) { toast.error("请填写标题和内容"); return; }
+              createMut.mutate({ title: form.title, content: form.content, targetType: form.targetType as "all" | "active" | "deposited" | "custom", scheduledAt: form.scheduledAt ? new Date(form.scheduledAt) : new Date() });
+            }} disabled={createMut.isPending}>
+              {createMut.isPending ? "创建中..." : "创建"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ==================== MAIN MARKETING PANEL ====================
 export function MarketingPanel({ at }: { at: (k: string) => string }) {
   const [activeTab, setActiveTab] = useState<MarketingTab>("broadcast");
 
   const tabs: { key: MarketingTab; icon: any; label: string }[] = [
     { key: "broadcast", icon: Megaphone, label: "Bot 群发" },
+    { key: "coupons", icon: Copy, label: "优惠券/红包" },
+    { key: "invite", icon: Share2, label: "邀请奖励" },
+    { key: "checkin", icon: Check, label: "签到奖励" },
+    { key: "events", icon: Play, label: "限时活动" },
+    { key: "notifications", icon: Send, label: "推送通知" },
     { key: "templates", icon: FileText, label: "消息模板" },
     { key: "welcome", icon: Globe, label: "欢迎消息" },
     { key: "autoReply", icon: MessageSquare, label: "自动回复" },
@@ -1245,6 +1593,11 @@ export function MarketingPanel({ at }: { at: (k: string) => string }) {
       {/* Tab Content */}
       <div className="pt-2">
         {activeTab === "broadcast" && <BroadcastPanel />}
+        {activeTab === "coupons" && <CouponsPanel />}
+        {activeTab === "invite" && <InviteRewardPanel />}
+        {activeTab === "checkin" && <CheckinPanel />}
+        {activeTab === "events" && <TimeLimitedEventsPanel />}
+        {activeTab === "notifications" && <NotificationsPanel />}
         {activeTab === "templates" && <TemplatesPanel />}
         {activeTab === "welcome" && <WelcomePanel />}
         {activeTab === "autoReply" && <AutoReplyPanel />}

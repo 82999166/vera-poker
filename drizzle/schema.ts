@@ -186,7 +186,7 @@ export const handPlayers = mysqlTable("hand_players", {
 export const transactions = mysqlTable("transactions", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  type: mysqlEnum("type", ["deposit", "withdraw", "game_win", "game_loss", "rake", "commission", "room_fee", "refund", "adjustment", "buy_in", "leave_table", "rebuy", "tournament_entry", "tournament_refund", "tournament_prize"]).notNull(),
+  type: mysqlEnum("type", ["deposit", "withdraw", "game_win", "game_loss", "rake", "commission", "room_fee", "refund", "adjustment", "buy_in", "leave_table", "rebuy", "tournament_entry", "tournament_refund", "tournament_prize", "bonus", "invite_reward", "checkin", "first_deposit_bonus"]).notNull(),
   amount: decimal("amount", { precision: 18, scale: 2 }).notNull(),
   balanceBefore: decimal("balanceBefore", { precision: 18, scale: 2 }).notNull(),
   balanceAfter: decimal("balanceAfter", { precision: 18, scale: 2 }).notNull(),
@@ -195,7 +195,7 @@ export const transactions = mysqlTable("transactions", {
   txHash: varchar("txHash", { length: 256 }),
   walletAddress: varchar("walletAddress", { length: 256 }),
   // Status
-  status: mysqlEnum("status", ["pending", "confirmed", "failed", "cancelled"]).default("pending").notNull(),
+  status: mysqlEnum("status", ["pending", "confirmed", "failed", "cancelled", "completed"]).default("pending").notNull(),
   // Reference
   referenceType: varchar("referenceType", { length: 64 }), // hand, room, agent
   referenceId: int("referenceId"),
@@ -657,3 +657,141 @@ export const welcomeTemplates = mysqlTable("welcome_templates", {
 });
 export type WelcomeTemplate = typeof welcomeTemplates.$inferSelect;
 export type InsertWelcomeTemplate = typeof welcomeTemplates.$inferInsert;
+
+
+// ==================== 优惠券/红包 ====================
+export const coupons = mysqlTable("coupons", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 32 }).notNull().unique(),
+  name: varchar("name", { length: 128 }).notNull(), // 优惠券名称
+  type: mysqlEnum("type", ["fixed", "percent", "chips"]).default("fixed").notNull(), // fixed=固定金额, percent=充值加赠百分比, chips=免费筹码
+  amount: decimal("amount", { precision: 18, scale: 2 }).notNull(), // 金额或百分比
+  maxBonus: decimal("maxBonus", { precision: 18, scale: 2 }), // percent类型时的最大加赠
+  minDeposit: decimal("minDeposit", { precision: 18, scale: 2 }), // 最低充值要求（percent类型）
+  maxUses: int("maxUses").default(0).notNull(), // 0=无限制
+  usedCount: int("usedCount").default(0).notNull(),
+  maxPerUser: int("maxPerUser").default(1).notNull(), // 每人限领次数
+  expiresAt: timestamp("expiresAt"), // null=永不过期
+  status: mysqlEnum("status", ["active", "paused", "expired"]).default("active").notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Coupon = typeof coupons.$inferSelect;
+export type InsertCoupon = typeof coupons.$inferInsert;
+
+export const couponClaims = mysqlTable("coupon_claims", {
+  id: int("id").autoincrement().primaryKey(),
+  couponId: int("couponId").notNull(),
+  userId: int("userId").notNull(),
+  amount: decimal("amount", { precision: 18, scale: 2 }).notNull(), // 实际获得金额
+  claimedAt: timestamp("claimedAt").defaultNow().notNull(),
+});
+export type CouponClaim = typeof couponClaims.$inferSelect;
+
+// ==================== 签到系统 ====================
+export const checkinConfigs = mysqlTable("checkin_configs", {
+  id: int("id").autoincrement().primaryKey(),
+  dayNumber: int("dayNumber").notNull(), // 1-7
+  reward: decimal("reward", { precision: 18, scale: 2 }).notNull(), // 该天奖励金额
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CheckinConfig = typeof checkinConfigs.$inferSelect;
+
+export const userCheckins = mysqlTable("user_checkins", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  checkinDate: varchar("checkinDate", { length: 10 }).notNull(), // YYYY-MM-DD
+  dayNumber: int("dayNumber").notNull(), // 连续签到第几天 (1-7)
+  reward: decimal("reward", { precision: 18, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type UserCheckin = typeof userCheckins.$inferSelect;
+
+// ==================== 邀请奖励配置 ====================
+export const inviteRewardConfigs = mysqlTable("invite_reward_configs", {
+  id: int("id").autoincrement().primaryKey(),
+  inviterReward: decimal("inviterReward", { precision: 18, scale: 2 }).default("5.00").notNull(), // 邀请人奖励
+  inviteeReward: decimal("inviteeReward", { precision: 18, scale: 2 }).default("3.00").notNull(), // 被邀请人奖励
+  maxRewardsPerUser: int("maxRewardsPerUser").default(0).notNull(), // 每人最多邀请奖励次数，0=无限
+  requireDeposit: boolean("requireDeposit").default(false).notNull(), // 被邀请人是否需要充值才发放
+  minDepositAmount: decimal("minDepositAmount", { precision: 18, scale: 2 }).default("0.00").notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type InviteRewardConfig = typeof inviteRewardConfigs.$inferSelect;
+
+export const inviteRewards = mysqlTable("invite_rewards", {
+  id: int("id").autoincrement().primaryKey(),
+  inviterId: int("inviterId").notNull(),
+  inviteeId: int("inviteeId").notNull(),
+  inviterAmount: decimal("inviterAmount", { precision: 18, scale: 2 }).notNull(),
+  inviteeAmount: decimal("inviteeAmount", { precision: 18, scale: 2 }).notNull(),
+  status: mysqlEnum("status", ["pending", "completed", "cancelled"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+export type InviteReward = typeof inviteRewards.$inferSelect;
+
+// ==================== 首充优惠 ====================
+export const firstDepositConfigs = mysqlTable("first_deposit_configs", {
+  id: int("id").autoincrement().primaryKey(),
+  bonusPercent: int("bonusPercent").default(100).notNull(), // 加赠百分比，如100=首充双倍
+  maxBonus: decimal("maxBonus", { precision: 18, scale: 2 }).default("50.00").notNull(), // 最大加赠金额
+  enabled: boolean("enabled").default(true).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type FirstDepositConfig = typeof firstDepositConfigs.$inferSelect;
+
+export const firstDepositClaims = mysqlTable("first_deposit_claims", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  depositAmount: decimal("depositAmount", { precision: 18, scale: 2 }).notNull(),
+  bonusAmount: decimal("bonusAmount", { precision: 18, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type FirstDepositClaim = typeof firstDepositClaims.$inferSelect;
+
+// ==================== 限时活动 ====================
+export const timeLimitedEvents = mysqlTable("time_limited_events", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 256 }).notNull(),
+  type: mysqlEnum("type", ["double_points", "no_rake", "deposit_bonus", "free_chips", "custom"]).default("custom").notNull(),
+  description: text("description"),
+  config: json("config").$type<{
+    bonusPercent?: number; // deposit_bonus: 加赠百分比
+    maxBonus?: number; // deposit_bonus: 最大加赠
+    freeChips?: number; // free_chips: 免费筹码数量
+    rakeDiscount?: number; // no_rake: 佣金折扣百分比(0=全免)
+    pointsMultiplier?: number; // double_points: 积分倍数
+    customRules?: string; // custom: 自定义规则描述
+  }>(),
+  startTime: timestamp("startTime").notNull(),
+  endTime: timestamp("endTime").notNull(),
+  status: mysqlEnum("status", ["upcoming", "active", "ended", "cancelled"]).default("upcoming").notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type TimeLimitedEvent = typeof timeLimitedEvents.$inferSelect;
+export type InsertTimeLimitedEvent = typeof timeLimitedEvents.$inferInsert;
+
+// ==================== 定时推送通知 ====================
+export const scheduledNotifications = mysqlTable("scheduled_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 256 }).notNull(),
+  content: text("content").notNull(),
+  imageUrl: text("imageUrl"),
+  buttons: json("buttons").$type<Array<{ text: string; url: string }>>(),
+  targetType: mysqlEnum("targetType", ["all", "active", "deposited", "custom"]).default("all").notNull(),
+  targetUserIds: json("targetUserIds").$type<number[]>(),
+  scheduledAt: timestamp("scheduledAt").notNull(),
+  repeatType: mysqlEnum("repeatType", ["once", "daily", "weekly"]).default("once").notNull(),
+  status: mysqlEnum("status", ["pending", "sent", "cancelled", "failed"]).default("pending").notNull(),
+  sentCount: int("sentCount").default(0).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  sentAt: timestamp("sentAt"),
+});
+export type ScheduledNotification = typeof scheduledNotifications.$inferSelect;
+export type InsertScheduledNotification = typeof scheduledNotifications.$inferInsert;

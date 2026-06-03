@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatBalance, formatAmount } from "@/lib/utils";
-// MarketingPanel removed (ops-backend code cleanup)
+import { MarketingPanel } from "./MarketingPanel";
 
 // ==================== ADMIN I18N ====================
 type AdminLang = "zh-CN" | "zh-TW" | "en";
@@ -1622,7 +1622,7 @@ function PanelContent({ tab, at, onNavigate }: { tab: AdminTab; at: (key: string
     case "csRecords": return <CsRecordsPanel at={at} />;
     case "banners": return <BannersPanel at={at} />;
     case "tournaments": return <TournamentsPanel at={at} />;
-    case "marketing": return <div className="p-8 text-center text-muted-foreground">Marketing panel coming soon</div>;
+    case "marketing": return <MarketingPanel at={at} />;
     default: return null;
   }
 }

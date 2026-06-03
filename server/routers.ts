@@ -3004,6 +3004,171 @@ ${faqContext}
       const count = await estimateFilterTargetCount(input.targetType, input.targetFilter, input.targetUserIds);
       return { count };
     }),
+
+    // ==================== 优惠券/红包 ====================
+    couponList: protectedProcedure.query(async () => {
+      const { listCoupons } = await import("./marketing");
+      return listCoupons();
+    }),
+    couponCreate: protectedProcedure.input(z.object({
+      code: z.string().min(1),
+      name: z.string().min(1),
+      type: z.enum(["fixed", "percent", "chips"]),
+      amount: z.string(),
+      maxBonus: z.string().optional(),
+      minDeposit: z.string().optional(),
+      maxUses: z.number().default(0),
+      maxPerUser: z.number().default(1),
+      expiresAt: z.date().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const { createCoupon } = await import("./marketing");
+      return createCoupon({ ...input, createdBy: ctx.user.id });
+    }),
+    couponUpdate: protectedProcedure.input(z.object({
+      id: z.number(),
+      status: z.enum(["active", "paused", "expired"]).optional(),
+      maxUses: z.number().optional(),
+      maxPerUser: z.number().optional(),
+      expiresAt: z.date().optional(),
+    })).mutation(async ({ input }) => {
+      const { updateCoupon } = await import("./marketing");
+      const { id, ...data } = input;
+      await updateCoupon(id, data as any);
+    }),
+    couponDelete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { deleteCoupon } = await import("./marketing");
+      await deleteCoupon(input.id);
+    }),
+    couponClaims: protectedProcedure.input(z.object({ couponId: z.number() })).query(async ({ input }) => {
+      const { getCouponClaims } = await import("./marketing");
+      return getCouponClaims(input.couponId);
+    }),
+    couponRedeem: protectedProcedure.input(z.object({ code: z.string() })).mutation(async ({ input, ctx }) => {
+      const { redeemCoupon } = await import("./marketing");
+      return redeemCoupon(ctx.user.id, input.code);
+    }),
+
+    // ==================== 签到系统 ====================
+    checkinConfig: protectedProcedure.query(async () => {
+      const { getCheckinConfig } = await import("./marketing");
+      return getCheckinConfig();
+    }),
+    checkinConfigUpdate: protectedProcedure.input(z.array(z.object({
+      dayNumber: z.number(),
+      reward: z.string(),
+    }))).mutation(async ({ input }) => {
+      const { updateCheckinConfig } = await import("./marketing");
+      await updateCheckinConfig(input);
+    }),
+    checkinPerform: protectedProcedure.mutation(async ({ ctx }) => {
+      const { performCheckin } = await import("./marketing");
+      return performCheckin(ctx.user.id);
+    }),
+    checkinStatus: protectedProcedure.query(async ({ ctx }) => {
+      const { getUserCheckinStatus } = await import("./marketing");
+      return getUserCheckinStatus(ctx.user.id);
+    }),
+
+    // ==================== 邀请奖励 ====================
+    inviteRewardConfig: protectedProcedure.query(async () => {
+      const { getInviteRewardConfig } = await import("./marketing");
+      return getInviteRewardConfig();
+    }),
+    inviteRewardConfigUpdate: protectedProcedure.input(z.object({
+      inviterReward: z.string(),
+      inviteeReward: z.string(),
+      maxRewardsPerUser: z.number(),
+      requireDeposit: z.boolean(),
+      minDepositAmount: z.string(),
+      enabled: z.boolean(),
+    })).mutation(async ({ input }) => {
+      const { updateInviteRewardConfig } = await import("./marketing");
+      await updateInviteRewardConfig(input);
+    }),
+    inviteRewardStats: protectedProcedure.query(async () => {
+      const { getInviteRewardStats } = await import("./marketing");
+      return getInviteRewardStats();
+    }),
+
+    // ==================== 首充优惠 ====================
+    firstDepositConfig: protectedProcedure.query(async () => {
+      const { getFirstDepositConfig } = await import("./marketing");
+      return getFirstDepositConfig();
+    }),
+    firstDepositConfigUpdate: protectedProcedure.input(z.object({
+      bonusPercent: z.number(),
+      maxBonus: z.string(),
+      enabled: z.boolean(),
+    })).mutation(async ({ input }) => {
+      const { updateFirstDepositConfig } = await import("./marketing");
+      await updateFirstDepositConfig(input);
+    }),
+
+    // ==================== 限时活动 ====================
+    eventList: protectedProcedure.query(async () => {
+      const { listTimeLimitedEvents } = await import("./marketing");
+      return listTimeLimitedEvents();
+    }),
+    eventCreate: protectedProcedure.input(z.object({
+      name: z.string().min(1),
+      type: z.enum(["double_points", "no_rake", "deposit_bonus", "free_chips", "custom"]),
+      description: z.string().optional(),
+      config: z.any().optional(),
+      startTime: z.date(),
+      endTime: z.date(),
+    })).mutation(async ({ input, ctx }) => {
+      const { createTimeLimitedEvent } = await import("./marketing");
+      return createTimeLimitedEvent({ ...input, createdBy: ctx.user.id });
+    }),
+    eventUpdate: protectedProcedure.input(z.object({
+      id: z.number(),
+      name: z.string().optional(),
+      type: z.enum(["double_points", "no_rake", "deposit_bonus", "free_chips", "custom"]).optional(),
+      description: z.string().optional(),
+      config: z.any().optional(),
+      startTime: z.date().optional(),
+      endTime: z.date().optional(),
+      status: z.enum(["upcoming", "active", "ended", "cancelled"]).optional(),
+    })).mutation(async ({ input }) => {
+      const { updateTimeLimitedEvent } = await import("./marketing");
+      const { id, ...data } = input;
+      await updateTimeLimitedEvent(id, data as any);
+    }),
+    eventDelete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { deleteTimeLimitedEvent } = await import("./marketing");
+      await deleteTimeLimitedEvent(input.id);
+    }),
+    activeEvents: publicProcedure.query(async () => {
+      const { getActiveEvents } = await import("./marketing");
+      return getActiveEvents();
+    }),
+
+    // ==================== 定时推送通知 ====================
+    notificationList: protectedProcedure.query(async () => {
+      const { listScheduledNotifications } = await import("./marketing");
+      return listScheduledNotifications();
+    }),
+    notificationCreate: protectedProcedure.input(z.object({
+      title: z.string().min(1),
+      content: z.string().min(1),
+      imageUrl: z.string().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string() })).optional(),
+      targetType: z.enum(["all", "active", "deposited", "custom"]).default("all"),
+      targetUserIds: z.array(z.number()).optional(),
+      scheduledAt: z.date(),
+      repeatType: z.enum(["once", "daily", "weekly"]).default("once"),
+    })).mutation(async ({ input, ctx }) => {
+      const { createScheduledNotification } = await import("./marketing");
+      return createScheduledNotification({ ...input, createdBy: ctx.user.id });
+    }),
+    notificationCancel: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { cancelScheduledNotification } = await import("./marketing");
+      await cancelScheduledNotification(input.id);
+    }),
+    notificationExecute: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { executeScheduledNotification } = await import("./marketing");
+      await executeScheduledNotification(input.id);
+    }),
   }),
 });
 export type AppRouter = typeof appRouter;

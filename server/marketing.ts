@@ -561,3 +561,509 @@ export async function estimateFilterTargetCount(targetType: string, targetFilter
   const targets = await resolveBroadcastTargetsWithFilter(mockTask);
   return targets.length;
 }
+
+
+// ==================== 优惠券/红包系统 ====================
+import {
+  coupons, couponClaims, userCheckins, checkinConfigs,
+  inviteRewardConfigs, inviteRewards, firstDepositConfigs, firstDepositClaims,
+  timeLimitedEvents, scheduledNotifications,
+  type Coupon, type InsertCoupon,
+  type InsertTimeLimitedEvent,
+  type InsertScheduledNotification,
+} from "../drizzle/schema";
+
+export async function createCoupon(data: {
+  code: string;
+  name: string;
+  type: "fixed" | "percent" | "chips";
+  amount: string;
+  maxBonus?: string;
+  minDeposit?: string;
+  maxUses: number;
+  maxPerUser: number;
+  expiresAt?: Date;
+  createdBy: number;
+}) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  const [result] = await dbInstance.insert(coupons).values(data);
+  return result.insertId;
+}
+
+export async function listCoupons(limit = 50, offset = 0) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  return dbInstance.select().from(coupons).orderBy(desc(coupons.createdAt)).limit(limit).offset(offset);
+}
+
+export async function updateCoupon(id: number, data: Partial<Coupon>) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  await dbInstance.update(coupons).set(data).where(eq(coupons.id, id));
+}
+
+export async function deleteCoupon(id: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  await dbInstance.delete(coupons).where(eq(coupons.id, id));
+}
+
+export async function redeemCoupon(userId: number, code: string): Promise<{ success: boolean; message: string; amount?: number }> {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+
+  // Find coupon
+  const [coupon] = await dbInstance.select().from(coupons).where(eq(coupons.code, code));
+  if (!coupon) return { success: false, message: "优惠码不存在" };
+  if (coupon.status !== "active") return { success: false, message: "优惠码已停用" };
+  if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) return { success: false, message: "优惠码已过期" };
+  if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) return { success: false, message: "优惠码已被领完" };
+
+  // Check per-user limit
+  const userClaims = await dbInstance.select().from(couponClaims)
+    .where(and(eq(couponClaims.couponId, coupon.id), eq(couponClaims.userId, userId)));
+  if (userClaims.length >= coupon.maxPerUser) return { success: false, message: "您已领取过该优惠码" };
+
+  // Calculate reward amount
+  let rewardAmount = Number(coupon.amount);
+  if (coupon.type === "percent") {
+    // percent type needs deposit context, just give fixed for now
+    rewardAmount = Number(coupon.amount);
+  }
+
+  // Credit user balance
+  await db.addUserBalanceAtomic(userId, rewardAmount);
+
+  // Record claim
+  await dbInstance.insert(couponClaims).values({
+    couponId: coupon.id,
+    userId,
+    amount: String(rewardAmount),
+  });
+
+  // Update used count
+  await dbInstance.update(coupons).set({ usedCount: coupon.usedCount + 1 }).where(eq(coupons.id, coupon.id));
+
+  // Write transaction record
+  const user = await db.getUserById(userId);
+  const balAfter = user ? String(Number(user.balance)) : "0.00";
+  const balBefore = String(Number(balAfter) - rewardAmount);
+  await db.createTransaction({
+    userId,
+    type: "bonus",
+    amount: String(rewardAmount),
+    balanceBefore: balBefore,
+    balanceAfter: balAfter,
+    status: "completed",
+    note: `兑换优惠码: ${code}`,
+  });
+
+  return { success: true, message: "兑换成功", amount: rewardAmount };
+}
+
+export async function getCouponClaims(couponId: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  return dbInstance.select({
+    id: couponClaims.id,
+    userId: couponClaims.userId,
+    amount: couponClaims.amount,
+    claimedAt: couponClaims.claimedAt,
+    userName: users.nickname,
+    tgUsername: users.tgUsername,
+  }).from(couponClaims)
+    .leftJoin(users, eq(couponClaims.userId, users.id))
+    .where(eq(couponClaims.couponId, couponId))
+    .orderBy(desc(couponClaims.claimedAt));
+}
+
+// ==================== 签到系统 ====================
+export async function getCheckinConfig() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  const configs = await dbInstance.select().from(checkinConfigs).orderBy(asc(checkinConfigs.dayNumber));
+  // If no config, return defaults
+  if (configs.length === 0) {
+    return [
+      { dayNumber: 1, reward: "1.00" },
+      { dayNumber: 2, reward: "1.50" },
+      { dayNumber: 3, reward: "2.00" },
+      { dayNumber: 4, reward: "2.50" },
+      { dayNumber: 5, reward: "3.00" },
+      { dayNumber: 6, reward: "4.00" },
+      { dayNumber: 7, reward: "5.00" },
+    ];
+  }
+  return configs;
+}
+
+export async function updateCheckinConfig(configs: Array<{ dayNumber: number; reward: string }>) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  // Delete existing and re-insert
+  await dbInstance.delete(checkinConfigs);
+  for (const c of configs) {
+    await dbInstance.insert(checkinConfigs).values({ dayNumber: c.dayNumber, reward: c.reward });
+  }
+}
+
+export async function performCheckin(userId: number): Promise<{ success: boolean; message: string; reward?: number; dayNumber?: number }> {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+
+  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+  // Check if already checked in today
+  const [existing] = await dbInstance.select().from(userCheckins)
+    .where(and(eq(userCheckins.userId, userId), eq(userCheckins.checkinDate, today)));
+  if (existing) return { success: false, message: "今日已签到" };
+
+  // Get yesterday's checkin to determine streak
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+  const [yesterdayCheckin] = await dbInstance.select().from(userCheckins)
+    .where(and(eq(userCheckins.userId, userId), eq(userCheckins.checkinDate, yesterday)));
+
+  let dayNumber = 1;
+  if (yesterdayCheckin) {
+    dayNumber = (yesterdayCheckin.dayNumber % 7) + 1; // Cycle 1-7
+  }
+
+  // Get reward for this day
+  const configs = await getCheckinConfig();
+  const dayConfig = configs.find(c => Number(c.dayNumber) === dayNumber);
+  const reward = dayConfig ? Number(dayConfig.reward) : 1.0;
+
+  // Record checkin
+  await dbInstance.insert(userCheckins).values({
+    userId,
+    checkinDate: today,
+    dayNumber,
+    reward: String(reward),
+  });
+
+  // Credit balance
+  await db.addUserBalanceAtomic(userId, reward);
+
+  // Write transaction
+  const userAfter = await db.getUserById(userId);
+  const checkinBalAfter = userAfter ? String(Number(userAfter.balance)) : "0.00";
+  const checkinBalBefore = String(Number(checkinBalAfter) - reward);
+  await db.createTransaction({
+    userId,
+    type: "checkin",
+    amount: String(reward),
+    balanceBefore: checkinBalBefore,
+    balanceAfter: checkinBalAfter,
+    status: "completed",
+    note: `签到奖励 (第${dayNumber}天)`,
+  });
+
+  return { success: true, message: "签到成功", reward, dayNumber };
+}
+
+export async function getUserCheckinStatus(userId: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return { checkedInToday: false, streak: 0, history: [] };
+
+  const today = new Date().toISOString().split("T")[0];
+  const [todayCheckin] = await dbInstance.select().from(userCheckins)
+    .where(and(eq(userCheckins.userId, userId), eq(userCheckins.checkinDate, today)));
+
+  // Get last 7 days of checkins
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
+  const history = await dbInstance.select().from(userCheckins)
+    .where(and(eq(userCheckins.userId, userId), gte(userCheckins.checkinDate, sevenDaysAgo)))
+    .orderBy(desc(userCheckins.checkinDate));
+
+  // Calculate current streak
+  let streak = 0;
+  let checkDate = new Date();
+  if (!todayCheckin) {
+    // If not checked in today, streak starts from yesterday
+    checkDate = new Date(Date.now() - 86400000);
+  }
+  for (let i = 0; i < 7; i++) {
+    const dateStr = checkDate.toISOString().split("T")[0];
+    const found = history.find(h => h.checkinDate === dateStr);
+    if (found) {
+      streak++;
+      checkDate = new Date(checkDate.getTime() - 86400000);
+    } else {
+      break;
+    }
+  }
+
+  return {
+    checkedInToday: !!todayCheckin,
+    streak: todayCheckin ? (todayCheckin.dayNumber) : streak,
+    history: history.map(h => ({ date: h.checkinDate, dayNumber: h.dayNumber, reward: h.reward })),
+  };
+}
+
+// ==================== 邀请奖励 ====================
+export async function getInviteRewardConfig() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return null;
+  const [config] = await dbInstance.select().from(inviteRewardConfigs).limit(1);
+  return config || {
+    inviterReward: "5.00",
+    inviteeReward: "3.00",
+    maxRewardsPerUser: 0,
+    requireDeposit: false,
+    minDepositAmount: "0.00",
+    enabled: true,
+  };
+}
+
+export async function updateInviteRewardConfig(data: {
+  inviterReward: string;
+  inviteeReward: string;
+  maxRewardsPerUser: number;
+  requireDeposit: boolean;
+  minDepositAmount: string;
+  enabled: boolean;
+}) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  const [existing] = await dbInstance.select().from(inviteRewardConfigs).limit(1);
+  if (existing) {
+    await dbInstance.update(inviteRewardConfigs).set(data).where(eq(inviteRewardConfigs.id, existing.id));
+  } else {
+    await dbInstance.insert(inviteRewardConfigs).values(data);
+  }
+}
+
+export async function processInviteReward(inviterId: number, inviteeId: number): Promise<boolean> {
+  const dbInstance = await getDb();
+  if (!dbInstance) return false;
+
+  const config = await getInviteRewardConfig();
+  if (!config || !config.enabled) return false;
+
+  // Check if already rewarded for this pair
+  const [existing] = await dbInstance.select().from(inviteRewards)
+    .where(and(eq(inviteRewards.inviterId, inviterId), eq(inviteRewards.inviteeId, inviteeId)));
+  if (existing) return false;
+
+  // Check max rewards per user
+  if (config.maxRewardsPerUser > 0) {
+    const inviterRewardCount = await dbInstance.select({ count: sql<number>`count(*)` })
+      .from(inviteRewards).where(eq(inviteRewards.inviterId, inviterId));
+    if (inviterRewardCount[0]?.count >= config.maxRewardsPerUser) return false;
+  }
+
+  const inviterAmount = Number(config.inviterReward);
+  const inviteeAmount = Number(config.inviteeReward);
+
+  // Record reward
+  await dbInstance.insert(inviteRewards).values({
+    inviterId,
+    inviteeId,
+    inviterAmount: String(inviterAmount),
+    inviteeAmount: String(inviteeAmount),
+    status: "completed",
+    completedAt: new Date(),
+  });
+
+  // Credit both users
+  if (inviterAmount > 0) {
+    await db.addUserBalanceAtomic(inviterId, inviterAmount);
+    const inviterUser = await db.getUserById(inviterId);
+    const inviterBal = inviterUser ? String(Number(inviterUser.balance)) : "0.00";
+    await db.createTransaction({
+      userId: inviterId,
+      type: "invite_reward",
+      amount: String(inviterAmount),
+      balanceBefore: String(Number(inviterBal) - inviterAmount),
+      balanceAfter: inviterBal,
+      status: "completed",
+      note: `邀请奖励 (邀请用户#${inviteeId})`,
+    });
+  }
+  if (inviteeAmount > 0) {
+    await db.addUserBalanceAtomic(inviteeId, inviteeAmount);
+    const inviteeUser = await db.getUserById(inviteeId);
+    const inviteeBal = inviteeUser ? String(Number(inviteeUser.balance)) : "0.00";
+    await db.createTransaction({
+      userId: inviteeId,
+      type: "invite_reward",
+      amount: String(inviteeAmount),
+      balanceBefore: String(Number(inviteeBal) - inviteeAmount),
+      balanceAfter: inviteeBal,
+      status: "completed",
+      note: `新用户注册奖励`,
+    });
+  }
+
+  return true;
+}
+
+export async function getInviteRewardStats() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return { totalRewards: 0, totalAmount: "0.00", recentRewards: [] };
+  const [stats] = await dbInstance.select({
+    totalRewards: sql<number>`count(*)`,
+    totalAmount: sql<string>`COALESCE(SUM(inviterAmount + inviteeAmount), 0)`,
+  }).from(inviteRewards).where(eq(inviteRewards.status, "completed"));
+
+  const recentRewards = await dbInstance.select({
+    id: inviteRewards.id,
+    inviterId: inviteRewards.inviterId,
+    inviteeId: inviteRewards.inviteeId,
+    inviterAmount: inviteRewards.inviterAmount,
+    inviteeAmount: inviteRewards.inviteeAmount,
+    createdAt: inviteRewards.createdAt,
+  }).from(inviteRewards).orderBy(desc(inviteRewards.createdAt)).limit(20);
+
+  return { totalRewards: stats?.totalRewards || 0, totalAmount: stats?.totalAmount || "0.00", recentRewards };
+}
+
+// ==================== 首充优惠 ====================
+export async function getFirstDepositConfig() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return null;
+  const [config] = await dbInstance.select().from(firstDepositConfigs).limit(1);
+  return config || { bonusPercent: 100, maxBonus: "50.00", enabled: true };
+}
+
+export async function updateFirstDepositConfig(data: { bonusPercent: number; maxBonus: string; enabled: boolean }) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  const [existing] = await dbInstance.select().from(firstDepositConfigs).limit(1);
+  if (existing) {
+    await dbInstance.update(firstDepositConfigs).set(data).where(eq(firstDepositConfigs.id, existing.id));
+  } else {
+    await dbInstance.insert(firstDepositConfigs).values(data);
+  }
+}
+
+export async function processFirstDepositBonus(userId: number, depositAmount: number): Promise<number> {
+  const dbInstance = await getDb();
+  if (!dbInstance) return 0;
+
+  const config = await getFirstDepositConfig();
+  if (!config || !config.enabled) return 0;
+
+  // Check if user already claimed
+  const [existing] = await dbInstance.select().from(firstDepositClaims).where(eq(firstDepositClaims.userId, userId));
+  if (existing) return 0;
+
+  // Calculate bonus
+  let bonus = depositAmount * (config.bonusPercent / 100);
+  const maxBonus = Number(config.maxBonus);
+  if (bonus > maxBonus) bonus = maxBonus;
+
+  // Record claim
+  await dbInstance.insert(firstDepositClaims).values({
+    userId,
+    depositAmount: String(depositAmount),
+    bonusAmount: String(bonus),
+  });
+
+  // Credit bonus
+  await db.addUserBalanceAtomic(userId, bonus);
+  const fdUser = await db.getUserById(userId);
+  const fdBal = fdUser ? String(Number(fdUser.balance)) : "0.00";
+  await db.createTransaction({
+    userId,
+    type: "first_deposit_bonus",
+    amount: String(bonus),
+    balanceBefore: String(Number(fdBal) - bonus),
+    balanceAfter: fdBal,
+    status: "completed",
+    note: `首充加赠 (${config.bonusPercent}%)`,
+  });
+
+  return bonus;
+}
+
+// ==================== 限时活动 ====================
+export async function createTimeLimitedEvent(data: Omit<InsertTimeLimitedEvent, "id" | "createdAt" | "updatedAt" | "status">) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  const [result] = await dbInstance.insert(timeLimitedEvents).values({ ...data, status: "upcoming" });
+  return result.insertId;
+}
+
+export async function listTimeLimitedEvents() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  return dbInstance.select().from(timeLimitedEvents).orderBy(desc(timeLimitedEvents.createdAt));
+}
+
+export async function updateTimeLimitedEvent(id: number, data: Partial<InsertTimeLimitedEvent>) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  await dbInstance.update(timeLimitedEvents).set(data).where(eq(timeLimitedEvents.id, id));
+}
+
+export async function deleteTimeLimitedEvent(id: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  await dbInstance.delete(timeLimitedEvents).where(eq(timeLimitedEvents.id, id));
+}
+
+export async function getActiveEvents() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  const now = new Date();
+  return dbInstance.select().from(timeLimitedEvents)
+    .where(and(eq(timeLimitedEvents.status, "active"), lte(timeLimitedEvents.startTime, now), gte(timeLimitedEvents.endTime, now)));
+}
+
+// ==================== 定时推送通知 ====================
+export async function createScheduledNotification(data: Omit<InsertScheduledNotification, "id" | "createdAt" | "sentAt" | "sentCount" | "status">) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  const [result] = await dbInstance.insert(scheduledNotifications).values({ ...data, status: "pending" });
+  return result.insertId;
+}
+
+export async function listScheduledNotifications(limit = 50, offset = 0) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  return dbInstance.select().from(scheduledNotifications).orderBy(desc(scheduledNotifications.createdAt)).limit(limit).offset(offset);
+}
+
+export async function updateScheduledNotification(id: number, data: Partial<InsertScheduledNotification>) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  await dbInstance.update(scheduledNotifications).set(data).where(eq(scheduledNotifications.id, id));
+}
+
+export async function cancelScheduledNotification(id: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  await dbInstance.update(scheduledNotifications).set({ status: "cancelled" }).where(eq(scheduledNotifications.id, id));
+}
+
+export async function executeScheduledNotification(id: number): Promise<void> {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+
+  const [notification] = await dbInstance.select().from(scheduledNotifications).where(eq(scheduledNotifications.id, id));
+  if (!notification || notification.status !== "pending") return;
+
+  // Create a broadcast task from this notification
+  const broadcastId = await createBroadcastTask({
+    title: notification.title,
+    content: notification.content,
+    imageUrl: notification.imageUrl,
+    buttons: notification.buttons,
+    targetType: notification.targetType,
+    targetUserIds: notification.targetUserIds,
+    targetFilter: null,
+    scheduledAt: null,
+    createdBy: notification.createdBy,
+  });
+
+  // Execute the broadcast
+  await executeBroadcast(broadcastId);
+
+  // Update notification status
+  await dbInstance.update(scheduledNotifications).set({
+    status: "sent",
+    sentAt: new Date(),
+  }).where(eq(scheduledNotifications.id, id));
+}
