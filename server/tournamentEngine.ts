@@ -547,7 +547,22 @@ async function forceFinishByChips(tournamentId: number): Promise<void> {
   // Save results and distribute prizes
   for (const r of rankings) {
     if (r.prizeAmount > 0) {
+      const prizeUser = await db.getUserById(r.userId);
+      const prizeBefore = prizeUser?.balance ?? "0";
       await db.addUserBalanceAtomic(r.userId, r.prizeAmount);
+      const prizeAfter = (parseFloat(prizeBefore) + r.prizeAmount).toFixed(2);
+      // Write tournament prize transaction record
+      await db.createTransaction({
+        userId: r.userId,
+        type: "tournament_prize",
+        amount: r.prizeAmount.toFixed(2),
+        balanceBefore: prizeBefore,
+        balanceAfter: prizeAfter,
+        status: "confirmed",
+        referenceType: "tournament",
+        referenceId: tournamentId,
+        note: `比赛奖金 #${r.rank}: ${t.name}`,
+      });
     }
 
     await db.saveTournamentResult({
@@ -908,7 +923,22 @@ async function finishTournament(tournamentId: number, winner: TournamentPlayer):
   // Save results and distribute prizes
   for (const r of rankings) {
     if (r.prizeAmount > 0) {
+      const prizeUser = await db.getUserById(r.userId);
+      const prizeBefore = prizeUser?.balance ?? "0";
       await db.addUserBalanceAtomic(r.userId, r.prizeAmount);
+      const prizeAfter = (parseFloat(prizeBefore) + r.prizeAmount).toFixed(2);
+      // Write tournament prize transaction record
+      await db.createTransaction({
+        userId: r.userId,
+        type: "tournament_prize",
+        amount: r.prizeAmount.toFixed(2),
+        balanceBefore: prizeBefore,
+        balanceAfter: prizeAfter,
+        status: "confirmed",
+        referenceType: "tournament",
+        referenceId: tournamentId,
+        note: `比赛奖金 #${r.rank}: ${t.name}`,
+      });
     }
 
     await db.saveTournamentResult({

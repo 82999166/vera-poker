@@ -515,3 +515,4 @@
 - [x] 前端：typeLabels 添加新类型的翻译标签
 - [x] 前端：isPositive 判断添加新的正向类型（tournament_refund, tournament_prize）
 - [x] i18n：添加新流水类型的多语言翻译 key（11种语言全部覆盖）
+- [x] tournamentEngine.ts：两个 finishTournament 函数中奖金发放同步写入流水记录
