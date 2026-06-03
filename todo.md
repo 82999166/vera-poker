@@ -470,3 +470,16 @@
 - [x] 前端：断网检测和重连提示 UI（connectionLost banner + retry 按钮）
 - [x] 前端：重连后正确恢复牌桌视觉状态（online/visibilitychange 事件监听 + invalidate）
 - [x] 前端：网络恢复后自动刷新牌桌数据（QueryClient refetchOnReconnect/refetchOnWindowFocus: always）
+
+## Bug Fix: Leave Table Settlement - Direct Exit Protection
+- [x] Backend: game.leave returns remainingChips and newBalance to frontend
+- [x] Frontend: leaveMutation onSuccess shows "+$X" toast with returned chips amount
+- [x] Backend: /api/beacon-leave REST endpoint for sendBeacon-based leave on browser close
+- [x] Frontend: pagehide + beforeunload events fire sendBeacon to /api/beacon-leave
+- [x] Backend: reconcileOrphanedPlayers() on server startup - returns stuck chips to wallets
+- [x] Backend: Tournament room detection via inviteCode prefix 'T' (safe after restart)
+- [x] All 158 tests passing
+
+## Bug Fix: Tournament (比赛场) Should Not Have Rake
+- [x] settleHand: Skip rake calculation for tournament tables (rakePercent=0, rakeCap=0)
+- [x] settleHand: Skip agent commission distribution for tournament tables

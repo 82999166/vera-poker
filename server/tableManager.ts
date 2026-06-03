@@ -741,11 +741,19 @@ async function settleHand(roomId: number) {
     playerNames.set(p.id, user?.nickname || user?.name || `Player ${p.seatIndex + 1}`);
   }
 
-  // Get system config for rake
-  const rakeConfig = await db.getConfig("rake_percentage");
-  const rakeCapConfig = await db.getConfig("rake_cap");
-  const rakePercent = rakeConfig ? parseFloat(rakeConfig.value) : 5;
-  const rakeCap = rakeCapConfig ? parseFloat(rakeCapConfig.value) : 3;
+  // Check if this is a tournament table - tournaments have NO rake
+  const tournamentEngineForRake = await import("./tournamentEngine");
+  const isTournamentRoom = tournamentEngineForRake.getTournamentForRoom(roomId) !== null;
+
+  // Get system config for rake (0 for tournaments)
+  let rakePercent = 0;
+  let rakeCap = 0;
+  if (!isTournamentRoom) {
+    const rakeConfig = await db.getConfig("rake_percentage");
+    const rakeCapConfig = await db.getConfig("rake_cap");
+    rakePercent = rakeConfig ? parseFloat(rakeConfig.value) : 5;
+    rakeCap = rakeCapConfig ? parseFloat(rakeCapConfig.value) : 3;
+  }
 
   let mainWinnerId: number | undefined;
   let winningHand = "";
@@ -948,8 +956,8 @@ async function settleHand(roomId: number) {
     await tournamentEngine.incrementHandCount(tId);
   }
 
-  // Distribute agent commissions from rake
-  if (totalRake > 0 && table.handId) {
+  // Distribute agent commissions from rake (skip for tournaments)
+  if (totalRake > 0 && table.handId && !isTournamentRoom) {
     try {
       await distributeAgentCommissions(totalRake, gs.players.map(p => p.id), table.handId);
     } catch (e) {

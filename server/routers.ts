@@ -977,9 +977,10 @@ export const appRouter = router({
       const result = await tableManager.leaveTable(input.roomId, ctx.user.id);
       // Return remaining chips to user balance atomically
       const leaveUser = await db.getUserById(ctx.user.id);
+      let newBalance: string | null = null;
       if (result.remainingChips > 0 && leaveUser) {
         const balanceBefore = leaveUser.balance;
-        const newBalance = await db.addUserBalanceAtomic(ctx.user.id, result.remainingChips);
+        newBalance = await db.addUserBalanceAtomic(ctx.user.id, result.remainingChips);
         // Record leave-table transaction
         const room = await db.getRoomById(input.roomId);
         await db.createTransaction({
@@ -995,6 +996,7 @@ export const appRouter = router({
         });
       } else if (result.remainingChips === 0 && leaveUser) {
         // Left with zero chips - still record it for full audit trail
+        newBalance = leaveUser.balance;
         const room = await db.getRoomById(input.roomId);
         await db.createTransaction({
           userId: ctx.user.id,
@@ -1008,7 +1010,7 @@ export const appRouter = router({
           note: `Leave table (bust-out): ${room?.name ?? `Room #${input.roomId}`}`,
         });
       }
-      return { success: result.success };
+      return { success: result.success, remainingChips: result.remainingChips, newBalance: newBalance || leaveUser?.balance || "0.00" };
     }),
     // Player ready for next hand
     ready: protectedProcedure.input(z.object({ roomId: z.number() })).mutation(async ({ ctx, input }) => {

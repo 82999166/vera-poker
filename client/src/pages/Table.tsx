@@ -506,6 +506,25 @@ export default function Table() {
     };
   }, [roomId, utils]);
 
+  // Beacon-based leave: when user closes browser/tab or navigates away while seated
+  // This ensures chips are returned to wallet even if the user doesn't click "Leave"
+  useEffect(() => {
+    if (!isSeated || !isValidRoom) return;
+    const handleBeaconLeave = () => {
+      // Don't fire beacon if already leaving via normal flow
+      if (isLeavingRef.current) return;
+      const payload = JSON.stringify({ roomId });
+      navigator.sendBeacon("/api/beacon-leave", new Blob([payload], { type: "application/json" }));
+    };
+    // pagehide is more reliable than beforeunload on mobile/TG WebApp
+    window.addEventListener("pagehide", handleBeaconLeave);
+    window.addEventListener("beforeunload", handleBeaconLeave);
+    return () => {
+      window.removeEventListener("pagehide", handleBeaconLeave);
+      window.removeEventListener("beforeunload", handleBeaconLeave);
+    };
+  }, [isSeated, isValidRoom, roomId]);
+
   // Detect phase changes for card animations + sound effects + settlement notifications
   useEffect(() => {
     if (tableState?.phase && tableState.phase !== lastPhase) {
@@ -770,14 +789,19 @@ export default function Table() {
   });
 
   const leaveMutation = trpc.game.leave.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       isLeavingRef.current = true;
       setIsLeaving(true);
       setIsSeated(false);
       // Reset all join/kick guards so re-entry works cleanly
       kickDetectedRef.current = false;
       joinSettledRef.current = false;
-      toast.success(t("table.left"), { duration: 1000 });
+      // Show chips returned info
+      if (data.remainingChips > 0) {
+        toast.success(`${t("table.left")} (+$${data.remainingChips.toFixed(2)})`, { duration: 2000 });
+      } else {
+        toast.success(t("table.left"), { duration: 1000 });
+      }
       utils.wallet.balance.invalidate();
       // Navigate back to lobby after leaving
       navigate("/lobby");

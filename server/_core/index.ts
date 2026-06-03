@@ -14,6 +14,90 @@ import { serveStatic, setupVite } from "./vite";
 import { sdk } from "./sdk";
 import { processAutoConfirmDeposits } from "../blockchainVerify";
 
+/**
+ * On server startup, reconcile orphaned room_players records.
+ * If the server crashed/restarted while players were seated, their chips are stuck.
+ * This function returns chips to their wallet balance and marks them as 'left'.
+ * Only processes non-tournament rooms to avoid interfering with tournament state.
+ */
+async function reconcileOrphanedPlayers() {
+  const dbModule = await import("../db");
+  const dbInstance = await dbModule.getDb();
+  if (!dbInstance) return;
+  const { roomPlayers } = await import("../../drizzle/schema");
+  const { eq, or } = await import("drizzle-orm");
+
+  // Find all room_players with status 'active' or 'sitting_out' (orphaned from previous session)
+  const orphaned = await dbInstance.select({
+    roomId: roomPlayers.roomId,
+    userId: roomPlayers.userId,
+    chipCount: roomPlayers.chipCount,
+    status: roomPlayers.status,
+  }).from(roomPlayers)
+    .where(or(eq(roomPlayers.status, "active"), eq(roomPlayers.status, "sitting_out")));
+
+  if (orphaned.length === 0) {
+    console.log("[Startup] No orphaned room_players found.");
+    return;
+  }
+
+  console.log(`[Startup] Found ${orphaned.length} orphaned room_players, reconciling...`);
+
+  // Filter out tournament rooms
+  // Tournament rooms have inviteCode starting with 'T' (e.g. T5_1_abc123)
+  // We check DB directly because in-memory activeTournaments is empty after restart
+  const roomIds = [...new Set(orphaned.map(o => o.roomId))];
+  const { rooms } = await import("../../drizzle/schema");
+  const { inArray } = await import("drizzle-orm");
+  const roomInfos = roomIds.length > 0
+    ? await dbInstance.select({ id: rooms.id, inviteCode: rooms.inviteCode }).from(rooms).where(inArray(rooms.id, roomIds))
+    : [];
+  // Tournament rooms: inviteCode starts with 'T' followed by tournament ID
+  const tournamentRoomIds = new Set(
+    roomInfos.filter(r => r.inviteCode && r.inviteCode.startsWith("T")).map(r => r.id)
+  );
+  const nonTournamentRoomIds = new Set(
+    roomIds.filter(rid => !tournamentRoomIds.has(rid))
+  );
+
+  let reconciled = 0;
+  for (const record of orphaned) {
+    // Skip tournament rooms - their state is managed by tournamentEngine
+    if (!nonTournamentRoomIds.has(record.roomId)) continue;
+
+    const chips = parseFloat(record.chipCount || "0");
+    if (chips > 0) {
+      const user = await dbModule.getUserById(record.userId);
+      if (user) {
+        const balanceBefore = user.balance;
+        const newBalance = await dbModule.addUserBalanceAtomic(record.userId, chips);
+        await dbModule.createTransaction({
+          userId: record.userId,
+          type: "leave_table",
+          amount: chips.toFixed(2),
+          balanceBefore,
+          balanceAfter: newBalance || balanceBefore,
+          status: "confirmed",
+          referenceType: "room",
+          referenceId: record.roomId,
+          note: `Leave table (server restart reconcile)`,
+        });
+      }
+    }
+    await dbModule.removeRoomPlayer(record.roomId, record.userId);
+    reconciled++;
+  }
+
+  // Update room player counts
+  for (const roomId of roomIds) {
+    if (!nonTournamentRoomIds.has(roomId)) continue;
+    const remaining = await dbModule.getRoomPlayersAll(roomId);
+    await dbModule.updateRoom(roomId, { currentPlayers: remaining.length });
+  }
+
+  console.log(`[Startup] Reconciled ${reconciled} orphaned players, chips returned to wallets.`);
+}
+
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
     const server = net.createServer();
@@ -206,6 +290,49 @@ async function startServer() {
     }
   });
 
+  // Beacon-based leave endpoint (for browser close / app exit)
+  // Uses sendBeacon which only supports POST with simple body
+  app.post("/api/beacon-leave", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req).catch(() => null);
+      if (!user || (user as any).isCron) {
+        return res.status(401).json({ error: "unauthorized" });
+      }
+      const { roomId } = req.body || {};
+      if (!roomId || typeof roomId !== "number") {
+        return res.status(400).json({ error: "roomId required" });
+      }
+      // Import tableManager and execute leave
+      const tableManager = await import("../tableManager");
+      const dbModule = await import("../db");
+      const result = await tableManager.leaveTable(roomId, user.id);
+      // Return chips to balance
+      if (result.remainingChips > 0) {
+        const leaveUser = await dbModule.getUserById(user.id);
+        if (leaveUser) {
+          const balanceBefore = leaveUser.balance;
+          const newBalance = await dbModule.addUserBalanceAtomic(user.id, result.remainingChips);
+          const room = await dbModule.getRoomById(roomId);
+          await dbModule.createTransaction({
+            userId: user.id,
+            type: "leave_table",
+            amount: result.remainingChips.toFixed(2),
+            balanceBefore,
+            balanceAfter: newBalance || balanceBefore,
+            status: "confirmed",
+            referenceType: "room",
+            referenceId: roomId,
+            note: `Leave table (browser close): ${room?.name ?? `Room #${roomId}`}`,
+          });
+        }
+      }
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[beacon-leave]", err.message);
+      res.status(500).json({ error: "internal" });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",
@@ -233,6 +360,9 @@ async function startServer() {
     // Bootstrap default super admin account
     bootstrapSuperAdmin();
     migrateStaffFromUsers();
+    // On startup: reconcile orphaned room_players (server restart while players were seated)
+    // Return their chips to wallet balance and mark them as 'left'
+    reconcileOrphanedPlayers().catch((err) => console.error("[Startup] reconcile error:", err));
   });
 }
 
