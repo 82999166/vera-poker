@@ -5007,6 +5007,9 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
                   <span className={`text-xs px-2 py-0.5 rounded ${statusColors[t.status] || "bg-gray-500/20 text-gray-400"}`}>
                     {statusLabels[t.status] || t.status}
                   </span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">
+                    👥 已报名: {t.registrations?.length || t.registeredCount || 0}/{t.maxPlayers}
+                  </span>
                 </div>
                 <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
                   <p>报名费: {t.entryFee} USDT | 初始分: {t.startingChips} | 总局数: {t.totalRounds}</p>
@@ -5016,6 +5019,43 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
                     <p>奖金: {(t.prizeDistribution as Array<{rank:number;percentage:number}>).map((p: any) => `第${p.rank}名 ${p.percentage}%`).join(" | ")}</p>
                   )}
                 </div>
+                {/* Registered Players List */}
+                {t.registrations && t.registrations.length > 0 && (
+                  <details className="mt-2">
+                    <summary className="text-xs text-blue-400 cursor-pointer hover:text-blue-300">查看报名玩家列表 ({t.registrations.length}人)</summary>
+                    <div className="mt-2 max-h-40 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-muted-foreground border-b border-border">
+                            <th className="text-left py-1 px-2">#</th>
+                            <th className="text-left py-1 px-2">玩家</th>
+                            <th className="text-left py-1 px-2">ID</th>
+                            <th className="text-left py-1 px-2">状态</th>
+                            <th className="text-left py-1 px-2">报名时间</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {t.registrations.map((r: any, idx: number) => (
+                            <tr key={idx} className="border-b border-border/50 hover:bg-muted/30">
+                              <td className="py-1 px-2 text-muted-foreground">{idx + 1}</td>
+                              <td className="py-1 px-2 text-foreground">{r.user?.nickname || r.user?.tgUsername || `玩家${r.reg?.userId}`}</td>
+                              <td className="py-1 px-2 text-muted-foreground">#{r.reg?.userId}</td>
+                              <td className="py-1 px-2">
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                                  r.reg?.status === 'registered' ? 'bg-green-500/20 text-green-400' :
+                                  r.reg?.status === 'playing' ? 'bg-amber-500/20 text-amber-400' :
+                                  r.reg?.status === 'eliminated' ? 'bg-red-500/20 text-red-400' :
+                                  'bg-gray-500/20 text-gray-400'
+                                }`}>{r.reg?.status}</span>
+                              </td>
+                              <td className="py-1 px-2 text-muted-foreground">{r.reg?.registeredAt ? new Date(r.reg.registeredAt).toLocaleString() : '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 {t.status === "draft" && (

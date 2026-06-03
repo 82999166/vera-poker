@@ -982,3 +982,48 @@ async function finishTournament(tournamentId: number, winner: TournamentPlayer):
     activeTournaments.delete(tournamentId);
   }, 5 * 60 * 1000);
 }
+
+/**
+ * Cancel a running tournament: stop all timers, close all tables, remove players.
+ * Refunds are handled by the caller (routers.ts cancel mutation).
+ */
+export async function cancelRunningTournament(tournamentId: number): Promise<void> {
+  const t = activeTournaments.get(tournamentId);
+  if (!t) {
+    console.log(`[Tournament ${tournamentId}] Not found in active tournaments, skipping engine cleanup`);
+    return;
+  }
+
+  t.isFinished = true;
+
+  // Stop timers
+  if (t.blindTimer) clearInterval(t.blindTimer);
+  if (t.balanceTimer) clearInterval(t.balanceTimer);
+
+  // Close all tournament tables and remove players
+  const tableManagerModule = await import("./tableManager");
+  for (const [roomId] of t.tables) {
+    // Force end any active game on this table
+    try {
+      tableManagerModule.removeActiveTable(roomId);
+    } catch (e) {
+      console.error(`[Tournament ${tournamentId}] Error removing table ${roomId}:`, e);
+    }
+    // Remove all players from the room
+    const roomPlayers = await db.getRoomPlayers(roomId);
+    for (const rp of roomPlayers) {
+      await db.removeRoomPlayer(roomId, rp.userId);
+    }
+    await db.updateRoom(roomId, { status: "closed", currentPlayers: 0 });
+  }
+
+  // Update all playing registrations to refunded status
+  for (const [userId] of t.players) {
+    await db.updateTournamentRegistrationStatus(tournamentId, userId, "refunded");
+  }
+
+  console.log(`[Tournament ${tournamentId}] Cancelled! ${t.players.size} players removed from ${t.tables.size} tables.`);
+
+  // Clean up immediately
+  activeTournaments.delete(tournamentId);
+}

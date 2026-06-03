@@ -2321,9 +2321,13 @@ ${faqContext}
       notifyTournamentCancelled(ctx.user.id, tournament.name, tournament.entryFee).catch(() => {});
       return { success: true };
     }),
-    // Protected: get my registration status
+    // Protected: get my registration status for a single tournament
     myRegistration: protectedProcedure.input(z.object({ tournamentId: z.number() })).query(async ({ ctx, input }) => {
       return db.getRegistration(input.tournamentId, ctx.user.id);
+    }),
+    // Protected: get all my active registrations (for lobby "already registered" display)
+    myRegistrations: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserActiveRegistrations(ctx.user.id);
     }),
     // Public: get results
     results: publicProcedure.input(z.object({ tournamentId: z.number() })).query(async ({ input }) => {
@@ -2381,7 +2385,13 @@ ${faqContext}
   // Admin Tournaments Management
   adminTournaments: router({
     list: staffProcedure.input(z.object({ status: z.string().optional() })).query(async ({ input }) => {
-      return db.listTournaments(input.status);
+      const list = await db.listTournaments(input.status);
+      // Attach registrations for each tournament
+      const result = await Promise.all(list.map(async (t) => {
+        const registrations = await db.getTournamentRegistrations(t.id);
+        return { ...t, registrations };
+      }));
+      return result;
     }),
     detail: staffProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       const tournament = await db.getTournamentById(input.id);
@@ -2472,21 +2482,62 @@ ${faqContext}
       );
       return { success: true, playerCount: result.players, tables: result.tables };
     }),
-    // Cancel tournament and refund all
+    // Cancel tournament and refund all - stops running games, kicks players, refunds everyone
     cancel: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       const tournament = await db.getTournamentById(input.id);
       if (!tournament) throw new TRPCError({ code: "NOT_FOUND" });
-      // Refund all registered players
-      const regs = await db.getTournamentRegistrations(input.id);
-      const entryFee = parseFloat(tournament.entryFee);
-      for (const r of regs) {
-        if (r.reg.status === "registered" || r.reg.status === "playing") {
-          await db.addUserBalanceAtomic(r.reg.userId, entryFee);
-          await db.cancelRegistration(input.id, r.reg.userId);
+      if (tournament.status !== "registration" && tournament.status !== "running") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "只能取消报名中或进行中的比赛" });
+      }
+
+      // If tournament is running, stop all active tables via tournamentEngine
+      if (tournament.status === "running") {
+        try {
+          const { cancelRunningTournament } = await import("./tournamentEngine");
+          await cancelRunningTournament(input.id);
+        } catch (e) {
+          console.error("[Tournament Cancel] Error stopping engine:", e);
+          // Even if engine cleanup fails, continue with refunds
         }
       }
+
+      // Refund all registered/playing players with transaction records
+      const regs = await db.getTournamentRegistrations(input.id);
+      const entryFee = parseFloat(tournament.entryFee);
+      let refundCount = 0;
+      for (const r of regs) {
+        if (r.reg.status === "registered" || r.reg.status === "playing") {
+          const userBefore = await db.getUserById(r.reg.userId);
+          const balanceBefore = userBefore?.balance ?? "0";
+          await db.addUserBalanceAtomic(r.reg.userId, entryFee);
+          const balanceAfter = (parseFloat(balanceBefore) + entryFee).toFixed(2);
+          // Write refund transaction
+          await db.createTransaction({
+            userId: r.reg.userId,
+            type: "tournament_refund",
+            amount: entryFee.toFixed(2),
+            balanceBefore,
+            balanceAfter,
+            status: "confirmed",
+            referenceType: "tournament",
+            referenceId: input.id,
+            note: `比赛取消退款: ${tournament.name}`,
+          });
+          await db.cancelRegistration(input.id, r.reg.userId);
+          refundCount++;
+        }
+      }
+
+      // Notify all refunded players
+      const { notifyTournamentCancelled } = await import("./notifications");
+      for (const r of regs) {
+        if (r.reg.status === "registered" || r.reg.status === "playing") {
+          notifyTournamentCancelled(r.reg.userId, tournament.name, tournament.entryFee).catch(() => {});
+        }
+      }
+
       await db.updateTournament(input.id, { status: "cancelled" });
-      return { success: true };
+      return { success: true, refundCount };
     }),
     // Distribute prizes and notify each player of their result
     distributePrizes: adminProcedure.input(z.object({

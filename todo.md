@@ -516,3 +516,10 @@
 - [x] 前端：isPositive 判断添加新的正向类型（tournament_refund, tournament_prize）
 - [x] i18n：添加新流水类型的多语言翻译 key（11种语言全部覆盖）
 - [x] tournamentEngine.ts：两个 finishTournament 函数中奖金发放同步写入流水记录
+
+## 2026-06-03 �- [x] Admin比赛管理：显示已报名玩家数量
+- [x] Admin比赛管理：显示已报名玩家列表（昵称、ID、报名时间）
+- [x] 比赛中途取消：停止所有进行中的游戏
+- [x] 比赛中途取消：所有玩家退出比赛
+- [x] 比赛中途取消：退还所有已报名玩家的报名费（写入 tournament_refund 流水）
+- [x] 大厅首页：报名成功后按钮变为“已报名”状态（不可再次点击）（不可再次点击）

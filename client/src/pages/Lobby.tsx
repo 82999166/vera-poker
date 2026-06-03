@@ -589,9 +589,10 @@ function TournamentList() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const { data: tournaments, isLoading, refetch: refetchList } = trpc.tournaments.list.useQuery(undefined, { refetchInterval: 10000 });
+  const { data: myRegistrations, refetch: refetchMyRegs } = trpc.tournaments.myRegistrations.useQuery(undefined, { enabled: !!user });
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const quickRegisterMutation = trpc.tournaments.register.useMutation({
-    onSuccess: () => { refetchList(); toast.success(t("tourney.registerSuccess")); },
+    onSuccess: () => { refetchList(); refetchMyRegs(); toast.success(t("tourney.registerSuccess")); },
     onError: (err) => toast.error(err.message),
   });
 
@@ -642,15 +643,25 @@ function TournamentList() {
               </div>
             </div>
             <div className="flex items-center gap-2 ml-2 shrink-0">
-              {t_item.status === "registration" && user && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); quickRegisterMutation.mutate({ tournamentId: t_item.id }); }}
-                  disabled={quickRegisterMutation.isPending}
-                  className="px-3 py-1.5 rounded-lg bg-gold text-background text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
-                >
-                  {t("tourney.register")}
-                </button>
-              )}
+              {t_item.status === "registration" && user && (() => {
+                const isRegistered = myRegistrations?.some(r => r.tournamentId === t_item.id && (r.status === "registered" || r.status === "playing"));
+                if (isRegistered) {
+                  return (
+                    <span className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs font-bold whitespace-nowrap">
+                      {t("tourney.registered")}
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); quickRegisterMutation.mutate({ tournamentId: t_item.id }); }}
+                    disabled={quickRegisterMutation.isPending}
+                    className="px-3 py-1.5 rounded-lg bg-gold text-background text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {t("tourney.register")}
+                  </button>
+                );
+              })()}
               {t_item.status === "running" && (
                 <span className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-400 text-[10px] font-bold whitespace-nowrap">LIVE</span>
               )}

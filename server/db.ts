@@ -1341,6 +1341,24 @@ export async function getRegistration(tournamentId: number, userId: number) {
   return reg || null;
 }
 
+export async function getUserActiveRegistrations(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    tournamentId: tournamentRegistrations.tournamentId,
+    status: tournamentRegistrations.status,
+    registeredAt: tournamentRegistrations.registeredAt,
+  })
+    .from(tournamentRegistrations)
+    .where(and(
+      eq(tournamentRegistrations.userId, userId),
+      or(
+        eq(tournamentRegistrations.status, "registered"),
+        eq(tournamentRegistrations.status, "playing")
+      )
+    ));
+}
+
 export async function getTournamentRegistrations(tournamentId: number) {
   const db = await getDb();
   if (!db) return [];
