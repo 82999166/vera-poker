@@ -500,6 +500,7 @@
 - [x] Profile 头像区域紧凑化（水平布局：头像左侧 + 名称/ID/TG右侧 + 余额/局数/等级统计行）
 - [x] 账户信息合并为紧凑单行（注册时间 + 最后登录）
 - [x] 通知设置紧凑化（移除描述段落，减少间距 py-2→py-1.5，缩小开关 w-11→w-10 h-6→h-5）
+- [x] 通知设置改为2列网格布局（一行两个）+ 修复开关点击无反应（改用乐观更新 optimistic UI）
 - [x] 游戏结算时操作按钮不可点击（showdown/completed/showWinner 阶段完全隐藏按钮区域 + all-in弹窗也禁用）
 - [x] Bot入口路由修复（统一 tg_mini_app_url config key）
 - [x] Admin.tsx 移除已删除的 MarketingPanel 引用（修复 Vite pre-transform 错误）

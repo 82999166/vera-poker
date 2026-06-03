@@ -670,10 +670,22 @@ function TournamentHistorySection({ locale }: { locale: string }) {
 /** 通知偏好设置组件 */
 function NotificationPrefsSection({ locale }: { locale: string }) {
   const { t } = useI18n();
+  const utils = trpc.useUtils();
   const { data: prefs, isLoading } = trpc.profile.getNotificationPrefs.useQuery();
   const updateMutation = trpc.profile.updateNotificationPrefs.useMutation({
-    onSuccess: () => {
-      toast.success(t("profile.notifPrefs.saved"));
+    onMutate: async (input) => {
+      // Optimistic update
+      await utils.profile.getNotificationPrefs.cancel();
+      const prev = utils.profile.getNotificationPrefs.getData();
+      utils.profile.getNotificationPrefs.setData(undefined, (old: any) => ({ ...old, ...input }));
+      return { prev };
+    },
+    onError: (_err, _input, context) => {
+      if (context?.prev) utils.profile.getNotificationPrefs.setData(undefined, context.prev);
+      toast.error(t("profile.notifPrefs.saved"));
+    },
+    onSettled: () => {
+      utils.profile.getNotificationPrefs.invalidate();
     },
   });
 
@@ -701,18 +713,17 @@ function NotificationPrefsSection({ locale }: { locale: string }) {
           <Bell className="w-4 h-4 text-gold" />
           {t("profile.notifPrefs.title")}
         </h3>
-        <div className="space-y-0">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
           {prefsKeys.map((key) => {
             const val = (prefs as any)?.[key] !== false;
             return (
               <div key={key} className="flex items-center justify-between py-1.5">
-                <p className="text-xs">{t(`profile.notifPrefs.${key}`)}</p>
+                <p className="text-xs truncate mr-2">{t(`profile.notifPrefs.${key}`)}</p>
                 <button
                   onClick={() => handleToggle(key, val)}
-                  disabled={updateMutation.isPending}
-                  className={`relative w-10 h-5 rounded-full transition-colors ${val ? "bg-gold" : "bg-muted"}`}
+                  className={`relative flex-shrink-0 w-9 h-5 rounded-full transition-colors ${val ? "bg-gold" : "bg-muted"}`}
                 >
-                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${val ? "translate-x-5" : "translate-x-0"}`} />
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${val ? "translate-x-4" : "translate-x-0"}`} />
                 </button>
               </div>
             );
