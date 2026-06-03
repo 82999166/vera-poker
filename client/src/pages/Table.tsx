@@ -467,12 +467,12 @@ export default function Table() {
         if ((data as any)?.roomClosed && isLeavingRef.current) return false;
         // Adaptive polling: faster during active play, slower when waiting
         const phase = (data as any)?.phase;
-        if (phase === "waiting" || phase === "completed") return 1500;
-        // During active betting, poll faster for responsiveness
-        return 800;
+        if (phase === "waiting" || phase === "completed") return 1200;
+        // During active betting, poll aggressively for responsiveness
+        return 500;
       },
       retry: 3,
-      retryDelay: 500,
+      retryDelay: 300,
     }
   );
 
@@ -572,9 +572,22 @@ export default function Table() {
   // Solution: track the last settled handNumber and trigger on any new completed hand.
   const lastSettledHandRef = useRef<number>(0);
   const prevPhaseRef = useRef<string>("");
+  // Track if this is the first data load after mount - skip animation for stale completed state
+  const isFirstLoadRef = useRef(true);
   useEffect(() => {
     const currentPhase = tableState?.phase || "";
     const currentHandNum = tableState?.handNumber ?? 0;
+    
+    // On first data load: if already in completed state, mark as already settled
+    // This prevents replaying settlement animation when returning to the page
+    if (isFirstLoadRef.current && tableState) {
+      isFirstLoadRef.current = false;
+      if (currentPhase === "completed" && currentHandNum > 0) {
+        lastSettledHandRef.current = currentHandNum;
+        prevPhaseRef.current = currentPhase;
+        return; // Skip animation on re-entry
+      }
+    }
     
     // Primary trigger: phase is "completed" AND this hand hasn't been settled yet
     const isCompleted = currentPhase === "completed";
@@ -1071,6 +1084,11 @@ export default function Table() {
         const minBuyIn = parseFloat(room.minBuyIn);
         joinMutation.mutate({ roomId, buyIn: minBuyIn });
       } else if (!seated && isValidRoom && !autoJoinRef.current) {
+        // Tournament tables: NEVER show buy-in dialog (players join via tournament system)
+        if (room && room.inviteCode?.startsWith("T")) {
+          setShowBuyIn(false);
+          return;
+        }
         // Normal entry - show buy-in dialog (only if room is valid and not closed)
         if (room && room.status !== "closed") {
           setShowBuyIn(true);
@@ -1776,7 +1794,7 @@ export default function Table() {
 
 
       {/* ===== Buy-in Dialog (3/4 size bottom sheet) ===== */}
-      {showBuyIn && !isSeated && !isDemoMode && (
+      {showBuyIn && !isSeated && !isDemoMode && !isTournamentTable && !wasTournamentRef.current && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" style={{ height: '100dvh' }}>
           {/* Tap outside to cancel */}
           <div className="absolute inset-0" onClick={() => { setShowBuyIn(false); navigate("/lobby"); }} />

@@ -96,10 +96,9 @@ export async function getPlayerView(roomId: number, playerId: number) {
     // No active game - return seated players with avatar info
     // Do NOT auto-start here; game should only start via playerReady or joinTable
     const seatedPlayers = await db.getRoomPlayers(roomId);
-    const waitingPlayers = [];
-    for (const sp of seatedPlayers) {
+    const waitingPlayers = await Promise.all(seatedPlayers.map(async (sp) => {
       const info = await getCachedPlayerInfo(sp.userId);
-      waitingPlayers.push({
+      return {
         id: sp.userId,
         seatIndex: sp.seatIndex,
         chips: parseFloat(sp.chipCount || "0"),
@@ -111,8 +110,8 @@ export async function getPlayerView(roomId: number, playerId: number) {
         name: info.name || `Player ${sp.seatIndex + 1}`,
         avatar: info.avatar,
         holeCards: [],
-      });
-    }
+      };
+    }));
     // Check if room is closed (e.g. totalRounds reached after settlement)
     const roomInfo = await db.getRoomById(roomId);
     const roomClosed = roomInfo?.status === "closed";
@@ -123,12 +122,12 @@ export async function getPlayerView(roomId: number, playerId: number) {
   const myPlayer = gs.players.find(p => p.id === playerId);
   const myCards = myPlayer?.holeCards || [];
 
-  // Fetch player names and avatars (cached to reduce DB load during polling)
+  // Fetch player names and avatars in parallel (cached to reduce DB load during polling)
   const playerInfo = new Map<number, { name: string; avatar: string | null }>();
-  for (const p of gs.players) {
+  await Promise.all(gs.players.map(async (p) => {
     const info = await getCachedPlayerInfo(p.id);
     playerInfo.set(p.id, { name: info.name || `Player ${p.seatIndex + 1}`, avatar: info.avatar });
-  }
+  }));
 
   const players = gs.players.map(p => ({
     id: p.id,
@@ -154,9 +153,9 @@ export async function getPlayerView(roomId: number, playerId: number) {
 
   // Append sitting_out players (waiting for next hand) to the player list
   const sittingOutList = await db.getRoomPlayersSittingOut(roomId);
-  for (const sp of sittingOutList) {
+  const sittingOutPlayers = await Promise.all(sittingOutList.map(async (sp: any) => {
     const info = await getCachedPlayerInfo(sp.userId);
-    players.push({
+    return {
       id: sp.userId,
       seatIndex: sp.seatIndex,
       chips: parseFloat(sp.chipCount || "0"),
@@ -169,8 +168,9 @@ export async function getPlayerView(roomId: number, playerId: number) {
       avatar: info.avatar,
       holeCards: [],
       isSittingOut: true, // Waiting for next hand (Wait for Big Blind)
-    });
-  }
+    };
+  }));
+  players.push(...sittingOutPlayers);
 
   // Check if the requesting player is sitting out
   const amISittingOut = sittingOutList.some((sp: any) => sp.userId === playerId);
@@ -1499,8 +1499,8 @@ export async function playerReady(roomId: number, userId: number): Promise<{ suc
   return { success: true };
 }
 
-// Run timeout checker every 5 seconds
-setInterval(checkTimeouts, 5000);
+// Run timeout checker every 2 seconds for faster responsiveness
+setInterval(checkTimeouts, 2000);
 
 /**
  * Notify the next player that it's their turn via Telegram

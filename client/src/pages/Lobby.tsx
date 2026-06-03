@@ -36,7 +36,7 @@ export default function Lobby() {
   const { data: rooms, isLoading } = trpc.rooms.list.useQuery(undefined, { refetchInterval: 3000 });
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
   const { data: activeRoom } = trpc.rooms.myActiveRoom.useQuery(undefined, { enabled: !!user });
-  const { data: myTournamentTable } = trpc.tournaments.myTable.useQuery(undefined, { enabled: !!user });
+  const { data: myTournamentTable } = trpc.tournaments.myTable.useQuery(undefined, { enabled: !!user, refetchInterval: 3000 });
   const joinByStakeMutation = trpc.rooms.joinByStake.useMutation();
 
   // New user welcome popup - show once when bonusBalance > 0 and not yet dismissed
@@ -588,8 +588,12 @@ function BannerCarousel() {
 function TournamentList() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const { data: tournaments, isLoading } = trpc.tournaments.list.useQuery(undefined, { refetchInterval: 10000 });
+  const { data: tournaments, isLoading, refetch: refetchList } = trpc.tournaments.list.useQuery(undefined, { refetchInterval: 10000 });
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const quickRegisterMutation = trpc.tournaments.register.useMutation({
+    onSuccess: () => { refetchList(); toast.success(t("tourney.registerSuccess")); },
+    onError: (err) => toast.error(err.message),
+  });
 
   if (isLoading) {
     return (
@@ -624,9 +628,9 @@ function TournamentList() {
           onClick={() => setSelectedId(t_item.id)}
         >
           <div className="flex items-center justify-between">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-semibold text-foreground">{t_item.name}</span>
+                <span className="text-sm font-semibold text-foreground truncate">{t_item.name}</span>
                 <TournamentStatusBadge status={t_item.status} />
               </div>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -637,7 +641,21 @@ function TournamentList() {
                 <TournamentCountdown startTime={new Date(t_item.startTime)} status={t_item.status} />
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            <div className="flex items-center gap-2 ml-2 shrink-0">
+              {t_item.status === "registration" && user && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); quickRegisterMutation.mutate({ tournamentId: t_item.id }); }}
+                  disabled={quickRegisterMutation.isPending}
+                  className="px-3 py-1.5 rounded-lg bg-gold text-background text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
+                >
+                  {t("tourney.register")}
+                </button>
+              )}
+              {t_item.status === "running" && (
+                <span className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-400 text-[10px] font-bold whitespace-nowrap">LIVE</span>
+              )}
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </div>
           </div>
         </div>
       ))}
@@ -842,8 +860,15 @@ function TournamentLivePanel({ tournamentId }: { tournamentId: number }) {
   const [, navigate] = useLocation();
   const { data: liveState, isLoading } = trpc.tournaments.liveState.useQuery(
     { tournamentId },
-    { refetchInterval: 3000 }
+    { refetchInterval: 2000 }
   );
+
+  // Auto-navigate to table when tournament is running and player has a table assignment
+  React.useEffect(() => {
+    if (liveState?.myRoomId && !liveState?.myEliminated) {
+      navigate(`/table/${liveState.myRoomId}`);
+    }
+  }, [liveState?.myRoomId, liveState?.myEliminated, navigate]);
 
   if (isLoading || !liveState) {
     return (

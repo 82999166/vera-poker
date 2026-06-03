@@ -483,3 +483,10 @@
 ## Bug Fix: Tournament (比赛场) Should Not Have Rake
 - [x] settleHand: Skip rake calculation for tournament tables (rakePercent=0, rakeCap=0)
 - [x] settleHand: Skip agent commission distribution for tournament tables
+
+## Bug Fix: 5 Issues Batch Fix
+- [x] 1. Settlement animation replays when player returns after being away - should only play once
+- [x] 2. Tournament table shows buy-in dialog when entering - should skip for tournaments
+- [x] 3. Tournament list: add register button on the right side of each tournament item
+- [x] 4. Tournament start: auto-navigate to table without requiring manual refresh
+- [x] 5. Table game responsiveness: reduce polling interval to minimize 1-2s delay between actions
