@@ -11,7 +11,7 @@ import { useSoundEffects } from "@/hooks/useSoundEffects";
 import {
   User, Trophy, TrendingUp, Gamepad2, Edit2, Check, X,
   Link2, Unlink, ArrowLeft, Shield, Coins, Award, Globe, ChevronRight,
-  Volume2, Users, ChevronRight as ArrowRight, Lock, Eye, EyeOff, BookOpen, History, Bell
+  Volume2, Users, ChevronRight as ArrowRight, Lock, Eye, EyeOff, BookOpen, History, Bell, Gift
 } from "lucide-react";
 
 export default function Profile() {
@@ -21,6 +21,8 @@ export default function Profile() {
   const [editingNickname, setEditingNickname] = useState(false);
   const [newNickname, setNewNickname] = useState("");
   const [showLangPicker, setShowLangPicker] = useState(false);
+  const [showCheckin, setShowCheckin] = useState(false);
+  const [showCoupon, setShowCoupon] = useState(false);
 
   // Sound settings
   const { toggle: toggleSound, voiceMode, setVoiceMode } = useSoundEffects();
@@ -230,6 +232,32 @@ export default function Profile() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 签到 & 兑换码 */}
+      <div className="px-4 pb-3 flex gap-3">
+        <button
+          onClick={() => setShowCheckin(true)}
+          className="flex-1 glass rounded-2xl p-4 flex items-center gap-3 hover:border-green-400/30 border border-transparent transition-all active:scale-[0.98]"
+        >
+          <div className="w-10 h-10 rounded-full bg-green-400/10 flex items-center justify-center">
+            <Check className="w-5 h-5 text-green-400" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-semibold">{locale === "zh-CN" || locale === "zh-TW" ? "每日签到" : "Check-in"}</p>
+          </div>
+        </button>
+        <button
+          onClick={() => setShowCoupon(true)}
+          className="flex-1 glass rounded-2xl p-4 flex items-center gap-3 hover:border-purple-400/30 border border-transparent transition-all active:scale-[0.98]"
+        >
+          <div className="w-10 h-10 rounded-full bg-purple-400/10 flex items-center justify-center">
+            <Gift className="w-5 h-5 text-purple-400" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-semibold">{locale === "zh-CN" || locale === "zh-TW" ? "兑换码" : "Redeem"}</p>
+          </div>
+        </button>
       </div>
 
       {/* 牌局回放入口 */}
@@ -577,6 +605,24 @@ export default function Profile() {
       <div className="h-6" />
 
       <BottomNav active="profile" />
+
+      {/* Checkin Dialog */}
+      {showCheckin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowCheckin(false)}>
+          <div className="glass rounded-2xl p-5 mx-4 w-full max-w-sm border border-gold/20" onClick={e => e.stopPropagation()}>
+            <CheckinWidget locale={locale} onClose={() => setShowCheckin(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Coupon Redeem Dialog */}
+      {showCoupon && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowCoupon(false)}>
+          <div className="glass rounded-2xl p-5 mx-4 w-full max-w-sm border border-purple-500/20" onClick={e => e.stopPropagation()}>
+            <CouponRedeemWidget locale={locale} onClose={() => setShowCoupon(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -739,5 +785,138 @@ function TelegramIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
     </svg>
+  );
+}
+
+
+// ==================== Checkin Widget ====================
+function CheckinWidget({ locale, onClose }: { locale: string; onClose: () => void }) {
+  const { data: checkinData, refetch } = trpc.marketing.checkinStatus.useQuery();
+  const { data: checkinConfig } = trpc.marketing.checkinConfig.useQuery();
+  const checkinMut = trpc.marketing.checkinPerform.useMutation({
+    onSuccess: (res: any) => {
+      toast.success(locale === "zh-CN" || locale === "zh-TW" ? `签到成功！获得 ${res.amount} USDT` : `Check-in success! Got ${res.amount} USDT`);
+      refetch();
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const isChinese = locale === "zh-CN" || locale === "zh-TW";
+  const config = checkinConfig;
+  const streak = checkinData?.streak || 0;
+  const checkedToday = checkinData?.checkedInToday || false;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold text-gold">{isChinese ? "每日签到" : "Daily Check-in"}</h3>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
+      </div>
+
+      {config ? (
+        <>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-gold">{streak}</div>
+            <div className="text-xs text-muted-foreground">{isChinese ? "连续签到天数" : "Day Streak"}</div>
+          </div>
+
+          {/* 7-day grid */}
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: 7 }, (_, i) => {
+              const day = i + 1;
+              const isCompleted = day <= streak % 7 || (streak > 0 && streak % 7 === 0 && day <= 7);
+              const isToday = day === (streak % 7) + 1 || (streak % 7 === 0 && day === 1);
+              return (
+                <div key={day} className={`flex flex-col items-center p-1.5 rounded-lg text-xs ${
+                  isCompleted ? "bg-gold/20 text-gold" : isToday && !checkedToday ? "bg-gold/10 border border-gold/40 text-gold" : "bg-muted/30 text-muted-foreground"
+                }`}>
+                  <span className="font-medium">D{day}</span>
+                  {isCompleted && <Check className="w-3 h-3 mt-0.5" />}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="text-center text-xs text-muted-foreground">
+            {isChinese
+              ? `每日奖励: ${config[0]?.reward || "1.00"} ~ ${config[6]?.reward || "5.00"} USDT`
+              : `Daily: ${config[0]?.reward || "1.00"} ~ ${config[6]?.reward || "5.00"} USDT`}
+          </div>
+
+          <button
+            onClick={() => checkinMut.mutate()}
+            disabled={checkedToday || checkinMut.isPending}
+            className={`w-full py-3 rounded-xl font-bold text-sm transition-all ${
+              checkedToday
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "bg-gold text-background hover:bg-gold/90 active:scale-[0.97]"
+            }`}
+          >
+            {checkinMut.isPending
+              ? (isChinese ? "签到中..." : "Checking in...")
+              : checkedToday
+              ? (isChinese ? "今日已签到 ✓" : "Checked in ✓")
+              : (isChinese ? "立即签到" : "Check in Now")}
+          </button>
+        </>
+      ) : (
+        <div className="text-center py-6 text-muted-foreground text-sm">
+          {isChinese ? "签到活动暂未开启" : "Check-in not available"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== Coupon Redeem Widget ====================
+function CouponRedeemWidget({ locale, onClose }: { locale: string; onClose: () => void }) {
+  const [code, setCode] = useState("");
+  const redeemMut = trpc.marketing.couponRedeem.useMutation({
+    onSuccess: (res) => {
+      const isChinese = locale === "zh-CN" || locale === "zh-TW";
+      toast.success(isChinese ? `兑换成功！获得 ${res.amount} USDT` : `Redeemed! Got ${res.amount} USDT`);
+      setCode("");
+      onClose();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const isChinese = locale === "zh-CN" || locale === "zh-TW";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold text-purple-400">{isChinese ? "兑换优惠码" : "Redeem Code"}</h3>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
+      </div>
+
+      <div className="space-y-3">
+        <input
+          type="text"
+          value={code}
+          onChange={e => setCode(e.target.value.toUpperCase())}
+          placeholder={isChinese ? "请输入兑换码" : "Enter code"}
+          className="w-full px-4 py-3 rounded-xl bg-muted/30 border border-border text-center text-lg font-mono tracking-widest placeholder:text-muted-foreground/50 focus:outline-none focus:border-purple-500/50"
+        />
+
+        <button
+          onClick={() => redeemMut.mutate({ code })}
+          disabled={!code.trim() || redeemMut.isPending}
+          className={`w-full py-3 rounded-xl font-bold text-sm transition-all ${
+            !code.trim()
+              ? "bg-muted text-muted-foreground cursor-not-allowed"
+              : "bg-purple-500 text-white hover:bg-purple-600 active:scale-[0.97]"
+          }`}
+        >
+          {redeemMut.isPending
+            ? (isChinese ? "兑换中..." : "Redeeming...")
+            : (isChinese ? "立即兑换" : "Redeem")}
+        </button>
+
+        <p className="text-xs text-center text-muted-foreground">
+          {isChinese ? "输入您收到的优惠码或红包码即可领取奖励" : "Enter your promo code or gift code to claim rewards"}
+        </p>
+      </div>
+    </div>
   );
 }

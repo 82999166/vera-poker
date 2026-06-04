@@ -572,3 +572,6 @@
 - [x] 后端：cs.chat 从 systemConfigs 读取自定义 AI API 配置（apiUrl, apiKey, model, systemPrompt, temperature）
 - [x] 前端：Admin 系统设置中添加 AI 客服配置区块（API地址、API Key、模型名称、系统提示词、温度）
 - [x] 当配置为空时使用内置默认值（当前 forge API）
+
+## 2026-06-03 签到/�- [x] 将签到按钮从大厅快捷区移到“我的”页面
+- [x] 将兑换码按钮从大厅快捷区移到“我的”页面��捷区移到"我的"页面

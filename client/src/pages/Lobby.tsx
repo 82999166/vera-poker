@@ -5,7 +5,7 @@ import { t, getLocale } from "@/lib/i18n";
 import { formatAmount, formatBalance } from "@/lib/utils";
 import { useLocation } from "wouter";
 import React, { useState, useCallback } from "react";
-import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine, BookOpen, Crown, Check, Gift } from "lucide-react";
+import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine, BookOpen, Crown } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 
@@ -33,9 +33,7 @@ export default function Lobby() {
   const [privateRoomCode, setPrivateRoomCode] = useState("");
   const [joiningStake, setJoiningStake] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [showCheckin, setShowCheckin] = useState(false);
-  const [showCoupon, setShowCoupon] = useState(false);
-  const [couponCode, setCouponCode] = useState("");
+
   const locale = getLocale();
   const { data: rooms, isLoading } = trpc.rooms.list.useQuery(undefined, { refetchInterval: 3000 });
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
@@ -304,22 +302,8 @@ export default function Lobby() {
         </div>
       </div>
 
-      {/* Quick Actions: Leaderboard + Tutorial + Quick Join + Checkin + Coupon */}
+      {/* Quick Actions: Leaderboard + Tutorial + Quick Join */}
       <div className="px-4 pt-3 flex items-center gap-2 overflow-x-auto scrollbar-hide">
-        <button
-          onClick={() => setShowCheckin(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-green-400 hover:bg-green-400/10 transition-colors whitespace-nowrap"
-        >
-          <Check className="w-3.5 h-3.5" />
-          {locale === "zh-CN" || locale === "zh-TW" ? "签到" : "Check-in"}
-        </button>
-        <button
-          onClick={() => setShowCoupon(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-purple-400 hover:bg-purple-400/10 transition-colors whitespace-nowrap"
-        >
-          <Gift className="w-3.5 h-3.5" />
-          {locale === "zh-CN" || locale === "zh-TW" ? "兑换码" : "Redeem"}
-        </button>
         <button
           onClick={() => navigate("/leaderboard")}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-gold hover:bg-gold/10 transition-colors whitespace-nowrap"
@@ -520,23 +504,7 @@ export default function Lobby() {
 
       <BottomNav active="lobby" />
 
-      {/* Checkin Dialog */}
-      {showCheckin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowCheckin(false)}>
-          <div className="glass rounded-2xl p-5 mx-4 w-full max-w-sm border border-gold/20" onClick={e => e.stopPropagation()}>
-            <CheckinWidget locale={locale} onClose={() => setShowCheckin(false)} />
-          </div>
-        </div>
-      )}
 
-      {/* Coupon Redeem Dialog */}
-      {showCoupon && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowCoupon(false)}>
-          <div className="glass rounded-2xl p-5 mx-4 w-full max-w-sm border border-purple-500/20" onClick={e => e.stopPropagation()}>
-            <CouponRedeemWidget locale={locale} onClose={() => setShowCoupon(false)} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1081,134 +1049,3 @@ function TournamentLeaderboardPreview() {
 }
 
 
-// ==================== Checkin Widget ====================
-function CheckinWidget({ locale, onClose }: { locale: string; onClose: () => void }) {
-  const { data: checkinData, refetch } = trpc.marketing.checkinStatus.useQuery();
-  const { data: checkinConfig } = trpc.marketing.checkinConfig.useQuery();
-  const checkinMut = trpc.marketing.checkinPerform.useMutation({
-    onSuccess: (res: any) => {
-      toast.success(locale === "zh-CN" || locale === "zh-TW" ? `签到成功！获得 ${res.amount} USDT` : `Check-in success! Got ${res.amount} USDT`);
-      refetch();
-    },
-    onError: (err: any) => toast.error(err.message),
-  });
-
-  const isChinese = locale === "zh-CN" || locale === "zh-TW";
-  const config = checkinConfig;
-  const streak = checkinData?.streak || 0;
-  const checkedToday = checkinData?.checkedInToday || false;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-gold">{isChinese ? "每日签到" : "Daily Check-in"}</h3>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
-      </div>
-
-      {config ? (
-        <>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-gold">{streak}</div>
-            <div className="text-xs text-muted-foreground">{isChinese ? "连续签到天数" : "Day Streak"}</div>
-          </div>
-
-          {/* 7-day grid */}
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: 7 }, (_, i) => {
-              const day = i + 1;
-              const isCompleted = day <= streak % 7 || (streak > 0 && streak % 7 === 0 && day <= 7);
-              const isToday = day === (streak % 7) + 1 || (streak % 7 === 0 && day === 1);
-              return (
-                <div key={day} className={`flex flex-col items-center p-1.5 rounded-lg text-xs ${
-                  isCompleted ? "bg-gold/20 text-gold" : isToday && !checkedToday ? "bg-gold/10 border border-gold/40 text-gold" : "bg-muted/30 text-muted-foreground"
-                }`}>
-                  <span className="font-medium">D{day}</span>
-                  {isCompleted && <Check className="w-3 h-3 mt-0.5" />}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="text-center text-xs text-muted-foreground">
-            {isChinese
-              ? `每日奖励: ${config[0]?.reward || "1.00"} ~ ${config[6]?.reward || "5.00"} USDT`
-              : `Daily: ${config[0]?.reward || "1.00"} ~ ${config[6]?.reward || "5.00"} USDT`}
-          </div>
-
-          <button
-            onClick={() => checkinMut.mutate()}
-            disabled={checkedToday || checkinMut.isPending}
-            className={`w-full py-3 rounded-xl font-bold text-sm transition-all ${
-              checkedToday
-                ? "bg-muted text-muted-foreground cursor-not-allowed"
-                : "bg-gold text-background hover:bg-gold/90 active:scale-[0.97]"
-            }`}
-          >
-            {checkinMut.isPending
-              ? (isChinese ? "签到中..." : "Checking in...")
-              : checkedToday
-              ? (isChinese ? "今日已签到 ✓" : "Checked in ✓")
-              : (isChinese ? "立即签到" : "Check in Now")}
-          </button>
-        </>
-      ) : (
-        <div className="text-center py-6 text-muted-foreground text-sm">
-          {isChinese ? "签到活动暂未开启" : "Check-in not available"}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ==================== Coupon Redeem Widget ====================
-function CouponRedeemWidget({ locale, onClose }: { locale: string; onClose: () => void }) {
-  const [code, setCode] = useState("");
-  const redeemMut = trpc.marketing.couponRedeem.useMutation({
-    onSuccess: (res) => {
-      const isChinese = locale === "zh-CN" || locale === "zh-TW";
-      toast.success(isChinese ? `兑换成功！获得 ${res.amount} USDT` : `Redeemed! Got ${res.amount} USDT`);
-      setCode("");
-      onClose();
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
-  const isChinese = locale === "zh-CN" || locale === "zh-TW";
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-purple-400">{isChinese ? "兑换优惠码" : "Redeem Code"}</h3>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
-      </div>
-
-      <div className="space-y-3">
-        <input
-          type="text"
-          value={code}
-          onChange={e => setCode(e.target.value.toUpperCase())}
-          placeholder={isChinese ? "请输入兑换码" : "Enter code"}
-          className="w-full px-4 py-3 rounded-xl bg-muted/30 border border-border text-center text-lg font-mono tracking-widest placeholder:text-muted-foreground/50 focus:outline-none focus:border-purple-500/50"
-        />
-
-        <button
-          onClick={() => redeemMut.mutate({ code })}
-          disabled={!code.trim() || redeemMut.isPending}
-          className={`w-full py-3 rounded-xl font-bold text-sm transition-all ${
-            !code.trim()
-              ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-purple-500 text-white hover:bg-purple-600 active:scale-[0.97]"
-          }`}
-        >
-          {redeemMut.isPending
-            ? (isChinese ? "兑换中..." : "Redeeming...")
-            : (isChinese ? "立即兑换" : "Redeem")}
-        </button>
-
-        <p className="text-xs text-center text-muted-foreground">
-          {isChinese ? "输入您收到的优惠码或红包码即可领取奖励" : "Enter your promo code or gift code to claim rewards"}
-        </p>
-      </div>
-    </div>
-  );
-}
