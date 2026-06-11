@@ -1738,7 +1738,7 @@ export default function Table() {
                     const style = actionStyleMap[la.action];
                     if (!style) return null;
                     return (
-                      <div className={`mb-1 px-2 py-0.5 rounded-sm text-[9px] font-bold leading-tight whitespace-nowrap shadow-lg border border-white/20 ${style.bg} ${style.text}`}>
+                      <div className={`mb-1 px-2.5 py-1 rounded text-[12px] font-extrabold leading-tight whitespace-nowrap shadow-xl border border-white/40 ${style.bg} ${style.text}`} style={{textShadow:'0 1px 3px rgba(0,0,0,0.6)', letterSpacing:'0.02em'}}>
                         {style.label}
                       </div>
                     );
