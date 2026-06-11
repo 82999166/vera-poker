@@ -172,15 +172,16 @@
   animation: deal-from-deck 0.75s cubic-bezier(0.22, 0.68, 0.35, 1.0) 0.35s both;
 }
 
-/* Community cards deal from deck */
+/* Community cards deal from deck (fly from top-right where deck shoe is) */
 @keyframes deal-community-from-deck {
-  0% { transform: translate(var(--deal-comm-x, 80px), var(--deal-comm-y, -120px)) rotate(-8deg) scale(0.2); opacity: 0; }
-  20% { opacity: 1; transform: translate(calc(var(--deal-comm-x, 80px) * 0.4), calc(var(--deal-comm-y, -120px) * 0.4)) rotate(-4deg) scale(0.6); }
-  75% { transform: translate(0, 3px) rotate(1deg) scale(1.02); opacity: 1; }
+  0% { transform: translate(var(--deal-comm-x, 130px), var(--deal-comm-y, -130px)) rotate(-10deg) scale(0.2); opacity: 0; }
+  15% { opacity: 1; }
+  40% { transform: translate(calc(var(--deal-comm-x, 130px) * 0.25), calc(var(--deal-comm-y, -130px) * 0.25)) rotate(-3deg) scale(0.85); opacity: 1; }
+  80% { transform: translate(0, 3px) rotate(1deg) scale(1.02); opacity: 1; }
   100% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
 }
 .animate-deal-community {
-  animation: deal-community-from-deck 0.7s cubic-bezier(0.22, 0.68, 0.35, 1.0) both;
+  animation: deal-community-from-deck 0.65s cubic-bezier(0.22, 0.68, 0.35, 1.0) both;
 }
 
 /* Deck shoe pulse when dealing */

@@ -371,6 +371,8 @@ export default function Table() {
   const [showBuyIn, setShowBuyIn] = useState(true);
   const [lastPhase, setLastPhase] = useState("");
   const [animateCards, setAnimateCards] = useState(false);
+  const [animateFromIndex, setAnimateFromIndex] = useState(0); // only animate cards from this index onwards
+  const prevCommunityLenRef = useRef(0);
   const [dealingMyCards, setDealingMyCards] = useState(false); // preflop deal animation for hero hole cards
   const prevMyCardsLenRef = useRef(0);
   const [showWinner, setShowWinner] = useState<{ name: string; amount: number; handDescription?: string } | null>(null);
@@ -529,8 +531,10 @@ export default function Table() {
   useEffect(() => {
     if (tableState?.phase && tableState.phase !== lastPhase) {
       if (["flop", "turn", "river"].includes(tableState.phase) && lastPhase !== "") {
+        // Only animate newly dealt cards (flop: 0-2, turn: 3, river: 4)
+        setAnimateFromIndex(prevCommunityLenRef.current);
         setAnimateCards(true);
-        setTimeout(() => setAnimateCards(false), 1000);
+        setTimeout(() => setAnimateCards(false), 1500);
         if (!muted) playSound("deal"); // Cards dealt from shoe sound
         // Detect all-in runout: if all non-folded players are all-in, show notification
         const activePlayers = (tableState.players || []).filter((p: any) => !p.isFolded && p.isActive !== false);
@@ -1119,6 +1123,11 @@ export default function Table() {
   const displayCommunity = isDemoMode ? demoCommunity : (shouldClearTable ? [] : communityCards);
   const displayMyCards = isDemoMode ? demoMyCards : (shouldClearTable ? [] : myCards);
   const displayPot = isDemoMode ? 12.5 : (shouldClearTable ? 0 : pot);
+
+  // Track community card count for incremental animation
+  useEffect(() => {
+    prevCommunityLenRef.current = displayCommunity.length;
+  }, [displayCommunity.length]);
   const displayPhase = isDemoMode ? "flop" : phase;
   const displayIsMyTurn = isDemoMode ? true : isMyTurn;
 
@@ -1535,10 +1544,15 @@ export default function Table() {
             </div>
 
             {/* Community Cards - responsive size for small screens */}
-            <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5" style={{ '--deal-comm-x': '120px', '--deal-comm-y': '-100px' } as React.CSSProperties}>
-              {displayCommunity.map((card, i) => (
-                <CardView key={`h${handNumber}-c${i}`} card={card} className={`!w-[44px] !h-[62px]${animateCards ? ' animate-deal-community' : ''}`} animate={animateCards} delay={i * 150} />
-              ))}
+            <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5" style={{ '--deal-comm-x': '130px', '--deal-comm-y': '-130px' } as React.CSSProperties}>
+              {displayCommunity.map((card, i) => {
+                // Only animate cards that are newly dealt (index >= animateFromIndex)
+                const isNewCard = animateCards && i >= animateFromIndex;
+                const newCardDelay = isNewCard ? (i - animateFromIndex) * 250 : 0;
+                return (
+                  <CardView key={`h${handNumber}-c${i}`} card={card} className={`!w-[44px] !h-[62px]${isNewCard ? ' animate-deal-community' : ''}`} animate={isNewCard} delay={newCardDelay} />
+                );
+              })}
             </div>
 
             {/* Showdown / Comparing Hands Banner */}
@@ -1671,7 +1685,7 @@ export default function Table() {
                   {/* Player cards next to seat */}
                   {isHero && displayMyCards.length > 0 && (
                     <div className="flex flex-col items-center gap-0.5 mb-0.5">
-                      <div className="flex gap-1" style={{ '--deal-from-x': '60px', '--deal-from-y': '-220px' } as React.CSSProperties}>
+                      <div className="flex gap-1" style={{ '--deal-from-x': '120px', '--deal-from-y': '-280px' } as React.CSSProperties}>
                         {displayMyCards.map((card, i) => (
                           <CardView key={`h${handNumber}-m${i}`} card={card} className={`!w-12 !h-[64px]${dealingMyCards ? (i === 0 ? ' animate-deal' : ' animate-deal-2') : ''}`} animate delay={i * 200} />
                         ))}
@@ -1739,7 +1753,7 @@ export default function Table() {
                   )}
                   {/* Show face-down cards for opponents during active hand (preflop/flop/turn/river) */}
                   {!isHero && displayPhase !== "showdown" && displayPhase !== "completed" && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && !(player as any).isSittingOut && (
-                    <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${rotatedIndex <= 2 ? '80px' : '-80px'}`, '--deal-from-y': `${rotatedIndex === 3 ? '-30px' : rotatedIndex >= 4 ? '-120px' : '-120px'}` } as React.CSSProperties}>
+                    <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${rotatedIndex === 1 || rotatedIndex === 2 ? '160px' : rotatedIndex === 3 ? '50px' : rotatedIndex === 4 ? '-60px' : '-100px'}`, '--deal-from-y': `${rotatedIndex === 1 || rotatedIndex === 5 ? '-80px' : rotatedIndex === 2 || rotatedIndex === 4 ? '-160px' : '-200px'}` } as React.CSSProperties}>
                       <CardView faceDown className={`!w-9 !h-[50px]${dealingMyCards ? ' animate-deal' : ''}`} />
                       <CardView faceDown className={`!w-9 !h-[50px]${dealingMyCards ? ' animate-deal-2' : ''}`} />
                     </div>
