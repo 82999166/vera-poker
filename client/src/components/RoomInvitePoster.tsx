@@ -3,7 +3,7 @@
  * Layout: Brand Banner (top, dynamic from admin config) → Editable share text → Room info → "开始游戏" CTA
  */
 import { useState } from "react";
-import { t } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Share2, X, Copy, Gamepad2, Pencil, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -26,7 +26,6 @@ interface RoomInvitePosterProps {
 }
 
 const DEFAULT_BANNER_URL = "/manus-storage/vera-poker-banner_dd9e0bad.png";
-const DEFAULT_SHARE_TEXT = "刚在 VeraPoker 玩德州，牌桌气氛很给力，不用下载点击下方立即开始，快点进来一起抓鱼。";
 
 function formatAmount(val: string | number) {
   const n = parseFloat(String(val));
@@ -35,6 +34,7 @@ function formatAmount(val: string | number) {
 }
 
 export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvitePosterProps) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const [editingText, setEditingText] = useState(false);
   const [shareText, setShareText] = useState<string | null>(null);
@@ -46,9 +46,13 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
   });
 
   const bannerUrl = (publicConfigs as any)?.share_banner_url || DEFAULT_BANNER_URL;
-  const configText = (publicConfigs as any)?.share_default_text || DEFAULT_SHARE_TEXT;
+  // 分享文案逻辑：管理员配置了自定义文案则优先使用，否则自动跟随用户语言翻译
+  const _adminShareText = (publicConfigs as any)?.share_default_text;
+  const defaultShareText = (_adminShareText != null && _adminShareText !== "")
+    ? _adminShareText
+    : t("agent.shareText");
   // Use local edits if any, otherwise fall back to config
-  const displayText = shareText !== null ? shareText : configText;
+  const displayText = shareText !== null ? shareText : defaultShareText;
 
   const inviteLink = `https://t.me/VeraPokerBot?start=room_${inviteCode}`;
 
@@ -113,7 +117,7 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
               <button
                 onClick={() => setEditingText(false)}
                 className="absolute top-2 right-2 w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 hover:bg-green-500/30 transition-colors"
-                title="完成编辑"
+                title="完成"
               >
                 <Check className="w-3 h-3" />
               </button>
@@ -125,7 +129,7 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
               </p>
               <button
                 onClick={() => {
-                  if (shareText === null) setShareText(configText);
+                  if (shareText === null) setShareText(defaultShareText);
                   setEditingText(true);
                 }}
                 className="absolute top-0 right-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white/40 hover:text-white/80 transition-all opacity-60 hover:opacity-100"
@@ -142,11 +146,11 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
           <div className="flex flex-col">
             <span className="text-white font-semibold text-sm truncate max-w-[140px]">{room.name}</span>
             <span className="text-white/50 text-xs">
-              盲注 ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)} · {room.maxPlayers}人桌
+              ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)} · {room.maxPlayers}人
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-white/40 text-xs">邀请码</span>
+            <span className="text-white/40 text-xs">{t("agent.inviteCode")}</span>
             <span className="text-yellow-400 font-bold text-sm tracking-widest">{inviteCode}</span>
             <button
               onClick={handleCopyLink}
@@ -178,7 +182,7 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
             className="w-full mt-2 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-white/8 border border-white/15 text-white/70 hover:text-white transition-colors active:scale-[0.97]"
           >
             <Share2 className="w-4 h-4" />
-            {copied ? "已复制链接" : "分享给好友"}
+            {copied ? t("common.copied") : t("agent.shareButton")}
           </button>
         </div>
       </div>

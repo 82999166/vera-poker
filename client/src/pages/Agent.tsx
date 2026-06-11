@@ -20,8 +20,12 @@ export default function Agent() {
 
   // Load share config from backend
   const { data: publicConfigs } = trpc.config.getPublic.useQuery(undefined, { staleTime: 60_000 });
-  const bannerUrl = (publicConfigs as any)?.share_banner_url || "";
-  const defaultShareText = (publicConfigs as any)?.share_default_text || t("agent.shareText") || "刚在 VeraPoker 玩德州，牌桌气氛很给力，不用下载点击下方立即开始，快点进来一起抓鱼。";
+  const bannerUrl = (publicConfigs as any)?.share_banner_url ?? "";
+  // 分享文案逻辑：管理员配置了自定义文案则优先使用，否则自动跟随用户语言翻译
+  const _adminShareText = (publicConfigs as any)?.share_default_text;
+  const defaultShareText = (_adminShareText != null && _adminShareText !== "")
+    ? _adminShareText
+    : t("agent.shareText");
   const displayShareText = customShareText !== null ? customShareText : defaultShareText;
 
   const copyLink = () => {
@@ -134,7 +138,7 @@ export default function Agent() {
               <span className="text-white/60 text-[10px] font-mono truncate max-w-[160px]">{dashboard?.inviteLink ?? ""}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-white/40 text-xs">邀请码</span>
+              <span className="text-white/40 text-xs">{t("agent.inviteCode")}</span>
               <span className="text-yellow-400 font-bold text-sm tracking-widest">{dashboard?.inviteCode ?? ""}</span>
               <button onClick={copyLink} className="ml-1 w-6 h-6 rounded-md bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors active:scale-95">
                 <Copy className="w-3 h-3" />
@@ -149,7 +153,7 @@ export default function Agent() {
               style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)", color: "#fff", boxShadow: "0 4px 20px rgba(34,197,94,0.4)" }}
             >
               <Gamepad2 className="w-5 h-5" />
-              分享给好友
+              {t("agent.shareButton")}
             </button>
           </div>
         </div>

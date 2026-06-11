@@ -4178,12 +4178,15 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
 
         {/* Default Share Text */}
         <div>
-          <label className="text-xs text-muted-foreground">默认分享文案 <span className="text-muted-foreground/60">(玩家可在分享前自行编辑)</span></label>
+          <label className="text-xs text-muted-foreground">默认分享文案</label>
+          <p className="text-[11px] text-muted-foreground/60 mt-0.5 mb-1">
+            留空则自动跟随用户语言显示对应翻译；填写内容则全局覆盖。玩家可在分享前自行编辑。
+          </p>
           <textarea
             value={shareDefaultText}
             onChange={(e) => setShareDefaultText(e.target.value)}
             rows={3}
-            placeholder="刚在 VeraPoker 玩德州，牌桌气氛很给力，不用下载点击下方立即开始，快点进来一起抓鱼。"
+            placeholder="留空 = 自动跟随用户语言（推荐）"
             className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm resize-none"
           />
           <button
