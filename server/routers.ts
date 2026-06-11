@@ -901,6 +901,23 @@ export const appRouter = router({
       return db.getAgentCommissions(ctx.user.id, input.page, input.limit);
     }),
     // 通过 Bot API 发送带 InlineKeyboard 的分享消息给当前用户，用户再转发给好友
+    getBannerUrl: protectedProcedure
+      .query(async () => {
+        const botToken = await db.getConfigValue("tg_bot_token");
+        const fileId = await db.getConfigValue("share_banner_file_id");
+        if (!botToken || !fileId) return { url: null };
+        try {
+          const resp = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`);
+          const data = await resp.json() as { ok: boolean; result?: { file_path: string } };
+          if (data.ok && data.result?.file_path) {
+            return { url: `https://api.telegram.org/file/bot${botToken}/${data.result.file_path}` };
+          }
+        } catch (e) {
+          console.error("[getBannerUrl] error:", e);
+        }
+        return { url: null };
+      }),
+
     shareWithBot: protectedProcedure
       .input(z.object({
         shareText: z.string().max(1000),
@@ -923,21 +940,19 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "No Telegram account linked. Please login via Telegram." });
         }
         const buttonText = input.startButtonText || "开始游戏 🎮";
+        const bannerFileId = await db.getConfigValue("share_banner_file_id");
         const bannerUrl = await db.getConfigValue("share_banner_url");
         const apiBase = `https://api.telegram.org/bot${botToken}`;
         let sent = false;
-        // 尝试发送带图片的消息（sendPhoto）
-        if (bannerUrl) {
-          // 如果是相对路径，拼接完整 URL
-          const absoluteBannerUrl = bannerUrl.startsWith("http")
-            ? bannerUrl
-            : `https://game.verapoker.com${bannerUrl}`;
+        // 优先用 file_id 发送图片（永久有效，不依赖外部 URL）
+        const photoSource = bannerFileId || (bannerUrl ? (bannerUrl.startsWith("http") ? bannerUrl : `https://game.verapoker.com${bannerUrl}`) : null);
+        if (photoSource) {
           const photoResp = await fetch(`${apiBase}/sendPhoto`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               chat_id: tgId,
-              photo: absoluteBannerUrl,
+              photo: photoSource,
               caption: input.shareText,
               reply_markup: {
                 inline_keyboard: [[

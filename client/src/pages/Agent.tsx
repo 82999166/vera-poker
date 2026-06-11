@@ -21,7 +21,9 @@ export default function Agent() {
 
   // Load share config from backend
   const { data: publicConfigs } = trpc.config.getPublic.useQuery(undefined, { staleTime: 60_000 });
-  const bannerUrl = (publicConfigs as any)?.share_banner_url ?? "";
+  // Banner 图通过 Telegram CDN URL 显示（避免 /manus-storage/ 307 重定向在 TG WebView 失败）
+  const { data: bannerData } = trpc.agent.getBannerUrl.useQuery(undefined, { staleTime: 300_000, enabled: !!user });
+  const bannerUrl = bannerData?.url ?? "";
   // 分享文案逻辑：管理员配置了自定义文案则优先使用，否则自动跟随用户语言翻译
   const _adminShareText = (publicConfigs as any)?.share_default_text;
   const defaultShareText = (_adminShareText != null && _adminShareText !== "")
