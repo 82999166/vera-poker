@@ -184,6 +184,36 @@ export const appRouter = router({
       await db.upsertConfig(input.key, input.value, input.category, input.label, input.valueType, input.description, input.isPublic);
       db.createAdminLog({ action: "update_config", category: "config", targetType: "config", targetId: input.key, detail: { value: input.value, category: input.category } });
       
+      // FIX #2: When share_banner_url is saved, auto-upload to Telegram to get file_id
+      if (input.key === "share_banner_url" && input.value) {
+        try {
+          const botToken = await db.getConfigValue("tg_bot_token");
+          if (botToken) {
+            // Use the banner URL - if relative, prepend domain
+            const photoUrl = input.value.startsWith("http") ? input.value : `https://game.verapoker.com${input.value}`;
+            // Send photo to bot's own saved messages (use owner tgId)
+            const ownerTgId = "6421271088"; // Bot owner for file upload
+            const sendResp = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ chat_id: ownerTgId, photo: photoUrl, caption: "Banner updated" })
+            });
+            const sendResult = await sendResp.json() as { ok: boolean; result?: { photo?: Array<{ file_id: string }> } };
+            if (sendResult.ok && sendResult.result?.photo?.length) {
+              const largestPhoto = sendResult.result.photo[sendResult.result.photo.length - 1];
+              const newFileId = largestPhoto.file_id;
+              // Save the new file_id
+              await db.upsertConfig("share_banner_file_id", newFileId, "system", "share_banner_file_id", "string", "Telegram file_id for share banner", false);
+              console.log("[Config] Auto-updated share_banner_file_id:", newFileId);
+            } else {
+              console.error("[Config] Failed to upload banner to TG:", sendResult);
+            }
+          }
+        } catch (err) {
+          console.error("[Config] Failed to auto-upload banner to TG:", err);
+        }
+      }
+
       // FIX #1: When tg_webhook_secret is saved, auto-call Telegram setWebhook with secret_token
       if (input.key === "tg_webhook_secret" || input.key === "tg_bot_token" || input.key === "tg_webhook_url") {
         try {
@@ -905,15 +935,35 @@ export const appRouter = router({
       .query(async () => {
         const botToken = await db.getConfigValue("tg_bot_token");
         const fileId = await db.getConfigValue("share_banner_file_id");
-        if (!botToken || !fileId) return { url: null };
-        try {
-          const resp = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`);
-          const data = await resp.json() as { ok: boolean; result?: { file_path: string } };
-          if (data.ok && data.result?.file_path) {
-            return { url: `https://api.telegram.org/file/bot${botToken}/${data.result.file_path}` };
+        // Try Telegram CDN first (most reliable in TG WebView)
+        if (botToken && fileId) {
+          try {
+            const resp = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`);
+            const data = await resp.json() as { ok: boolean; result?: { file_path: string } };
+            if (data.ok && data.result?.file_path) {
+              return { url: `https://api.telegram.org/file/bot${botToken}/${data.result.file_path}` };
+            }
+          } catch (e) {
+            console.error("[getBannerUrl] TG getFile error:", e);
           }
-        } catch (e) {
-          console.error("[getBannerUrl] error:", e);
+        }
+        // Fallback: use share_banner_url with signed URL
+        const bannerUrl = await db.getConfigValue("share_banner_url");
+        if (bannerUrl) {
+          if (bannerUrl.startsWith("http")) return { url: bannerUrl };
+          // Relative /manus-storage/ path - resolve to signed URL
+          if (bannerUrl.startsWith("/manus-storage/")) {
+            try {
+              const { storageGetSignedUrl } = await import("../server/storage");
+              const key = bannerUrl.replace("/manus-storage/", "");
+              const signedUrl = await storageGetSignedUrl(key);
+              return { url: signedUrl };
+            } catch (e) {
+              console.error("[getBannerUrl] signed URL error:", e);
+            }
+          }
+          // Last resort: return the raw path (works if same-origin)
+          return { url: bannerUrl };
         }
         return { url: null };
       }),
