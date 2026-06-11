@@ -160,27 +160,27 @@
 
 /* Deal card animation - cards fly from deck shoe position (top-right) */
 @keyframes deal-from-deck {
-  0% { transform: translate(var(--deal-from-x, 60px), var(--deal-from-y, -180px)) rotate(-12deg) scale(0.3); opacity: 0; }
-  30% { opacity: 1; }
-  70% { transform: translate(0, 4px) rotate(2deg) scale(1.03); opacity: 1; }
+  0% { transform: translate(var(--deal-from-x, 60px), var(--deal-from-y, -180px)) rotate(-12deg) scale(0.25); opacity: 0; }
+  20% { opacity: 1; transform: translate(calc(var(--deal-from-x, 60px) * 0.4), calc(var(--deal-from-y, -180px) * 0.4)) rotate(-6deg) scale(0.7); }
+  75% { transform: translate(0, 4px) rotate(2deg) scale(1.04); opacity: 1; }
   100% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
 }
 .animate-deal {
-  animation: deal-from-deck 0.55s cubic-bezier(0.23, 1, 0.32, 1) both;
+  animation: deal-from-deck 0.75s cubic-bezier(0.22, 0.68, 0.35, 1.0) both;
 }
 .animate-deal-2 {
-  animation: deal-from-deck 0.55s cubic-bezier(0.23, 1, 0.32, 1) 0.2s both;
+  animation: deal-from-deck 0.75s cubic-bezier(0.22, 0.68, 0.35, 1.0) 0.35s both;
 }
 
 /* Community cards deal from deck */
 @keyframes deal-community-from-deck {
   0% { transform: translate(var(--deal-comm-x, 80px), var(--deal-comm-y, -120px)) rotate(-8deg) scale(0.2); opacity: 0; }
-  25% { opacity: 1; }
-  70% { transform: translate(0, 3px) rotate(1deg) scale(1.02); opacity: 1; }
+  20% { opacity: 1; transform: translate(calc(var(--deal-comm-x, 80px) * 0.4), calc(var(--deal-comm-y, -120px) * 0.4)) rotate(-4deg) scale(0.6); }
+  75% { transform: translate(0, 3px) rotate(1deg) scale(1.02); opacity: 1; }
   100% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
 }
 .animate-deal-community {
-  animation: deal-community-from-deck 0.5s cubic-bezier(0.23, 1, 0.32, 1) both;
+  animation: deal-community-from-deck 0.7s cubic-bezier(0.22, 0.68, 0.35, 1.0) both;
 }
 
 /* Deck shoe pulse when dealing */

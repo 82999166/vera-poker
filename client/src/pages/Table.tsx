@@ -550,7 +550,7 @@ export default function Table() {
         if (!muted) playSound("deal");
         // Trigger dealing animation for hero hole cards
         setDealingMyCards(true);
-        setTimeout(() => setDealingMyCards(false), 1200);
+        setTimeout(() => setDealingMyCards(false), 1600);
       }
       setLastPhase(tableState.phase);
     }
@@ -561,7 +561,7 @@ export default function Table() {
   useEffect(() => {
     if (myCardsLen > 0 && prevMyCardsLenRef.current === 0) {
       setDealingMyCards(true);
-      setTimeout(() => setDealingMyCards(false), 1200);
+      setTimeout(() => setDealingMyCards(false), 1600);
       if (!muted) playSound("deal");
     }
     prevMyCardsLenRef.current = myCardsLen;
