@@ -129,6 +129,16 @@ export async function getPlayerView(roomId: number, playerId: number) {
     playerInfo.set(p.id, { name: info.name || `Player ${p.seatIndex + 1}`, avatar: info.avatar });
   }));
 
+  // Build per-player lastAction map from actionTimeline (current phase)
+  const playerLastActionMap = new Map<number, { action: string; amount: number }>();
+  if (table.actionTimeline) {
+    for (const entry of table.actionTimeline) {
+      if (entry.phase === gs.phase) {
+        playerLastActionMap.set(entry.playerId, { action: entry.action, amount: entry.amount });
+      }
+    }
+  }
+
   const players = gs.players.map(p => ({
     id: p.id,
     seatIndex: p.seatIndex,
@@ -149,6 +159,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
         ? p.holeCards  // Show opponent cards only at showdown
         : [],          // Hide opponent cards during active betting rounds
     isSittingOut: false, // Active game players are never sitting out
+    lastAction: playerLastActionMap.get(p.id) || null, // Last action in current phase for UI display
   }));
 
   // Append sitting_out players (waiting for next hand) to the player list
@@ -168,6 +179,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
       avatar: info.avatar,
       holeCards: [],
       isSittingOut: true, // Waiting for next hand (Wait for Big Blind)
+      lastAction: null,
     };
   }));
   players.push(...sittingOutPlayers);

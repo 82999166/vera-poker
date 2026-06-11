@@ -1724,6 +1724,26 @@ export default function Table() {
                     </div>
                   )}
 
+                  {/* ===== Action Label above avatar (KKPOKER style) ===== */}
+                  {(() => {
+                    const la = (player as any).lastAction;
+                    if (!la || displayPhase === 'waiting' || displayPhase === 'showdown' || displayPhase === 'completed') return null;
+                    const actionStyleMap: Record<string, { bg: string; text: string; label: string }> = {
+                      fold:   { bg: 'bg-gray-600/90',    text: 'text-white',   label: t('table.fold') },
+                      check:  { bg: 'bg-blue-500/90',    text: 'text-white',   label: t('table.check') },
+                      call:   { bg: 'bg-emerald-500/90', text: 'text-white',   label: t('table.call') },
+                      raise:  { bg: 'bg-amber-500/90',   text: 'text-black',   label: la.amount > 0 ? `${t('table.raise')} ${fmtAmt(la.amount)}` : t('table.raise') },
+                      all_in: { bg: 'bg-red-500/90',     text: 'text-white',   label: t('table.allIn') },
+                    };
+                    const style = actionStyleMap[la.action];
+                    if (!style) return null;
+                    return (
+                      <div className={`mb-1 px-2 py-0.5 rounded-sm text-[9px] font-bold leading-tight whitespace-nowrap shadow-lg border border-white/20 ${style.bg} ${style.text}`}>
+                        {style.label}
+                      </div>
+                    );
+                  })()}
+
                   {/* Avatar circle with countdown ring */}
                   <div className={`relative w-10 h-10 rounded-full overflow-visible transition-all duration-200`}>
                     {/* SVG countdown ring - shown for active player */}
