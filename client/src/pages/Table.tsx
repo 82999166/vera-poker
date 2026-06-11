@@ -531,7 +531,7 @@ export default function Table() {
       if (["flop", "turn", "river"].includes(tableState.phase) && lastPhase !== "") {
         setAnimateCards(true);
         setTimeout(() => setAnimateCards(false), 1000);
-        if (!muted) playSound("cardFlip");
+        if (!muted) playSound("deal"); // Cards dealt from shoe sound
         // Detect all-in runout: if all non-folded players are all-in, show notification
         const activePlayers = (tableState.players || []).filter((p: any) => !p.isFolded && p.isActive !== false);
         const allInCount = activePlayers.filter((p: any) => p.isAllIn).length;
@@ -562,9 +562,10 @@ export default function Table() {
     if (myCardsLen > 0 && prevMyCardsLenRef.current === 0) {
       setDealingMyCards(true);
       setTimeout(() => setDealingMyCards(false), 1200);
+      if (!muted) playSound("deal");
     }
     prevMyCardsLenRef.current = myCardsLen;
-  }, [myCardsLen]);
+  }, [myCardsLen, muted, playSound]);
 
   // Detect winner - use handNumber + phase as primary detection to avoid polling race conditions
   // Problem solved: when same player wins consecutive hands with same amount, winnerKey doesn't change
@@ -1494,7 +1495,34 @@ export default function Table() {
         )}
         {/* Game content overlay */}
         <div className="absolute inset-0">
-            
+
+            {/* ===== Deck Shoe (card shoe) - top right of table ===== */}
+            <div className={`absolute top-[10%] right-[10%] z-5 pointer-events-none ${(dealingMyCards || animateCards) ? 'animate-deck-pulse' : ''}`}>
+              {/* 3D stacked deck visual */}
+              <div className="relative w-[30px] h-[42px]">
+                {/* Bottom cards (stack depth effect) */}
+                <div className="absolute top-[4px] left-[2px] w-[28px] h-[38px] rounded-[3px] bg-gradient-to-br from-[#8b1a1a] to-[#5c0e0e] border border-white/20 shadow-[0_2px_4px_rgba(0,0,0,0.5)]" />
+                <div className="absolute top-[2px] left-[1px] w-[28px] h-[38px] rounded-[3px] bg-gradient-to-br from-[#a82020] to-[#6b1111] border border-white/25 shadow-[0_2px_6px_rgba(0,0,0,0.4)]" />
+                {/* Top card */}
+                <div className="absolute top-0 left-0 w-[28px] h-[38px] rounded-[3px] bg-gradient-to-br from-[#d63031] to-[#b71c1c] border-[1.5px] border-white/70 shadow-[0_3px_8px_rgba(0,0,0,0.5)]">
+                  {/* Inner border pattern */}
+                  <div className="absolute inset-[2px] border border-white/40 rounded-[2px]" />
+                  {/* Diagonal pattern */}
+                  <div className="absolute inset-[4px] rounded-[1px] overflow-hidden" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.12) 4px, rgba(255,255,255,0.12) 5px)' }} />
+                  {/* Center VP logo */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-[14px] h-[14px] rounded-full bg-white/25 border border-white/40 flex items-center justify-center">
+                      <span className="text-[5px] font-black text-white">VP</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Glow effect when dealing */}
+                {(dealingMyCards || animateCards) && (
+                  <div className="absolute -inset-2 rounded-lg bg-gold/20 blur-md animate-pulse" />
+                )}
+              </div>
+            </div>
+
             {/* Pot display */}
             <div className="absolute top-[28%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
               <AnimatedPot amount={displayPot} />
@@ -1507,9 +1535,9 @@ export default function Table() {
             </div>
 
             {/* Community Cards - responsive size for small screens */}
-            <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5">
+            <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5" style={{ '--deal-comm-x': '120px', '--deal-comm-y': '-100px' } as React.CSSProperties}>
               {displayCommunity.map((card, i) => (
-                <CardView key={`h${handNumber}-c${i}`} card={card} className="!w-[44px] !h-[62px]" animate={animateCards} delay={i * 150} />
+                <CardView key={`h${handNumber}-c${i}`} card={card} className={`!w-[44px] !h-[62px]${animateCards ? ' animate-deal-community' : ''}`} animate={animateCards} delay={i * 150} />
               ))}
             </div>
 
@@ -1643,7 +1671,7 @@ export default function Table() {
                   {/* Player cards next to seat */}
                   {isHero && displayMyCards.length > 0 && (
                     <div className="flex flex-col items-center gap-0.5 mb-0.5">
-                      <div className="flex gap-1">
+                      <div className="flex gap-1" style={{ '--deal-from-x': '60px', '--deal-from-y': '-220px' } as React.CSSProperties}>
                         {displayMyCards.map((card, i) => (
                           <CardView key={`h${handNumber}-m${i}`} card={card} className={`!w-12 !h-[64px]${dealingMyCards ? (i === 0 ? ' animate-deal' : ' animate-deal-2') : ''}`} animate delay={i * 200} />
                         ))}
@@ -1711,9 +1739,9 @@ export default function Table() {
                   )}
                   {/* Show face-down cards for opponents during active hand (preflop/flop/turn/river) */}
                   {!isHero && displayPhase !== "showdown" && displayPhase !== "completed" && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && !(player as any).isSittingOut && (
-                    <div className="flex gap-0.5 mb-0.5">
-                      <CardView faceDown className="!w-9 !h-[50px]" />
-                      <CardView faceDown className="!w-9 !h-[50px]" />
+                    <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${rotatedIndex <= 2 ? '80px' : '-80px'}`, '--deal-from-y': `${rotatedIndex === 3 ? '-30px' : rotatedIndex >= 4 ? '-120px' : '-120px'}` } as React.CSSProperties}>
+                      <CardView faceDown className={`!w-9 !h-[50px]${dealingMyCards ? ' animate-deal' : ''}`} />
+                      <CardView faceDown className={`!w-9 !h-[50px]${dealingMyCards ? ' animate-deal-2' : ''}`} />
                     </div>
                   )}
 

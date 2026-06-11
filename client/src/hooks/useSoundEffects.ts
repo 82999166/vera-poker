@@ -69,8 +69,19 @@ function createNoiseSound(ctx: AudioContext, duration: number, volume: number = 
 // Sound synthesis functions
 const soundGenerators: Record<SoundEffect, (ctx: AudioContext) => void> = {
   deal: (ctx) => {
-    createNoiseSound(ctx, 0.08, 0.15);
-    createOscillatorSound(ctx, 2000, 0.05, "square", 0.05);
+    // Realistic card sliding out of shoe: quick "swish" + paper friction
+    // First card slide
+    createNoiseSound(ctx, 0.12, 0.18);
+    createOscillatorSound(ctx, 3200, 0.06, "sawtooth", 0.04);
+    // Second card slide (delayed)
+    setTimeout(() => {
+      createNoiseSound(ctx, 0.1, 0.15);
+      createOscillatorSound(ctx, 2800, 0.05, "sawtooth", 0.035);
+    }, 200);
+    // Subtle table tap when card lands
+    setTimeout(() => {
+      createOscillatorSound(ctx, 180, 0.03, "sine", 0.06);
+    }, 350);
   },
   bet: (ctx) => {
     // Realistic chip stack sound: multiple ceramic clicks + metallic ring
