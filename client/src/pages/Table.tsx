@@ -532,10 +532,17 @@ export default function Table() {
     if (tableState?.phase && tableState.phase !== lastPhase) {
       if (["flop", "turn", "river"].includes(tableState.phase) && lastPhase !== "") {
         // Only animate newly dealt cards (flop: 0-2, turn: 3, river: 4)
-        setAnimateFromIndex(prevCommunityLenRef.current);
+        const prevLen = prevCommunityLenRef.current;
+        setAnimateFromIndex(prevLen);
         setAnimateCards(true);
         setTimeout(() => setAnimateCards(false), 2000);
-        if (!muted) playSound("deal"); // Cards dealt from shoe sound
+        // Play individual card sound for each new card (matching animation delay of 450ms)
+        if (!muted) {
+          const newCardCount = tableState.phase === "flop" ? 3 : 1;
+          for (let ci = 0; ci < newCardCount; ci++) {
+            setTimeout(() => playSound("dealSingle"), ci * 450);
+          }
+        }
         // Detect all-in runout: if all non-folded players are all-in, show notification
         const activePlayers = (tableState.players || []).filter((p: any) => !p.isFolded && p.isActive !== false);
         const allInCount = activePlayers.filter((p: any) => p.isAllIn).length;
@@ -766,6 +773,16 @@ export default function Table() {
     const infoKey = `${info.playerId}-${info.timestamp}`;
     if (infoKey !== lastActionInfoRef.current && info.playerId !== user?.id) {
       lastActionInfoRef.current = infoKey;
+      // Play coin sound for opponent bet/call/raise actions
+      if (["bet", "call", "raise"].includes(info.action)) {
+        playSound("coinDrop");
+      } else if (info.action === "fold") {
+        playSound("fold");
+      } else if (info.action === "check") {
+        playSound("check");
+      } else if (info.action === "all_in" || info.action === "allin") {
+        playSound("allIn");
+      }
       announceAction(info.action, info.amount, info.playerName);
     }
   }, [(tableState as any)?.lastActionInfo, muted, user?.id, announceAction]);
@@ -842,8 +859,8 @@ export default function Table() {
         const amount = (variables as any)?.amount;
         if (action === "fold") { playSound("fold"); announceAction("fold"); }
         else if (action === "check") { playSound("check"); announceAction("check"); }
-        else if (action === "call") { playSound("call"); announceAction("call", amount); }
-        else if (action === "raise" || action === "bet") { playSound("bet"); announceAction("raise", amount); }
+        else if (action === "call") { playSound("coinDrop"); announceAction("call", amount); }
+        else if (action === "raise" || action === "bet") { playSound("coinDrop"); announceAction("raise", amount); }
         else if (action === "all_in" || action === "allin") { playSound("allIn"); announceAction("all_in", amount); }
       }
       // Note: Auto-switch after fold removed to prevent players being split across tables

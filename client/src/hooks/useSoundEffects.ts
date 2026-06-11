@@ -17,8 +17,10 @@ export type VoiceMode = "off" | "winner_only" | "all";
 
 // Sound effect types
 export type SoundEffect =
-  | "deal"        // 发牌
+  | "deal"        // 发牌（多张）
+  | "dealSingle"  // 单张发牌声
   | "bet"         // 下注/加注
+  | "coinDrop"    // 金币落下（投注时）
   | "check"       // 过牌
   | "fold"        // 弃牌
   | "call"        // 跟注
@@ -82,6 +84,16 @@ const soundGenerators: Record<SoundEffect, (ctx: AudioContext) => void> = {
     setTimeout(() => {
       createOscillatorSound(ctx, 180, 0.03, "sine", 0.06);
     }, 350);
+  },
+  dealSingle: (ctx) => {
+    // Single card sliding out: short crisp "swish" + table tap
+    createNoiseSound(ctx, 0.08, 0.12);
+    createOscillatorSound(ctx, 3500, 0.04, "sawtooth", 0.03);
+    // Card landing on felt
+    setTimeout(() => {
+      createOscillatorSound(ctx, 200, 0.025, "sine", 0.05);
+      createNoiseSound(ctx, 0.03, 0.06);
+    }, 120);
   },
   bet: (ctx) => {
     // Realistic chip stack sound: multiple ceramic clicks + metallic ring
@@ -154,6 +166,21 @@ const soundGenerators: Record<SoundEffect, (ctx: AudioContext) => void> = {
   turnAlert: (ctx) => {
     createOscillatorSound(ctx, 880, 0.1, "sine", 0.2);
     setTimeout(() => createOscillatorSound(ctx, 880, 0.1, "sine", 0.2), 150);
+  },
+  coinDrop: (ctx) => {
+    // Gold coin drop: metallic ring + bouncing resonance
+    createOscillatorSound(ctx, 1800, 0.12, "triangle", 0.15); // initial metallic hit
+    createNoiseSound(ctx, 0.06, 0.1); // impact noise
+    setTimeout(() => {
+      createOscillatorSound(ctx, 2400, 0.08, "sine", 0.1); // high ring
+      createNoiseSound(ctx, 0.03, 0.06);
+    }, 60);
+    setTimeout(() => {
+      createOscillatorSound(ctx, 2000, 0.05, "triangle", 0.08); // bounce
+    }, 130);
+    setTimeout(() => {
+      createOscillatorSound(ctx, 1600, 0.03, "sine", 0.05); // settle
+    }, 200);
   },
   chipMove: (ctx) => {
     createNoiseSound(ctx, 0.05, 0.08);
