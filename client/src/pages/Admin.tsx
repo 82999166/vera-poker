@@ -3809,6 +3809,10 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
   const [aiCsModel, setAiCsModel] = useState("");
   const [aiCsSystemPrompt, setAiCsSystemPrompt] = useState("");
   const [aiCsTemperature, setAiCsTemperature] = useState("0.7");
+  // Share card config
+  const [shareDefaultText, setShareDefaultText] = useState("");
+  const [shareBannerUrl, setShareBannerUrl] = useState("");
+  const [shareUploading, setShareUploading] = useState(false);
 
   useEffect(() => {
     if (configs) {
@@ -3828,12 +3832,16 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
       setAiCsModel(configMap.get("ai_cs_model") ?? "");
       setAiCsSystemPrompt(configMap.get("ai_cs_system_prompt") ?? "");
       setAiCsTemperature(configMap.get("ai_cs_temperature") ?? "0.7");
+      // Share card config
+      setShareDefaultText(configMap.get("share_default_text") ?? "");
+      setShareBannerUrl(configMap.get("share_banner_url") ?? "");
     }
   }, [configs]);
 
   const saveSystemSetting = (key: string, value: string) => {
-    // tg_bot_username and cs_tg_username need to be public for frontend
-    const isPublic = key === "tg_bot_username" || key === "cs_tg_username";
+    // public keys: accessible by frontend without auth
+    const publicKeys = ["tg_bot_username", "cs_tg_username", "share_default_text", "share_banner_url"];
+    const isPublic = publicKeys.includes(key);
     upsertMutation.mutate({ key, value, category: "system", label: key, valueType: "string", isPublic });
   };
 
@@ -4109,6 +4117,83 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
 
       {/* Registration Bonus Config */}
       <RegistrationBonusConfig at={at} configs={configs} saveSystemSetting={saveSystemSetting} />
+
+      {/* Share Card Config */}
+      <div className="glass rounded-xl p-4 space-y-3">
+        <h3 className="text-sm font-semibold">分享卡片配置</h3>
+        <p className="text-xs text-muted-foreground">配置玩家邀请好友时分享卡片的 Banner 图和默认文案，玩家可在分享前自行编辑文案。</p>
+
+        {/* Banner Image */}
+        <div>
+          <label className="text-xs text-muted-foreground">分享 Banner 图 <span className="text-muted-foreground/60">(建议 16:9，如 1280×720px)</span></label>
+          <div className="flex items-center gap-2 mt-1">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 5 * 1024 * 1024) { toast.error(at("toast.bannerSizeExceeded")); return; }
+                setShareUploading(true);
+                const reader = new FileReader();
+                reader.onload = async () => {
+                  try {
+                    const base64 = (reader.result as string).split(",")[1];
+                    const resp = await fetch("/api/upload/banner", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify({ fileName: file.name, fileData: base64, contentType: file.type }),
+                    });
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    const result = await resp.json();
+                    setShareBannerUrl(result.url);
+                    saveSystemSetting("share_banner_url", result.url);
+                    toast.success("Banner 已上传并保存！");
+                  } catch (err) {
+                    toast.error(at("toast.bannerUploadFailed") + ": " + (err instanceof Error ? err.message : ""));
+                  } finally {
+                    setShareUploading(false);
+                  }
+                };
+                reader.onerror = () => { setShareUploading(false); toast.error(at("toast.bannerReadFileFailed")); };
+                reader.readAsDataURL(file);
+              }}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-gold/20 file:text-gold"
+            />
+            {shareUploading && <span className="text-xs text-gold animate-pulse">上传中...</span>}
+          </div>
+          <input
+            type="text"
+            value={shareBannerUrl}
+            onChange={(e) => setShareBannerUrl(e.target.value)}
+            onBlur={() => { if (shareBannerUrl) saveSystemSetting("share_banner_url", shareBannerUrl); }}
+            placeholder="或直接输入图片 URL（如 CDN 地址）"
+            className="w-full mt-2 px-3 py-2 rounded-lg border border-border bg-background text-sm"
+          />
+          {shareBannerUrl && (
+            <img src={shareBannerUrl} alt="Banner 预览" className="mt-2 h-24 rounded-lg object-cover w-full" onError={(e) => (e.currentTarget.style.display='none')} />
+          )}
+        </div>
+
+        {/* Default Share Text */}
+        <div>
+          <label className="text-xs text-muted-foreground">默认分享文案 <span className="text-muted-foreground/60">(玩家可在分享前自行编辑)</span></label>
+          <textarea
+            value={shareDefaultText}
+            onChange={(e) => setShareDefaultText(e.target.value)}
+            rows={3}
+            placeholder="刚在 VeraPoker 玩德州，牌桌气氛很给力，不用下载点击下方立即开始，快点进来一起抓鱼。"
+            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm resize-none"
+          />
+          <button
+            onClick={() => saveSystemSetting("share_default_text", shareDefaultText)}
+            className="mt-2 px-4 py-1.5 rounded-lg bg-gold/20 text-gold text-xs font-medium hover:bg-gold/30 transition-colors"
+          >
+            保存文案
+          </button>
+        </div>
+      </div>
 
       {/* Supported Languages */}
       <div className="glass rounded-xl p-4">

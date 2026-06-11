@@ -4,6 +4,20 @@ import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 
+/** Build a lightweight device fingerprint from request headers */
+function buildDeviceFingerprint(req: Request): string {
+  const ua = req.headers["user-agent"] || "";
+  const lang = req.headers["accept-language"] || "";
+  // Use a hash-like combo: UA + language (IP is too volatile for mobile)
+  const raw = `${ua}|${lang}`;
+  // Simple djb2 hash
+  let hash = 5381;
+  for (let i = 0; i < raw.length; i++) {
+    hash = ((hash << 5) + hash) ^ raw.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(16);
+}
+
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
   return typeof value === "string" ? value : undefined;
@@ -42,6 +56,18 @@ export function registerOAuthRoutes(app: Express) {
         }).catch(() => {});
       }
 
+      // Device fingerprint check (skip for new users)
+      let isNewDevice = false;
+      if (!isNew) {
+        const fingerprint = buildDeviceFingerprint(req);
+        const result = await db.updateUserDeviceFingerprint(userInfo.openId, fingerprint);
+        isNewDevice = result.isNewDevice;
+      } else {
+        // Store fingerprint for new users
+        const fingerprint = buildDeviceFingerprint(req);
+        await db.updateUserDeviceFingerprint(userInfo.openId, fingerprint);
+      }
+
       const sessionToken = await sdk.createSessionToken(userInfo.openId, {
         name: userInfo.name || "",
         expiresInMs: ONE_YEAR_MS,
@@ -49,6 +75,10 @@ export function registerOAuthRoutes(app: Express) {
 
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      // Signal new device login to frontend via short-lived cookie
+      if (isNewDevice) {
+        res.cookie("vera_new_device", "1", { ...cookieOptions, maxAge: 60 * 1000 }); // expires in 60s
+      }
 
       res.redirect(302, "/");
     } catch (error) {

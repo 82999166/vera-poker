@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useI18n, detectLocale, applyLocale } from "@/lib/i18n";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -23,6 +23,46 @@ import Tutorial from "./pages/Tutorial";
 import ReplayList from "./pages/ReplayList";
 import ReplayPlayer from "./pages/ReplayPlayer";
 import { useClickSound } from "./hooks/useClickSound";
+import { trpc } from "./lib/trpc";
+
+/** 换设备登录提示弹窗 */
+function NewDeviceAlert() {
+  const [show, setShow] = useState(false);
+  const [checked, setChecked] = useState(false);
+  const meQuery = trpc.auth.me.useQuery(undefined, { retry: false, refetchOnWindowFocus: false });
+  const clearCookieMutation = trpc.auth.clearNewDeviceCookie.useMutation();
+
+  useEffect(() => {
+    if (checked) return;
+    const user = meQuery.data as any;
+    if (user && user.newDeviceLogin) {
+      setShow(true);
+      setChecked(true);
+      clearCookieMutation.mutate();
+    } else if (user && !user.newDeviceLogin) {
+      setChecked(true);
+    }
+  }, [meQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!show) return null;
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 mx-4 max-w-xs w-full shadow-2xl">
+        <h3 className="text-white font-bold text-center text-base mb-3">提示</h3>
+        <p className="text-white/80 text-sm text-center leading-relaxed mb-5">
+          您的账号在另一台设备上登录。<br />如非本人操作请联系客服处理！
+        </p>
+        <button
+          onClick={() => setShow(false)}
+          className="w-full py-2.5 rounded-xl font-semibold text-sm text-white"
+          style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)" }}
+        >
+          确定
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function MobileRouter() {
   return (
@@ -61,25 +101,18 @@ function AppContent() {
   const { locale } = useI18n();
 
   // Global TG language sync: ensure TG Mini App users always see their language.
-  // This handles the case where the user is already authenticated (session cookie valid)
-  // and Home.tsx Step 2 is skipped. Also handles late TG SDK initialization.
   useEffect(() => {
     const syncTgLanguage = () => {
-      // Don't override if user has manually set a language preference
       const manualLocale = localStorage.getItem("vera-locale");
       if (manualLocale) return;
-      // Only run in TG Mini App environment
       const tg = (window as any).Telegram?.WebApp;
       if (!tg?.initDataUnsafe?.user?.language_code) return;
-      // Re-detect locale (will pick up TG language_code)
       const detected = detectLocale();
       if (detected !== locale) {
         applyLocale(detected);
       }
     };
-    // Run immediately
     syncTgLanguage();
-    // Also retry after a short delay in case TG SDK initializes late
     const timer = setTimeout(syncTgLanguage, 300);
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -89,24 +122,23 @@ function AppContent() {
   const isAdmin = window.location.pathname.startsWith("/admin");
   // Table page uses full-screen layout (no max-width container)
   const isTable = window.location.pathname.startsWith("/table/");
-  
+
   if (isStaffLogin) {
     return <StaffLogin key={locale} />;
   }
-  
+
   if (isAdmin) {
     return <Admin key={locale} />;
   }
 
   if (isTable) {
-    // Full-screen layout for game table - no max-width, no overflow-hidden wrapper
     return (
       <div className="w-full h-full" style={{ height: '100dvh', overflow: 'hidden' }}>
         <MobileRouter key={locale} />
       </div>
     );
   }
-  
+
   return (
     <MobileContainer>
       <MobileRouter key={locale} />
@@ -121,6 +153,7 @@ function App() {
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster position="top-center" duration={1000} />
+          <NewDeviceAlert />
           <AppContent />
         </TooltipProvider>
       </ThemeProvider>

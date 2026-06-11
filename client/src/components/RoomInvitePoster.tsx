@@ -1,19 +1,20 @@
 /**
  * RoomInvitePoster — KKPOKER-style share card
- * Layout: Brand Banner (top) → Room info card → "开始游戏" CTA button
+ * Layout: Brand Banner (top, dynamic from admin config) → Editable share text → Room info → "开始游戏" CTA
  */
 import { useState } from "react";
 import { t } from "@/lib/i18n";
 import { toast } from "sonner";
-import { Share2, X, Copy, Gamepad2 } from "lucide-react";
+import { Share2, X, Copy, Gamepad2, Pencil, Check } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
 interface RoomInvitePosterProps {
   room: {
-    id: number;
+    id?: number;
     name: string;
     smallBlind: string;
     bigBlind: string;
-    minBuyIn: string;
+    minBuyIn?: string;
     maxBuyIn: string;
     maxPlayers: number;
     totalRounds?: number | null;
@@ -24,7 +25,8 @@ interface RoomInvitePosterProps {
   onClose: () => void;
 }
 
-const BANNER_URL = "/manus-storage/vera-poker-banner_dd9e0bad.png";
+const DEFAULT_BANNER_URL = "/manus-storage/vera-poker-banner_dd9e0bad.png";
+const DEFAULT_SHARE_TEXT = "刚在 VeraPoker 玩德州，牌桌气氛很给力，不用下载点击下方立即开始，快点进来一起抓鱼。";
 
 function formatAmount(val: string | number) {
   const n = parseFloat(String(val));
@@ -34,6 +36,19 @@ function formatAmount(val: string | number) {
 
 export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvitePosterProps) {
   const [copied, setCopied] = useState(false);
+  const [editingText, setEditingText] = useState(false);
+  const [shareText, setShareText] = useState<string | null>(null);
+
+  // Load public configs (share_banner_url, share_default_text)
+  const { data: publicConfigs } = trpc.config.getPublic.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const bannerUrl = (publicConfigs as any)?.share_banner_url || DEFAULT_BANNER_URL;
+  const configText = (publicConfigs as any)?.share_default_text || DEFAULT_SHARE_TEXT;
+  // Use local edits if any, otherwise fall back to config
+  const displayText = shareText !== null ? shareText : configText;
 
   const inviteLink = `https://t.me/VeraPokerBot?start=room_${inviteCode}`;
 
@@ -49,11 +64,9 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
   };
 
   const handleShareTG = () => {
-    const shareText = encodeURIComponent(
-      `🃏 刚在 VeraPoker 玩德州，牌桌气氛很给力，不用下载点击下方立即开始，快点进来一起抓鱼。`
-    );
+    const text = encodeURIComponent(displayText);
     window.open(
-      `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${shareText}`,
+      `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${text}`,
       "_blank"
     );
   };
@@ -74,22 +87,54 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
           <X className="w-4 h-4" />
         </button>
 
-        {/* ── Brand Banner ── */}
+        {/* ── Brand Banner (dynamic from admin config) ── */}
         <div className="relative w-full overflow-hidden" style={{ aspectRatio: "16/9" }}>
           <img
-            src={BANNER_URL}
+            src={bannerUrl}
             alt="VeraPoker"
             className="w-full h-full object-cover"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_BANNER_URL; }}
           />
           {/* Subtle bottom gradient overlay for smooth transition */}
           <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#1a1a2e] to-transparent" />
         </div>
 
-        {/* ── Share message text ── */}
-        <div className="px-4 pt-1 pb-3">
-          <p className="text-white/80 text-sm leading-relaxed">
-            刚在 VeraPoker 玩德州，牌桌气氛很给力，不用下载点击下方立即开始，快点进来一起抓鱼。
-          </p>
+        {/* ── Share message text (editable by player) ── */}
+        <div className="px-4 pt-2 pb-2">
+          {editingText ? (
+            <div className="relative">
+              <textarea
+                value={displayText}
+                onChange={(e) => setShareText(e.target.value)}
+                rows={3}
+                autoFocus
+                className="w-full px-3 py-2 rounded-xl bg-white/8 border border-white/20 text-white/90 text-sm resize-none focus:outline-none focus:border-green-500/60"
+              />
+              <button
+                onClick={() => setEditingText(false)}
+                className="absolute top-2 right-2 w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 hover:bg-green-500/30 transition-colors"
+                title="完成编辑"
+              >
+                <Check className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="relative group">
+              <p className="text-white/80 text-sm leading-relaxed pr-7">
+                {displayText}
+              </p>
+              <button
+                onClick={() => {
+                  if (shareText === null) setShareText(configText);
+                  setEditingText(true);
+                }}
+                className="absolute top-0 right-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white/40 hover:text-white/80 transition-all opacity-60 hover:opacity-100"
+                title="编辑分享文案"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Room info strip ── */}

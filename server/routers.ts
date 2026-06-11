@@ -44,7 +44,19 @@ export const appRouter = router({
   system: systemRouter,
   
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    clearNewDeviceCookie: publicProcedure.mutation(({ ctx }) => {
+      // Clear the short-lived new device cookie
+      ctx.res.clearCookie("vera_new_device", { path: "/" });
+      return { success: true };
+    }),
+    me: publicProcedure.query(opts => {
+      const user = opts.ctx.user;
+      if (!user) return null;
+      // Check if this is a new device login (short-lived cookie set by OAuth callback)
+      const cookies = opts.ctx.req.headers.cookie || "";
+      const newDeviceMatch = cookies.match(/vera_new_device=1/);
+      return { ...user, newDeviceLogin: !!newDeviceMatch };
+    }),
     // Admin session check - returns adminUser info if logged in via admin_users table
     adminMe: publicProcedure.query(opts => opts.ctx.adminUser),
     adminLogout: publicProcedure.mutation(({ ctx }) => {

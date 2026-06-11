@@ -1667,3 +1667,19 @@ export async function checkAndUnlockBonus(userId: number): Promise<boolean> {
   }
   return false;
 }
+
+// ==================== DEVICE FINGERPRINT ====================
+/**
+ * Update device fingerprint for a user. Returns true if this is a NEW device (different from stored).
+ */
+export async function updateUserDeviceFingerprint(openId: string, newFingerprint: string): Promise<{ isNewDevice: boolean; oldFingerprint: string | null }> {
+  const db = await getDb();
+  if (!db) return { isNewDevice: false, oldFingerprint: null };
+  const [existing] = await db.select({ id: users.id, deviceFingerprint: users.deviceFingerprint }).from(users).where(eq(users.openId, openId)).limit(1);
+  if (!existing) return { isNewDevice: false, oldFingerprint: null };
+  const oldFingerprint = existing.deviceFingerprint ?? null;
+  const isNewDevice = !!oldFingerprint && oldFingerprint !== newFingerprint;
+  // Always update to the latest fingerprint
+  await db.update(users).set({ deviceFingerprint: newFingerprint } as any).where(eq(users.openId, openId));
+  return { isNewDevice, oldFingerprint };
+}
