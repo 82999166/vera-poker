@@ -1,6 +1,7 @@
 /**
  * RoomInvitePoster — KKPOKER-style share card
  * Layout: Brand Banner (top, dynamic from admin config) → Editable share text → Room info → "开始游戏" CTA
+ * 分享方式：通过 Bot API 发送带 InlineKeyboard "开始游戏" 按钮的消息给自己，再转发给好友
  */
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
@@ -25,7 +26,7 @@ interface RoomInvitePosterProps {
   onClose: () => void;
 }
 
-const DEFAULT_BANNER_URL = "/manus-storage/vera-poker-banner_dd9e0bad.png";
+const DEFAULT_BANNER_URL = "/manus-storage/vera-poker-banner_59247184.png";
 
 function formatAmount(val: string | number) {
   const n = parseFloat(String(val));
@@ -35,9 +36,9 @@ function formatAmount(val: string | number) {
 
 export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvitePosterProps) {
   const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
   const [editingText, setEditingText] = useState(false);
   const [shareText, setShareText] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   // Load public configs (share_banner_url, share_default_text)
   const { data: publicConfigs } = trpc.config.getPublic.useQuery(undefined, {
@@ -54,25 +55,40 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
   // Use local edits if any, otherwise fall back to config
   const displayText = shareText !== null ? shareText : defaultShareText;
 
+  // 房间邀请链接（通过 Bot 进入房间）
   const inviteLink = `https://t.me/VeraPokerBot?start=room_${inviteCode}`;
+
+  const shareWithBotMutation = trpc.agent.shareWithBot.useMutation();
 
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink);
-      setCopied(true);
       toast.success(t("common.copied"));
-      setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error(t("common.copyFailed"));
     }
   };
 
-  const handleShareTG = () => {
-    const text = encodeURIComponent(displayText);
-    window.open(
-      `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${text}`,
-      "_blank"
-    );
+  // 通过 Bot 发送带"开始游戏"按钮的分享消息给自己，再转发给好友
+  const handleShareTG = async () => {
+    setIsSending(true);
+    try {
+      await shareWithBotMutation.mutateAsync({
+        shareText: displayText,
+        inviteLink,
+        startButtonText: t("agent.startGameBtn") || "开始游戏 🎮",
+      });
+      toast.success(t("agent.shareSuccess") || "分享消息已发送到您的 TG，请转发给好友🚀");
+    } catch {
+      // Fallback: 旧的 t.me/share 方式
+      const text = encodeURIComponent(displayText);
+      window.open(
+        `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${text}`,
+        "_blank"
+      );
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleStartGame = () => {
@@ -176,13 +192,18 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
             开始游戏
           </button>
 
-          {/* Secondary: Share to TG */}
+          {/* Secondary: Share via Bot (带 InlineKeyboard 按钮) */}
           <button
             onClick={handleShareTG}
-            className="w-full mt-2 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-white/8 border border-white/15 text-white/70 hover:text-white transition-colors active:scale-[0.97]"
+            disabled={isSending}
+            className="w-full mt-2 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-white/8 border border-white/15 text-white/70 hover:text-white transition-colors active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <Share2 className="w-4 h-4" />
-            {copied ? t("common.copied") : t("agent.shareButton")}
+            {isSending ? (
+              <div className="w-4 h-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Share2 className="w-4 h-4" />
+            )}
+            {isSending ? (t("agent.shareSending") || "发送中...") : t("agent.shareButton")}
           </button>
         </div>
       </div>

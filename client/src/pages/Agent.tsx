@@ -17,6 +17,7 @@ export default function Agent() {
   const [showPoster, setShowPoster] = useState(false);
   const [editingShareText, setEditingShareText] = useState(false);
   const [customShareText, setCustomShareText] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   // Load share config from backend
   const { data: publicConfigs } = trpc.config.getPublic.useQuery(undefined, { staleTime: 60_000 });
@@ -28,6 +29,8 @@ export default function Agent() {
     : t("agent.shareText");
   const displayShareText = customShareText !== null ? customShareText : defaultShareText;
 
+  const shareWithBotMutation = trpc.agent.shareWithBot.useMutation();
+
   const copyLink = () => {
     if (dashboard?.inviteLink) {
       navigator.clipboard.writeText(dashboard.inviteLink);
@@ -35,12 +38,24 @@ export default function Agent() {
     }
   };
 
-  const shareToTG = () => {
-    if (dashboard?.inviteLink) {
+  // 通过 Bot 发送带『开始游戏』按钮的分享消息给自己，再由自己转发给好友
+  const shareToTG = async () => {
+    if (!dashboard?.inviteLink) return;
+    setIsSending(true);
+    try {
+      await shareWithBotMutation.mutateAsync({
+        shareText: displayShareText,
+        inviteLink: dashboard.inviteLink,
+        startButtonText: t("agent.startGameBtn") || "开始游戏 🎮",
+      });
+      toast.success(t("agent.shareSuccess") || "分享消息已发送到您的 TG，请转发给好友🚀");
+    } catch (err: any) {
+      // 如果 Bot 未配置或失败，回退到旧的 t.me/share 方式
       const text = encodeURIComponent(displayShareText);
       const url = encodeURIComponent(dashboard.inviteLink);
-      const tgShareUrl = `https://t.me/share/url?url=${url}&text=${text}`;
-      window.open(tgShareUrl, "_blank");
+      window.open(`https://t.me/share/url?url=${url}&text=${text}`, "_blank");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -149,11 +164,16 @@ export default function Agent() {
           <div className="px-4 pb-4">
             <button
               onClick={shareToTG}
-              className="w-full py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-[0.97]"
+              disabled={isSending}
+              className="w-full py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-70 disabled:cursor-not-allowed"
               style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)", color: "#fff", boxShadow: "0 4px 20px rgba(34,197,94,0.4)" }}
             >
-              <Gamepad2 className="w-5 h-5" />
-              {t("agent.shareButton")}
+              {isSending ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Gamepad2 className="w-5 h-5" />
+              )}
+              {isSending ? (t("agent.shareSending") || "发送中...") : t("agent.shareButton")}
             </button>
           </div>
         </div>

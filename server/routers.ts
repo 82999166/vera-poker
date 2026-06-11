@@ -900,6 +900,73 @@ export const appRouter = router({
     commissions: protectedProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ ctx, input }) => {
       return db.getAgentCommissions(ctx.user.id, input.page, input.limit);
     }),
+    // 通过 Bot API 发送带 InlineKeyboard 的分享消息给当前用户，用户再转发给好友
+    shareWithBot: protectedProcedure
+      .input(z.object({
+        shareText: z.string().max(1000),
+        inviteLink: z.string().url(),
+        startButtonText: z.string().max(64).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const botToken = await db.getConfigValue("tg_bot_token");
+        if (!botToken) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bot token not configured" });
+        const user = await db.getUserById(ctx.user.id);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+        const tgId = user.tgId;
+        if (!tgId) throw new TRPCError({ code: "BAD_REQUEST", message: "No Telegram account linked" });
+        const buttonText = input.startButtonText || "开始游戏 🎮";
+        const bannerUrl = await db.getConfigValue("share_banner_url");
+        const apiBase = `https://api.telegram.org/bot${botToken}`;
+        let sent = false;
+        // 尝试发送带图片的消息（sendPhoto）
+        if (bannerUrl) {
+          // 如果是相对路径，拼接完整 URL
+          const absoluteBannerUrl = bannerUrl.startsWith("http")
+            ? bannerUrl
+            : `https://game.verapoker.com${bannerUrl}`;
+          const photoResp = await fetch(`${apiBase}/sendPhoto`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: tgId,
+              photo: absoluteBannerUrl,
+              caption: input.shareText,
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: buttonText, url: input.inviteLink }
+                ]]
+              }
+            })
+          });
+          const photoResult = await photoResp.json() as { ok: boolean; description?: string };
+          if (photoResult.ok) {
+            sent = true;
+          } else {
+            console.warn("[shareWithBot] sendPhoto failed:", photoResult.description, "- falling back to sendMessage");
+          }
+        }
+        // Fallback: 纯文字消息
+        if (!sent) {
+          const msgResp = await fetch(`${apiBase}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: tgId,
+              text: input.shareText,
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: buttonText, url: input.inviteLink }
+                ]]
+              }
+            })
+          });
+          const msgResult = await msgResp.json() as { ok: boolean; description?: string };
+          if (!msgResult.ok) {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: msgResult.description || "Failed to send message" });
+          }
+        }
+        return { success: true };
+      }),
   }),
 
   // ==================== GAME ====================
