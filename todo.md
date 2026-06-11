@@ -593,3 +593,9 @@
 - [x] 分享链接带邀请码自动绑定代理关系
 - [x] i18n 添加 agent.startGameBtn / agent.shareSuccess 翻译（12种语言）
 - [x] 旧版 TG 不支持 shareMessage 时 fallback 到 t.me/share/url
+
+## 2026-06-12 牌型显示字体放大
+
+- [x] 实时牌力标签（卡顺听牌等）字体从 9px 放大到 13px，内边距加大
+- [x] Showdown 自己牌型标签从 9px 放大到 13px
+- [x] 对手牌型标签从 8px 放大到 12px

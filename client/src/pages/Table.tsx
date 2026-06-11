@@ -1652,7 +1652,7 @@ export default function Table() {
                       {(displayPhase === "flop" || displayPhase === "turn" || displayPhase === "river") && displayMyCards.length >= 2 && displayCommunity.length >= 3 && (() => {
                         const strengthKey = calcHandStrengthKey(displayMyCards, displayCommunity);
                         return strengthKey ? (
-                          <div className="px-1.5 py-0.5 rounded-full text-[9px] font-bold leading-none bg-black/60 border border-gold/40 text-gold shadow-[0_0_6px_rgba(212,175,55,0.3)] whitespace-nowrap">
+                          <div className="px-2.5 py-1 rounded-full text-[13px] font-bold leading-none bg-black/60 border border-gold/40 text-gold shadow-[0_0_6px_rgba(212,175,55,0.3)] whitespace-nowrap">
                             {t(strengthKey)}
                           </div>
                         ) : null;
@@ -1665,7 +1665,7 @@ export default function Table() {
                         const handKey = HAND_RANK_MAP[sp.handDescription];
                         const handName = handKey ? t(handKey) : sp.handDescription;
                         return (
-                          <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold border backdrop-blur-sm transition-all duration-300 animate-in fade-in slide-in-from-bottom-1 ${
+                          <div className={`px-2.5 py-1 rounded-full text-[13px] font-bold border backdrop-blur-sm transition-all duration-300 ${
                             isWinner
                               ? 'bg-gold/20 border-gold/50 text-gold shadow-[0_0_8px_rgba(234,179,8,0.3)]'
                               : 'bg-black/40 border-white/20 text-white/80'
@@ -1698,7 +1698,7 @@ export default function Table() {
                         const handKey = HAND_RANK_MAP[sp.handDescription];
                         const handName = handKey ? t(handKey) : sp.handDescription;
                         return (
-                          <div className={`mt-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold border backdrop-blur-sm transition-all duration-300 animate-in fade-in slide-in-from-bottom-1 ${
+                          <div className={`mt-0.5 px-2 py-0.5 rounded-full text-[12px] font-bold border backdrop-blur-sm transition-all duration-300 ${
                             isWinner
                               ? 'bg-gold/20 border-gold/50 text-gold shadow-[0_0_8px_rgba(234,179,8,0.3)]'
                               : 'bg-black/40 border-white/20 text-white/80'
