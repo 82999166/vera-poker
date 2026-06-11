@@ -912,8 +912,16 @@ export const appRouter = router({
         if (!botToken) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bot token not configured" });
         const user = await db.getUserById(ctx.user.id);
         if (!user) throw new TRPCError({ code: "NOT_FOUND" });
-        const tgId = user.tgId;
-        if (!tgId) throw new TRPCError({ code: "BAD_REQUEST", message: "No Telegram account linked" });
+        // tgId 可能为 null，尝试从 openId 提取（格式: tg_123456789）
+        let tgId = user.tgId;
+        if (!tgId && user.openId && user.openId.startsWith("tg_")) {
+          tgId = user.openId.replace("tg_", "");
+          console.log("[shareWithBot] Extracted tgId from openId:", tgId);
+        }
+        if (!tgId) {
+          console.error("[shareWithBot] No tgId for user:", ctx.user.id, "openId:", user.openId);
+          throw new TRPCError({ code: "BAD_REQUEST", message: "No Telegram account linked. Please login via Telegram." });
+        }
         const buttonText = input.startButtonText || "开始游戏 🎮";
         const bannerUrl = await db.getConfigValue("share_banner_url");
         const apiBase = `https://api.telegram.org/bot${botToken}`;

@@ -45,15 +45,18 @@ export default function Agent() {
     try {
       await shareWithBotMutation.mutateAsync({
         shareText: displayShareText,
-        inviteLink: dashboard.inviteLink,
+        inviteLink: dashboard.inviteLink, // 已含邀请码，新用户点击后自动绑定代理关系
         startButtonText: t("agent.startGameBtn") || "开始游戏 🎮",
       });
-      toast.success(t("agent.shareSuccess") || "分享消息已发送到您的 TG，请转发给好友🚀");
+      toast.success(t("agent.shareSuccess") || "✅ 分享消息已发到您的 TG，转发给好友即可！");
     } catch (err: any) {
-      // 如果 Bot 未配置或失败，回退到旧的 t.me/share 方式
-      const text = encodeURIComponent(displayShareText);
-      const url = encodeURIComponent(dashboard.inviteLink);
-      window.open(`https://t.me/share/url?url=${url}&text=${text}`, "_blank");
+      // 显示真实错误，不再静默 fallback
+      const msg = err?.message || err?.data?.message || "";
+      if (msg.includes("Telegram")) {
+        toast.error("请先用 Telegram 账号登录后再分享");
+      } else {
+        toast.error("发送失败：" + (msg || "请稍后重试"));
+      }
     } finally {
       setIsSending(false);
     }

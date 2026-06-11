@@ -79,13 +79,14 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
         startButtonText: t("agent.startGameBtn") || "开始游戏 🎮",
       });
       toast.success(t("agent.shareSuccess") || "分享消息已发送到您的 TG，请转发给好友🚀");
-    } catch {
-      // Fallback: 旧的 t.me/share 方式
-      const text = encodeURIComponent(displayText);
-      window.open(
-        `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${text}`,
-        "_blank"
-      );
+    } catch (err: any) {
+      // 显示真实错误
+      const msg = err?.message || err?.data?.message || "";
+      if (msg.includes("Telegram")) {
+        toast.error("请先用 Telegram 账号登录后再分享");
+      } else {
+        toast.error("发送失败：" + (msg || "请稍后重试"));
+      }
     } finally {
       setIsSending(false);
     }
