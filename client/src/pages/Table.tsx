@@ -1727,6 +1727,14 @@ export default function Table() {
                   {/* ===== Action Label above avatar (KKPOKER style) ===== */}
                   {(() => {
                     const la = (player as any).lastAction;
+                    // Folded players always show fold label regardless of phase
+                    if (player.isFolded) {
+                      return (
+                        <div className={`mb-1 px-2.5 py-1 rounded text-[12px] font-extrabold leading-tight whitespace-nowrap shadow-xl border border-white/40 bg-gray-600/90 text-white`} style={{textShadow:'0 1px 3px rgba(0,0,0,0.6)', letterSpacing:'0.02em'}}>
+                          {t('table.fold')}
+                        </div>
+                      );
+                    }
                     if (!la || displayPhase === 'waiting' || displayPhase === 'showdown' || displayPhase === 'completed') return null;
                     const actionStyleMap: Record<string, { bg: string; text: string; label: string }> = {
                       fold:   { bg: 'bg-gray-600/90',    text: 'text-white',   label: t('table.fold') },
@@ -1774,12 +1782,12 @@ export default function Table() {
                       isCurrentTurn ? "border-gold shadow-[0_0_12px_rgba(212,175,55,0.6)]" :
                       isHero ? "border-truth-blue/60" :
                       (player as any).isSittingOut ? "border-amber-500/40 opacity-70" :
-                      player.isFolded ? "border-white/10 opacity-40" : "border-white/30"
+                      player.isFolded ? "border-white/10 opacity-60" : "border-white/30"
                     }`}>
                       <img
                         src={(player as any).avatar || DEFAULT_AVATAR}
                         alt=""
-                        className="w-full h-full object-cover"
+                        className={`w-full h-full object-cover ${player.isFolded ? "grayscale opacity-60" : ""}`}
                         onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_AVATAR; }}
                       />
                     </div>
