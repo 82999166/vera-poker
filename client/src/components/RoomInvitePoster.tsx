@@ -27,6 +27,7 @@ interface RoomInvitePosterProps {
 }
 
 const DEFAULT_BANNER_URL = "/manus-storage/vera-poker-banner_59247184.png";
+// Telegram CDN banner URL (avoid /manus-storage/ 307 redirect issues in TG WebView)
 
 function formatAmount(val: string | number) {
   const n = parseFloat(String(val));
@@ -58,7 +59,10 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
   // 房间邀请链接（通过 Bot 进入房间）
   const inviteLink = `https://t.me/VeraPokerBot?start=room_${inviteCode}`;
 
-  const shareWithBotMutation = trpc.agent.shareWithBot.useMutation();
+  const prepareShareMutation = trpc.agent.prepareShareMessage.useMutation();
+  // Banner 图通过 Telegram CDN URL 显示
+  const { data: bannerData } = trpc.agent.getBannerUrl.useQuery(undefined, { staleTime: 300_000 });
+  const tgBannerUrl = bannerData?.url;
 
   const handleCopyLink = async () => {
     try {
@@ -69,18 +73,32 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
     }
   };
 
-  // 通过 Bot 发送带"开始游戏"按钮的分享消息给自己，再转发给好友
+  // 通过 Telegram WebApp.shareMessage 弹出联系人选择器，直接分享给好友
   const handleShareTG = async () => {
     setIsSending(true);
     try {
-      await shareWithBotMutation.mutateAsync({
+      // Step 1: 后端调用 savePreparedInlineMessage 获取 prepared_message_id
+      const { preparedMessageId } = await prepareShareMutation.mutateAsync({
         shareText: displayText,
         inviteLink,
         startButtonText: t("agent.startGameBtn") || "开始游戏 🎮",
       });
-      toast.success(t("agent.shareSuccess") || "分享消息已发送到您的 TG，请转发给好友🚀");
+
+      // Step 2: 调用 Telegram WebApp SDK 弹出联系人选择器
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.shareMessage) {
+        tg.shareMessage(preparedMessageId, (sent: boolean) => {
+          if (sent) {
+            toast.success(t("agent.shareSuccess") || "✅ 分享成功！");
+          }
+        });
+      } else {
+        // Fallback: 旧版 TG 不支持 shareMessage
+        const text = encodeURIComponent(displayText);
+        const url = encodeURIComponent(inviteLink);
+        window.open(`https://t.me/share/url?url=${url}&text=${text}`, "_blank");
+      }
     } catch (err: any) {
-      // 显示真实错误
       const msg = err?.message || err?.data?.message || "";
       if (msg.includes("Telegram")) {
         toast.error("请先用 Telegram 账号登录后再分享");
@@ -108,10 +126,10 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
           <X className="w-4 h-4" />
         </button>
 
-        {/* ── Brand Banner (dynamic from admin config) ── */}
+        {/* ── Brand Banner (from Telegram CDN or fallback) ── */}
         <div className="relative w-full overflow-hidden" style={{ aspectRatio: "16/9" }}>
           <img
-            src={bannerUrl}
+            src={tgBannerUrl || bannerUrl}
             alt="VeraPoker"
             className="w-full h-full object-cover"
             onError={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_BANNER_URL; }}

@@ -918,6 +918,84 @@ export const appRouter = router({
         return { url: null };
       }),
 
+    // 准备分享消息：调用 savePreparedInlineMessage，返回 prepared_message_id
+    // 前端用 Telegram.WebApp.shareMessage(id) 弹出联系人选择器
+    prepareShareMessage: protectedProcedure
+      .input(z.object({
+        shareText: z.string().max(1000),
+        inviteLink: z.string(),
+        startButtonText: z.string().max(64).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const botToken = await db.getConfigValue("tg_bot_token");
+        if (!botToken) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bot token not configured" });
+        const user = await db.getUserById(ctx.user.id);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+        // 获取用户 tgId（用于 savePreparedInlineMessage 的 user_id 参数）
+        let tgId = user.tgId;
+        if (!tgId && user.openId && user.openId.startsWith("tg_")) {
+          tgId = user.openId.replace("tg_", "");
+        }
+        if (!tgId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "No Telegram account linked. Please login via Telegram." });
+        }
+        const buttonText = input.startButtonText || "开始游戏 🎮";
+        const bannerFileId = await db.getConfigValue("share_banner_file_id");
+        const apiBase = `https://api.telegram.org/bot${botToken}`;
+
+        // 构建 InlineQueryResult
+        let result: any;
+        if (bannerFileId) {
+          // 带图片的分享消息
+          result = {
+            type: "photo",
+            id: "share_" + Date.now(),
+            photo_file_id: bannerFileId,
+            caption: input.shareText,
+            reply_markup: {
+              inline_keyboard: [[
+                { text: buttonText, url: input.inviteLink }
+              ]]
+            }
+          };
+        } else {
+          // 纯文字分享消息
+          result = {
+            type: "article",
+            id: "share_" + Date.now(),
+            title: "VeraPoker",
+            input_message_content: {
+              message_text: input.shareText,
+            },
+            reply_markup: {
+              inline_keyboard: [[
+                { text: buttonText, url: input.inviteLink }
+              ]]
+            }
+          };
+        }
+
+        // 调用 savePreparedInlineMessage
+        const resp = await fetch(`${apiBase}/savePreparedInlineMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: parseInt(tgId),
+            result: result,
+            allow_user_chats: true,
+            allow_bot_chats: true,
+            allow_group_chats: true,
+            allow_channel_chats: true,
+          })
+        });
+        const data = await resp.json() as { ok: boolean; result?: { id: string; expiration_date: number }; description?: string };
+        if (!data.ok) {
+          console.error("[prepareShareMessage] savePreparedInlineMessage failed:", data.description);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: data.description || "Failed to prepare share message" });
+        }
+        return { preparedMessageId: data.result!.id };
+      }),
+
     shareWithBot: protectedProcedure
       .input(z.object({
         shareText: z.string().max(1000),

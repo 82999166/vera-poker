@@ -31,7 +31,7 @@ export default function Agent() {
     : t("agent.shareText");
   const displayShareText = customShareText !== null ? customShareText : defaultShareText;
 
-  const shareWithBotMutation = trpc.agent.shareWithBot.useMutation();
+  const prepareShareMutation = trpc.agent.prepareShareMessage.useMutation();
 
   const copyLink = () => {
     if (dashboard?.inviteLink) {
@@ -40,19 +40,34 @@ export default function Agent() {
     }
   };
 
-  // 通过 Bot 发送带『开始游戏』按钮的分享消息给自己，再由自己转发给好友
+  // 通过 Telegram WebApp.shareMessage 弹出联系人选择器，直接分享给好友
   const shareToTG = async () => {
     if (!dashboard?.inviteLink) return;
     setIsSending(true);
     try {
-      await shareWithBotMutation.mutateAsync({
+      // Step 1: 后端调用 savePreparedInlineMessage 获取 prepared_message_id
+      const { preparedMessageId } = await prepareShareMutation.mutateAsync({
         shareText: displayShareText,
-        inviteLink: dashboard.inviteLink, // 已含邀请码，新用户点击后自动绑定代理关系
+        inviteLink: dashboard.inviteLink,
         startButtonText: t("agent.startGameBtn") || "开始游戏 🎮",
       });
-      toast.success(t("agent.shareSuccess") || "✅ 分享消息已发到您的 TG，转发给好友即可！");
+
+      // Step 2: 调用 Telegram WebApp SDK 弹出联系人选择器
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.shareMessage) {
+        tg.shareMessage(preparedMessageId, (sent: boolean) => {
+          if (sent) {
+            toast.success(t("agent.shareSuccess") || "✅ 分享成功！");
+          }
+          // 用户取消不显示错误
+        });
+      } else {
+        // Fallback: 旧版 TG 不支持 shareMessage，使用 t.me/share/url
+        const text = encodeURIComponent(displayShareText);
+        const url = encodeURIComponent(dashboard.inviteLink);
+        window.open(`https://t.me/share/url?url=${url}&text=${text}`, "_blank");
+      }
     } catch (err: any) {
-      // 显示真实错误，不再静默 fallback
       const msg = err?.message || err?.data?.message || "";
       if (msg.includes("Telegram")) {
         toast.error("请先用 Telegram 账号登录后再分享");

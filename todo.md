@@ -571,7 +571,7 @@
 
 - [x] 后端：cs.chat 从 systemConfigs 读取自定义 AI API 配置（apiUrl, apiKey, model, systemPrompt, temperature）
 - [x] 前端：Admin 系统设置中添加 AI 客服配置区块（API地址、API Key、模型名称、系统提示词、温度）
-- [x] 当配置为空时使用内置默�## 2026-06-03 签到/兑换码移到我的页面
+- [x] 当配置为空时使用内置默�## 2026-06-03 签到/兑换码移到我的页面
 - [x] 将签到按钮从大厅快捷区移到“我的”页面
 - [x] 将兑换码按钮从大厅快捷区移到“我的”页面
 
@@ -581,4 +581,15 @@
 - [x] 管理后台：分享 Banner 图配置（可上传/切换不同活动 Banner）
 - [x] 前端分享卡片：读取后台配置的动态 Banner 图和默认分享文案
 - [x] 玩家分享前可编辑分享文案（一句话个性化）
-�页面�捷区移到"我的"页面
+�页面�捷区移到"我的"页面
+
+## 2026-06-11 分享功能升级：Telegram WebApp.shareMessage
+
+- [x] 分享文案跟随用户语言自动翻译（i18n 12种语言）
+- [x] Banner 图压缩（4.8MB→101KB）避免加载超时
+- [x] Banner 图通过 Telegram CDN URL 显示（避免 /manus-storage/ 307 重定向问题）
+- [x] 后端 prepareShareMessage 接口（savePreparedInlineMessage API）
+- [x] 前端调用 Telegram.WebApp.shareMessage 弹出联系人选择器
+- [x] 分享链接带邀请码自动绑定代理关系
+- [x] i18n 添加 agent.startGameBtn / agent.shareSuccess 翻译（12种语言）
+- [x] 旧版 TG 不支持 shareMessage 时 fallback 到 t.me/share/url
