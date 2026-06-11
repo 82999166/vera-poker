@@ -1548,9 +1548,11 @@ export default function Table() {
               {displayCommunity.map((card, i) => {
                 // Only animate cards that are newly dealt (index >= animateFromIndex)
                 const isNewCard = animateCards && i >= animateFromIndex;
-                const newCardDelay = isNewCard ? (i - animateFromIndex) * 450 : 0;
+                const cardDelay = isNewCard ? (i - animateFromIndex) * 450 : 0;
                 return (
-                  <CardView key={`h${handNumber}-c${i}`} card={card} className={`!w-[44px] !h-[62px]${isNewCard ? ' animate-deal-community' : ''}`} animate={isNewCard} delay={newCardDelay} />
+                  <div key={`h${handNumber}-c${i}`} style={isNewCard ? { animationDelay: `${cardDelay}ms`, opacity: 0 } : undefined} className={isNewCard ? 'animate-deal-community' : ''}>
+                    <CardView card={card} className="!w-[44px] !h-[62px]" />
+                  </div>
                 );
               })}
             </div>

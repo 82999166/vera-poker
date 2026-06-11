@@ -181,7 +181,7 @@
   100% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
 }
 .animate-deal-community {
-  animation: deal-community-from-deck 0.65s cubic-bezier(0.22, 0.68, 0.35, 1.0) both;
+  animation: deal-community-from-deck 0.65s cubic-bezier(0.22, 0.68, 0.35, 1.0) forwards;
 }
 
 /* Deck shoe pulse when dealing */
