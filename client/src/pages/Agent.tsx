@@ -3,7 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useI18n } from "@/lib/i18n";
 import { useLocation } from "wouter";
-import { ArrowLeft, Copy, Users, TrendingUp, Unlock, Lock, Share2, Image, Download, X } from "lucide-react";
+import { ArrowLeft, Copy, Users, TrendingUp, Unlock, Lock, Share2, Image, Download, X, Gamepad2, Pencil, Check } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -15,6 +15,14 @@ export default function Agent() {
   const { data: dashboard, isLoading } = trpc.agent.dashboard.useQuery(undefined, { enabled: !!user });
   const { data: downlines } = trpc.agent.downlines.useQuery(undefined, { enabled: !!user });
   const [showPoster, setShowPoster] = useState(false);
+  const [editingShareText, setEditingShareText] = useState(false);
+  const [customShareText, setCustomShareText] = useState<string | null>(null);
+
+  // Load share config from backend
+  const { data: publicConfigs } = trpc.config.getPublic.useQuery(undefined, { staleTime: 60_000 });
+  const bannerUrl = (publicConfigs as any)?.share_banner_url || "";
+  const defaultShareText = (publicConfigs as any)?.share_default_text || t("agent.shareText") || "刚在 VeraPoker 玩德州，牌桌气氛很给力，不用下载点击下方立即开始，快点进来一起抓鱼。";
+  const displayShareText = customShareText !== null ? customShareText : defaultShareText;
 
   const copyLink = () => {
     if (dashboard?.inviteLink) {
@@ -25,10 +33,8 @@ export default function Agent() {
 
   const shareToTG = () => {
     if (dashboard?.inviteLink) {
-      // Use Telegram's share URL scheme to directly open TG share dialog
-      const text = encodeURIComponent(t("agent.shareText") || "Join Vera Poker!");
+      const text = encodeURIComponent(displayShareText);
       const url = encodeURIComponent(dashboard.inviteLink);
-      // Try Telegram deep link first (works in TG WebView and mobile)
       const tgShareUrl = `https://t.me/share/url?url=${url}&text=${text}`;
       window.open(tgShareUrl, "_blank");
     }
@@ -76,19 +82,74 @@ export default function Agent() {
         </div>
       </div>
 
-      {/* Invite Link */}
+      {/* Share Card Preview (KKPOKER style) */}
       <div className="px-4 pt-4">
-        <div className="gradient-border rounded-xl p-4">
-          <p className="text-xs text-muted-foreground mb-2">{t("agent.inviteLink")}</p>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 glass rounded-lg px-3 py-2 overflow-hidden">
-              <p className="text-xs text-foreground font-mono truncate">{dashboard?.inviteLink ?? ""}</p>
+        <div className="rounded-2xl overflow-hidden border border-white/10 shadow-xl bg-[#1a1a2e]">
+          {/* Banner */}
+          {bannerUrl ? (
+            <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
+              <img src={bannerUrl} alt="VeraPoker" className="w-full h-full object-cover" />
+              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#1a1a2e] to-transparent" />
             </div>
-            <button onClick={copyLink} className="bg-gold text-background p-2 rounded-lg hover:opacity-90 transition-opacity">
-              <Copy className="w-4 h-4" />
-            </button>
-            <button onClick={shareToTG} className="bg-truth-blue text-white p-2 rounded-lg hover:opacity-90 transition-opacity">
-              <Share2 className="w-4 h-4" />
+          ) : (
+            <div className="w-full h-24 bg-gradient-to-r from-[#0f3460] to-[#16213e] flex items-center justify-center">
+              <span className="text-2xl font-black text-gold tracking-wider">VeraPoker</span>
+            </div>
+          )}
+          {/* Share text (editable) */}
+          <div className="px-4 pt-2 pb-1">
+            {editingShareText ? (
+              <div className="relative">
+                <textarea
+                  value={displayShareText}
+                  onChange={(e) => setCustomShareText(e.target.value)}
+                  rows={3}
+                  autoFocus
+                  className="w-full px-3 py-2 rounded-xl bg-white/8 border border-white/20 text-white/90 text-sm resize-none focus:outline-none focus:border-green-500/60"
+                />
+                <button
+                  onClick={() => setEditingShareText(false)}
+                  className="absolute top-2 right-2 w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-400"
+                >
+                  <Check className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative group">
+                <p className="text-white/80 text-sm leading-relaxed pr-7 line-clamp-3">{displayShareText}</p>
+                <button
+                  onClick={() => { if (customShareText === null) setCustomShareText(defaultShareText); setEditingShareText(true); }}
+                  className="absolute top-0 right-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white/40 hover:text-white/80 transition-all"
+                  title="编辑分享文案"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </div>
+          {/* Invite code strip */}
+          <div className="mx-4 mb-3 px-3 py-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
+            <div className="flex flex-col">
+              <span className="text-white/40 text-xs">{t("agent.inviteLink")}</span>
+              <span className="text-white/60 text-[10px] font-mono truncate max-w-[160px]">{dashboard?.inviteLink ?? ""}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-white/40 text-xs">邀请码</span>
+              <span className="text-yellow-400 font-bold text-sm tracking-widest">{dashboard?.inviteCode ?? ""}</span>
+              <button onClick={copyLink} className="ml-1 w-6 h-6 rounded-md bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors active:scale-95">
+                <Copy className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+          {/* CTA: Share button */}
+          <div className="px-4 pb-4">
+            <button
+              onClick={shareToTG}
+              className="w-full py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-[0.97]"
+              style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)", color: "#fff", boxShadow: "0 4px 20px rgba(34,197,94,0.4)" }}
+            >
+              <Gamepad2 className="w-5 h-5" />
+              分享给好友
             </button>
           </div>
         </div>
