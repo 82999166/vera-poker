@@ -534,7 +534,7 @@ export default function Table() {
         // Only animate newly dealt cards (flop: 0-2, turn: 3, river: 4)
         setAnimateFromIndex(prevCommunityLenRef.current);
         setAnimateCards(true);
-        setTimeout(() => setAnimateCards(false), 1500);
+        setTimeout(() => setAnimateCards(false), 2000);
         if (!muted) playSound("deal"); // Cards dealt from shoe sound
         // Detect all-in runout: if all non-folded players are all-in, show notification
         const activePlayers = (tableState.players || []).filter((p: any) => !p.isFolded && p.isActive !== false);
@@ -1548,7 +1548,7 @@ export default function Table() {
               {displayCommunity.map((card, i) => {
                 // Only animate cards that are newly dealt (index >= animateFromIndex)
                 const isNewCard = animateCards && i >= animateFromIndex;
-                const newCardDelay = isNewCard ? (i - animateFromIndex) * 250 : 0;
+                const newCardDelay = isNewCard ? (i - animateFromIndex) * 450 : 0;
                 return (
                   <CardView key={`h${handNumber}-c${i}`} card={card} className={`!w-[44px] !h-[62px]${isNewCard ? ' animate-deal-community' : ''}`} animate={isNewCard} delay={newCardDelay} />
                 );
