@@ -109,6 +109,20 @@ const RANK_DISPLAY: Record<string, string> = {
 function CardView({ card, faceDown = false, className = "", delay = 0, animate = false, flip = false }: {
   card?: string; faceDown?: boolean; className?: string; delay?: number; animate?: boolean; flip?: boolean;
 }) {
+  // Parse explicit size from className (e.g. !w-7 → 28px, !h-[36px] → 36px)
+  let explicitW: string | undefined;
+  let explicitH: string | undefined;
+  const wMatch = className.match(/!w-(\d+)/);
+  const wPxMatch = className.match(/!w-\[(\d+)px\]/);
+  const hMatch = className.match(/!h-(\d+)/);
+  const hPxMatch = className.match(/!h-\[(\d+)px\]/);
+  if (wPxMatch) explicitW = wPxMatch[1] + 'px';
+  else if (wMatch) explicitW = (parseInt(wMatch[1]) * 4) + 'px';
+  if (hPxMatch) explicitH = hPxMatch[1] + 'px';
+  else if (hMatch) explicitH = (parseInt(hMatch[1]) * 4) + 'px';
+  const sizeStyle: React.CSSProperties = {};
+  if (explicitW) sizeStyle.width = explicitW;
+  if (explicitH) sizeStyle.height = explicitH;
   const [visible, setVisible] = useState(!animate);
   const [flipped, setFlipped] = useState(false);
   useEffect(() => {
@@ -130,7 +144,7 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   if (flip && !flipped) {
     // Show card back while waiting to flip (solid colors for iOS compatibility)
     return (
-      <div className={`w-11 h-[60px] rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4)] ${className}`}>
+      <div className={`w-11 h-[60px] rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4)] ${className}`} style={sizeStyle}>
         <div className="w-full h-full bg-gradient-to-br from-[#d63031] to-[#8b1a1a] border-[2px] border-[#f0f0f0] rounded-md relative">
           <div className="absolute inset-[3px] border-[1.5px] border-[#e0c0c0] rounded-sm" />
           <div className="absolute inset-[6px] rounded-sm overflow-hidden" style={{ backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.15) 6px, rgba(255,255,255,0.15) 7px)` }} />
@@ -147,7 +161,7 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   if (!card || faceDown) {
     // Card back: solid red design (no alpha transparency for iOS compatibility)
     return (
-      <div className={`w-11 h-[60px] rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`}>
+      <div className={`w-11 h-[60px] rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`} style={sizeStyle}>
         <div className="w-full h-full bg-gradient-to-br from-[#d63031] to-[#8b1a1a] border-[2px] border-[#f0f0f0] rounded-md relative">
           {/* Inner border */}
           <div className="absolute inset-[3px] border-[1.5px] border-[#e0c0c0] rounded-sm" />
@@ -177,8 +191,11 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   // We use the actual card width to derive font sizes so they NEVER overflow regardless of screen size.
   // Formula: cornerRank ≈ cardWidth * 0.26, centerSuit ≈ cardWidth * 0.38 (leaves ~30% margin each side for corners)
   let cardPx = 56; // default w-14
-  if (className.includes('!w-[44px]')) cardPx = 44;
+  if (className.includes('!w-[36px]')) cardPx = 36;
+  else if (className.includes('!w-[44px]')) cardPx = 44;
   else if (className.includes('!w-[52px]')) cardPx = 52;
+  else if (className.includes('!w-7')) cardPx = 28;
+  else if (className.includes('!w-8')) cardPx = 32;
   else if (className.includes('!w-9')) cardPx = 36;
   else if (className.includes('!w-10')) cardPx = 40;
   else if (className.includes('!w-11')) cardPx = 44;
@@ -190,7 +207,7 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const centerSuitPx = Math.floor(cardPx * 0.40); // center suit
 
   return (
-    <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${flip && flipped ? "animate-flip" : ""} ${className}`}>
+    <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${flip && flipped ? "animate-flip" : ""} ${className}`} style={sizeStyle}>
       <div className="w-full h-full bg-white border-[1.5px] border-gray-200 rounded-lg relative">
         {/* Top-left corner: rank above suit, tightly packed */}
         <div className="absolute top-[2px] left-[2px] flex flex-col items-center leading-[1]">
