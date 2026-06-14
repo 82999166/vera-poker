@@ -1551,6 +1551,11 @@ export async function playerReady(roomId: number, userId: number): Promise<{ suc
 // Run timeout checker every 2 seconds for faster responsiveness
 setInterval(checkTimeouts, 2000);
 
+// Bot余额监控：每5分钟检查一次
+setInterval(() => {
+  botManager.checkBotBalances().catch(e => console.error("[BotManager] Balance check error:", e));
+}, 300000);
+
 /**
  * Notify the next player that it's their turn via Telegram
  */

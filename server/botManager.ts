@@ -1,32 +1,43 @@
 /**
  * AI 陪玩机器人管理器
- * 管理机器人的入座、离座、自动操作、每日亏损限制
- * 机器人策略：偏弱（高弃牌率、不跟大注、不All-in）
- * 机器人筹码来自系统虚拟资金池，不影响真实用户余额
+ * 管理机器人的入座、离座、自动操作、余额监控
+ * 机器人策略：基于概率计算的智能决策
+ * 机器人作为真实玩家：余额扣除/返还、流水记录、代理佣金正常计算
  */
 import * as db from "./db";
 import * as gameEngine from "./gameEngine";
 import { getTable, joinTable, processPlayerAction, playerReady } from "./tableManager";
 import type { GameState, PlayerAction, Card } from "./gameEngine";
+import { notifyAdmins } from "./notifications";
 
 // ==================== 配置接口 ====================
 interface BotConfig {
   enabled: boolean;
   maxPerTable: number;       // 每桌最多bot数
+  minPerTable: number;       // 每桌最少bot数（无真人时）
   dailyLossLimit: number;    // 每日最大亏损（美元）
   foldRate: number;          // 弃牌率 (0-100)
   minActionDelay: number;    // 最小操作延迟(ms)
   maxActionDelay: number;    // 最大操作延迟(ms)
+  balanceAlertThreshold: number; // 余额告警阈值（美元）
+  autoRefillAmount: number;  // 自动补充金额（美元）
+  autoRefillEnabled: boolean; // 是否开启自动补充
+  fillWithoutRealPlayers: boolean; // 无真人时是否填充bot自动对玩
 }
 
 // 默认配置
 const DEFAULT_CONFIG: BotConfig = {
   enabled: false,
-  maxPerTable: 2,
-  dailyLossLimit: 200,
+  maxPerTable: 5,
+  minPerTable: 3,
+  dailyLossLimit: 500,
   foldRate: 67,
   minActionDelay: 2000,
   maxActionDelay: 5000,
+  balanceAlertThreshold: 100,
+  autoRefillAmount: 10000,
+  autoRefillEnabled: true,
+  fillWithoutRealPlayers: true,
 };
 
 // ==================== 内存状态 ====================
@@ -61,19 +72,29 @@ export async function getBotConfig(): Promise<BotConfig> {
   }
 
   const enabled = await db.getConfigValue("bot_enabled", "false");
-  const maxPerTable = await db.getConfigValue("bot_max_per_table", "2");
-  const dailyLossLimit = await db.getConfigValue("bot_daily_loss_limit", "200");
+  const maxPerTable = await db.getConfigValue("bot_max_per_table", "5");
+  const minPerTable = await db.getConfigValue("bot_min_per_table", "3");
+  const dailyLossLimit = await db.getConfigValue("bot_daily_loss_limit", "500");
   const foldRate = await db.getConfigValue("bot_fold_rate", "67");
   const minDelay = await db.getConfigValue("bot_min_action_delay", "2000");
   const maxDelay = await db.getConfigValue("bot_max_action_delay", "5000");
+  const balanceAlertThreshold = await db.getConfigValue("bot_balance_alert_threshold", "100");
+  const autoRefillAmount = await db.getConfigValue("bot_auto_refill_amount", "10000");
+  const autoRefillEnabled = await db.getConfigValue("bot_auto_refill_enabled", "true");
+  const fillWithoutRealPlayers = await db.getConfigValue("bot_fill_without_real_players", "true");
 
   cachedConfig = {
     enabled: enabled === "true",
     maxPerTable: parseInt(maxPerTable) || DEFAULT_CONFIG.maxPerTable,
+    minPerTable: parseInt(minPerTable) || DEFAULT_CONFIG.minPerTable,
     dailyLossLimit: parseFloat(dailyLossLimit) || DEFAULT_CONFIG.dailyLossLimit,
     foldRate: parseInt(foldRate) || DEFAULT_CONFIG.foldRate,
     minActionDelay: parseInt(minDelay) || DEFAULT_CONFIG.minActionDelay,
     maxActionDelay: parseInt(maxDelay) || DEFAULT_CONFIG.maxActionDelay,
+    balanceAlertThreshold: parseFloat(balanceAlertThreshold) || DEFAULT_CONFIG.balanceAlertThreshold,
+    autoRefillAmount: parseFloat(autoRefillAmount) || DEFAULT_CONFIG.autoRefillAmount,
+    autoRefillEnabled: autoRefillEnabled === "true",
+    fillWithoutRealPlayers: fillWithoutRealPlayers === "true",
   };
   configCachedAt = now;
   return cachedConfig;
@@ -145,7 +166,10 @@ export function addBotWin(amount: number) {
 // ==================== Bot入座逻辑 ====================
 /**
  * 检查房间是否需要bot填充，并执行入座
- * 条件：bot系统启用 + 真实玩家 < 3 + 桌上bot未达上限 + 每日亏损未达上限
+ * 调度策略：
+ * 1. 有真人时：根据在线人数动态调整bot数量（真人少则多bot，真人多则少bot）
+ * 2. 无真人时：填充3-5个bot自动对玩（保持桌子活跃）
+ * 3. 每次只加一个bot（防止瞬间涌入太多）
  */
 export async function checkAndFillBots(roomId: number): Promise<void> {
   const config = await getBotConfig();
@@ -167,8 +191,32 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
   const realPlayers = roomPlayers.filter((rp: any) => !botUserIds.includes(rp.userId));
   const botsAtTable = roomPlayers.filter((rp: any) => botUserIds.includes(rp.userId));
 
-  // 只有当真实玩家 >= 1 且 < 3 时才添加bot（需要有真人才加bot）
-  if (realPlayers.length < 1 || realPlayers.length >= 3) return;
+  // 计算目标bot数量
+  let targetBotCount: number;
+  
+  if (realPlayers.length === 0) {
+    // 无真人：填充minPerTable个bot自动对玩
+    if (!config.fillWithoutRealPlayers) return;
+    targetBotCount = config.minPerTable; // 默认3个
+  } else if (realPlayers.length === 1) {
+    // 1个真人：填充较多bot（4-5个）让牌局更热闹
+    targetBotCount = Math.min(config.maxPerTable, 4);
+  } else if (realPlayers.length === 2) {
+    // 2个真人：填充3个bot
+    targetBotCount = 3;
+  } else if (realPlayers.length === 3) {
+    // 3个真人：填充2个bot
+    targetBotCount = 2;
+  } else if (realPlayers.length === 4) {
+    // 4个真人：填充1个bot
+    targetBotCount = 1;
+  } else {
+    // 5+个真人：不需要bot
+    targetBotCount = 0;
+  }
+
+  // 已达到目标数量
+  if (botsAtTable.length >= targetBotCount) return;
 
   // 检查bot上限
   if (botsAtTable.length >= config.maxPerTable) return;
@@ -199,11 +247,23 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
     // Bot买入金额：使用房间最小买入
     const buyIn = parseFloat(room.minBuyIn);
     
-    // 检查bot余额是否足够
+    // 检查bot余额是否足够，不足则尝试自动补充
     const botUser = await db.getUserById(selectedBotId);
-    if (!botUser || parseFloat(String(botUser.balance)) < buyIn) {
-      console.log(`[BotManager] Bot ${selectedBotId} insufficient balance (${botUser?.balance ?? 0} < ${buyIn}), skipping`);
-      return;
+    if (!botUser) return;
+    
+    let currentBalance = parseFloat(String(botUser.balance));
+    if (currentBalance < buyIn) {
+      // 尝试自动补充
+      const refilled = await autoRefillBotBalance(selectedBotId, buyIn);
+      if (!refilled) {
+        console.log(`[BotManager] Bot ${selectedBotId} insufficient balance and refill failed, skipping`);
+        return;
+      }
+      // 重新获取余额
+      const updatedUser = await db.getUserById(selectedBotId);
+      if (!updatedUser) return;
+      currentBalance = parseFloat(String(updatedUser.balance));
+      if (currentBalance < buyIn) return;
     }
 
     // 真实扣除余额（和真实玩家一样）
@@ -220,7 +280,7 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
         userId: selectedBotId,
         type: "buy_in",
         amount: buyIn.toFixed(2),
-        balanceBefore: botUser.balance,
+        balanceBefore: String(currentBalance),
         balanceAfter: newBalance,
         status: "confirmed",
         referenceType: "room",
@@ -797,7 +857,7 @@ function makeRaise(
 
 // ==================== Bot筹码管理 ====================
 /**
- * 为零筹码的bot补充筹码（从系统虚拟资金池）
+ * 为零筹码的bot补充筹码（从账户余额扣除，和真实玩家rebuy一样）
  * 在startNewHand中调用，替代踢出零筹码bot
  */
 export async function refillBotChips(roomId: number): Promise<void> {
@@ -814,10 +874,128 @@ export async function refillBotChips(roomId: number): Promise<void> {
     if (!botUserIds.includes(rp.userId)) continue;
     const chips = parseFloat(rp.chipCount as string);
     if (chips <= 0) {
-      // 补充到最小买入
       const refillAmount = parseFloat(room.minBuyIn);
+      
+      // 检查余额是否足够，不足则尝试自动补充
+      const botUser = await db.getUserById(rp.userId);
+      if (!botUser) continue;
+      let balance = parseFloat(String(botUser.balance));
+      if (balance < refillAmount) {
+        const refilled = await autoRefillBotBalance(rp.userId, refillAmount);
+        if (!refilled) continue;
+        const updated = await db.getUserById(rp.userId);
+        if (!updated) continue;
+        balance = parseFloat(String(updated.balance));
+        if (balance < refillAmount) continue;
+      }
+
+      // 扣除余额
+      const newBalance = await db.deductUserBalanceAtomic(rp.userId, refillAmount);
+      if (newBalance === null) continue;
+
+      // 补充筹码
       await db.updateRoomPlayerChips(roomId, rp.userId, refillAmount.toFixed(2));
+      
+      // 记录流水
+      await db.createTransaction({
+        userId: rp.userId,
+        type: "rebuy",
+        amount: refillAmount.toFixed(2),
+        balanceBefore: String(balance),
+        balanceAfter: newBalance,
+        status: "confirmed",
+        referenceType: "room",
+        referenceId: roomId,
+        note: `Bot自动补码 房间${room.name || roomId}`,
+      });
       console.log(`[BotManager] Refilled bot ${rp.userId} in room ${roomId} with $${refillAmount}`);
+    }
+  }
+}
+
+// ==================== 余额自动补充 ====================
+/**
+ * 自动补充bot余额（当余额不足时）
+ * 通过系统调整方式补充（记录为adjustment交易）
+ */
+async function autoRefillBotBalance(botId: number, minRequired: number): Promise<boolean> {
+  const config = await getBotConfig();
+  if (!config.autoRefillEnabled) return false;
+
+  const botUser = await db.getUserById(botId);
+  if (!botUser) return false;
+
+  const currentBalance = parseFloat(String(botUser.balance));
+  if (currentBalance >= minRequired) return true; // 已经足够
+
+  const refillAmount = config.autoRefillAmount;
+  
+  // 系统补充（直接增加余额）
+  await db.addUserBalanceAtomic(botId, refillAmount);
+  
+  // 记录补充流水
+  await db.createTransaction({
+    userId: botId,
+    type: "adjustment",
+    amount: refillAmount.toFixed(2),
+    balanceBefore: String(currentBalance),
+    balanceAfter: (currentBalance + refillAmount).toFixed(2),
+    status: "confirmed",
+    referenceType: "room",
+    referenceId: 0,
+    note: `Bot自动补充余额 (系统)`,
+  });
+
+  console.log(`[BotManager] Auto-refilled bot ${botId} with $${refillAmount}`);
+  return true;
+}
+
+// ==================== 余额监控告警 ====================
+// 告警冷却时间（避免重复告警）
+let lastAlertTime = 0;
+const ALERT_COOLDOWN = 3600000; // 1小时
+
+/**
+ * 检查所有bot余额，低于阈值时发送告警
+ */
+export async function checkBotBalances(): Promise<void> {
+  const config = await getBotConfig();
+  if (!config.enabled) return;
+
+  const now = Date.now();
+  if (now - lastAlertTime < ALERT_COOLDOWN) return;
+
+  const botUserIds = await getBotUserIds();
+  const lowBalanceBots: { id: number; name: string; balance: number }[] = [];
+
+  for (const botId of botUserIds) {
+    const user = await db.getUserById(botId);
+    if (!user) continue;
+    const balance = parseFloat(String(user.balance));
+    if (balance < config.balanceAlertThreshold) {
+      lowBalanceBots.push({ id: botId, name: user.nickname || user.name || `Bot#${botId}`, balance });
+    }
+  }
+
+  if (lowBalanceBots.length > 0) {
+    lastAlertTime = now;
+    const botDetails = lowBalanceBots.map(b => `  • ${b.name} (ID:${b.id}): $${b.balance.toFixed(2)}`).join("\n");
+    
+    if (config.autoRefillEnabled) {
+      // 自动补充
+      for (const bot of lowBalanceBots) {
+        await autoRefillBotBalance(bot.id, config.autoRefillAmount);
+      }
+      await notifyAdmins(
+        "🤖 Bot余额自动补充",
+        `以下${lowBalanceBots.length}个Bot余额低于阈值$${config.balanceAlertThreshold}，已自动补充$${config.autoRefillAmount}:\n${botDetails}`
+      );
+    } else {
+      // 只告警不补充
+      await notifyAdmins(
+        "⚠️ Bot余额不足告警",
+        `以下${lowBalanceBots.length}个Bot余额低于阈值$${config.balanceAlertThreshold}，请及时充值:\n${botDetails}\n\n阈值: $${config.balanceAlertThreshold}`
+      );
     }
   }
 }
@@ -882,11 +1060,15 @@ export function onBotLeftTable(roomId: number, botId: number) {
 }
 
 /**
- * 获取bot系统统计信息
+ * 获取bot系统统计信息（含详细数据统计）
  */
 export async function getBotStats() {
   resetDailyLossIfNeeded();
   const config = await getBotConfig();
+  
+  // 获取每个bot的详细统计
+  const botDetails = await getBotDetailedStats();
+  
   return {
     enabled: config.enabled,
     dailyLoss: dailyLossTotal,
@@ -894,5 +1076,118 @@ export async function getBotStats() {
     activeBots: getActiveBotsCount(),
     botsPerRoom: Object.fromEntries(getBotsPerRoom()),
     config,
+    botDetails,
   };
+}
+
+/**
+ * 获取每个bot的详细统计数据（胜率/手数/盈亏/余额）
+ */
+export async function getBotDetailedStats() {
+  const dbInstance = await db.getDb();
+  if (!dbInstance) return [];
+  
+  const { users, handPlayers, transactions } = await import("../drizzle/schema");
+  const { eq, sql, and, inArray, gte } = await import("drizzle-orm");
+  
+  const botUserIds = await getBotUserIds();
+  if (botUserIds.length === 0) return [];
+  
+  // 获取bot基本信息和余额
+  const botUsers = await dbInstance.select({
+    id: users.id,
+    name: users.name,
+    nickname: users.nickname,
+    balance: users.balance,
+  }).from(users).where(inArray(users.id, botUserIds));
+  
+  // 获取每个bot的手数统计（总手数、胜利手数）
+  const handStats = await dbInstance.select({
+    userId: handPlayers.userId,
+    totalHands: sql<number>`count(*)`,
+    wins: sql<number>`sum(case when ${handPlayers.isWinner} = true then 1 else 0 end)`,
+    totalBet: sql<string>`COALESCE(sum(${handPlayers.betAmount}), '0')`,
+    totalWin: sql<string>`COALESCE(sum(${handPlayers.winAmount}), '0')`,
+  }).from(handPlayers)
+    .where(inArray(handPlayers.userId, botUserIds))
+    .groupBy(handPlayers.userId);
+  
+  // 获取今日统计
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  
+  const todayHandStats = await dbInstance.select({
+    userId: handPlayers.userId,
+    todayHands: sql<number>`count(*)`,
+    todayWins: sql<number>`sum(case when ${handPlayers.isWinner} = true then 1 else 0 end)`,
+    todayBet: sql<string>`COALESCE(sum(${handPlayers.betAmount}), '0')`,
+    todayWin: sql<string>`COALESCE(sum(${handPlayers.winAmount}), '0')`,
+  }).from(handPlayers)
+    .where(and(
+      inArray(handPlayers.userId, botUserIds),
+      gte(handPlayers.id, sql`(SELECT COALESCE(MIN(id),0) FROM hand_players WHERE id IN (SELECT id FROM game_hands WHERE startedAt >= ${todayStart}))`)
+    ))
+    .groupBy(handPlayers.userId);
+  
+  // 获取每个bot的总充值金额（adjustment类型交易）
+  const refillStats = await dbInstance.select({
+    userId: transactions.userId,
+    totalRefill: sql<string>`COALESCE(sum(${transactions.amount}), '0')`,
+    refillCount: sql<number>`count(*)`,
+  }).from(transactions)
+    .where(and(
+      inArray(transactions.userId, botUserIds),
+      eq(transactions.type, "adjustment"),
+      eq(transactions.status, "confirmed")
+    ))
+    .groupBy(transactions.userId);
+  
+  // 组装结果
+  const handStatsMap = new Map(handStats.map(h => [h.userId, h]));
+  const todayStatsMap = new Map(todayHandStats.map(h => [h.userId, h]));
+  const refillMap = new Map(refillStats.map(r => [r.userId, r]));
+  
+  return botUsers.map(bot => {
+    const hs = handStatsMap.get(bot.id);
+    const ts = todayStatsMap.get(bot.id);
+    const rs = refillMap.get(bot.id);
+    const totalHands = hs?.totalHands ?? 0;
+    const wins = hs?.wins ?? 0;
+    const totalBet = parseFloat(hs?.totalBet ?? "0");
+    const totalWin = parseFloat(hs?.totalWin ?? "0");
+    const todayHands = ts?.todayHands ?? 0;
+    const todayWins = ts?.todayWins ?? 0;
+    const todayBet = parseFloat(ts?.todayBet ?? "0");
+    const todayWin = parseFloat(ts?.todayWin ?? "0");
+    
+    // 检查bot是否在线
+    let isOnline = false;
+    let currentRoom: number | null = null;
+    for (const [roomId, bots] of seatedBots) {
+      if (bots.has(bot.id)) {
+        isOnline = true;
+        currentRoom = roomId;
+        break;
+      }
+    }
+    
+    return {
+      id: bot.id,
+      name: bot.nickname || bot.name || `Bot#${bot.id}`,
+      balance: parseFloat(String(bot.balance)),
+      isOnline,
+      currentRoom,
+      // 总统计
+      totalHands,
+      winRate: totalHands > 0 ? ((wins / totalHands) * 100).toFixed(1) : "0.0",
+      totalProfit: (totalWin - totalBet).toFixed(2),
+      // 今日统计
+      todayHands,
+      todayWinRate: todayHands > 0 ? ((todayWins / todayHands) * 100).toFixed(1) : "0.0",
+      todayProfit: (todayWin - todayBet).toFixed(2),
+      // 补充统计
+      totalRefill: parseFloat(rs?.totalRefill ?? "0"),
+      refillCount: rs?.refillCount ?? 0,
+    };
+  });
 }

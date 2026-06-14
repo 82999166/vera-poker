@@ -5840,10 +5840,9 @@ function RegistrationBonusConfig({ at, configs, saveSystemSetting }: { at: (k: s
 // ==================== BOT MANAGEMENT PANEL ====================
 function BotManagementPanel({ at }: { at: (k: string) => string }) {
   const { data: stats, isLoading, refetch } = trpc.adminBot.stats.useQuery(undefined, { refetchInterval: 5000 });
-  const { data: botList } = trpc.adminBot.list.useQuery();
   const updateConfig = trpc.adminBot.updateConfig.useMutation({
     onSuccess: () => { toast.success("配置已更新"); refetch(); },
-    onError: (err) => toast.error(err.message),
+    onError: (err: any) => toast.error(err.message),
   });
   const resetLoss = trpc.adminBot.resetDailyLoss.useMutation({
     onSuccess: () => { toast.success("每日亏损已重置"); refetch(); },
@@ -5852,10 +5851,15 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
   const [formState, setFormState] = useState<{
     enabled?: boolean;
     maxPerTable?: number;
+    minPerTable?: number;
     dailyLossLimit?: number;
     foldRate?: number;
     minActionDelay?: number;
     maxActionDelay?: number;
+    balanceAlertThreshold?: number;
+    autoRefillAmount?: number;
+    autoRefillEnabled?: boolean;
+    fillWithoutRealPlayers?: boolean;
   }>({});
 
   useEffect(() => {
@@ -5863,10 +5867,15 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
       setFormState({
         enabled: stats.config.enabled,
         maxPerTable: stats.config.maxPerTable,
+        minPerTable: (stats.config as any).minPerTable ?? 3,
         dailyLossLimit: stats.config.dailyLossLimit,
         foldRate: stats.config.foldRate,
         minActionDelay: stats.config.minActionDelay,
         maxActionDelay: stats.config.maxActionDelay,
+        balanceAlertThreshold: (stats.config as any).balanceAlertThreshold ?? 500,
+        autoRefillAmount: (stats.config as any).autoRefillAmount ?? 10000,
+        autoRefillEnabled: (stats.config as any).autoRefillEnabled ?? true,
+        fillWithoutRealPlayers: (stats.config as any).fillWithoutRealPlayers ?? true,
       });
     }
   }, [stats?.config]);
@@ -5875,7 +5884,11 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
     return <div className="flex items-center justify-center p-8"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
   }
 
-  const lossPercent = stats ? Math.min((stats.dailyLoss / stats.dailyLossLimit) * 100, 100) : 0;
+  const lossPercent = stats ? Math.min((stats.dailyLoss / Math.max(stats.dailyLossLimit, 1)) * 100, 100) : 0;
+  const botDetails = (stats as any)?.botDetails || [];
+  const totalBalance = botDetails.reduce((sum: number, b: any) => sum + b.balance, 0);
+  const totalTodayHands = botDetails.reduce((sum: number, b: any) => sum + b.todayHands, 0);
+  const totalTodayProfit = botDetails.reduce((sum: number, b: any) => sum + parseFloat(b.todayProfit || "0"), 0);
 
   return (
     <div className="space-y-6 p-4">
@@ -5886,7 +5899,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
             <Bot className="w-5 h-5 text-gold" />
             AI 陪玩机器人管理
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">管理机器人入座、策略、每日亏损限制</p>
+          <p className="text-sm text-muted-foreground mt-1">智能调度、概率决策、余额监控、数据统计</p>
         </div>
         <div className="flex items-center gap-2">
           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${stats?.enabled ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
@@ -5896,19 +5909,25 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Overview Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="glass rounded-xl p-4">
-          <p className="text-xs text-muted-foreground">活跃Bot数</p>
+          <p className="text-xs text-muted-foreground">在线Bot</p>
           <p className="text-2xl font-bold text-gold mt-1">{stats?.activeBots ?? 0}</p>
         </div>
         <div className="glass rounded-xl p-4">
-          <p className="text-xs text-muted-foreground">今日亏损</p>
-          <p className="text-2xl font-bold text-red-400 mt-1">${stats?.dailyLoss?.toFixed(2) ?? "0.00"}</p>
+          <p className="text-xs text-muted-foreground">总余额</p>
+          <p className="text-2xl font-bold text-foreground mt-1">${totalBalance.toFixed(0)}</p>
         </div>
         <div className="glass rounded-xl p-4">
-          <p className="text-xs text-muted-foreground">亏损上限</p>
-          <p className="text-2xl font-bold text-foreground mt-1">${stats?.dailyLossLimit?.toFixed(2) ?? "0.00"}</p>
+          <p className="text-xs text-muted-foreground">今日手数</p>
+          <p className="text-2xl font-bold text-blue-400 mt-1">{totalTodayHands}</p>
+        </div>
+        <div className="glass rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">今日盈亏</p>
+          <p className={`text-2xl font-bold mt-1 ${totalTodayProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+            {totalTodayProfit >= 0 ? "+" : ""}{totalTodayProfit.toFixed(2)}
+          </p>
         </div>
         <div className="glass rounded-xl p-4">
           <p className="text-xs text-muted-foreground">亏损进度</p>
@@ -5916,21 +5935,79 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
             <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-emerald-500 to-red-500 rounded-full transition-all" style={{ width: `${lossPercent}%` }} />
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{lossPercent.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground mt-1">{lossPercent.toFixed(1)}% / ${stats?.dailyLossLimit?.toFixed(0)}</p>
           </div>
+        </div>
+      </div>
+
+      {/* Bot Detail Stats Table */}
+      <div className="glass rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-3">机器人数据统计</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-2 px-2 text-muted-foreground font-medium">名称</th>
+                <th className="text-center py-2 px-2 text-muted-foreground font-medium">状态</th>
+                <th className="text-right py-2 px-2 text-muted-foreground font-medium">余额</th>
+                <th className="text-right py-2 px-2 text-muted-foreground font-medium">总手数</th>
+                <th className="text-right py-2 px-2 text-muted-foreground font-medium">胜率</th>
+                <th className="text-right py-2 px-2 text-muted-foreground font-medium">总盈亏</th>
+                <th className="text-right py-2 px-2 text-muted-foreground font-medium">今日手数</th>
+                <th className="text-right py-2 px-2 text-muted-foreground font-medium">今日盈亏</th>
+                <th className="text-right py-2 px-2 text-muted-foreground font-medium">补充次数</th>
+              </tr>
+            </thead>
+            <tbody>
+              {botDetails.map((bot: any) => (
+                <tr key={bot.id} className="border-b border-border/50 hover:bg-secondary/30">
+                  <td className="py-2 px-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gold/20 flex items-center justify-center">
+                        <Bot className="w-3 h-3 text-gold" />
+                      </div>
+                      <span className="font-medium text-foreground">{bot.name}</span>
+                    </div>
+                  </td>
+                  <td className="text-center py-2 px-2">
+                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ${bot.isOnline ? "bg-emerald-500/20 text-emerald-400" : "bg-secondary text-muted-foreground"}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${bot.isOnline ? "bg-emerald-400" : "bg-muted-foreground"}`} />
+                      {bot.isOnline ? `房间${bot.currentRoom}` : "空闲"}
+                    </span>
+                  </td>
+                  <td className={`text-right py-2 px-2 font-mono ${bot.balance < (formState.balanceAlertThreshold ?? 500) ? "text-red-400 font-bold" : "text-foreground"}`}>
+                    ${bot.balance.toFixed(0)}
+                  </td>
+                  <td className="text-right py-2 px-2 text-muted-foreground">{bot.totalHands}</td>
+                  <td className="text-right py-2 px-2 text-foreground">{bot.winRate}%</td>
+                  <td className={`text-right py-2 px-2 font-mono ${parseFloat(bot.totalProfit) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {parseFloat(bot.totalProfit) >= 0 ? "+" : ""}{bot.totalProfit}
+                  </td>
+                  <td className="text-right py-2 px-2 text-muted-foreground">{bot.todayHands}</td>
+                  <td className={`text-right py-2 px-2 font-mono ${parseFloat(bot.todayProfit) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {parseFloat(bot.todayProfit) >= 0 ? "+" : ""}{bot.todayProfit}
+                  </td>
+                  <td className="text-right py-2 px-2 text-muted-foreground">{bot.refillCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {botDetails.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">暂无统计数据</p>
+          )}
         </div>
       </div>
 
       {/* Config Form */}
       <div className="glass rounded-xl p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-foreground">系统配置</h3>
+        <h3 className="text-sm font-semibold text-foreground">调度与策略配置</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Enable Toggle */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
             <div>
               <p className="text-sm font-medium">启用Bot系统</p>
-              <p className="text-xs text-muted-foreground">开启后Bot将自动入座公共房间</p>
+              <p className="text-xs text-muted-foreground">开启后Bot将按在线人数动态调度</p>
             </div>
             <button
               onClick={() => setFormState(s => ({ ...s, enabled: !s.enabled }))}
@@ -5940,15 +6017,38 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
             </button>
           </div>
 
+          {/* Fill Without Real Players Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+            <div>
+              <p className="text-sm font-medium">无真人时Bot自动对玩</p>
+              <p className="text-xs text-muted-foreground">无真人时每桌安排{formState.minPerTable ?? 3}-{formState.maxPerTable ?? 5}个Bot对玩</p>
+            </div>
+            <button
+              onClick={() => setFormState(s => ({ ...s, fillWithoutRealPlayers: !s.fillWithoutRealPlayers }))}
+              className={`relative w-11 h-6 rounded-full transition-colors ${formState.fillWithoutRealPlayers ? "bg-emerald-500" : "bg-secondary"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formState.fillWithoutRealPlayers ? "translate-x-5" : ""}`} />
+            </button>
+          </div>
+
           {/* Max Per Table */}
           <div className="p-3 rounded-lg bg-secondary/50">
             <label className="text-sm font-medium">每桌最多Bot数</label>
             <input
-              type="number"
-              min={1}
-              max={5}
-              value={formState.maxPerTable ?? 2}
-              onChange={e => setFormState(s => ({ ...s, maxPerTable: parseInt(e.target.value) || 2 }))}
+              type="number" min={1} max={8}
+              value={formState.maxPerTable ?? 5}
+              onChange={e => setFormState(s => ({ ...s, maxPerTable: parseInt(e.target.value) || 5 }))}
+              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+          </div>
+
+          {/* Min Per Table (no real players) */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <label className="text-sm font-medium">每桌最少Bot数（无真人时）</label>
+            <input
+              type="number" min={2} max={5}
+              value={formState.minPerTable ?? 3}
+              onChange={e => setFormState(s => ({ ...s, minPerTable: parseInt(e.target.value) || 3 }))}
               className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
             />
           </div>
@@ -5957,10 +6057,9 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
           <div className="p-3 rounded-lg bg-secondary/50">
             <label className="text-sm font-medium">每日亏损上限 ($)</label>
             <input
-              type="number"
-              min={0}
-              value={formState.dailyLossLimit ?? 200}
-              onChange={e => setFormState(s => ({ ...s, dailyLossLimit: parseFloat(e.target.value) || 200 }))}
+              type="number" min={0}
+              value={formState.dailyLossLimit ?? 500}
+              onChange={e => setFormState(s => ({ ...s, dailyLossLimit: parseFloat(e.target.value) || 500 }))}
               className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
             />
           </div>
@@ -5969,9 +6068,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
           <div className="p-3 rounded-lg bg-secondary/50">
             <label className="text-sm font-medium">弃牌率 (%)</label>
             <input
-              type="number"
-              min={0}
-              max={100}
+              type="number" min={0} max={100}
               value={formState.foldRate ?? 67}
               onChange={e => setFormState(s => ({ ...s, foldRate: parseInt(e.target.value) || 67 }))}
               className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
@@ -5983,9 +6080,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
           <div className="p-3 rounded-lg bg-secondary/50">
             <label className="text-sm font-medium">最小操作延迟 (ms)</label>
             <input
-              type="number"
-              min={500}
-              max={10000}
+              type="number" min={500} max={10000}
               value={formState.minActionDelay ?? 2000}
               onChange={e => setFormState(s => ({ ...s, minActionDelay: parseInt(e.target.value) || 2000 }))}
               className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
@@ -5996,9 +6091,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
           <div className="p-3 rounded-lg bg-secondary/50">
             <label className="text-sm font-medium">最大操作延迟 (ms)</label>
             <input
-              type="number"
-              min={1000}
-              max={20000}
+              type="number" min={1000} max={20000}
               value={formState.maxActionDelay ?? 5000}
               onChange={e => setFormState(s => ({ ...s, maxActionDelay: parseInt(e.target.value) || 5000 }))}
               className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
@@ -6025,31 +6118,64 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
         </div>
       </div>
 
-      {/* Bot List */}
-      <div className="glass rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-3">Bot 账户列表</h3>
-        <div className="space-y-2">
-          {botList?.map((bot: any) => (
-            <div key={bot.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30">
-              <div className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-gold" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{bot.nickname || bot.name}</p>
-                <p className="text-xs text-muted-foreground">ID: {bot.id}</p>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {stats?.botsPerRoom && Object.values(stats.botsPerRoom).flat().includes?.(bot.id) ? (
-                  <span className="text-emerald-400">在线</span>
-                ) : (
-                  <span>空闲</span>
-                )}
-              </span>
+      {/* Balance Monitor & Auto Refill */}
+      <div className="glass rounded-xl p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">余额监控与自动补充</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Auto Refill Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+            <div>
+              <p className="text-sm font-medium">开启自动补充</p>
+              <p className="text-xs text-muted-foreground">余额不足时自动补充到指定金额</p>
             </div>
-          ))}
-          {(!botList || botList.length === 0) && (
-            <p className="text-sm text-muted-foreground text-center py-4">暂无Bot账户</p>
-          )}
+            <button
+              onClick={() => setFormState(s => ({ ...s, autoRefillEnabled: !s.autoRefillEnabled }))}
+              className={`relative w-11 h-6 rounded-full transition-colors ${formState.autoRefillEnabled ? "bg-emerald-500" : "bg-secondary"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formState.autoRefillEnabled ? "translate-x-5" : ""}`} />
+            </button>
+          </div>
+
+          {/* Balance Alert Threshold */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <label className="text-sm font-medium">余额告警阈值 ($)</label>
+            <input
+              type="number" min={0}
+              value={formState.balanceAlertThreshold ?? 500}
+              onChange={e => setFormState(s => ({ ...s, balanceAlertThreshold: parseFloat(e.target.value) || 500 }))}
+              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+            <p className="text-xs text-muted-foreground mt-1">低于此值时发送告警通知</p>
+          </div>
+
+          {/* Auto Refill Amount */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <label className="text-sm font-medium">自动补充金额 ($)</label>
+            <input
+              type="number" min={0}
+              value={formState.autoRefillAmount ?? 10000}
+              onChange={e => setFormState(s => ({ ...s, autoRefillAmount: parseFloat(e.target.value) || 10000 }))}
+              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+            <p className="text-xs text-muted-foreground mt-1">补充后余额将达到此金额</p>
+          </div>
+
+          {/* Low Balance Bots Warning */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <label className="text-sm font-medium">低余额Bot</label>
+            <div className="mt-2 space-y-1">
+              {botDetails.filter((b: any) => b.balance < (formState.balanceAlertThreshold ?? 500)).length > 0 ? (
+                botDetails.filter((b: any) => b.balance < (formState.balanceAlertThreshold ?? 500)).map((b: any) => (
+                  <div key={b.id} className="flex items-center justify-between text-xs">
+                    <span className="text-red-400">{b.name}</span>
+                    <span className="text-red-400 font-mono">${b.balance.toFixed(0)}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-emerald-400">✓ 所有Bot余额正常</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -6057,11 +6183,11 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
       <div className="glass rounded-xl p-5">
         <h3 className="text-sm font-semibold text-foreground mb-3">Bot 策略说明</h3>
         <div className="space-y-2 text-xs text-muted-foreground">
-          <p>• <span className="text-foreground font-medium">入座条件：</span>公共房间真实玩家 1-2 人时自动入座</p>
-          <p>• <span className="text-foreground font-medium">操作风格：</span>偏弱策略，高弃牌率，不跟大注，永不All-in</p>
-          <p>• <span className="text-foreground font-medium">筹码来源：</span>系统虚拟资金池，不影响真实用户余额</p>
+          <p>• <span className="text-foreground font-medium">调度逻辑：</span>根据在线真人数动态调整Bot数量，无真人时每桌安排{formState.minPerTable ?? 3}-{formState.maxPerTable ?? 5}个Bot自动对玩</p>
+          <p>• <span className="text-foreground font-medium">决策引擎：</span>基于手牌强度+公共牌面计算equity，通过底池赔率数学比较决定跟注/弃牌</p>
+          <p>• <span className="text-foreground font-medium">资金流转：</span>Bot使用真实余额，所有买入/结算/返还均记录完整流水</p>
           <p>• <span className="text-foreground font-medium">亏损控制：</span>达到每日亏损上限后自动停止入座</p>
-          <p>• <span className="text-foreground font-medium">排行榜：</span>Bot数据不计入排行榜</p>
+          <p>• <span className="text-foreground font-medium">余额监控：</span>每5分钟检查一次，低于阈值时告警并自动补充</p>
           <p>• <span className="text-foreground font-medium">操作延迟：</span>模拟真人思考时间（{formState.minActionDelay}ms - {formState.maxActionDelay}ms）</p>
         </div>
       </div>

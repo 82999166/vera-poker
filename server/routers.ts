@@ -2374,18 +2374,28 @@ ${faqContext}
     // Update bot config
     updateConfig: adminProcedure.input(z.object({
       enabled: z.boolean().optional(),
-      maxPerTable: z.number().min(1).max(5).optional(),
+      maxPerTable: z.number().min(1).max(8).optional(),
+      minPerTable: z.number().min(2).max(5).optional(),
       dailyLossLimit: z.number().min(0).optional(),
       foldRate: z.number().min(0).max(100).optional(),
       minActionDelay: z.number().min(500).max(10000).optional(),
       maxActionDelay: z.number().min(1000).max(20000).optional(),
+      balanceAlertThreshold: z.number().min(0).optional(),
+      autoRefillAmount: z.number().min(0).optional(),
+      autoRefillEnabled: z.boolean().optional(),
+      fillWithoutRealPlayers: z.boolean().optional(),
     })).mutation(async ({ input }) => {
       if (input.enabled !== undefined) await db.upsertConfig("bot_enabled", String(input.enabled), "bot", "Bot启用", "boolean");
       if (input.maxPerTable !== undefined) await db.upsertConfig("bot_max_per_table", String(input.maxPerTable), "bot", "每桌最多Bot数", "number");
+      if (input.minPerTable !== undefined) await db.upsertConfig("bot_min_per_table", String(input.minPerTable), "bot", "每桌最少Bot数(无真人时)", "number");
       if (input.dailyLossLimit !== undefined) await db.upsertConfig("bot_daily_loss_limit", String(input.dailyLossLimit), "bot", "每日亏损上限", "number");
       if (input.foldRate !== undefined) await db.upsertConfig("bot_fold_rate", String(input.foldRate), "bot", "弃牌率(%)", "number");
       if (input.minActionDelay !== undefined) await db.upsertConfig("bot_min_action_delay", String(input.minActionDelay), "bot", "最小操作延迟(ms)", "number");
       if (input.maxActionDelay !== undefined) await db.upsertConfig("bot_max_action_delay", String(input.maxActionDelay), "bot", "最大操作延迟(ms)", "number");
+      if (input.balanceAlertThreshold !== undefined) await db.upsertConfig("bot_balance_alert_threshold", String(input.balanceAlertThreshold), "bot", "余额告警阈值($)", "number");
+      if (input.autoRefillAmount !== undefined) await db.upsertConfig("bot_auto_refill_amount", String(input.autoRefillAmount), "bot", "自动补充金额($)", "number");
+      if (input.autoRefillEnabled !== undefined) await db.upsertConfig("bot_auto_refill_enabled", String(input.autoRefillEnabled), "bot", "开启自动补充", "boolean");
+      if (input.fillWithoutRealPlayers !== undefined) await db.upsertConfig("bot_fill_without_real_players", String(input.fillWithoutRealPlayers), "bot", "无真人时自动对玩", "boolean");
       botManager.invalidateConfigCache();
       return { success: true };
     }),
