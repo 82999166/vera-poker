@@ -250,8 +250,11 @@ function ChipStack({ amount, size = "sm", animate = false }: { amount: number; s
           {Array.from({ length: chipCount }).map((_, i) => (
             <div
               key={`fly-${i}-${amount}`}
-              className="absolute w-3 h-3 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border border-yellow-600/80 shadow-[0_0_6px_rgba(234,179,8,0.6)] animate-chip-scatter"
+              className="absolute w-3 h-3 rounded-full animate-chip-scatter"
               style={{
+                background: 'linear-gradient(to bottom right, #fde047, #eab308, #a16207)',
+                border: '1px solid rgba(202,138,4,0.8)',
+                boxShadow: '0 0 6px rgba(234,179,8,0.6)',
                 left: '50%',
                 top: '50%',
                 '--scatter-x': `${(Math.random() - 0.5) * 30}px`,
@@ -265,7 +268,7 @@ function ChipStack({ amount, size = "sm", animate = false }: { amount: number; s
       )}
       <div className={`flex items-center gap-1 bg-black/60 rounded-full px-2 py-0.5 border border-gold/30 ${showFlyChips ? "animate-chip" : ""}`}>
         {/* Gold coin icon */}
-        <div className={`${size === "sm" ? "w-4 h-4" : "w-5 h-5"} rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border border-yellow-600/80 flex items-center justify-center shadow-[0_0_4px_rgba(234,179,8,0.5)]`}>
+        <div className={`${size === "sm" ? "w-4 h-4" : "w-5 h-5"} rounded-full flex items-center justify-center`} style={{ background: 'linear-gradient(to bottom right, #fde047, #eab308, #a16207)', border: '1px solid rgba(202,138,4,0.8)', boxShadow: '0 0 4px rgba(234,179,8,0.5)' }}>
           <span className={`${size === "sm" ? "text-[7px]" : "text-[8px]"} font-black text-yellow-900`}>$</span>
         </div>
         <span className={`${size === "sm" ? "text-[11px]" : "text-sm"} text-yellow-300 font-bold drop-shadow-[0_0_3px_rgba(234,179,8,0.4)]`}>{fmtAmt(amount)}</span>
@@ -299,7 +302,7 @@ function AnimatedPot({ amount }: { amount: number }) {
   return (
     <div className="bg-black/70 rounded-full px-4 py-1.5 inline-flex items-center gap-2 border border-gold/40 shadow-[0_0_12px_rgba(234,179,8,0.3)] transition-all duration-300">
       {/* Large gold coin icon */}
-      <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border-2 border-yellow-600/80 flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.6)] ${amount > 0 ? "animate-pulse" : ""}`}>
+      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${amount > 0 ? "animate-pulse" : ""}`} style={{ background: 'linear-gradient(to bottom right, #fde047, #eab308, #a16207)', border: '2px solid rgba(202,138,4,0.8)', boxShadow: '0 0 8px rgba(234,179,8,0.6)' }}>
         <span className="text-[10px] font-black text-yellow-900">$</span>
       </div>
       <span className={`text-base font-black text-yellow-300 drop-shadow-[0_0_6px_rgba(234,179,8,0.5)] transition-all duration-300 ${amount > prevAmount.current ? "scale-110" : ""}`}>
@@ -1258,15 +1261,15 @@ export default function Table() {
 
   return (
     <div
-      className="bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#060e1a] flex flex-col"
-      style={containerStyle}
+      className="flex flex-col"
+      style={{ ...containerStyle, background: 'linear-gradient(to bottom, #0a1628, #0d1f3c, #060e1a)' }}
     >
       {/* Tournament End Overlay */}
       {tournamentEndInfo && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-500">
-          <div className="w-[90%] max-w-sm bg-gradient-to-b from-[#1a2744] to-[#0d1a2e] rounded-2xl border border-gold/30 p-6 text-center shadow-2xl shadow-gold/10">
+          <div className="w-[90%] max-w-sm rounded-2xl p-6 text-center shadow-2xl" style={{ background: 'linear-gradient(to bottom, #1a2744, #0d1a2e)', border: '1px solid rgba(234,179,8,0.3)' }}>
             {/* Trophy icon */}
-            <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-gold/30 to-gold/10 flex items-center justify-center mb-4">
+            <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: 'linear-gradient(to bottom right, rgba(234,179,8,0.3), rgba(234,179,8,0.1))' }}>
               <span className="text-3xl">{tournamentEndInfo.rank === 1 ? "🏆" : tournamentEndInfo.rank === 2 ? "🥈" : tournamentEndInfo.rank === 3 ? "🥉" : "🎮"}</span>
             </div>
             {/* Title */}
@@ -1294,7 +1297,8 @@ export default function Table() {
             {/* Back to lobby button */}
             <button
               onClick={() => navigate("/lobby")}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-gold to-amber-500 text-black font-bold text-base hover:brightness-110 active:scale-[0.97] transition-all duration-150"
+              className="w-full py-3 rounded-xl text-black font-bold text-base hover:brightness-110 active:scale-[0.97] transition-all duration-150"
+              style={{ background: 'linear-gradient(to right, #eab308, #f59e0b)' }}
             >
               {t("tourney.backToLobby")}
             </button>
@@ -1348,7 +1352,7 @@ export default function Table() {
       {showTableMenu && (
         <div className="fixed inset-0 z-[60]" onClick={() => setShowTableMenu(false)}>
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div className="absolute top-0 left-0 h-full w-[220px] bg-gradient-to-b from-[#1a2744] to-[#0d1a2e] border-r border-white/10 shadow-2xl p-4 flex flex-col gap-1" style={{ paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px) + 16px)' }} onClick={e => e.stopPropagation()}>
+          <div className="absolute top-0 left-0 h-full w-[220px] border-r border-white/10 shadow-2xl p-4 flex flex-col gap-1" style={{ background: 'linear-gradient(to bottom, #1a2744, #0d1a2e)', paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px) + 16px)' }} onClick={e => e.stopPropagation()}>
             {/* Close */}
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-bold text-white">{room?.name || t("table.demo")}</span>
@@ -1518,16 +1522,17 @@ export default function Table() {
         {/* Vertical Countdown Timer - pinned to far left edge, only for hero's turn */}
         {displayIsMyTurn && (
           <div className="absolute -left-0.5 top-[25%] bottom-[25%] z-20 flex flex-col items-center gap-0.5">
-            <div className={`relative w-1.5 flex-1 bg-secondary/40 rounded-full overflow-hidden ${isUrgent ? 'animate-pulse' : ''}`}>
+            <div className={`relative w-1.5 flex-1 rounded-full overflow-hidden ${isUrgent ? 'animate-pulse' : ''}`} style={{ background: 'rgba(100,100,120,0.4)' }}>
               <div
-                className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 ease-linear ${
-                  countdown > 10
-                    ? 'bg-gradient-to-t from-[#2563eb] to-[#eab308]'
+                className="absolute bottom-0 w-full rounded-full transition-all duration-1000 ease-linear"
+                style={{
+                  height: `${(countdown / turnTimeout) * 100}%`,
+                  background: countdown > 10
+                    ? 'linear-gradient(to top, #2563eb, #eab308)'
                     : countdown > 5
-                      ? 'bg-gradient-to-t from-[#f97316] to-[#eab308]'
-                      : 'bg-gradient-to-t from-[#dc2626] to-[#f87171]'
-                }`}
-                style={{ height: `${(countdown / turnTimeout) * 100}%` }}
+                      ? 'linear-gradient(to top, #f97316, #eab308)'
+                      : 'linear-gradient(to top, #dc2626, #f87171)'
+                }}
               />
             </div>
             <div className={`text-[9px] font-bold ${isUrgent ? 'text-red-400' : 'text-gold'}`}>
@@ -1543,10 +1548,10 @@ export default function Table() {
               {/* 3D stacked deck visual */}
               <div className="relative w-[30px] h-[42px]">
                 {/* Bottom cards (stack depth effect) */}
-                <div className="absolute top-[4px] left-[2px] w-[28px] h-[38px] rounded-[3px] bg-gradient-to-br from-[#8b1a1a] to-[#5c0e0e] border border-white/20 shadow-[0_2px_4px_rgba(0,0,0,0.5)]" />
-                <div className="absolute top-[2px] left-[1px] w-[28px] h-[38px] rounded-[3px] bg-gradient-to-br from-[#a82020] to-[#6b1111] border border-white/25 shadow-[0_2px_6px_rgba(0,0,0,0.4)]" />
+                <div className="absolute top-[4px] left-[2px] w-[28px] h-[38px] rounded-[3px]" style={{ background: 'linear-gradient(to bottom right, #8b1a1a, #5c0e0e)', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
+                <div className="absolute top-[2px] left-[1px] w-[28px] h-[38px] rounded-[3px]" style={{ background: 'linear-gradient(to bottom right, #a82020, #6b1111)', border: '1px solid rgba(255,255,255,0.25)', boxShadow: '0 2px 6px rgba(0,0,0,0.4)' }} />
                 {/* Top card */}
-                <div className="absolute top-0 left-0 w-[28px] h-[38px] rounded-[3px] bg-gradient-to-br from-[#d63031] to-[#b71c1c] border-[1.5px] border-white/70 shadow-[0_3px_8px_rgba(0,0,0,0.5)]">
+                <div className="absolute top-0 left-0 w-[28px] h-[38px] rounded-[3px]" style={{ background: 'linear-gradient(to bottom right, #d63031, #b71c1c)', border: '1.5px solid rgba(255,255,255,0.7)', boxShadow: '0 3px 8px rgba(0,0,0,0.5)' }}>
                   {/* Inner border pattern */}
                   <div className="absolute inset-[2px] border border-white/40 rounded-[2px]" />
                   {/* Diagonal pattern */}
@@ -1642,7 +1647,8 @@ export default function Table() {
                     </div>
                     <button
                       onClick={() => setShowRebuyDialog(true)}
-                      className="px-4 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold shadow-lg active:scale-[0.97]"
+                      className="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-lg active:scale-[0.97]"
+                      style={{ background: 'linear-gradient(to right, #22c55e, #059669)' }}
                     >
                       {t("rebuy.addChips")}
                     </button>
@@ -1657,8 +1663,8 @@ export default function Table() {
                   <button
                     onClick={() => readyMutation.mutate({ roomId })}
                     disabled={readyMutation.isPending}
-                    className="px-6 py-2.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-500/40 hover:shadow-green-500/60 transition-all active:scale-[0.97] disabled:opacity-50"
-                    style={{ animation: 'pulse 2s infinite' }}
+                    className="px-6 py-2.5 rounded-full text-white font-bold text-sm shadow-lg transition-all active:scale-[0.97] disabled:opacity-50"
+                    style={{ background: 'linear-gradient(to right, #22c55e, #059669)', boxShadow: '0 10px 15px -3px rgba(34,197,94,0.4)', animation: 'pulse 2s infinite' }}
                   >
                     ▶ {t("table.startNextHand")}
                   </button>
@@ -1675,7 +1681,8 @@ export default function Table() {
                   <div className="mt-2 flex gap-2 flex-wrap justify-center">
                     <button
                       onClick={() => setShowRebuyDialog(true)}
-                      className="px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/80 to-yellow-600/80 text-white text-[11px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-[0.97] flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-full text-white text-[11px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-[0.97] flex items-center gap-1"
+                      style={{ background: 'linear-gradient(to right, rgba(245,158,11,0.8), rgba(202,138,4,0.8))' }}
                     >
                       <Plus className="w-3 h-3" />
                       {t("rebuy.addChips")}
@@ -1684,7 +1691,8 @@ export default function Table() {
                       <button
                         onClick={handleSwitchTable}
                         disabled={isSwitchingTable}
-                        className="px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500/80 to-cyan-600/80 text-white text-[11px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-[0.97] flex items-center gap-1 disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-full text-white text-[11px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-[0.97] flex items-center gap-1 disabled:opacity-50"
+                        style={{ background: 'linear-gradient(to right, rgba(59,130,246,0.8), rgba(8,145,178,0.8))' }}
                       >
                         {isSwitchingTable ? (
                           <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
@@ -1905,8 +1913,8 @@ export default function Table() {
                         {[0, 1, 2, 3, 4].map((i) => (
                           <div
                             key={i}
-                            className="animate-chips-fly w-4 h-4 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 border border-yellow-600 shadow-[0_0_6px_rgba(234,179,8,0.5)] flex items-center justify-center"
-                            style={{ animationDelay: `${i * 150}ms` }}
+                            className="animate-chips-fly w-4 h-4 rounded-full flex items-center justify-center"
+                            style={{ background: 'linear-gradient(to bottom right, #fde047, #eab308, #a16207)', border: '1px solid #ca8a04', boxShadow: '0 0 6px rgba(234,179,8,0.5)', animationDelay: `${i * 150}ms` }}
                           >
                             <span className="text-[6px] font-black text-yellow-900">$</span>
                           </div>
@@ -2061,7 +2069,8 @@ export default function Table() {
                   <button
                     onClick={() => readyMutation.mutate({ roomId })}
                     disabled={readyMutation.isPending}
-                    className="px-6 py-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-500/40 hover:shadow-green-500/60 transition-all active:scale-[0.97] disabled:opacity-50"
+                    className="px-6 py-2 rounded-full text-white font-bold text-sm shadow-lg transition-all active:scale-[0.97] disabled:opacity-50"
+                    style={{ background: 'linear-gradient(to right, #22c55e, #059669)', boxShadow: '0 10px 15px -3px rgba(34,197,94,0.4)' }}
                   >
                     ▶ {t("table.startNextHand")}
                   </button>
@@ -2128,7 +2137,8 @@ export default function Table() {
                   step={room ? (parseFloat(room.bigBlind) < 1 ? 0.01 : parseFloat(room.bigBlind) < 10 ? 0.1 : 0.5) : 0.5}
                   value={raiseAmount}
                   onChange={(e) => setRaiseAmount(parseFloat(e.target.value))}
-                  className="flex-1 h-1.5 bg-secondary rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-gold [&::-webkit-slider-thumb]:to-gold-dim [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gold/50"
+                  className="flex-1 h-1.5 bg-secondary rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2"
+                  style={{ WebkitAppearance: 'none' }}
                 />
                 <span className="text-[10px] text-gold font-bold min-w-[36px] text-right">{fmtAmt(raiseAmount)}</span>
               </div>
@@ -2270,7 +2280,8 @@ export default function Table() {
               <button
                 onClick={handleRebuy}
                 disabled={rebuyMutation.isPending || !rebuyAmount}
-                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-sm hover:opacity-90 transition-all active:scale-[0.97] disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-xl text-background font-bold text-sm hover:opacity-90 transition-all active:scale-[0.97] disabled:opacity-50"
+                style={{ background: 'linear-gradient(to right, #eab308, #a78b00)' }}
               >
                 {rebuyMutation.isPending ? "..." : t("rebuy.confirm")}
               </button>

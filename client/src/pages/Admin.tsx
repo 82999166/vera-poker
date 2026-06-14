@@ -1328,7 +1328,7 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center mx-auto mb-4 shadow-lg shadow-gold/20">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-gold/20" style={{ background: "linear-gradient(to bottom right, #eab308, #a78b00)" }}>
             <Shield className="w-8 h-8 text-background" />
           </div>
           <h1 className="text-xl font-bold text-foreground">{at("login.title")}</h1>
@@ -1374,7 +1374,7 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 active:scale-[0.97]"
+            className="w-full py-3 rounded-xl text-background font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 active:scale-[0.97]" style={{ background: "linear-gradient(to right, #eab308, #a78b00)" }}
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-background/30 border-t-background rounded-full animate-spin" />
@@ -1476,7 +1476,7 @@ export default function Admin() {
           {/* Logo */}
           <div className="px-5 py-5 border-b border-border">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(to bottom right, #eab308, #a78b00)" }}>
                 <span className="text-sm font-bold text-background">V</span>
               </div>
               <div>
@@ -1563,7 +1563,7 @@ export default function Admin() {
       <div className="sticky top-0 z-30 glass-strong border-b border-border">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(to bottom right, #eab308, #a78b00)" }}>
               <span className="text-[10px] font-bold text-background">V</span>
             </div>
             <div>
@@ -1878,7 +1878,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
             <div className="grid grid-cols-[1fr_minmax(140px,auto)_auto_auto_auto_auto_auto] gap-2 items-center">
               {/* User info */}
               <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 shrink-0 rounded-full bg-gradient-to-br from-gold/30 to-gold/10 flex items-center justify-center">
+                <div className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(to bottom right, rgba(234,179,8,0.3), rgba(234,179,8,0.1))" }}>
                   <span className="text-[10px] font-bold text-gold">{(u.name || u.nickname || "?").charAt(0).toUpperCase()}</span>
                 </div>
                 <div className="min-w-0">
@@ -2336,7 +2336,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
                       <div key={rel.downlineId} className="glass rounded-xl px-3 py-2.5">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400/30 to-emerald-400/10 flex items-center justify-center shrink-0">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ background: "linear-gradient(to bottom right, rgba(52,211,153,0.3), rgba(52,211,153,0.1))" }}>
                               <span className="text-[10px] font-bold text-emerald-400">
                                 {(rel.user?.name || rel.user?.nickname || "?").charAt(0).toUpperCase()}
                               </span>
@@ -2387,7 +2387,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
                       <div key={rel.downlineId} className="glass rounded-xl px-3 py-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400/30 to-blue-400/10 flex items-center justify-center shrink-0">
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "linear-gradient(to bottom right, rgba(96,165,250,0.3), rgba(96,165,250,0.1))" }}>
                               <span className="text-[9px] font-bold text-blue-400">
                                 {(rel.user?.name || rel.user?.nickname || "?").charAt(0).toUpperCase()}
                               </span>

@@ -179,7 +179,7 @@ export default function Profile() {
       <div className="px-4 pt-3 pb-2">
         <div className="glass rounded-2xl p-4">
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-gold/30 to-gold/10 flex-shrink-0 flex items-center justify-center border-2 border-gold/30 overflow-hidden">
+            <div className="w-14 h-14 rounded-full flex-shrink-0 flex items-center justify-center border-2 border-gold/30 overflow-hidden" style={{ background: "linear-gradient(to bottom right, rgba(234,179,8,0.3), rgba(234,179,8,0.1))" }}>
               {profile.avatar ? (
                 <img src={profile.avatar} alt="" className="w-full h-full object-cover" />
               ) : (

@@ -49,7 +49,7 @@ export default function StaffLogin() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center mx-auto mb-4 shadow-lg shadow-gold/20">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-gold/20" style={{ background: "linear-gradient(to bottom right, #eab308, #a78b00)" }}>
             <Shield className="w-8 h-8 text-background" />
           </div>
           <h1 className="text-xl font-bold text-foreground">Vera 管理后台</h1>
@@ -95,7 +95,7 @@ export default function StaffLogin() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 active:scale-[0.97]"
+            className="w-full py-3 rounded-xl text-background font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 active:scale-[0.97]" style={{ background: "linear-gradient(to right, #eab308, #a78b00)" }}
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-background/30 border-t-background rounded-full animate-spin" />

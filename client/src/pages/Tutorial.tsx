@@ -15,7 +15,7 @@ const HAND_RANKS = [
       { r: "J", s: "♥", red: true },
       { r: "10", s: "♥", red: true },
     ],
-    color: "from-yellow-500/30 to-amber-600/20",
+    color: "linear-gradient(to right, rgba(234,179,8,0.3), rgba(217,119,6,0.2))",
     badge: "bg-yellow-500 text-black",
     num: "1",
   },
@@ -28,7 +28,7 @@ const HAND_RANKS = [
       { r: "9", s: "♠", red: false },
       { r: "8", s: "♠", red: false },
     ],
-    color: "from-purple-500/20 to-purple-800/10",
+    color: "linear-gradient(to right, rgba(168,85,247,0.2), rgba(107,33,168,0.1))",
     badge: "bg-purple-500 text-white",
     num: "2",
   },
@@ -41,7 +41,7 @@ const HAND_RANKS = [
       { r: "5", s: "♦", red: true },
       { r: "2", s: "♠", red: false },
     ],
-    color: "from-blue-500/20 to-blue-800/10",
+    color: "linear-gradient(to right, rgba(59,130,246,0.2), rgba(30,64,175,0.1))",
     badge: "bg-blue-500 text-white",
     num: "3",
   },
@@ -54,7 +54,7 @@ const HAND_RANKS = [
       { r: "5", s: "♥", red: true },
       { r: "5", s: "♠", red: false },
     ],
-    color: "from-cyan-500/20 to-cyan-800/10",
+    color: "linear-gradient(to right, rgba(6,182,212,0.2), rgba(21,94,117,0.1))",
     badge: "bg-cyan-500 text-white",
     num: "4",
   },
@@ -67,7 +67,7 @@ const HAND_RANKS = [
       { r: "3", s: "♠", red: false },
       { r: "2", s: "♠", red: false },
     ],
-    color: "from-green-500/20 to-green-800/10",
+    color: "linear-gradient(to right, rgba(34,197,94,0.2), rgba(22,101,52,0.1))",
     badge: "bg-green-500 text-white",
     num: "5",
   },
@@ -80,7 +80,7 @@ const HAND_RANKS = [
       { r: "9", s: "♥", red: true },
       { r: "8", s: "♠", red: false },
     ],
-    color: "from-teal-500/20 to-teal-800/10",
+    color: "linear-gradient(to right, rgba(20,184,166,0.2), rgba(17,94,89,0.1))",
     badge: "bg-teal-500 text-white",
     num: "6",
   },
@@ -93,7 +93,7 @@ const HAND_RANKS = [
       { r: "9", s: "♠", red: false },
       { r: "5", s: "♣", red: false },
     ],
-    color: "from-orange-500/20 to-orange-800/10",
+    color: "linear-gradient(to right, rgba(249,115,22,0.2), rgba(154,52,18,0.1))",
     badge: "bg-orange-500 text-white",
     num: "7",
   },
@@ -106,7 +106,7 @@ const HAND_RANKS = [
       { r: "J", s: "♣", red: false },
       { r: "9", s: "♠", red: false },
     ],
-    color: "from-rose-500/20 to-rose-800/10",
+    color: "linear-gradient(to right, rgba(244,63,94,0.2), rgba(159,18,57,0.1))",
     badge: "bg-rose-500 text-white",
     num: "8",
   },
@@ -119,7 +119,7 @@ const HAND_RANKS = [
       { r: "7", s: "♣", red: false },
       { r: "2", s: "♠", red: false },
     ],
-    color: "from-pink-500/20 to-pink-800/10",
+    color: "linear-gradient(to right, rgba(236,72,153,0.2), rgba(157,23,77,0.1))",
     badge: "bg-pink-500 text-white",
     num: "9",
   },
@@ -132,7 +132,7 @@ const HAND_RANKS = [
       { r: "3", s: "♥", red: true },
       { r: "2", s: "♠", red: false },
     ],
-    color: "from-slate-500/20 to-slate-800/10",
+    color: "linear-gradient(to right, rgba(100,116,139,0.2), rgba(30,41,59,0.1))",
     badge: "bg-slate-500 text-white",
     num: "10",
   },
@@ -223,7 +223,8 @@ export default function Tutorial() {
             {HAND_RANKS.map((rank) => (
               <div
                 key={rank.key}
-                className={`flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r ${rank.color} border border-white/10`}
+                className={`flex items-center gap-3 p-3 rounded-xl border border-white/10`}
+                style={{ background: rank.color }}
               >
                 {/* Rank number badge */}
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${rank.badge}`}>
@@ -253,7 +254,7 @@ export default function Tutorial() {
             {/* Flow steps */}
             <div className="relative">
               {/* Vertical line */}
-              <div className="absolute left-6 top-8 bottom-8 w-0.5 bg-gradient-to-b from-blue-500 via-green-500 to-purple-500 opacity-40" />
+              <div className="absolute left-6 top-8 bottom-8 w-0.5 opacity-40" style={{ background: "linear-gradient(to bottom, #3b82f6, #22c55e, #a855f7)" }} />
 
               <div className="space-y-3">
                 {GAME_FLOW.map((step, i) => (
@@ -308,7 +309,7 @@ export default function Tutorial() {
             ))}
 
             {/* Showdown order illustration */}
-            <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-gold/10 to-amber-600/5 border border-gold/20">
+            <div className="mt-4 p-4 rounded-xl border border-gold/20" style={{ background: "linear-gradient(to bottom right, rgba(234,179,8,0.1), rgba(217,119,6,0.05))" }}>
               <h4 className="text-sm font-bold text-gold mb-3">亮牌顺序示意</h4>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">

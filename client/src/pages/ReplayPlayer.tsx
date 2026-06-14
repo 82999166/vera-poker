@@ -129,7 +129,7 @@ export default function ReplayPlayer() {
   const renderCardBack = (idx: number, size: "sm" | "md" = "md") => {
     const sizeClass = size === "sm" ? "w-[24px] h-[34px]" : "w-[32px] h-[44px]";
     return (
-      <div key={`back-${idx}`} className={`flex items-center justify-center rounded-[3px] border border-blue-300/30 bg-gradient-to-br from-blue-800 to-indigo-900 shadow-sm flex-shrink-0 ${sizeClass}`}>
+      <div key={`back-${idx}`} className={`flex items-center justify-center rounded-[3px] border border-blue-300/30 shadow-sm flex-shrink-0 ${sizeClass}`} style={{ background: 'linear-gradient(to bottom right, #1e40af, #312e81)' }}>
         <span className="text-[10px] text-blue-200/60">♦</span>
       </div>
     );

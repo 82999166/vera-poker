@@ -669,3 +669,21 @@
 
 - [x] 首页启动界面loading等待时间加长（让用户看清）
 - [x] 游戏其它界面和底部tab所有白色字加粗
+
+## 2026-06-14 UI修复 Round 8
+
+- [x] 全局渐变兼容性修复：所有页面bg-gradient改为inline style（iPhone 7 Plus兼容）
+  - Table.tsx: 进度条、牌盒、筹码、主容器、侧边菜单、操作按钮、rebuy弹窗
+  - Lobby.tsx: 创建房间按钮、加入按钮
+  - Wallet.tsx: 充值/提现按钮
+  - Home.tsx: 登录按钮、进入游戏按钮
+  - CreateRoom.tsx: 创建按钮
+  - Profile.tsx: 头像渐变
+  - Agent.tsx: 底部渐变、header渐变
+  - Tutorial.tsx: 牌型卡片、时间线、showdown示意
+  - ReplayPlayer.tsx: 牌背面
+  - StaffLogin.tsx: Logo、登录按钮
+  - Admin.tsx: 所有渐变元素
+  - NotFound.tsx: 背景渐变
+  - RoomInvitePoster.tsx: 底部渐变
+  - Leaderboard.tsx: 头像渐变

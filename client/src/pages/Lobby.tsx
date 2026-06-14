@@ -201,7 +201,8 @@ export default function Lobby() {
             </div>
             <button
               onClick={dismissWelcome}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-sm hover:opacity-90 transition-opacity"
+              className="w-full py-3 rounded-xl text-background font-bold text-sm hover:opacity-90 transition-opacity"
+              style={{ background: 'linear-gradient(to right, #eab308, #a78b00)' }}
             >
               {t("lobby.welcomeStart")}
             </button>
@@ -216,7 +217,7 @@ export default function Lobby() {
             {user?.avatar ? (
               <img src={user.avatar} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-gold/50" />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gold to-gold-dim flex items-center justify-center">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #eab308, #a78b00)' }}>
                 <span className="text-sm font-bold text-background">{(user?.nickname || user?.name || "V").charAt(0).toUpperCase()}</span>
               </div>
             )}
@@ -1030,7 +1031,7 @@ function TournamentLeaderboardPreview() {
             }`}>
               {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
             </span>
-            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center overflow-hidden shrink-0">
+            <div className="w-6 h-6 rounded-full flex items-center justify-center overflow-hidden shrink-0" style={{ background: 'linear-gradient(to bottom right, rgba(234,179,8,0.2), rgba(234,179,8,0.05))' }}>
               {entry.avatar ? (
                 <img src={entry.avatar} alt="" className="w-full h-full object-cover" />
               ) : (

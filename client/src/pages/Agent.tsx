@@ -128,10 +128,10 @@ export default function Agent() {
           {bannerUrl ? (
             <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
               <img src={bannerUrl} alt="VeraPoker" className="w-full h-full object-cover" />
-              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#1a1a2e] to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 h-8" style={{ background: "linear-gradient(to top, #1a1a2e, transparent)" }} />
             </div>
           ) : (
-            <div className="w-full h-24 bg-gradient-to-r from-[#0f3460] to-[#16213e] flex items-center justify-center">
+            <div className="w-full h-24 flex items-center justify-center" style={{ background: "linear-gradient(to right, #0f3460, #16213e)" }}>
               <span className="text-2xl font-black text-gold tracking-wider">VeraPoker</span>
             </div>
           )}

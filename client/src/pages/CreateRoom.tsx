@@ -253,7 +253,8 @@ export default function CreateRoom() {
         <button
           onClick={handleCreate}
           disabled={createMutation.isPending}
-          className="w-full py-3.5 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-sm glow-gold disabled:opacity-50 active:scale-[0.97] transition-transform"
+          className="w-full py-3.5 rounded-xl text-background font-bold text-sm glow-gold disabled:opacity-50 active:scale-[0.97] transition-transform"
+          style={{ background: 'linear-gradient(to right, #eab308, #a78b00)' }}
         >
           {createMutation.isPending ? t("common.loading") : t("room.create")}
         </button>

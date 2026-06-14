@@ -299,7 +299,8 @@ export default function Wallet() {
             <button
               onClick={handleDeposit}
               disabled={depositMutation.isPending || !depositAddress}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-sm glow-gold disabled:opacity-50 active:scale-[0.97] transition-transform"
+              className="w-full py-3 rounded-xl text-background font-bold text-sm glow-gold disabled:opacity-50 active:scale-[0.97] transition-transform"
+              style={{ background: 'linear-gradient(to right, #eab308, #a78b00)' }}
             >
               {depositMutation.isPending ? t("common.loading") : t("wallet.confirm")}
             </button>
@@ -363,7 +364,8 @@ export default function Wallet() {
             <button
               onClick={handleWithdraw}
               disabled={withdrawMutation.isPending}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-truth-blue to-truth-blue-bright text-white font-bold text-sm glow-blue disabled:opacity-50 active:scale-[0.97] transition-transform"
+              className="w-full py-3 rounded-xl text-white font-bold text-sm glow-blue disabled:opacity-50 active:scale-[0.97] transition-transform"
+              style={{ background: 'linear-gradient(to right, #2563eb, #4d8cff)' }}
             >
               {withdrawMutation.isPending ? t("common.loading") : t("wallet.confirm")}
             </button>

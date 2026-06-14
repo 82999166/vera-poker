@@ -135,7 +135,7 @@ export default function RoomInvitePoster({ room, inviteCode, onClose }: RoomInvi
             onError={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_BANNER_URL; }}
           />
           {/* Subtle bottom gradient overlay for smooth transition */}
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#1a1a2e] to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-8" style={{ background: "linear-gradient(to top, #1a1a2e, transparent)" }} />
         </div>
 
         {/* ── Share message text (editable by player) ── */}

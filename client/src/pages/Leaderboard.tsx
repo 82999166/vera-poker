@@ -175,7 +175,7 @@ function TournamentLeaderboard({ data, subTab, userId }: {
              index === 2 ? <Medal className="w-5 h-5 text-amber-600" /> :
              <span className="w-5 h-5 flex items-center justify-center text-xs font-bold text-muted-foreground">{index + 1}</span>}
           </div>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center overflow-hidden shrink-0">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden shrink-0" style={{ background: "linear-gradient(to bottom right, rgba(234,179,8,0.2), rgba(234,179,8,0.05))" }}>
             {entry.avatar ? (
               <img src={entry.avatar} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -253,7 +253,7 @@ function LeaderboardRow({ rank, name, avatar, value, subValue, isMe, youLabel }:
       <div className="w-8 flex items-center justify-center shrink-0">
         {getRankIcon()}
       </div>
-      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center overflow-hidden shrink-0">
+      <div className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden shrink-0" style={{ background: "linear-gradient(to bottom right, rgba(234,179,8,0.2), rgba(234,179,8,0.05))" }}>
         {avatar ? (
           <img src={avatar} alt="" className="w-full h-full object-cover" />
         ) : (

@@ -194,7 +194,7 @@ export default function Home() {
   if (isTgApp && (isAuthenticating || (tgLoginSuccess && loading))) {
     return (
       <div className="min-h-screen bg-background particle-bg flex flex-col items-center justify-center">
-        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-gold via-gold-dim to-truth-blue flex items-center justify-center shadow-2xl glow-gold mb-6">
+        <div className="w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl glow-gold mb-6" style={{ background: 'linear-gradient(to bottom right, #eab308, #a78b00, #2563eb)' }}>
           <span className="text-4xl font-black text-background">VP</span>
         </div>
         <Loader2 className="w-8 h-8 text-gold animate-spin mb-4" />
@@ -211,7 +211,7 @@ export default function Home() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 safe-top text-center">
         {/* Logo */}
         <div className="mb-8 relative">
-          <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-gold via-gold-dim to-truth-blue flex items-center justify-center shadow-2xl glow-gold">
+          <div className="w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl glow-gold" style={{ background: 'linear-gradient(to bottom right, #eab308, #a78b00, #2563eb)' }}>
             <span className="text-4xl font-black text-background">VP</span>
           </div>
           <div className="absolute -inset-4 rounded-3xl bg-gold/5 blur-xl -z-10" />
@@ -243,7 +243,8 @@ export default function Home() {
           {!isTgApp && (
             <button
               onClick={() => (window.location.href = getLoginUrl())}
-              className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-gold to-gold-dim text-background font-bold text-sm glow-gold hover:opacity-90 transition-opacity active:scale-[0.97] flex items-center justify-center gap-2"
+              className="px-8 py-3.5 rounded-xl text-background font-bold text-sm glow-gold hover:opacity-90 transition-opacity active:scale-[0.97] flex items-center justify-center gap-2"
+              style={{ background: 'linear-gradient(to right, #eab308, #a78b00)' }}
             >
               {t("common.login")} <ArrowRight className="w-4 h-4" />
             </button>
