@@ -261,20 +261,9 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
   if (roomConfig) {
     // 使用房间级别配置的botCount
     targetBotCount = roomConfig.botCount;
-  } else if (realPlayers.length === 0) {
-    // 无真人：填充minPerTable个bot自动对玩
-    if (!config.fillWithoutRealPlayers) return;
-    targetBotCount = config.minPerTable;
-  } else if (realPlayers.length === 1) {
-    targetBotCount = Math.min(config.maxPerTable, 4);
-  } else if (realPlayers.length === 2) {
-    targetBotCount = 3;
-  } else if (realPlayers.length === 3) {
-    targetBotCount = 2;
-  } else if (realPlayers.length === 4) {
-    targetBotCount = 1;
   } else {
-    targetBotCount = 0;
+    // 未配置独立bot的房间，不自动填充bot
+    return;
   }
 
   // 已达到目标数量
@@ -379,16 +368,18 @@ export async function persistentBotScheduler(): Promise<void> {
   // 需要补充的bot数量
   const needed = target - currentOnlineCount;
 
-  // 将bot分散到各个房间（优先填充人少的房间）
+  // 将bot分散到各个房间（只分配到明确配置了bot的房间）
   for (let i = 0; i < Math.min(needed, 3); i++) { // 每次最多补充3个，防止瞬间涌入
-    // 找到bot最少的房间
+    // 找到bot最少的房间（只考虑有独立配置且启用的房间）
     let bestRoom: typeof publicRooms[0] | null = null;
     let minBots = Infinity;
     for (const room of publicRooms) {
       const roomConfig = await getRoomBotConfig(room.id);
-      if (roomConfig && !roomConfig.enabled) continue; // 跳过禁用bot的房间
+      // 只分配到明确配置了bot的房间，未配置的跳过
+      if (!roomConfig) continue;
+      if (!roomConfig.enabled) continue; // 跳过禁用bot的房间
       const botsInRoom = seatedBots.get(room.id)?.size || 0;
-      const maxAllowed = roomConfig?.botCount || config.maxPerTable;
+      const maxAllowed = roomConfig.botCount;
       if (botsInRoom < maxAllowed && botsInRoom < room.maxPlayers - 1 && botsInRoom < minBots) {
         minBots = botsInRoom;
         bestRoom = room;

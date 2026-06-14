@@ -458,11 +458,50 @@ export const appRouter = router({
         (r.status === "waiting" || r.status === "playing") &&
         r.currentPlayers < r.maxPlayers
       );
+      let targetRoom;
       if (matchingRooms.length === 0) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "No available tables for this stake level" });
+        // 所有同级别桌都满了，自动创建新桌
+        const templateRoom = allRooms.find(r =>
+          r.smallBlind === input.smallBlind && r.bigBlind === input.bigBlind
+        );
+        if (!templateRoom) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "No available tables for this stake level" });
+        }
+        // 计算同级别已有多少张桌子
+        const sameStakeRooms = allRooms.filter(r =>
+          r.smallBlind === input.smallBlind && r.bigBlind === input.bigBlind
+        );
+        const tableNum = sameStakeRooms.length + 1;
+        const newRoomId = await db.createRoom({
+          name: `${templateRoom.name} #${tableNum}`,
+          type: "public",
+          status: "waiting",
+          gameType: templateRoom.gameType,
+          smallBlind: templateRoom.smallBlind,
+          bigBlind: templateRoom.bigBlind,
+          minBuyIn: templateRoom.minBuyIn,
+          maxBuyIn: templateRoom.maxBuyIn,
+          maxPlayers: templateRoom.maxPlayers,
+          fairnessLevel: templateRoom.fairnessLevel,
+          rakePercent: templateRoom.rakePercent,
+          rakeCap: templateRoom.rakeCap,
+          billingMode: templateRoom.billingMode,
+          roundFee: templateRoom.roundFee,
+          currentPlayers: 0,
+        });
+        if (!newRoomId) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create new table" });
+        }
+        const newRoom = await db.getRoomById(newRoomId);
+        if (!newRoom) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to find new table" });
+        }
+        targetRoom = newRoom;
+        console.log(`[AutoExpand] Created new table "${newRoom.name}" (id=${newRoomId}) for stake ${input.smallBlind}/${input.bigBlind}`);
+      } else {
+        // Pick table with most players (most action) but not full
+        targetRoom = matchingRooms.sort((a, b) => b.currentPlayers - a.currentPlayers)[0];
       }
-      // Pick table with most players (most action) but not full
-      const targetRoom = matchingRooms.sort((a, b) => b.currentPlayers - a.currentPlayers)[0];
       // buyIn=0: lobby navigation mode - just return the roomId, buy-in happens in Table.tsx
       if (input.buyIn === 0) {
         return { roomId: targetRoom.id, seatIndex: -1, newBalance: null, roomName: targetRoom.name };
