@@ -15,6 +15,14 @@ import "./index.css";
   if (tg) {
     tg.ready();
     tg.expand();
+    // Try to request fullscreen (Bot API 8.0+) for maximum viewport
+    if (typeof tg.requestFullscreen === 'function') {
+      try { tg.requestFullscreen(); } catch (_) {}
+    }
+    // Disable vertical swipe to close (keeps app open)
+    if (typeof tg.disableVerticalSwipes === 'function') {
+      tg.disableVerticalSwipes();
+    }
     // Set background color to match app theme, reducing visual gap
     if (typeof tg.setHeaderColor === 'function') {
       tg.setHeaderColor('#1a1a2e');

@@ -409,9 +409,12 @@ export default function Table() {
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
-      // Expand to full height in Telegram WebApp (do NOT use requestFullscreen -
-      // it hides content behind TG header on older devices and breaks lobby on return)
+      // Expand to full height in Telegram WebApp
       tg.expand?.();
+      // Try fullscreen for maximum viewport (Bot API 8.0+)
+      if (typeof tg.requestFullscreen === 'function') {
+        try { tg.requestFullscreen(); } catch (_) {}
+      }
       const update = () => {
         // viewportStableHeight excludes TG chrome (header/keyboard) for stable layout
         const h = tg.viewportStableHeight || tg.viewportHeight || window.innerHeight;

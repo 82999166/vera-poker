@@ -627,3 +627,9 @@
 
 - [x] 游戏桌面隐藏顶部工具栏，改为浮动汉堡菜单（仿KKPOKER）
 - [x] 大厅界面字体加粗加大，白天可读性优化
+
+## 2026-06-14 UI修复
+
+- [x] 大厅房间卡片高度统一（紧凑布局+whitespace-nowrap防换行）
+- [x] 大厅字体对比度提升（text-muted-foreground改为text-foreground/70）
+- [x] 游戏桌面全屏显示修复（添加requestFullscreen+disableVerticalSwipes）

@@ -377,10 +377,10 @@ export default function Lobby() {
       <div className="px-4 pt-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-          <span className="text-sm font-medium text-muted-foreground">{t("lobby.online", { count: totalOnline })}</span>
+          <span className="text-sm font-medium text-foreground/70">{t("lobby.online", { count: totalOnline })}</span>
         </div>
         {activeTab === "cash" && totalOnline > 0 && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-foreground/60">
             {filteredGroups.reduce((sum, g) => sum + g.totalPlayers, 0)} {t("lobby.playersOnline")}
           </span>
         )}
@@ -419,32 +419,32 @@ export default function Lobby() {
           filteredGroups.map(group => {
             const isFull = group.availableSeats === 0;
             return (
-              <div key={`${group.smallBlind}/${group.bigBlind}`} className="glass rounded-xl p-4 card-hover">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-base font-bold text-foreground">{getRoomLevelName(group.bigBlind)}</span>
+              <div key={`${group.smallBlind}/${group.bigBlind}`} className="glass rounded-xl p-3 card-hover">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                      <span className="text-[15px] font-bold text-foreground whitespace-nowrap">{getRoomLevelName(group.bigBlind)}</span>
                       {group.fairnessLevel === "high" && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-truth-blue/20 text-truth-blue-bright">{t("lobby.onChain")}</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-truth-blue/20 text-truth-blue-bright whitespace-nowrap">{t("lobby.onChain")}</span>
                       )}
                       {group.isLive && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success">{t("lobby.live")}</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success whitespace-nowrap">{t("lobby.live")}</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground font-medium">
-                      <span>{t("lobby.blinds")}: ${formatAmount(group.smallBlind)}/${formatAmount(group.bigBlind)}</span>
-                      <span>{t("lobby.buyIn")}: ${formatAmount(group.minBuyIn)}-${formatAmount(group.maxBuyIn)}</span>
+                    <div className="flex items-center gap-3 text-[13px] text-foreground/70 font-medium">
+                      <span className="whitespace-nowrap">{t("lobby.blinds")}: ${formatAmount(group.smallBlind)}/${formatAmount(group.bigBlind)}</span>
+                      <span className="whitespace-nowrap">{t("lobby.buyIn")}: ${formatAmount(group.minBuyIn)}-${formatAmount(group.maxBuyIn)}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
                     <div className="flex items-center gap-1">
-                      <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-base font-bold text-foreground">{group.totalPlayers}</span>
-                      <span className="text-sm text-muted-foreground font-medium">{t("lobby.onlineSuffix")}</span>
+                      <Users className="w-3.5 h-3.5 text-foreground/60" />
+                      <span className="text-[15px] font-bold text-foreground">{group.totalPlayers}</span>
+                      <span className="text-[13px] text-foreground/70 font-medium">{t("lobby.onlineSuffix")}</span>
                     </div>
                     <button
                       onClick={() => handleSitDown(group)}
-                      className={`font-bold px-4 py-2 rounded-lg text-sm transition-all active:scale-95 ${
+                      className={`font-bold px-3 py-1.5 rounded-lg text-sm transition-all active:scale-95 ${
                         isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"
                       }`}
                       disabled={isFull}
@@ -469,16 +469,16 @@ export default function Lobby() {
                     <Lock className="w-3 h-3 text-gold" />
                     <span className="text-base font-bold text-foreground">{room.name}</span>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground font-medium">
-                    <span>{t("lobby.blinds")}: ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)}</span>
-                    <span>{t("lobby.buyIn")}: ${formatAmount(room.minBuyIn)}-${formatAmount(room.maxBuyIn)}</span>
+                  <div className="flex items-center gap-3 text-[13px] text-foreground/70 font-medium">
+                    <span className="whitespace-nowrap">{t("lobby.blinds")}: ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)}</span>
+                    <span className="whitespace-nowrap">{t("lobby.buyIn")}: ${formatAmount(room.minBuyIn)}-${formatAmount(room.maxBuyIn)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1">
-                    <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-base font-bold text-foreground">{room.currentPlayers}</span>
-                    <span className="text-sm text-muted-foreground font-medium">{t("lobby.onlineSuffix")}</span>
+                    <Users className="w-3.5 h-3.5 text-foreground/60" />
+                    <span className="text-[15px] font-bold text-foreground">{room.currentPlayers}</span>
+                    <span className="text-[13px] text-foreground/70 font-medium">{t("lobby.onlineSuffix")}</span>
                   </div>
                   <button className={`font-bold px-4 py-2 rounded-lg text-sm transition-opacity ${
                     isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"
@@ -904,7 +904,7 @@ function TournamentLivePanel({ tournamentId }: { tournamentId: number }) {
         <h3 className="text-sm font-bold text-gold flex items-center gap-1">
           <Zap className="w-4 h-4" /> LIVE
         </h3>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-foreground/60">
           {liveState.activePlayers}/{liveState.totalPlayers} players
         </span>
       </div>
