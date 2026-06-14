@@ -300,12 +300,12 @@ const DEFAULT_AVATAR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691
 // Player seat positions for 6-max table (oval layout)
 // Hero at bottom-center; side seats pulled inward to avoid edge clipping on all phones
 const SEAT_POSITIONS = [
-  { top: "78%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
-  { top: "60%", left: "6%",  transform: "translate(0, -50%)" },      // Left bottom
-  { top: "28%", left: "6%",  transform: "translate(0, -50%)" },      // Left top
-  { top: "10%", left: "50%", transform: "translate(-50%, 0)" },       // Top
-  { top: "28%", left: "94%", transform: "translate(-100%, -50%)" }, // Right top
-  { top: "60%", left: "94%", transform: "translate(-100%, -50%)" }, // Right bottom
+  { top: "82%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
+  { top: "63%", left: "6%",  transform: "translate(0, -50%)" },      // Left bottom
+  { top: "32%", left: "6%",  transform: "translate(0, -50%)" },      // Left top
+  { top: "13%", left: "50%", transform: "translate(-50%, 0)" },       // Top
+  { top: "32%", left: "94%", transform: "translate(-100%, -50%)" }, // Right top
+  { top: "63%", left: "94%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
 
 // Hand rank translation helper - maps English server descriptions to i18n keys
@@ -1502,7 +1502,7 @@ export default function Table() {
       <div ref={tableAreaRef} className="flex-1 min-h-0 relative overflow-hidden" style={{ backgroundImage: 'url(https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/table-bg-clean-6gTEKxokqcP8zS3GCvWNKd.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0a1a2e' }}>
         {/* Vertical Countdown Timer - pinned to far left edge, only for hero's turn */}
         {displayIsMyTurn && (
-          <div className="absolute -left-0.5 top-[10%] bottom-[10%] z-20 flex flex-col items-center gap-0.5">
+          <div className="absolute -left-0.5 top-[25%] bottom-[25%] z-20 flex flex-col items-center gap-0.5">
             <div className={`relative w-1.5 flex-1 bg-secondary/40 rounded-full overflow-hidden ${isUrgent ? 'animate-pulse' : ''}`}>
               <div
                 className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 ease-linear ${
@@ -1551,7 +1551,7 @@ export default function Table() {
             </div>
 
             {/* Pot display */}
-            <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+            <div className="absolute top-[33%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
               <AnimatedPot amount={displayPot} />
               {displayPlayers.length > 0 && (
                 <div className="flex items-center justify-center gap-1 mt-1">
@@ -1562,7 +1562,7 @@ export default function Table() {
             </div>
 
             {/* Community Cards - responsive size for small screens */}
-            <div className="absolute top-[43%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5" style={{ '--deal-comm-x': '130px', '--deal-comm-y': '-130px' } as React.CSSProperties}>
+            <div className="absolute top-[46%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5" style={{ '--deal-comm-x': '130px', '--deal-comm-y': '-130px' } as React.CSSProperties}>
               {displayCommunity.map((card, i) => {
                 // Only animate cards that are newly dealt (index >= animateFromIndex)
                 const isNewCard = animateCards && i >= animateFromIndex;
@@ -1577,7 +1577,7 @@ export default function Table() {
 
             {/* Showdown / Comparing Hands Banner */}
             {(displayPhase === "showdown") && !showWinner && (
-              <div className="absolute top-[55%] left-1/2 -translate-x-1/2 z-20 animate-banner">
+              <div className="absolute top-[58%] left-1/2 -translate-x-1/2 z-20 animate-banner">
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/80 border border-gold/50 backdrop-blur-sm shadow-[0_0_20px_rgba(234,179,8,0.2)]">
                   <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
                   <span className="text-xs font-bold text-gold">{t("table.comparingHands")}</span>

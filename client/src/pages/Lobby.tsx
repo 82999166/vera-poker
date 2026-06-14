@@ -431,16 +431,16 @@ export default function Lobby() {
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success whitespace-nowrap">{t("lobby.live")}</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-[13px] text-foreground/70 font-medium mt-1">
+                    <div className="flex items-center gap-4 text-[13px] text-foreground font-bold mt-2">
                       <span className="whitespace-nowrap">{t("lobby.blinds")}: ${formatAmount(group.smallBlind)}/${formatAmount(group.bigBlind)}</span>
                       <span className="whitespace-nowrap">{t("lobby.buyIn")}: ${formatAmount(group.minBuyIn)}-${formatAmount(group.maxBuyIn)}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="flex items-center gap-1">
-                      <Users className="w-3.5 h-3.5 text-foreground/60" />
+                      <Users className="w-3.5 h-3.5 text-foreground" />
                       <span className="text-[15px] font-bold text-foreground">{group.totalPlayers}</span>
-                      <span className="text-[13px] text-foreground/70 font-medium">{t("lobby.onlineSuffix")}</span>
+                      <span className="text-[13px] text-foreground font-bold">{t("lobby.onlineSuffix")}</span>
                     </div>
                     <button
                       onClick={() => handleSitDown(group)}
@@ -469,16 +469,16 @@ export default function Lobby() {
                     <Lock className="w-3 h-3 text-gold" />
                     <span className="text-base font-bold text-foreground">{room.name}</span>
                   </div>
-                  <div className="flex items-center gap-4 text-[13px] text-foreground/70 font-medium mt-1">
+                  <div className="flex items-center gap-4 text-[13px] text-foreground font-bold mt-2">
                     <span className="whitespace-nowrap">{t("lobby.blinds")}: ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)}</span>
                     <span className="whitespace-nowrap">{t("lobby.buyIn")}: ${formatAmount(room.minBuyIn)}-${formatAmount(room.maxBuyIn)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1">
-                    <Users className="w-3.5 h-3.5 text-foreground/60" />
+                    <Users className="w-3.5 h-3.5 text-foreground" />
                     <span className="text-[15px] font-bold text-foreground">{room.currentPlayers}</span>
-                    <span className="text-[13px] text-foreground/70 font-medium">{t("lobby.onlineSuffix")}</span>
+                    <span className="text-[13px] text-foreground font-bold">{t("lobby.onlineSuffix")}</span>
                   </div>
                   <button className={`font-bold px-4 py-2 rounded-lg text-sm transition-opacity ${
                     isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"
@@ -494,7 +494,7 @@ export default function Lobby() {
 
       {/* 加载中遮罩（找桌子时） */}
       {joiningStake && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center pt-24 bg-black/50 backdrop-blur-sm">
           <div className="glass-strong rounded-2xl px-8 py-6 flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
             <p className="text-sm text-foreground font-medium">{t("lobby.findingTable")}</p>
