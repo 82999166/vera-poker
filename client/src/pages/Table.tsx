@@ -142,15 +142,15 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
 
   // Flip animation: show card back first, then flip to reveal face
   if (flip && !flipped) {
-    // Show card back while waiting to flip (solid colors for iOS compatibility)
+    // Show card back while waiting to flip - use inline styles for iOS compatibility
     return (
-      <div className={`w-11 h-[60px] rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4)] ${className}`} style={sizeStyle}>
-        <div className="w-full h-full bg-gradient-to-br from-[#d63031] to-[#8b1a1a] border-[2px] border-[#f0f0f0] rounded-md relative">
-          <div className="absolute inset-[3px] border-[1.5px] border-[#e0c0c0] rounded-sm" />
-          <div className="absolute inset-[6px] rounded-sm overflow-hidden" style={{ backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.15) 6px, rgba(255,255,255,0.15) 7px)` }} />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-6 h-6 rounded-full bg-[#a03030] border-[1.5px] border-[#e0c0c0] flex items-center justify-center">
-              <span className="text-[9px] font-black text-white">VP</span>
+      <div className={`w-11 h-[60px] rounded-md overflow-hidden ${className}`} style={{ ...sizeStyle, boxShadow: '0 4px 12px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4)' }}>
+        <div style={{ width: '100%', height: '100%', background: 'linear-gradient(to bottom right, #d63031, #8b1a1a)', border: '2px solid #f0f0f0', borderRadius: '6px', position: 'relative' }}>
+          <div style={{ position: 'absolute', top: '3px', left: '3px', right: '3px', bottom: '3px', border: '1.5px solid #e0c0c0', borderRadius: '3px' }} />
+          <div style={{ position: 'absolute', top: '6px', left: '6px', right: '6px', bottom: '6px', borderRadius: '3px', overflow: 'hidden', backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.15) 6px, rgba(255,255,255,0.15) 7px)' }} />
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#a03030', border: '1.5px solid #e0c0c0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: '9px', fontWeight: 900, color: 'white' }}>VP</span>
             </div>
           </div>
         </div>
@@ -159,20 +159,18 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   }
 
   if (!card || faceDown) {
-    // Card back: solid red design (no alpha transparency for iOS compatibility)
+    // Card back: ALL inline styles for maximum iOS compatibility (no Tailwind classes for visual rendering)
     return (
-      <div className={`w-11 h-[60px] rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`} style={sizeStyle}>
-        <div className="w-full h-full bg-gradient-to-br from-[#d63031] to-[#8b1a1a] border-[2px] border-[#f0f0f0] rounded-md relative">
+      <div className={`w-11 h-[60px] rounded-md overflow-hidden transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`} style={{ ...sizeStyle, boxShadow: '0 4px 12px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4)' }}>
+        <div style={{ width: '100%', height: '100%', background: 'linear-gradient(to bottom right, #d63031, #8b1a1a)', border: '2px solid #f0f0f0', borderRadius: '6px', position: 'relative' }}>
           {/* Inner border */}
-          <div className="absolute inset-[3px] border-[1.5px] border-[#e0c0c0] rounded-sm" />
+          <div style={{ position: 'absolute', top: '3px', left: '3px', right: '3px', bottom: '3px', border: '1.5px solid #e0c0c0', borderRadius: '3px' }} />
           {/* Simple diagonal lines - sparse */}
-          <div className="absolute inset-[6px] rounded-sm overflow-hidden" style={{
-            backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.15) 6px, rgba(255,255,255,0.15) 7px)`,
-          }} />
+          <div style={{ position: 'absolute', top: '6px', left: '6px', right: '6px', bottom: '6px', borderRadius: '3px', overflow: 'hidden', backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.15) 6px, rgba(255,255,255,0.15) 7px)' }} />
           {/* Center logo */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-6 h-6 rounded-full bg-[#a03030] border-[1.5px] border-[#e0c0c0] flex items-center justify-center">
-              <span className="text-[9px] font-black text-white">VP</span>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#a03030', border: '1.5px solid #e0c0c0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: '9px', fontWeight: 900, color: 'white' }}>VP</span>
             </div>
           </div>
         </div>
