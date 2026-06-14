@@ -321,7 +321,7 @@ const SEAT_POSITIONS = [
   { top: "82%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
   { top: "63%", left: "6%",  transform: "translate(0, -50%)" },      // Left bottom
   { top: "32%", left: "6%",  transform: "translate(0, -50%)" },      // Left top
-  { top: "8%", left: "50%", transform: "translate(-50%, 0)" },       // Top
+  { top: "4%", left: "50%", transform: "translate(-50%, 0)" },       // Top
   { top: "32%", left: "94%", transform: "translate(-100%, -50%)" }, // Right top
   { top: "63%", left: "94%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
@@ -1846,7 +1846,7 @@ export default function Table() {
 
                   {/* Sitting out badge (waiting for next hand) */}
                   {(player as any).isSittingOut && (
-                    <div className="mb-0.5 px-1.5 py-0.5 rounded text-[8px] font-semibold bg-amber-500/20 border border-amber-500/40 text-amber-300 text-center" style={isTopPlayer ? { order: 1 } : undefined}>
+                    <div className="mb-0.5 px-1.5 py-0.5 rounded text-[8px] font-semibold bg-amber-500/20 border border-amber-500/40 text-amber-300 text-center" style={isTopPlayer ? { order: 5 } : undefined}>
                       {t("table.waitingBigBlind")}
                     </div>
                   )}
@@ -1857,7 +1857,7 @@ export default function Table() {
                     // Folded players always show fold label regardless of phase
                     if (player.isFolded) {
                       return (
-                        <div className={`mb-1 px-2.5 py-1 rounded text-[12px] font-extrabold leading-tight whitespace-nowrap shadow-xl border border-white/40 bg-gray-600/90 text-white`} style={{textShadow:'0 1px 3px rgba(0,0,0,0.6)', letterSpacing:'0.02em', ...(isTopPlayer ? { order: 1 } : {})}}>
+                        <div className={`mb-1 px-2.5 py-1 rounded text-[12px] font-extrabold leading-tight whitespace-nowrap shadow-xl border border-white/40 bg-gray-600/90 text-white`} style={{textShadow:'0 1px 3px rgba(0,0,0,0.6)', letterSpacing:'0.02em', ...(isTopPlayer ? { order: 5 } : {})}}>
                           {t('table.fold')}
                         </div>
                       );
@@ -1873,7 +1873,7 @@ export default function Table() {
                     const style = actionStyleMap[la.action];
                     if (!style) return null;
                     return (
-                      <div className={`mb-1 px-2.5 py-1 rounded text-[12px] font-extrabold leading-tight whitespace-nowrap shadow-xl border border-white/40 ${style.bg} ${style.text}`} style={{textShadow:'0 1px 3px rgba(0,0,0,0.6)', letterSpacing:'0.02em', ...(isTopPlayer ? { order: 1 } : {})}}>
+                      <div className={`mb-1 px-2.5 py-1 rounded text-[12px] font-extrabold leading-tight whitespace-nowrap shadow-xl border border-white/40 ${style.bg} ${style.text}`} style={{textShadow:'0 1px 3px rgba(0,0,0,0.6)', letterSpacing:'0.02em', ...(isTopPlayer ? { order: 5 } : {})}}>
                         {style.label}
                       </div>
                     );
