@@ -154,9 +154,9 @@ export async function getPlayerView(roomId: number, playerId: number) {
     // SECURITY: Only reveal opponent hole cards during showdown/completed phase.
     // During preflop/flop/turn/river, opponents must only see face-down cards.
     // The requesting player always sees their own cards.
-    // When waitingForReady is true, the hand is over - clear ALL cards to prevent stale display.
-    holeCards: table.waitingForReady
-      ? []  // Hand is over, clear all cards (prevents stale cards showing in next hand)
+    // When hand is over (waitingForReady or stale completed) - clear ALL cards to prevent stale display.
+    holeCards: (table.waitingForReady || ((gs.phase === "completed" || gs.phase === "showdown") && !table.waitingForReady && table.settlementStartedAt && (Date.now() - table.settlementStartedAt) > 10000))
+      ? []  // Hand is over or stale, clear all cards
       : (p.id === playerId)
         ? p.holeCards  // Always show own cards
         : (gs.phase === "showdown" || gs.phase === "completed")
@@ -242,17 +242,26 @@ export async function getPlayerView(roomId: number, playerId: number) {
     }
   }
 
-  // When waitingForReady is true, the hand is over - clear cards so frontend doesn't show stale data
+  // Determine if we should clear stale hand data:
+  // 1. waitingForReady is true (normal between-hands state)
+  // 2. Phase is completed but waitingForReady is false AND settlement was long ago (>10s)
+  //    This catches the edge case where playerReady set waitingForReady=false but startNewHand
+  //    failed to start (not enough players), yet the old activeTables entry wasn't cleaned up.
+  const settlementAge = table.settlementStartedAt ? (Date.now() - table.settlementStartedAt) : 0;
+  const isStaleCompleted = (gs.phase === "completed" || gs.phase === "showdown") && !table.waitingForReady && settlementAge > 10000;
+  const shouldClearCards = table.waitingForReady || isStaleCompleted;
+
+  // When hand is over or stale - clear cards so frontend doesn't show stale data
   return {
-    phase: table.waitingForReady ? 'completed' : gs.phase,
+    phase: shouldClearCards ? 'completed' : gs.phase,
     players,
-    communityCards: table.waitingForReady ? [] : gs.communityCards,
-    pot: table.waitingForReady ? 0 : gs.pot,
+    communityCards: shouldClearCards ? [] : gs.communityCards,
+    pot: shouldClearCards ? 0 : gs.pot,
     currentBet: gs.currentBet,
     currentPlayerIndex: gs.currentPlayerIndex,
     currentPlayerId: gs.currentPlayerIndex >= 0 ? gs.players[gs.currentPlayerIndex]?.id : null,
     dealerIndex: gs.dealerIndex,
-    myCards: table.waitingForReady ? [] : myCards,
+    myCards: shouldClearCards ? [] : myCards,
     handNumber: table.handNumber,
     serverSeedHash: gs.serverSeedHash,
     lastActionAt: table.lastActionAt,
@@ -260,7 +269,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
     lastWinner: table.lastWinner || null,
     settlementDetail: table.settlementDetail || null,
     // Ready system
-    waitingForReady: table.waitingForReady,
+    waitingForReady: table.waitingForReady || isStaleCompleted,
     readyPlayers: Array.from(table.readyPlayers),
     readyDeadline: table.readyDeadline || null,
     readyCountdown: table.readyDeadline ? Math.max(0, Math.ceil((table.readyDeadline - Date.now()) / 1000)) : null,
@@ -1147,7 +1156,12 @@ async function startNewHand(roomId: number) {
   await botManager.checkAndFillBots(roomId);
 
   const roomPlayersList = await db.getRoomPlayers(roomId);
-  if (roomPlayersList.length < 2) return;
+  if (roomPlayersList.length < 2) {
+    // Not enough players even after bot fill - clean up stale table state
+    activeTables.delete(roomId);
+    await db.updateRoom(roomId, { currentPlayers: roomPlayersList.length, status: "waiting" });
+    return;
+  }
 
   // Load tournament engine early (needed for elimination + blinds)
   const tournamentEngineModule = await import("./tournamentEngine");
@@ -1167,8 +1181,13 @@ async function startNewHand(roomId: number) {
   // Re-fetch active players after removing zero-chip players
   const activePlayers = roomPlayersList.filter((rp: any) => parseFloat(rp.chipCount) > 0);
   if (activePlayers.length < 2) {
-    // Update room player count
-    await db.updateRoom(roomId, { currentPlayers: activePlayers.length });
+    // Not enough players to start a new hand.
+    // CRITICAL: Delete the old activeTables entry so getPlayerView returns clean "waiting" state.
+    // Without this, the old gameState (with previous hand's communityCards/holeCards) would persist
+    // and be returned to the frontend since waitingForReady was already set to false by playerReady().
+    activeTables.delete(roomId);
+    // Update room player count and status
+    await db.updateRoom(roomId, { currentPlayers: activePlayers.length, status: "waiting" });
     return;
   }
 

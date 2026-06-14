@@ -806,3 +806,9 @@
 - [x] 超额bot自动移除（真人离开后，多余bot会在下一手开始前被移除）
 - [x] persistentBotScheduler也遵守1:1比例和maxPerTable
 - [x] 185个测试全部通过
+
+## 2026-06-14 Bug修复：bot输光被替换后新一局仍显示旧牌面
+- [x] 后端：bot输光离桌+新bot入座后，确保getPlayerView返回干净状态（无旧牌面）
+- [x] 后端：readyForNextHand/startNewHand时彻底清除所有牌面数据
+- [x] 前端：检测到新玩家入座或phase变为waiting/preflop时强制清除所有牌面状态
+
