@@ -2374,8 +2374,8 @@ ${faqContext}
     // Update bot config
     updateConfig: adminProcedure.input(z.object({
       enabled: z.boolean().optional(),
-      maxPerTable: z.number().min(1).max(8).optional(),
-      minPerTable: z.number().min(2).max(5).optional(),
+      maxPerTable: z.number().min(1).max(50).optional(),
+      minPerTable: z.number().min(2).max(50).optional(),
       dailyLossLimit: z.number().min(0).optional(),
       foldRate: z.number().min(0).max(100).optional(),
       minActionDelay: z.number().min(500).max(10000).optional(),
@@ -2414,7 +2414,7 @@ ${faqContext}
     }),
     upsertRoomConfig: adminProcedure.input(z.object({
       roomId: z.number(),
-      botCount: z.number().min(0).max(8).optional(),
+      botCount: z.number().min(0).max(50).optional(),
       enabled: z.boolean().optional(),
       foldRate: z.number().min(0).max(100).nullable().optional(),
       minActionDelay: z.number().min(500).max(10000).nullable().optional(),

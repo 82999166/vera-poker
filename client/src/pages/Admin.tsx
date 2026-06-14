@@ -6013,7 +6013,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
           <div className="p-3 rounded-lg bg-secondary/50">
             <label className="text-sm font-medium">每桌最多Bot数</label>
             <input
-              type="number" min={1} max={8}
+              type="number" min={1} max={50}
               value={formState.maxPerTable ?? 5}
               onChange={e => setFormState(s => ({ ...s, maxPerTable: parseInt(e.target.value) || 5 }))}
               className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
@@ -6371,7 +6371,7 @@ function RoomBotConfigPanel() {
                   {isEditing ? (
                     <>
                       <td className="text-center py-2 px-2">
-                        <input type="number" min={0} max={8} value={editForm.botCount}
+                        <input type="number" min={0} max={50} value={editForm.botCount}
                           onChange={e => setEditForm(s => ({ ...s, botCount: parseInt(e.target.value) || 0 }))}
                           className="w-14 glass rounded px-2 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-gold" />
                       </td>
