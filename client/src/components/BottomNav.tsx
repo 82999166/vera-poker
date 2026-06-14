@@ -31,7 +31,7 @@ export default function BottomNav({ active }: BottomNavProps) {
               }`}
             >
               <item.icon className={`w-5 h-5 ${isActive ? "drop-shadow-[0_0_6px_oklch(0.82_0.15_85)]" : ""}`} />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-[10px] font-bold">{item.label}</span>
             </button>
           );
         })}

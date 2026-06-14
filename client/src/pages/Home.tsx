@@ -140,7 +140,7 @@ export default function Home() {
     if (deepLinkHandled.current) return;
     deepLinkHandled.current = true;
 
-    // Wait 600ms to ensure Step 1's delayed capture (500ms) has completed
+    // Wait 2000ms to show splash screen before navigating
     const handleDeepLink = () => {
       const startParam = getTelegramStartParam();
 
@@ -168,7 +168,7 @@ export default function Home() {
       navigate("/lobby");
     };
 
-    const timer = setTimeout(handleDeepLink, 600);
+    const timer = setTimeout(handleDeepLink, 2000);
     return () => clearTimeout(timer);
   }, [isAuthenticated, loading, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
