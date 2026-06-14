@@ -1787,7 +1787,7 @@ ${faqContext}
       const dbInstance = await db.getDb();
       if (!dbInstance) return [];
       const { handPlayers, users } = await import("../drizzle/schema");
-      const { sql, eq, desc, and } = await import("drizzle-orm");
+      const { sql, eq, desc } = await import("drizzle-orm");
       const result = await dbInstance.select({
         userId: handPlayers.userId,
         name: users.name,
@@ -1797,7 +1797,7 @@ ${faqContext}
         totalProfit: sql<string>`CAST(SUM(CAST(${handPlayers.winAmount} AS DECIMAL(18,2)) - CAST(${handPlayers.betAmount} AS DECIMAL(18,2))) AS CHAR)`,
         totalHands: sql<number>`count(*)`,
       }).from(handPlayers)
-        .innerJoin(users, and(eq(handPlayers.userId, users.id), eq(users.isBot, false)))
+        .innerJoin(users, eq(handPlayers.userId, users.id))
         .groupBy(handPlayers.userId, users.name, users.nickname, users.tgUsername, users.avatar)
         .orderBy(desc(sql`SUM(CAST(${handPlayers.winAmount} AS DECIMAL(18,2)) - CAST(${handPlayers.betAmount} AS DECIMAL(18,2)))`))
         .limit(input.limit);
@@ -1807,7 +1807,7 @@ ${faqContext}
       const dbInstance = await db.getDb();
       if (!dbInstance) return [];
       const { handPlayers, users } = await import("../drizzle/schema");
-      const { sql, eq, desc, and } = await import("drizzle-orm");
+      const { sql, eq, desc } = await import("drizzle-orm");
       const result = await dbInstance.select({
         userId: handPlayers.userId,
         name: users.name,
@@ -1817,7 +1817,7 @@ ${faqContext}
         winRate: sql<number>`ROUND(SUM(CASE WHEN ${handPlayers.isWinner} = 1 THEN 1 ELSE 0 END) * 100.0 / count(*), 1)`,
         totalHands: sql<number>`count(*)`,
       }).from(handPlayers)
-        .innerJoin(users, and(eq(handPlayers.userId, users.id), eq(users.isBot, false)))
+        .innerJoin(users, eq(handPlayers.userId, users.id))
         .groupBy(handPlayers.userId, users.name, users.nickname, users.tgUsername, users.avatar)
         .having(sql`count(*) >= ${input.minHands}`)
         .orderBy(desc(sql`SUM(CASE WHEN ${handPlayers.isWinner} = 1 THEN 1 ELSE 0 END) * 100.0 / count(*)`))
@@ -1828,7 +1828,7 @@ ${faqContext}
       const dbInstance = await db.getDb();
       if (!dbInstance) return [];
       const { handPlayers, users } = await import("../drizzle/schema");
-      const { sql, eq, desc, and } = await import("drizzle-orm");
+      const { sql, eq, desc } = await import("drizzle-orm");
       const result = await dbInstance.select({
         userId: handPlayers.userId,
         name: users.name,
@@ -1837,7 +1837,7 @@ ${faqContext}
         avatar: users.avatar,
         totalHands: sql<number>`count(*)`,
       }).from(handPlayers)
-        .innerJoin(users, and(eq(handPlayers.userId, users.id), eq(users.isBot, false)))
+        .innerJoin(users, eq(handPlayers.userId, users.id))
         .groupBy(handPlayers.userId, users.name, users.nickname, users.tgUsername, users.avatar)
         .orderBy(desc(sql`count(*)`))
         .limit(input.limit);

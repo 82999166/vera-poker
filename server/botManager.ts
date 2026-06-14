@@ -199,13 +199,41 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
     // Bot买入金额：使用房间最小买入
     const buyIn = parseFloat(room.minBuyIn);
     
-    // 直接入座（bot不需要扣余额，使用系统虚拟资金池）
+    // 检查bot余额是否足够
+    const botUser = await db.getUserById(selectedBotId);
+    if (!botUser || parseFloat(String(botUser.balance)) < buyIn) {
+      console.log(`[BotManager] Bot ${selectedBotId} insufficient balance (${botUser?.balance ?? 0} < ${buyIn}), skipping`);
+      return;
+    }
+
+    // 真实扣除余额（和真实玩家一样）
+    const newBalance = await db.deductUserBalanceAtomic(selectedBotId, buyIn);
+    if (newBalance === null) {
+      console.log(`[BotManager] Bot ${selectedBotId} balance deduction failed, skipping`);
+      return;
+    }
+
     const result = await joinTable(roomId, selectedBotId, buyIn);
     if (result.success) {
+      // 记录买入交易流水
+      await db.createTransaction({
+        userId: selectedBotId,
+        type: "buy_in",
+        amount: buyIn.toFixed(2),
+        balanceBefore: botUser.balance,
+        balanceAfter: newBalance,
+        status: "confirmed",
+        referenceType: "room",
+        referenceId: roomId,
+        note: `买入房间 ${room.name || roomId}`,
+      });
       // 记录bot入座
       if (!seatedBots.has(roomId)) seatedBots.set(roomId, new Set());
       seatedBots.get(roomId)!.add(selectedBotId);
       console.log(`[BotManager] Bot ${selectedBotId} joined room ${roomId} at seat ${result.seatIndex}`);
+    } else {
+      // 入座失败，退回余额
+      await db.addUserBalanceAtomic(selectedBotId, buyIn);
     }
   } catch (e) {
     console.error(`[BotManager] Error adding bot to room ${roomId}:`, e);

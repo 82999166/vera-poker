@@ -972,17 +972,13 @@ async function settleHand(roomId: number) {
   // Bot system: track bot winnings/losses for daily limit
   await botManager.processBotSettlement(playerWinAmounts, gs.players.map(p => ({ id: p.id, totalBet: p.totalBet })));
 
-  // Distribute agent commissions from rake (skip for tournaments, skip bots)
+  // Distribute agent commissions from rake (skip for tournaments)
   if (totalRake > 0 && table.handId && !isTournamentRoom) {
     try {
-      // Exclude bot players from agent commission distribution
-      const realPlayerIds = [];
-      const botIds = await botManager.getBotUserIds();
-      for (const p of gs.players) {
-        if (!botIds.includes(p.id)) realPlayerIds.push(p.id);
-      }
-      if (realPlayerIds.length > 0) {
-        await distributeAgentCommissions(totalRake, realPlayerIds, table.handId);
+      // All players (including bots) participate in commission distribution
+      const allPlayerIds = gs.players.map(p => p.id);
+      if (allPlayerIds.length > 0) {
+        await distributeAgentCommissions(totalRake, allPlayerIds, table.handId);
       }
     } catch (e) {
       console.error("[Commission] Error distributing commissions:", e);
@@ -1375,15 +1371,12 @@ export function checkTimeouts() {
           // Async DB cleanup (fire-and-forget, game state already consistent)
           (async () => {
             try {
-              // Bot players: just remove from room, no balance return
+              // Track bot leaving for seat management
               const isBotPlayer = await botManager.isBot(timedOutPlayerId);
               if (isBotPlayer) {
-                await db.removeRoomPlayer(roomId, timedOutPlayerId);
                 botManager.onBotLeftTable(roomId, timedOutPlayerId);
-                const remaining = await db.getRoomPlayers(roomId);
-                await db.updateRoom(roomId, { currentPlayers: remaining.length });
-                return;
               }
+              // All players (including bots) get balance returned and transaction recorded
               const user = await db.getUserById(timedOutPlayerId);
               if (user && chipsToReturn > 0) {
                 const balanceBefore = user.balance;
@@ -1457,17 +1450,15 @@ async function handleReadyTimeout(roomId: number) {
   const unreadyPlayers = allPlayerIds.filter(id => !table.readyPlayers.has(id));
 
   // Remove unready players from the room (return chips to balance)
-  const botIds = await botManager.getBotUserIds();
   for (const playerId of unreadyPlayers) {
     const player = gs.players.find(p => p.id === playerId);
     if (player) {
-      // Bot players: just remove, don't return chips to balance (virtual pool)
-      if (botIds.includes(playerId)) {
-        await db.removeRoomPlayer(roomId, playerId);
+      // Track bot leaving for seat management
+      const isBotPlayer = (await botManager.getBotUserIds()).includes(playerId);
+      if (isBotPlayer) {
         botManager.onBotLeftTable(roomId, playerId);
-        continue;
       }
-      // Return remaining chips to balance atomically
+      // All players (including bots) get balance returned and transaction recorded
       const user = await db.getUserById(playerId);
       if (user && player.chips > 0) {
         const balanceBefore = user.balance;

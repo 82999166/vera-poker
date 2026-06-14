@@ -723,3 +723,12 @@
 - [x] 加入位置因素（后位+3%、前位-2%）
 - [x] 加入个性化偏差（基于playerId生成稳定风格偏差±5%）
 - [x] 测试验证: 175个测试全部通过（含12个botManager测试）
+
+## 2026-06-14 AI机器人改为完全真实玩家模式
+- [x] botManager.ts: bot入座时走真实余额扣除+流水记录（deductUserBalanceAtomic + createTransaction）
+- [x] tableManager.ts: handleReadyTimeout中bot和真人走同样的余额返还+流水记录
+- [x] tableManager.ts: checkTimeouts(AFK kick)中bot和真人走同样流程
+- [x] tableManager.ts: settleHand中代理佣金不再排除bot，所有玩家正常参与
+- [x] routers.ts: 排行榜3个查询移除eq(users.isBot, false)条件
+- [x] DB: 8个bot账户余额设为100,000 USDT
+- [x] 测试验证: 175个测试全部通过
