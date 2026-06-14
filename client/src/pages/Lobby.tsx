@@ -387,7 +387,7 @@ export default function Lobby() {
       </div>
 
       {/* Room List */}
-      <div className="flex-1 px-4 pt-2 pb-24 space-y-3">
+      <div className="flex-1 px-4 pt-2 pb-24 space-y-4">
         {activeTab === "private" && (
           <button
             onClick={() => navigate("/create-room")}
@@ -419,7 +419,7 @@ export default function Lobby() {
           filteredGroups.map(group => {
             const isFull = group.availableSeats === 0;
             return (
-              <div key={`${group.smallBlind}/${group.bigBlind}`} className="glass rounded-xl p-3 card-hover">
+              <div key={`${group.smallBlind}/${group.bigBlind}`} className="glass rounded-xl p-4 card-hover">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
@@ -431,7 +431,7 @@ export default function Lobby() {
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success whitespace-nowrap">{t("lobby.live")}</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-[13px] text-foreground/70 font-medium">
+                    <div className="flex items-center gap-4 text-[13px] text-foreground/70 font-medium mt-1">
                       <span className="whitespace-nowrap">{t("lobby.blinds")}: ${formatAmount(group.smallBlind)}/${formatAmount(group.bigBlind)}</span>
                       <span className="whitespace-nowrap">{t("lobby.buyIn")}: ${formatAmount(group.minBuyIn)}-${formatAmount(group.maxBuyIn)}</span>
                     </div>
@@ -469,7 +469,7 @@ export default function Lobby() {
                     <Lock className="w-3 h-3 text-gold" />
                     <span className="text-base font-bold text-foreground">{room.name}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-[13px] text-foreground/70 font-medium">
+                  <div className="flex items-center gap-4 text-[13px] text-foreground/70 font-medium mt-1">
                     <span className="whitespace-nowrap">{t("lobby.blinds")}: ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)}</span>
                     <span className="whitespace-nowrap">{t("lobby.buyIn")}: ${formatAmount(room.minBuyIn)}-${formatAmount(room.maxBuyIn)}</span>
                   </div>

@@ -633,3 +633,9 @@
 - [x] 大厅房间卡片高度统一（紧凑布局+whitespace-nowrap防换行）
 - [x] 大厅字体对比度提升（text-muted-foreground改为text-foreground/70）
 - [x] 游戏桌面全屏显示修复（添加requestFullscreen+disableVerticalSwipes）
+
+## 2026-06-14 UI修复 Round 2
+
+- [x] 汉堡菜单内容检查（已确认完整：返回大厅/离开/手牌历史/验证/海报/语音）
+- [x] 全屏模式顶部safe area适配（浮动按钮+侧滑菜单加env(safe-area-inset-top)）
+- [x] 大厅卡片间距加大（space-y-4 + p-4 + gap-4 + mt-1）
