@@ -113,6 +113,32 @@ export async function getPlayerView(roomId: number, playerId: number) {
         holeCards: [],
       };
     }));
+    // Also include sitting_out players (spectators waiting for next hand)
+    const sittingOutList = await db.getRoomPlayersSittingOut(roomId);
+    const activeIds = new Set(waitingPlayers.map(p => p.id));
+    const activeSeats = new Set(waitingPlayers.map(p => p.seatIndex));
+    const sittingOutWaiting = await Promise.all(
+      sittingOutList
+        .filter((sp: any) => !activeIds.has(sp.userId) && !activeSeats.has(sp.seatIndex))
+        .map(async (sp: any) => {
+          const info = await getCachedPlayerInfo(sp.userId);
+          return {
+            id: sp.userId,
+            seatIndex: sp.seatIndex,
+            chips: parseFloat(sp.chipCount || "0"),
+            currentBet: 0,
+            totalBet: 0,
+            isFolded: false,
+            isAllIn: false,
+            isActive: false,
+            name: info.name || `Player ${sp.seatIndex + 1}`,
+            avatar: info.avatar,
+            holeCards: [],
+            isSittingOut: true,
+          };
+        })
+    );
+    waitingPlayers.push(...sittingOutWaiting);
     // Check if room is closed (e.g. totalRounds reached after settlement)
     const roomInfo = await db.getRoomById(roomId);
     const roomClosed = roomInfo?.status === "closed";
@@ -167,25 +193,33 @@ export async function getPlayerView(roomId: number, playerId: number) {
   }));
 
   // Append sitting_out players (waiting for next hand) to the player list
+  // IMPORTANT: Deduplicate by userId AND seatIndex to prevent overlap when
+  // activateSittingOutPlayers() runs concurrently with getPlayerView polling.
   const sittingOutList = await db.getRoomPlayersSittingOut(roomId);
-  const sittingOutPlayers = await Promise.all(sittingOutList.map(async (sp: any) => {
-    const info = await getCachedPlayerInfo(sp.userId);
-    return {
-      id: sp.userId,
-      seatIndex: sp.seatIndex,
-      chips: parseFloat(sp.chipCount || "0"),
-      currentBet: 0,
-      totalBet: 0,
-      isFolded: false,
-      isAllIn: false,
-      isActive: false,
-      name: info.name || `Player ${sp.seatIndex + 1}`,
-      avatar: info.avatar,
-      holeCards: [],
-      isSittingOut: true, // Waiting for next hand (Wait for Big Blind)
-      lastAction: null,
-    };
-  }));
+  const activePlayerIds = new Set(players.map(p => p.id));
+  const activeSeats = new Set(players.map(p => p.seatIndex));
+  const sittingOutPlayers = await Promise.all(
+    sittingOutList
+      .filter((sp: any) => !activePlayerIds.has(sp.userId) && !activeSeats.has(sp.seatIndex))
+      .map(async (sp: any) => {
+        const info = await getCachedPlayerInfo(sp.userId);
+        return {
+          id: sp.userId,
+          seatIndex: sp.seatIndex,
+          chips: parseFloat(sp.chipCount || "0"),
+          currentBet: 0,
+          totalBet: 0,
+          isFolded: false,
+          isAllIn: false,
+          isActive: false,
+          name: info.name || `Player ${sp.seatIndex + 1}`,
+          avatar: info.avatar,
+          holeCards: [],
+          isSittingOut: true, // Waiting for next hand (Wait for Big Blind)
+          lastAction: null,
+        };
+      })
+  );
   players.push(...sittingOutPlayers);
 
   // Check if the requesting player is sitting out

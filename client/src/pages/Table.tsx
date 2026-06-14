@@ -1176,7 +1176,27 @@ export default function Table() {
   const [demoCommunity] = useState(["Ah", "Kd", "7s"]);
   const [demoMyCards] = useState(["As", "Kh"]);
 
-  const displayPlayers = isDemoMode ? demoPlayers : players;
+  // Deduplicate players by seatIndex to prevent visual overlap (race condition safety net)
+  const deduplicatedPlayers = useMemo(() => {
+    const seen = new Map<number, typeof players[0]>();
+    for (const p of players) {
+      // If same seatIndex already exists, prefer the active (non-sitting-out) player
+      const existing = seen.get(p.seatIndex);
+      if (!existing || (existing as any).isSittingOut) {
+        seen.set(p.seatIndex, p);
+      }
+    }
+    // Also deduplicate by userId (same player shouldn't appear twice)
+    const byId = new Map<number, typeof players[0]>();
+    for (const p of seen.values()) {
+      const existing = byId.get(p.id as number);
+      if (!existing || (existing as any).isSittingOut) {
+        byId.set(p.id as number, p);
+      }
+    }
+    return Array.from(byId.values());
+  }, [players]);
+  const displayPlayers = isDemoMode ? demoPlayers : deduplicatedPlayers;
   // When waitingForReady AND winner banner is gone, clear cards/pot to reset the table
   // Keep showing last hand's cards while the winner banner is still visible
   const shouldClearTable = waitingForReady && !showWinner;
