@@ -30,7 +30,7 @@ export default function BottomNav({ active }: BottomNavProps) {
                 isActive ? "text-gold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <item.icon className={`w-5 h-5 ${isActive ? "drop-shadow-[0_0_6px_oklch(0.82_0.15_85)]" : ""}`} />
+              <item.icon className={`w-5 h-5 ${isActive ? "drop-shadow-[0_0_6px_rgba(212,160,23,1)]" : ""}`} />
               <span className="text-[10px] font-bold">{item.label}</span>
             </button>
           );

@@ -4,50 +4,50 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-background: oklch(0.13 0.02 270);
-  --color-foreground: oklch(0.95 0.01 270);
-  --color-card: oklch(0.17 0.02 270);
-  --color-card-foreground: oklch(0.93 0.01 270);
-  --color-popover: oklch(0.17 0.02 270);
-  --color-popover-foreground: oklch(0.93 0.01 270);
-  --color-primary: oklch(0.82 0.15 85);
-  --color-primary-foreground: oklch(0.15 0.02 270);
-  --color-secondary: oklch(0.22 0.03 270);
-  --color-secondary-foreground: oklch(0.90 0.01 270);
-  --color-muted: oklch(0.20 0.02 270);
-  --color-muted-foreground: oklch(0.65 0.02 270);
-  --color-accent: oklch(0.55 0.18 250);
-  --color-accent-foreground: oklch(0.95 0.01 270);
-  --color-destructive: oklch(0.55 0.22 25);
-  --color-destructive-foreground: oklch(0.95 0.01 270);
-  --color-border: oklch(0.28 0.03 270);
-  --color-input: oklch(0.22 0.02 270);
-  --color-ring: oklch(0.82 0.15 85);
-  --color-chart-1: oklch(0.82 0.15 85);
-  --color-chart-2: oklch(0.55 0.18 250);
-  --color-chart-3: oklch(0.65 0.20 150);
-  --color-chart-4: oklch(0.70 0.15 50);
-  --color-chart-5: oklch(0.60 0.20 310);
+  --color-background: #1a1a2e;
+  --color-foreground: #f0f0f5;
+  --color-card: #242440;
+  --color-card-foreground: #ebebf0;
+  --color-popover: #242440;
+  --color-popover-foreground: #ebebf0;
+  --color-primary: #d4a017;
+  --color-primary-foreground: #1a1a2e;
+  --color-secondary: #2d2d4a;
+  --color-secondary-foreground: #e0e0e8;
+  --color-muted: #2a2a42;
+  --color-muted-foreground: #9090a8;
+  --color-accent: #3b6fd4;
+  --color-accent-foreground: #f0f0f5;
+  --color-destructive: #d44030;
+  --color-destructive-foreground: #f0f0f5;
+  --color-border: #3a3a55;
+  --color-input: #2d2d45;
+  --color-ring: #d4a017;
+  --color-chart-1: #d4a017;
+  --color-chart-2: #3b6fd4;
+  --color-chart-3: #2db87a;
+  --color-chart-4: #d4852d;
+  --color-chart-5: #a83bd4;
   --radius: 0.75rem;
-  --color-sidebar: oklch(0.15 0.02 270);
-  --color-sidebar-foreground: oklch(0.93 0.01 270);
-  --color-sidebar-primary: oklch(0.82 0.15 85);
-  --color-sidebar-primary-foreground: oklch(0.15 0.02 270);
-  --color-sidebar-accent: oklch(0.22 0.03 270);
-  --color-sidebar-accent-foreground: oklch(0.90 0.01 270);
-  --color-sidebar-border: oklch(0.28 0.03 270);
-  --color-sidebar-ring: oklch(0.82 0.15 85);
+  --color-sidebar: #1e1e35;
+  --color-sidebar-foreground: #ebebf0;
+  --color-sidebar-primary: #d4a017;
+  --color-sidebar-primary-foreground: #1a1a2e;
+  --color-sidebar-accent: #2d2d4a;
+  --color-sidebar-accent-foreground: #e0e0e8;
+  --color-sidebar-border: #3a3a55;
+  --color-sidebar-ring: #d4a017;
   /* Custom Vera Poker colors */
-  --color-gold: oklch(0.82 0.15 85);
-  --color-gold-dim: oklch(0.65 0.12 85);
-  --color-truth-blue: oklch(0.55 0.18 250);
-  --color-truth-blue-bright: oklch(0.70 0.18 250);
-  --color-deep-space: oklch(0.10 0.02 270);
-  --color-glass: oklch(0.20 0.02 270 / 0.6);
-  --color-glass-border: oklch(0.40 0.03 270 / 0.3);
-  --color-success: oklch(0.72 0.19 155);
-  --color-warning: oklch(0.80 0.16 80);
-  --color-danger: oklch(0.60 0.22 25);
+  --color-gold: #d4a017;
+  --color-gold-dim: #a07d12;
+  --color-truth-blue: #3b6fd4;
+  --color-truth-blue-bright: #5b8fe8;
+  --color-deep-space: #0f0f1a;
+  --color-glass: rgba(42, 42, 66, 0.6);
+  --color-glass-border: rgba(80, 80, 110, 0.3);
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-danger: #d44030;
 }
 
 @layer base {
@@ -65,50 +65,50 @@
     width: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: oklch(0.13 0.02 270);
+    background: #1a1a2e;
   }
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.30 0.03 270);
+    background: #4a4a65;
     border-radius: 3px;
   }
 }
 
 /* Glassmorphism utility classes */
 .glass {
-  background: oklch(0.20 0.02 270 / 0.6);
+  background: rgba(42, 42, 66, 0.6);
   backdrop-filter: blur(12px);
-  border: 1px solid oklch(0.40 0.03 270 / 0.3);
+  border: 1px solid rgba(80, 80, 110, 0.3);
 }
 
 .glass-strong {
-  background: oklch(0.18 0.02 270 / 0.8);
+  background: rgba(36, 36, 60, 0.8);
   backdrop-filter: blur(20px);
-  border: 1px solid oklch(0.45 0.03 270 / 0.4);
+  border: 1px solid rgba(90, 90, 120, 0.4);
 }
 
 .glass-subtle {
-  background: oklch(0.22 0.02 270 / 0.4);
+  background: rgba(45, 45, 70, 0.4);
   backdrop-filter: blur(8px);
-  border: 1px solid oklch(0.35 0.03 270 / 0.2);
+  border: 1px solid rgba(70, 70, 100, 0.2);
 }
 
 /* Glow effects */
 .glow-gold {
-  box-shadow: 0 0 20px oklch(0.82 0.15 85 / 0.3), 0 0 40px oklch(0.82 0.15 85 / 0.1);
+  box-shadow: 0 0 20px rgba(212, 160, 23, 0.3), 0 0 40px rgba(212, 160, 23, 0.1);
 }
 
 .glow-blue {
-  box-shadow: 0 0 20px oklch(0.55 0.18 250 / 0.3), 0 0 40px oklch(0.55 0.18 250 / 0.1);
+  box-shadow: 0 0 20px rgba(59, 111, 212, 0.3), 0 0 40px rgba(59, 111, 212, 0.1);
 }
 
 .glow-text-gold {
-  text-shadow: 0 0 10px oklch(0.82 0.15 85 / 0.5);
+  text-shadow: 0 0 10px rgba(212, 160, 23, 0.5);
 }
 
 /* Animated gradient border */
 .gradient-border {
   position: relative;
-  background: oklch(0.17 0.02 270);
+  background: #242440;
   border-radius: var(--radius);
 }
 .gradient-border::before {
@@ -116,7 +116,7 @@
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  background: linear-gradient(135deg, oklch(0.82 0.15 85), oklch(0.55 0.18 250), oklch(0.82 0.15 85));
+  background: linear-gradient(135deg, #d4a017, #3b6fd4, #d4a017);
   z-index: -1;
   background-size: 200% 200%;
   animation: gradient-shift 3s ease infinite;
@@ -136,9 +136,9 @@
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle at 20% 50%, oklch(0.82 0.15 85 / 0.03) 0%, transparent 50%),
-                    radial-gradient(circle at 80% 20%, oklch(0.55 0.18 250 / 0.03) 0%, transparent 50%),
-                    radial-gradient(circle at 50% 80%, oklch(0.82 0.15 85 / 0.02) 0%, transparent 50%);
+  background-image: radial-gradient(circle at 20% 50%, rgba(212, 160, 23, 0.03) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(59, 111, 212, 0.03) 0%, transparent 50%),
+                    radial-gradient(circle at 50% 80%, rgba(212, 160, 23, 0.02) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -148,7 +148,7 @@
 }
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px oklch(0.82 0.15 85 / 0.15);
+  box-shadow: 0 8px 30px rgba(212, 160, 23, 0.15);
 }
 
 /* Poker chip animation */
@@ -207,8 +207,8 @@
 
 /* Pulse glow for active player */
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 10px oklch(0.82 0.15 85 / 0.4); }
-  50% { box-shadow: 0 0 25px oklch(0.82 0.15 85 / 0.7); }
+  0%, 100% { box-shadow: 0 0 10px rgba(212, 160, 23, 0.4); }
+  50% { box-shadow: 0 0 25px rgba(212, 160, 23, 0.7); }
 }
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;

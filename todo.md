@@ -687,3 +687,10 @@
   - NotFound.tsx: 背景渐变
   - RoomInvitePoster.tsx: 底部渐变
   - Leaderboard.tsx: 头像渐变
+
+## 2026-06-14 UI修复 Round 9
+
+- [x] 管理后台风控开关字段名修复（isEnabled→enabled，数据库字段名不匹配导致永远显示关闭）
+- [x] 全局oklch颜色改为hex：index.css @theme所有变量从oklch改为标准hex/rgba
+- [x] Switch组件改为inline style确保老iOS兼容
+- [x] BottomNav/Admin中残留oklch清理

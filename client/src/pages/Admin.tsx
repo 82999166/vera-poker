@@ -3444,7 +3444,7 @@ function RiskPanel({ at }: { at: (k: string) => string }) {
         <div className="glass rounded-xl p-4">
           <Shield className="w-5 h-5 text-success mb-2" />
           <p className="text-xs font-semibold">启用规则</p>
-          <p className="text-xl font-bold text-success mt-1">{rules.filter((r: any) => r.isEnabled).length}/{rules.length}</p>
+          <p className="text-xl font-bold text-success mt-1">{rules.filter((r: any) => r.enabled).length}/{rules.length}</p>
         </div>
         <div className="glass rounded-xl p-4">
           <Shield className="w-5 h-5 text-warning mb-2" />
@@ -3479,11 +3479,11 @@ function RiskPanel({ at }: { at: (k: string) => string }) {
                   <p className="text-[10px] text-muted-foreground mt-0.5">{rule.description}</p>
                 </div>
                 <button
-                  onClick={() => updateRuleMutation.mutate({ ruleId: rule.id, enabled: !rule.isEnabled })}
+                  onClick={() => updateRuleMutation.mutate({ ruleId: rule.id, enabled: !rule.enabled })}
                   className="w-10 h-5 rounded-full transition-colors relative"
-                  style={{ background: rule.isEnabled ? '#22c55e' : 'rgba(100,100,100,0.3)' }}
+                  style={{ background: rule.enabled ? '#22c55e' : 'rgba(100,100,100,0.3)' }}
                 >
-                  <span className="absolute top-0.5 w-4 h-4 rounded-full transition-transform" style={{ background: '#ffffff', left: rule.isEnabled ? '20px' : '2px' }} />
+                  <span className="absolute top-0.5 w-4 h-4 rounded-full transition-transform" style={{ background: '#ffffff', left: rule.enabled ? '20px' : '2px' }} />
                 </button>
               </div>
             ))}
@@ -4492,22 +4492,22 @@ function StatsPanel({ at, onNavigate }: { at: (k: string) => string; onNavigate?
             {/* DAU Chart */}
             <div className="glass rounded-xl p-4">
               <p className="text-xs font-medium text-muted-foreground mb-3">{at("stats.dau")}</p>
-              <TrendChart data={trends?.dailyUsers ?? []} dataKey="count" color="oklch(0.82 0.15 85)" label={at("stats.users")} noDataText={at("common.noData")} />
+              <TrendChart data={trends?.dailyUsers ?? []} dataKey="count" color="#d4a017" label={at("stats.users")} noDataText={at("common.noData")} />
             </div>
             {/* Daily Volume Chart */}
             <div className="glass rounded-xl p-4">
               <p className="text-xs font-medium text-muted-foreground mb-3">{at("stats.dailyVolume")}</p>
-              <TrendChart data={trends?.dailyVolume ?? []} dataKey="volume" color="oklch(0.72 0.15 155)" label={at("stats.volume")} isVolume noDataText={at("common.noData")} />
+              <TrendChart data={trends?.dailyVolume ?? []} dataKey="volume" color="#22c55e" label={at("stats.volume")} isVolume noDataText={at("common.noData")} />
             </div>
             {/* Daily Hands Chart */}
             <div className="glass rounded-xl p-4">
               <p className="text-xs font-medium text-muted-foreground mb-3">{at("stats.dailyHands")}</p>
-              <TrendChart data={trends?.dailyHands ?? []} dataKey="count" color="oklch(0.7 0.15 250)" label={at("stats.hands")} noDataText={at("common.noData")} />
+              <TrendChart data={trends?.dailyHands ?? []} dataKey="count" color="#3b6fd4" label={at("stats.hands")} noDataText={at("common.noData")} />
             </div>
             {/* Daily Rake Chart */}
             <div className="glass rounded-xl p-4 border border-gold/10">
               <p className="text-xs font-medium text-gold mb-3">{at("finance.rakeTrend")}</p>
-              <TrendChart data={(trends as any)?.dailyRake ?? []} dataKey="total" color="oklch(0.82 0.15 85)" label={at("finance.rakeTotal")} isVolume noDataText={at("common.noData")} />
+              <TrendChart data={(trends as any)?.dailyRake ?? []} dataKey="total" color="#d4a017" label={at("finance.rakeTotal")} isVolume noDataText={at("common.noData")} />
             </div>
           </div>
         )}
