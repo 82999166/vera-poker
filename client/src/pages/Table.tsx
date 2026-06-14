@@ -321,7 +321,7 @@ const SEAT_POSITIONS = [
   { top: "82%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
   { top: "63%", left: "6%",  transform: "translate(0, -50%)" },      // Left bottom
   { top: "32%", left: "6%",  transform: "translate(0, -50%)" },      // Left top
-  { top: "13%", left: "50%", transform: "translate(-50%, 0)" },       // Top
+  { top: "8%", left: "50%", transform: "translate(-50%, 0)" },       // Top
   { top: "32%", left: "94%", transform: "translate(-100%, -50%)" }, // Right top
   { top: "63%", left: "94%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
@@ -1611,8 +1611,8 @@ export default function Table() {
               </div>
             </div>
 
-            {/* Pot display - centered in table, z-20 to stay above cards */}
-            <div className="absolute top-[36%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-20">
+            {/* Pot display - centered below community cards, z-20 to stay visible */}
+            <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-20">
               <AnimatedPot amount={displayPot} />
               {displayPlayers.length > 0 && (
                 <div className="flex items-center justify-center gap-1 mt-1">
@@ -1623,7 +1623,7 @@ export default function Table() {
             </div>
 
             {/* Community Cards - responsive size for small screens */}
-            <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5 z-15" style={{ '--deal-comm-x': '130px', '--deal-comm-y': '-130px' } as React.CSSProperties}>
+            <div className="absolute top-[46%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5 z-15" style={{ '--deal-comm-x': '130px', '--deal-comm-y': '-130px' } as React.CSSProperties}>
               {displayCommunity.map((card, i) => {
                 // Only animate cards that are newly dealt (index >= animateFromIndex)
                 const isNewCard = animateCards && i >= animateFromIndex;
@@ -1766,10 +1766,10 @@ export default function Table() {
                 className={`absolute transition-all duration-300 z-10 ${isLoser ? "animate-loser" : ""}`}
                 style={{ top: pos.top, left: pos.left, transform: pos.transform }}
               >
-                <div className={`flex ${isTopPlayer ? 'flex-col-reverse' : 'flex-col'} items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} ${isWinner ? "animate-winner-glow" : ""} transition-transform duration-200`}>
+                <div className={`flex flex-col items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} ${isWinner ? "animate-winner-glow" : ""} transition-transform duration-200`}>
                   {/* Player cards next to seat */}
                   {isHero && displayMyCards.length > 0 && (
-                    <div className="flex flex-col items-center gap-0.5 mb-0.5">
+                    <div className="flex flex-col items-center gap-0.5 mb-0.5" style={isTopPlayer ? { order: 10 } : undefined}>
                       <div className="flex gap-1" style={{ '--deal-from-x': '100px', '--deal-from-y': '-250px' } as React.CSSProperties}>
                         {displayMyCards.map((card, i) => (
                           <CardView key={`h${handNumber}-m${i}`} card={card} className={`!w-12 !h-[64px]${dealingMyCards ? (i === 0 ? ' animate-deal' : ' animate-deal-2') : ''}`} animate delay={i * 200} />
@@ -1805,7 +1805,7 @@ export default function Table() {
                   )}
                   {/* Opponent cards: only show face-up in showdown/completed phase with sequential flip animation */}
                   {!isHero && (displayPhase === "showdown" || displayPhase === "completed") && player.holeCards && player.holeCards.length > 0 && !waitingForReady && (
-                    <div className="flex flex-col items-center gap-0.5 mb-0.5">
+                    <div className="flex flex-col items-center gap-0.5 mb-0.5" style={isTopPlayer ? { order: 10 } : undefined}>
                       <div className="flex gap-0.5">
                         {player.holeCards.map((card, i) => (
                           <CardView
@@ -1838,7 +1838,7 @@ export default function Table() {
                   )}
                   {/* Show face-down cards for opponents during active hand (preflop/flop/turn/river) */}
                   {!isHero && displayPhase !== "showdown" && displayPhase !== "completed" && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && !(player as any).isSittingOut && (
-                    <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${rotatedIndex === 1 || rotatedIndex === 2 ? '140px' : rotatedIndex === 3 ? '60px' : rotatedIndex === 4 ? '-40px' : '-80px'}`, '--deal-from-y': `${rotatedIndex === 1 || rotatedIndex === 5 ? '-60px' : rotatedIndex === 2 || rotatedIndex === 4 ? '-140px' : '-180px'}` } as React.CSSProperties}>
+                    <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${rotatedIndex === 1 || rotatedIndex === 2 ? '140px' : rotatedIndex === 3 ? '60px' : rotatedIndex === 4 ? '-40px' : '-80px'}`, '--deal-from-y': `${rotatedIndex === 1 || rotatedIndex === 5 ? '-60px' : rotatedIndex === 2 || rotatedIndex === 4 ? '-140px' : '-180px'}`, ...(isTopPlayer ? { order: 10 } : {}) } as React.CSSProperties}>
                       <CardView faceDown className={`!w-7 !h-[36px]${dealingMyCards ? ' animate-deal' : ''}`} />
                       <CardView faceDown className={`!w-7 !h-[36px]${dealingMyCards ? ' animate-deal-2' : ''}`} />
                     </div>
@@ -1846,7 +1846,7 @@ export default function Table() {
 
                   {/* Sitting out badge (waiting for next hand) */}
                   {(player as any).isSittingOut && (
-                    <div className="mb-0.5 px-1.5 py-0.5 rounded text-[8px] font-semibold bg-amber-500/20 border border-amber-500/40 text-amber-300 text-center">
+                    <div className="mb-0.5 px-1.5 py-0.5 rounded text-[8px] font-semibold bg-amber-500/20 border border-amber-500/40 text-amber-300 text-center" style={isTopPlayer ? { order: 1 } : undefined}>
                       {t("table.waitingBigBlind")}
                     </div>
                   )}
@@ -1857,7 +1857,7 @@ export default function Table() {
                     // Folded players always show fold label regardless of phase
                     if (player.isFolded) {
                       return (
-                        <div className={`mb-1 px-2.5 py-1 rounded text-[12px] font-extrabold leading-tight whitespace-nowrap shadow-xl border border-white/40 bg-gray-600/90 text-white`} style={{textShadow:'0 1px 3px rgba(0,0,0,0.6)', letterSpacing:'0.02em'}}>
+                        <div className={`mb-1 px-2.5 py-1 rounded text-[12px] font-extrabold leading-tight whitespace-nowrap shadow-xl border border-white/40 bg-gray-600/90 text-white`} style={{textShadow:'0 1px 3px rgba(0,0,0,0.6)', letterSpacing:'0.02em', ...(isTopPlayer ? { order: 1 } : {})}}>
                           {t('table.fold')}
                         </div>
                       );
@@ -1873,14 +1873,14 @@ export default function Table() {
                     const style = actionStyleMap[la.action];
                     if (!style) return null;
                     return (
-                      <div className={`mb-1 px-2.5 py-1 rounded text-[12px] font-extrabold leading-tight whitespace-nowrap shadow-xl border border-white/40 ${style.bg} ${style.text}`} style={{textShadow:'0 1px 3px rgba(0,0,0,0.6)', letterSpacing:'0.02em'}}>
+                      <div className={`mb-1 px-2.5 py-1 rounded text-[12px] font-extrabold leading-tight whitespace-nowrap shadow-xl border border-white/40 ${style.bg} ${style.text}`} style={{textShadow:'0 1px 3px rgba(0,0,0,0.6)', letterSpacing:'0.02em', ...(isTopPlayer ? { order: 1 } : {})}}>
                         {style.label}
                       </div>
                     );
                   })()}
 
                   {/* Avatar circle with countdown ring */}
-                  <div className={`relative w-10 h-10 rounded-full overflow-visible transition-all duration-200`}>
+                  <div className={`relative w-10 h-10 rounded-full overflow-visible transition-all duration-200`} style={isTopPlayer ? { order: 2 } : undefined}>
                     {/* SVG countdown ring - shown for active player */}
                     {isCurrentTurn && (
                       <div className={`turn-timer-ring ${isUrgent ? 'turn-timer-ring--urgent' : ''}`}>
@@ -1931,7 +1931,7 @@ export default function Table() {
                   {/* Player info below avatar */}
                   <div className={`glass rounded-lg px-2 py-0.5 text-center min-w-[60px] transition-all duration-200 ${
                     player.isFolded ? "opacity-30 grayscale" : ""
-                  } ${player.isAllIn ? "border border-red-500/60 shadow-[0_0_8px_rgba(239,68,68,0.3)]" : ""}`}>
+                  } ${player.isAllIn ? "border border-red-500/60 shadow-[0_0_8px_rgba(239,68,68,0.3)]" : ""}`} style={isTopPlayer ? { order: 3 } : undefined}>
                     <p className="text-[9px] text-muted-foreground truncate max-w-[56px] leading-tight">
                       {isHero ? t("table.you") : (player as any).name || `P${player.seatIndex + 1}`}
                     </p>
@@ -1944,12 +1944,14 @@ export default function Table() {
 
                   {/* Current bet chip stack */}
                   {player.currentBet > 0 && !player.isFolded && (
-                    <ChipStack amount={player.currentBet} />
+                    <div style={isTopPlayer ? { order: 11 } : undefined}>
+                      <ChipStack amount={player.currentBet} />
+                    </div>
                   )}
 
                   {/* Winner gold coins flying in + amount pop-up */}
                   {isWinner && showWinner && (
-                    <div className="relative mt-1">
+                    <div className="relative mt-1" style={isTopPlayer ? { order: 12 } : undefined}>
                       {/* Flying gold coins */}
                       <div className="flex justify-center gap-0.5 mb-1">
                         {[0, 1, 2, 3, 4].map((i) => (
