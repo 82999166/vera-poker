@@ -5,7 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useI18n, getLocale } from "@/lib/i18n";
 import { fmtAmt, formatAmount, formatBalance } from "@/lib/utils";
-import { ArrowLeft, Shield, Volume2, VolumeX, LogOut, Trophy, Clock, Users, Plus, AlertTriangle, Settings, ImageIcon, RefreshCw } from "lucide-react";
+import { ArrowLeft, Shield, Volume2, VolumeX, LogOut, Trophy, Clock, Users, Plus, AlertTriangle, Settings, ImageIcon, RefreshCw, Menu, X } from "lucide-react";
 import { toast } from "sonner";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import RoomInvitePoster from "@/components/RoomInvitePoster";
@@ -904,6 +904,7 @@ export default function Table() {
 
   // === Switch Table ===
   const [isSwitchingTable, setIsSwitchingTable] = useState(false);
+  const [showTableMenu, setShowTableMenu] = useState(false);
   const switchTableMutation = trpc.rooms.switchTable.useMutation();
 
   // Wallet balance for rebuy
@@ -1291,102 +1292,94 @@ export default function Table() {
           onClose={() => setShowRoomPoster(false)}
         />
       )}
-      {/* Top Bar - compact for small screens */}
-      <div className="glass-strong px-2 py-1.5 flex items-center justify-between z-10 border-b border-border/30">
-        <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground transition-colors active:scale-95">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-2">
-          {room?.type === "private" && room?.inviteCode && (
-            <span className="text-[10px] font-mono text-muted-foreground/70 bg-muted/40 px-1.5 py-0.5 rounded">{room.inviteCode}</span>
-          )}
-          {isTournamentTable && <Trophy className="w-3.5 h-3.5 text-gold" />}
-          <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-            {room ? room.name : isDemoMode ? t("table.demo") : `#${id}`}
+      {/* Floating Menu Button (top-left) - replaces fixed top bar for more table space */}
+      <button
+        onClick={() => setShowTableMenu(true)}
+        className="absolute top-2 left-2 z-30 w-9 h-9 rounded-full bg-black/60 border border-white/20 flex items-center justify-center backdrop-blur-sm active:scale-90 transition-transform"
+      >
+        <Menu className="w-4.5 h-4.5 text-white/80" />
+      </button>
+
+      {/* Floating room name + phase (top-center) */}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 border border-white/10 backdrop-blur-sm">
+        {isTournamentTable && <Trophy className="w-3 h-3 text-gold" />}
+        <span className="text-[11px] text-white/70 font-medium truncate max-w-[100px]">
+          {room ? room.name : isDemoMode ? t("table.demo") : `#${id}`}
+        </span>
+        {displayPhase !== "waiting" && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-truth-blue/30 text-truth-blue font-medium">
+            {phaseNames[displayPhase] || displayPhase}
           </span>
-          {displayPhase !== "waiting" && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-truth-blue/20 text-truth-blue font-medium">
-              {phaseNames[displayPhase] || displayPhase}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          {isSeated && !isDemoMode && !isTournamentTable && (
-            <button onClick={handleLeave} className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all active:scale-95" title={t("table.leave")}>
-              <LogOut className="w-4 h-4" />
-            </button>
-          )}
-          {/* Share poster button - only for private rooms with invite code */}
-          {room?.type === "private" && room?.inviteCode && (
-            <button onClick={() => setShowRoomPoster(true)} className="p-1.5 rounded-lg text-gold/70 hover:text-gold hover:bg-gold/10 transition-all active:scale-95" title={t("room.generatePoster")}>
-              <ImageIcon className="w-4 h-4" />
-            </button>
-          )}
-          <button onClick={() => navigate(`/history/${id}`)} className="p-1.5 rounded-lg text-gold hover:text-gold/80 hover:bg-gold/10 transition-all active:scale-95" title={t("table.handHistory")}>
-            <Clock className="w-4 h-4" />
-          </button>
-          <button onClick={() => navigate("/verify")} className="p-1.5 rounded-lg text-truth-blue hover:text-truth-blue-bright hover:bg-truth-blue/10 transition-all active:scale-95">
-            <Shield className="w-4 h-4" />
-          </button>
-          <button onClick={() => { setMuted(!muted); toggleSound(); }} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-95">
-            {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </button>
-          {/* Voice mode toggle: off → winner_only → all → off */}
-          <button
-            onClick={() => {
-              const modes: Array<"off" | "winner_only" | "all"> = ["off", "winner_only", "all"];
-              const currentIdx = modes.indexOf(voiceMode);
-              const nextMode = modes[(currentIdx + 1) % 3];
-              setVoiceMode(nextMode);
-              const labels: Record<string, string> = {
-                off: t("voice.off"),
-                winner_only: t("voice.winnerOnly"),
-                all: t("voice.all"),
-              };
-              toast(labels[nextMode], { duration: 1500 });
-            }}
-            className={`p-1.5 rounded-lg transition-all active:scale-95 ${
-              voiceMode === "off" ? "text-muted-foreground/50" :
-              voiceMode === "winner_only" ? "text-gold" :
-              "text-green-400"
-            } hover:bg-secondary`}
-            title={voiceMode === "off" ? t("voice.off") : voiceMode === "winner_only" ? t("voice.winnerOnly") : t("voice.all")}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-              {voiceMode === "off" ? (
-                <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/><line x1="4" x2="20" y1="4" y2="20"/></>
-              ) : voiceMode === "winner_only" ? (
-                <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="1" fill="currentColor"/></>
-              ) : (
-                <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></>
-              )}
-            </svg>
-          </button>
-        </div>
+        )}
       </div>
 
-      {/* Phase Progress Indicator - minimal height */}
-      {displayPhase !== "waiting" && (
-        <div className="px-3 py-0.5 glass border-b border-border/20">
-          <div className="flex items-center justify-center gap-1">
-            {["preflop", "flop", "turn", "river"].map((phase, i) => {
-              const phases = ["preflop", "flop", "turn", "river"];
-              const currentIdx = phases.indexOf(displayPhase);
-              const isActive = i === currentIdx;
-              const isPast = i < currentIdx;
-              return (
-                <div key={phase} className="flex items-center">
-                  <div className={`h-1 rounded-full transition-all duration-500 ${
-                    isActive ? "w-8 bg-gradient-to-r from-gold to-gold-dim" :
-                    isPast ? "w-5 bg-truth-blue/60" : "w-5 bg-secondary"
-                  }`} />
-                  {i < 3 && <div className="w-1" />}
-                </div>
-              );
-            })}
-            <span className="text-[9px] text-muted-foreground ml-2">
-              {phaseNames[displayPhase]}
-            </span>
+      {/* Floating sound toggle (top-right) */}
+      <button
+        onClick={() => { setMuted(!muted); toggleSound(); }}
+        className="absolute top-2 right-2 z-30 w-9 h-9 rounded-full bg-black/60 border border-white/20 flex items-center justify-center backdrop-blur-sm active:scale-90 transition-transform"
+      >
+        {muted ? <VolumeX className="w-4 h-4 text-white/60" /> : <Volume2 className="w-4 h-4 text-white/80" />}
+      </button>
+
+      {/* Slide-out Menu Panel */}
+      {showTableMenu && (
+        <div className="fixed inset-0 z-[60]" onClick={() => setShowTableMenu(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="absolute top-0 left-0 h-full w-[220px] bg-gradient-to-b from-[#1a2744] to-[#0d1a2e] border-r border-white/10 shadow-2xl p-4 flex flex-col gap-1" onClick={e => e.stopPropagation()}>
+            {/* Close */}
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-bold text-white">{room?.name || t("table.demo")}</span>
+              <button onClick={() => setShowTableMenu(false)} className="p-1 rounded-lg text-white/60 hover:text-white active:scale-90">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {/* Menu items */}
+            <button onClick={() => { setShowTableMenu(false); navigate("/lobby"); }} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 hover:bg-white/10 active:scale-95 transition-all">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm">{t("common.back")}</span>
+            </button>
+            {isSeated && !isDemoMode && !isTournamentTable && (
+              <button onClick={() => { setShowTableMenu(false); handleLeave(); }} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-500/10 active:scale-95 transition-all">
+                <LogOut className="w-4 h-4" />
+                <span className="text-sm">{t("table.leave")}</span>
+              </button>
+            )}
+            <button onClick={() => { setShowTableMenu(false); navigate(`/history/${id}`); }} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 hover:bg-white/10 active:scale-95 transition-all">
+              <Clock className="w-4 h-4 text-gold" />
+              <span className="text-sm">{t("table.handHistory")}</span>
+            </button>
+            <button onClick={() => { setShowTableMenu(false); navigate("/verify"); }} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 hover:bg-white/10 active:scale-95 transition-all">
+              <Shield className="w-4 h-4 text-truth-blue" />
+              <span className="text-sm">{t("table.verify")}</span>
+            </button>
+            {room?.type === "private" && room?.inviteCode && (
+              <button onClick={() => { setShowTableMenu(false); setShowRoomPoster(true); }} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 hover:bg-white/10 active:scale-95 transition-all">
+                <ImageIcon className="w-4 h-4 text-gold/70" />
+                <span className="text-sm">{t("room.generatePoster")}</span>
+              </button>
+            )}
+            {/* Voice mode */}
+            <button
+              onClick={() => {
+                const modes: Array<"off" | "winner_only" | "all"> = ["off", "winner_only", "all"];
+                const currentIdx = modes.indexOf(voiceMode);
+                const nextMode = modes[(currentIdx + 1) % 3];
+                setVoiceMode(nextMode);
+                const labels: Record<string, string> = { off: t("voice.off"), winner_only: t("voice.winnerOnly"), all: t("voice.all") };
+                toast(labels[nextMode], { duration: 1500 });
+              }}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 hover:bg-white/10 active:scale-95 transition-all"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-4 h-4 ${voiceMode === "off" ? "text-white/40" : voiceMode === "winner_only" ? "text-gold" : "text-green-400"}`}>
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>
+              </svg>
+              <span className="text-sm">{voiceMode === "off" ? t("voice.off") : voiceMode === "winner_only" ? t("voice.winnerOnly") : t("voice.all")}</span>
+            </button>
+            {room?.type === "private" && room?.inviteCode && (
+              <div className="mt-auto pt-4 border-t border-white/10">
+                <span className="text-[10px] font-mono text-white/40">{t("room.code")}: {room.inviteCode}</span>
+              </div>
+            )}
           </div>
         </div>
       )}

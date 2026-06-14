@@ -306,21 +306,21 @@ export default function Lobby() {
       <div className="px-4 pt-3 flex items-center gap-2 overflow-x-auto scrollbar-hide">
         <button
           onClick={() => navigate("/leaderboard")}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-gold hover:bg-gold/10 transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-sm font-semibold text-gold hover:bg-gold/10 transition-colors whitespace-nowrap"
         >
           <Trophy className="w-3.5 h-3.5" />
           {t("lobby.leaderboard")}
         </button>
         <button
           onClick={() => navigate("/tutorial")}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-truth-blue hover:bg-truth-blue/10 transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-sm font-semibold text-truth-blue hover:bg-truth-blue/10 transition-colors whitespace-nowrap"
         >
           <BookOpen className="w-3.5 h-3.5" />
           {t("tutorial.title")}
         </button>
         <button
           onClick={handleQuickJoin}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium text-gold hover:bg-gold/10 transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-sm font-semibold text-gold hover:bg-gold/10 transition-colors whitespace-nowrap"
         >
           <Zap className="w-3.5 h-3.5" />
           {t("lobby.quickJoin")}
@@ -334,7 +334,7 @@ export default function Lobby() {
             <button
               key={level}
               onClick={() => setFilterLevel(level)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all flex items-center gap-0.5 ${
+              className={`px-2.5 py-1 rounded-full text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-0.5 ${
                 filterLevel === level
                   ? "bg-truth-blue text-white glow-blue"
                   : "glass text-muted-foreground hover:text-foreground"
@@ -377,7 +377,7 @@ export default function Lobby() {
       <div className="px-4 pt-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-          <span className="text-xs text-muted-foreground">{t("lobby.online", { count: totalOnline })}</span>
+          <span className="text-sm font-medium text-muted-foreground">{t("lobby.online", { count: totalOnline })}</span>
         </div>
         {activeTab === "cash" && totalOnline > 0 && (
           <span className="text-xs text-muted-foreground">
@@ -423,7 +423,7 @@ export default function Lobby() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-semibold text-foreground">{getRoomLevelName(group.bigBlind)}</span>
+                      <span className="text-base font-bold text-foreground">{getRoomLevelName(group.bigBlind)}</span>
                       {group.fairnessLevel === "high" && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-truth-blue/20 text-truth-blue-bright">{t("lobby.onChain")}</span>
                       )}
@@ -431,7 +431,7 @@ export default function Lobby() {
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success">{t("lobby.live")}</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground font-medium">
                       <span>{t("lobby.blinds")}: ${formatAmount(group.smallBlind)}/${formatAmount(group.bigBlind)}</span>
                       <span>{t("lobby.buyIn")}: ${formatAmount(group.minBuyIn)}-${formatAmount(group.maxBuyIn)}</span>
                     </div>
@@ -439,12 +439,12 @@ export default function Lobby() {
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1">
                       <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-sm font-semibold text-foreground">{group.totalPlayers}</span>
-                      <span className="text-xs text-muted-foreground">{t("lobby.onlineSuffix")}</span>
+                      <span className="text-base font-bold text-foreground">{group.totalPlayers}</span>
+                      <span className="text-sm text-muted-foreground font-medium">{t("lobby.onlineSuffix")}</span>
                     </div>
                     <button
                       onClick={() => handleSitDown(group)}
-                      className={`font-semibold px-3 py-1.5 rounded-lg text-xs transition-all active:scale-95 ${
+                      className={`font-bold px-4 py-2 rounded-lg text-sm transition-all active:scale-95 ${
                         isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"
                       }`}
                       disabled={isFull}
@@ -467,9 +467,9 @@ export default function Lobby() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <Lock className="w-3 h-3 text-gold" />
-                    <span className="text-sm font-semibold text-foreground">{room.name}</span>
+                    <span className="text-base font-bold text-foreground">{room.name}</span>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground font-medium">
                     <span>{t("lobby.blinds")}: ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)}</span>
                     <span>{t("lobby.buyIn")}: ${formatAmount(room.minBuyIn)}-${formatAmount(room.maxBuyIn)}</span>
                   </div>
@@ -477,10 +477,10 @@ export default function Lobby() {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1">
                     <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-sm font-semibold text-foreground">{room.currentPlayers}</span>
-                    <span className="text-xs text-muted-foreground">{t("lobby.onlineSuffix")}</span>
+                    <span className="text-base font-bold text-foreground">{room.currentPlayers}</span>
+                    <span className="text-sm text-muted-foreground font-medium">{t("lobby.onlineSuffix")}</span>
                   </div>
-                  <button className={`font-semibold px-3 py-1.5 rounded-lg text-xs transition-opacity ${
+                  <button className={`font-bold px-4 py-2 rounded-lg text-sm transition-opacity ${
                     isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"
                   }`} disabled={isFull}>
                     {isFull ? t("lobby.full") : t("lobby.sit")}

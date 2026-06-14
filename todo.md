@@ -622,3 +622,8 @@
 - [x] 投注/跟注操作配金币落下声（coinDrop）
 - [x] 对手的bet/call/raise也播放coinDrop金币声
 - [x] 对手的fold/check/allIn也播放对应音效
+
+## 2026-06-14 UI优化
+
+- [x] 游戏桌面隐藏顶部工具栏，改为浮动汉堡菜单（仿KKPOKER）
+- [x] 大厅界面字体加粗加大，白天可读性优化
