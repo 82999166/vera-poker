@@ -128,14 +128,14 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
 
   // Flip animation: show card back first, then flip to reveal face
   if (flip && !flipped) {
-    // Show card back while waiting to flip
+    // Show card back while waiting to flip (solid colors for iOS compatibility)
     return (
       <div className={`w-11 h-[60px] rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4)] ${className}`}>
-        <div className="w-full h-full bg-gradient-to-br from-[#d63031] to-[#b71c1c] border-[2px] border-white/90 rounded-md relative">
-          <div className="absolute inset-[3px] border-[1.5px] border-white/50 rounded-sm" />
+        <div className="w-full h-full bg-gradient-to-br from-[#d63031] to-[#8b1a1a] border-[2px] border-[#f0f0f0] rounded-md relative">
+          <div className="absolute inset-[3px] border-[1.5px] border-[#e0c0c0] rounded-sm" />
           <div className="absolute inset-[6px] rounded-sm overflow-hidden" style={{ backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.15) 6px, rgba(255,255,255,0.15) 7px)` }} />
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-6 h-6 rounded-full bg-white/30 border-[1.5px] border-white/50 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-full bg-[#a03030] border-[1.5px] border-[#e0c0c0] flex items-center justify-center">
               <span className="text-[9px] font-black text-white">VP</span>
             </div>
           </div>
@@ -145,19 +145,19 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   }
 
   if (!card || faceDown) {
-    // Card back: clean red design with subtle pattern
+    // Card back: solid red design (no alpha transparency for iOS compatibility)
     return (
       <div className={`w-11 h-[60px] rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`}>
-        <div className="w-full h-full bg-gradient-to-br from-[#d63031] to-[#b71c1c] border-[2px] border-white/90 rounded-md relative">
+        <div className="w-full h-full bg-gradient-to-br from-[#d63031] to-[#8b1a1a] border-[2px] border-[#f0f0f0] rounded-md relative">
           {/* Inner border */}
-          <div className="absolute inset-[3px] border-[1.5px] border-white/50 rounded-sm" />
+          <div className="absolute inset-[3px] border-[1.5px] border-[#e0c0c0] rounded-sm" />
           {/* Simple diagonal lines - sparse */}
           <div className="absolute inset-[6px] rounded-sm overflow-hidden" style={{
             backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.15) 6px, rgba(255,255,255,0.15) 7px)`,
           }} />
           {/* Center logo */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-6 h-6 rounded-full bg-white/30 border-[1.5px] border-white/50 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-full bg-[#a03030] border-[1.5px] border-[#e0c0c0] flex items-center justify-center">
               <span className="text-[9px] font-black text-white">VP</span>
             </div>
           </div>
@@ -1507,10 +1507,10 @@ export default function Table() {
               <div
                 className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 ease-linear ${
                   countdown > 10
-                    ? 'bg-gradient-to-t from-truth-blue to-gold'
+                    ? 'bg-gradient-to-t from-[#2563eb] to-[#eab308]'
                     : countdown > 5
-                      ? 'bg-gradient-to-t from-orange-400 to-yellow-500'
-                      : 'bg-gradient-to-t from-red-600 to-red-400'
+                      ? 'bg-gradient-to-t from-[#f97316] to-[#eab308]'
+                      : 'bg-gradient-to-t from-[#dc2626] to-[#f87171]'
                 }`}
                 style={{ height: `${(countdown / turnTimeout) * 100}%` }}
               />
@@ -1746,7 +1746,7 @@ export default function Table() {
                           <CardView
                             key={`h${handNumber}-o${player.id}-${i}`}
                             card={card}
-                            className="!w-[52px] !h-[70px]"
+                            className="!w-[44px] !h-[58px]"
                             flip={revealedOpponentIds.has(player.id)}
                             delay={i * 200}
                           />
@@ -1774,8 +1774,8 @@ export default function Table() {
                   {/* Show face-down cards for opponents during active hand (preflop/flop/turn/river) */}
                   {!isHero && displayPhase !== "showdown" && displayPhase !== "completed" && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && !(player as any).isSittingOut && (
                     <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${rotatedIndex === 1 || rotatedIndex === 2 ? '140px' : rotatedIndex === 3 ? '60px' : rotatedIndex === 4 ? '-40px' : '-80px'}`, '--deal-from-y': `${rotatedIndex === 1 || rotatedIndex === 5 ? '-60px' : rotatedIndex === 2 || rotatedIndex === 4 ? '-140px' : '-180px'}` } as React.CSSProperties}>
-                      <CardView faceDown className={`!w-9 !h-[50px]${dealingMyCards ? ' animate-deal' : ''}`} />
-                      <CardView faceDown className={`!w-9 !h-[50px]${dealingMyCards ? ' animate-deal-2' : ''}`} />
+                      <CardView faceDown className={`!w-8 !h-[42px]${dealingMyCards ? ' animate-deal' : ''}`} />
+                      <CardView faceDown className={`!w-8 !h-[42px]${dealingMyCards ? ' animate-deal-2' : ''}`} />
                     </div>
                   )}
 

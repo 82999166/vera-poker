@@ -84,8 +84,8 @@ export default function Wallet() {
     if (Number(amount) < 10) {
       return toast.error(t("wallet.minDeposit"));
     }
-    // Use the exact amount with unique suffix for auto-matching
-    const exactAmount = `${Number(amount).toFixed(0)}.${amountSuffix}`;
+    // Use the exact amount with unique suffix for auto-matching (subtract $1 + add cents suffix)
+    const exactAmount = `${(Number(amount) - 1).toFixed(0)}.${amountSuffix}`;
     depositMutation.mutate({ amount: exactAmount, chain });
   };
 
@@ -281,7 +281,7 @@ export default function Wallet() {
                   <>
                     <p className="text-[11px] text-gold/80 mb-1">{t("wallet.suggestedAmount")}</p>
                     <p className="text-base font-black text-gold tracking-wide">
-                      {Number(amount).toFixed(0)}.{amountSuffix} USDT
+                      {(Number(amount) - 1).toFixed(0)}.{amountSuffix} USDT
                     </p>
                     <p className="text-[10px] text-gold/70 mt-1 font-semibold">{t("wallet.uniqueSuffixTip")}</p>
                   </>

@@ -431,7 +431,7 @@ export default function Lobby() {
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success whitespace-nowrap">{t("lobby.live")}</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-[13px] text-foreground font-bold mt-2">
+                    <div className="flex items-center gap-4 text-[13px] text-foreground font-bold mt-4">
                       <span className="whitespace-nowrap">{t("lobby.blinds")}: ${formatAmount(group.smallBlind)}/${formatAmount(group.bigBlind)}</span>
                       <span className="whitespace-nowrap">{t("lobby.buyIn")}: ${formatAmount(group.minBuyIn)}-${formatAmount(group.maxBuyIn)}</span>
                     </div>
@@ -469,7 +469,7 @@ export default function Lobby() {
                     <Lock className="w-3 h-3 text-gold" />
                     <span className="text-base font-bold text-foreground">{room.name}</span>
                   </div>
-                  <div className="flex items-center gap-4 text-[13px] text-foreground font-bold mt-2">
+                  <div className="flex items-center gap-4 text-[13px] text-foreground font-bold mt-4">
                     <span className="whitespace-nowrap">{t("lobby.blinds")}: ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)}</span>
                     <span className="whitespace-nowrap">{t("lobby.buyIn")}: ${formatAmount(room.minBuyIn)}-${formatAmount(room.maxBuyIn)}</span>
                   </div>
