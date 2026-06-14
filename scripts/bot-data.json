@@ -1,0 +1,1214 @@
+{
+  "newBots": [
+    {
+      "name": "Lawrence_R",
+      "nickname": "Lawrence R.",
+      "avatar": "https://randomuser.me/api/portraits/men/0.jpg",
+      "balance": 64695
+    },
+    {
+      "name": "TeresaR75",
+      "nickname": "Teresa R.",
+      "avatar": "https://randomuser.me/api/portraits/women/1.jpg",
+      "balance": 57628
+    },
+    {
+      "name": "JulieA59",
+      "nickname": "Julie A.",
+      "avatar": "https://randomuser.me/api/portraits/women/2.jpg",
+      "balance": 25588
+    },
+    {
+      "name": "Eugene.Dav",
+      "nickname": "Eugene D.",
+      "avatar": "https://randomuser.me/api/portraits/men/3.jpg",
+      "balance": 21696
+    },
+    {
+      "name": "Samantha526",
+      "nickname": "Samantha A.",
+      "avatar": "https://randomuser.me/api/portraits/women/4.jpg",
+      "balance": 51659
+    },
+    {
+      "name": "Kenneth_N",
+      "nickname": "Kenneth N.",
+      "avatar": "https://randomuser.me/api/portraits/men/5.jpg",
+      "balance": 35670
+    },
+    {
+      "name": "MeganJ95",
+      "nickname": "Megan J.",
+      "avatar": "https://randomuser.me/api/portraits/women/6.jpg",
+      "balance": 26989
+    },
+    {
+      "name": "Christian_Pete",
+      "nickname": "Christian P.",
+      "avatar": "https://randomuser.me/api/portraits/men/7.jpg",
+      "balance": 31422
+    },
+    {
+      "name": "Isabella_Gome",
+      "nickname": "Isabella G.",
+      "avatar": "https://randomuser.me/api/portraits/women/8.jpg",
+      "balance": 52671
+    },
+    {
+      "name": "Helen574",
+      "nickname": "Helen M.",
+      "avatar": "https://randomuser.me/api/portraits/women/9.jpg",
+      "balance": 11633
+    },
+    {
+      "name": "JoshuaB10",
+      "nickname": "Joshua B.",
+      "avatar": "https://randomuser.me/api/portraits/men/10.jpg",
+      "balance": 15798
+    },
+    {
+      "name": "RobertL24",
+      "nickname": "Robert L.",
+      "avatar": "https://randomuser.me/api/portraits/men/11.jpg",
+      "balance": 68309
+    },
+    {
+      "name": "Dylan.Mye",
+      "nickname": "Dylan M.",
+      "avatar": "https://randomuser.me/api/portraits/men/12.jpg",
+      "balance": 66913
+    },
+    {
+      "name": "Melissa_Jame",
+      "nickname": "Melissa J.",
+      "avatar": "https://randomuser.me/api/portraits/women/13.jpg",
+      "balance": 70301
+    },
+    {
+      "name": "LoganG58",
+      "nickname": "Logan G.",
+      "avatar": "https://randomuser.me/api/portraits/men/14.jpg",
+      "balance": 94013
+    },
+    {
+      "name": "Paul.Mor",
+      "nickname": "Paul M.",
+      "avatar": "https://randomuser.me/api/portraits/men/15.jpg",
+      "balance": 83919
+    },
+    {
+      "name": "Wayne61",
+      "nickname": "Wayne L.",
+      "avatar": "https://randomuser.me/api/portraits/men/16.jpg",
+      "balance": 58161
+    },
+    {
+      "name": "AlexisB47",
+      "nickname": "Alexis B.",
+      "avatar": "https://randomuser.me/api/portraits/women/17.jpg",
+      "balance": 35941
+    },
+    {
+      "name": "Danielle.How",
+      "nickname": "Danielle H.",
+      "avatar": "https://randomuser.me/api/portraits/women/18.jpg",
+      "balance": 85664
+    },
+    {
+      "name": "Lori856",
+      "nickname": "Lori P.",
+      "avatar": "https://randomuser.me/api/portraits/women/19.jpg",
+      "balance": 23358
+    },
+    {
+      "name": "Terry_King",
+      "nickname": "Terry K.",
+      "avatar": "https://randomuser.me/api/portraits/men/20.jpg",
+      "balance": 53503
+    },
+    {
+      "name": "Carl.Joh",
+      "nickname": "Carl J.",
+      "avatar": "https://randomuser.me/api/portraits/men/21.jpg",
+      "balance": 14177
+    },
+    {
+      "name": "Dennis_M",
+      "nickname": "Dennis M.",
+      "avatar": "https://randomuser.me/api/portraits/men/22.jpg",
+      "balance": 77679
+    },
+    {
+      "name": "Joan477",
+      "nickname": "Joan T.",
+      "avatar": "https://randomuser.me/api/portraits/women/23.jpg",
+      "balance": 79215
+    },
+    {
+      "name": "GaryF72",
+      "nickname": "Gary F.",
+      "avatar": "https://randomuser.me/api/portraits/men/24.jpg",
+      "balance": 72674
+    },
+    {
+      "name": "SusanA24",
+      "nickname": "Susan A.",
+      "avatar": "https://randomuser.me/api/portraits/women/25.jpg",
+      "balance": 23050
+    },
+    {
+      "name": "Margaret452",
+      "nickname": "Margaret A.",
+      "avatar": "https://randomuser.me/api/portraits/women/26.jpg",
+      "balance": 51046
+    },
+    {
+      "name": "GaryH42",
+      "nickname": "Gary H.",
+      "avatar": "https://randomuser.me/api/portraits/men/27.jpg",
+      "balance": 84092
+    },
+    {
+      "name": "Patricia.Whi",
+      "nickname": "Patricia W.",
+      "avatar": "https://randomuser.me/api/portraits/women/28.jpg",
+      "balance": 49976
+    },
+    {
+      "name": "Anna_Pric",
+      "nickname": "Anna P.",
+      "avatar": "https://randomuser.me/api/portraits/women/29.jpg",
+      "balance": 59331
+    },
+    {
+      "name": "Terry193",
+      "nickname": "Terry P.",
+      "avatar": "https://randomuser.me/api/portraits/men/30.jpg",
+      "balance": 60882
+    },
+    {
+      "name": "Bradley_M",
+      "nickname": "Bradley M.",
+      "avatar": "https://randomuser.me/api/portraits/men/31.jpg",
+      "balance": 35702
+    },
+    {
+      "name": "Marilyn.Hug",
+      "nickname": "Marilyn H.",
+      "avatar": "https://randomuser.me/api/portraits/women/32.jpg",
+      "balance": 55520
+    },
+    {
+      "name": "LarryE34",
+      "nickname": "Larry E.",
+      "avatar": "https://randomuser.me/api/portraits/men/33.jpg",
+      "balance": 33724
+    },
+    {
+      "name": "Kelly.All",
+      "nickname": "Kelly A.",
+      "avatar": "https://randomuser.me/api/portraits/women/34.jpg",
+      "balance": 56142
+    },
+    {
+      "name": "Christina97",
+      "nickname": "Christina C.",
+      "avatar": "https://randomuser.me/api/portraits/women/35.jpg",
+      "balance": 22212
+    },
+    {
+      "name": "MariaF37",
+      "nickname": "Maria F.",
+      "avatar": "https://randomuser.me/api/portraits/women/36.jpg",
+      "balance": 49499
+    },
+    {
+      "name": "Gloria_T",
+      "nickname": "Gloria T.",
+      "avatar": "https://randomuser.me/api/portraits/women/37.jpg",
+      "balance": 33682
+    },
+    {
+      "name": "Joseph_R",
+      "nickname": "Joseph R.",
+      "avatar": "https://randomuser.me/api/portraits/men/38.jpg",
+      "balance": 54896
+    },
+    {
+      "name": "Vincent_Nguy",
+      "nickname": "Vincent N.",
+      "avatar": "https://randomuser.me/api/portraits/men/39.jpg",
+      "balance": 44037
+    },
+    {
+      "name": "NoahF34",
+      "nickname": "Noah F.",
+      "avatar": "https://randomuser.me/api/portraits/men/40.jpg",
+      "balance": 71204
+    },
+    {
+      "name": "DeborahE92",
+      "nickname": "Deborah E.",
+      "avatar": "https://randomuser.me/api/portraits/women/41.jpg",
+      "balance": 69679
+    },
+    {
+      "name": "Dylan.San",
+      "nickname": "Dylan S.",
+      "avatar": "https://randomuser.me/api/portraits/men/42.jpg",
+      "balance": 78680
+    },
+    {
+      "name": "Timothy_D",
+      "nickname": "Timothy D.",
+      "avatar": "https://randomuser.me/api/portraits/men/43.jpg",
+      "balance": 24145
+    },
+    {
+      "name": "Ronald84",
+      "nickname": "Ronald W.",
+      "avatar": "https://randomuser.me/api/portraits/men/44.jpg",
+      "balance": 71022
+    },
+    {
+      "name": "Mark.Jac",
+      "nickname": "Mark J.",
+      "avatar": "https://randomuser.me/api/portraits/men/45.jpg",
+      "balance": 80895
+    },
+    {
+      "name": "Denise_Cook",
+      "nickname": "Denise C.",
+      "avatar": "https://randomuser.me/api/portraits/women/46.jpg",
+      "balance": 34565
+    },
+    {
+      "name": "JosephA42",
+      "nickname": "Joseph A.",
+      "avatar": "https://randomuser.me/api/portraits/men/47.jpg",
+      "balance": 42771
+    },
+    {
+      "name": "Jacob_M",
+      "nickname": "Jacob M.",
+      "avatar": "https://randomuser.me/api/portraits/men/48.jpg",
+      "balance": 54865
+    },
+    {
+      "name": "Samantha_F",
+      "nickname": "Samantha F.",
+      "avatar": "https://randomuser.me/api/portraits/women/49.jpg",
+      "balance": 71320
+    },
+    {
+      "name": "Johnny_B",
+      "nickname": "Johnny B.",
+      "avatar": "https://randomuser.me/api/portraits/men/50.jpg",
+      "balance": 67907
+    },
+    {
+      "name": "Lauren817",
+      "nickname": "Lauren C.",
+      "avatar": "https://randomuser.me/api/portraits/women/51.jpg",
+      "balance": 17563
+    },
+    {
+      "name": "EugeneJ87",
+      "nickname": "Eugene J.",
+      "avatar": "https://randomuser.me/api/portraits/men/52.jpg",
+      "balance": 95824
+    },
+    {
+      "name": "Edward.Smi",
+      "nickname": "Edward S.",
+      "avatar": "https://randomuser.me/api/portraits/men/53.jpg",
+      "balance": 51667
+    },
+    {
+      "name": "Keith_M",
+      "nickname": "Keith M.",
+      "avatar": "https://randomuser.me/api/portraits/men/54.jpg",
+      "balance": 69917
+    },
+    {
+      "name": "Randy_Camp",
+      "nickname": "Randy C.",
+      "avatar": "https://randomuser.me/api/portraits/men/55.jpg",
+      "balance": 24178
+    },
+    {
+      "name": "Terry78",
+      "nickname": "Terry M.",
+      "avatar": "https://randomuser.me/api/portraits/men/56.jpg",
+      "balance": 95343
+    },
+    {
+      "name": "James_Reye",
+      "nickname": "James R.",
+      "avatar": "https://randomuser.me/api/portraits/men/57.jpg",
+      "balance": 80192
+    },
+    {
+      "name": "Diana470",
+      "nickname": "Diana J.",
+      "avatar": "https://randomuser.me/api/portraits/women/58.jpg",
+      "balance": 50613
+    },
+    {
+      "name": "Zachary_E",
+      "nickname": "Zachary E.",
+      "avatar": "https://randomuser.me/api/portraits/men/59.jpg",
+      "balance": 19745
+    },
+    {
+      "name": "Ethan180",
+      "nickname": "Ethan T.",
+      "avatar": "https://randomuser.me/api/portraits/men/60.jpg",
+      "balance": 47171
+    },
+    {
+      "name": "Donna42",
+      "nickname": "Donna H.",
+      "avatar": "https://randomuser.me/api/portraits/women/61.jpg",
+      "balance": 40426
+    },
+    {
+      "name": "Beverly_Bake",
+      "nickname": "Beverly B.",
+      "avatar": "https://randomuser.me/api/portraits/women/62.jpg",
+      "balance": 41658
+    },
+    {
+      "name": "Sharon_Ande",
+      "nickname": "Sharon A.",
+      "avatar": "https://randomuser.me/api/portraits/women/63.jpg",
+      "balance": 77322
+    },
+    {
+      "name": "Jerry787",
+      "nickname": "Jerry R.",
+      "avatar": "https://randomuser.me/api/portraits/men/64.jpg",
+      "balance": 11137
+    },
+    {
+      "name": "DennisR15",
+      "nickname": "Dennis R.",
+      "avatar": "https://randomuser.me/api/portraits/men/65.jpg",
+      "balance": 68418
+    },
+    {
+      "name": "Lauren.Wal",
+      "nickname": "Lauren W.",
+      "avatar": "https://randomuser.me/api/portraits/women/66.jpg",
+      "balance": 22765
+    },
+    {
+      "name": "Sara_H",
+      "nickname": "Sara H.",
+      "avatar": "https://randomuser.me/api/portraits/women/67.jpg",
+      "balance": 74658
+    },
+    {
+      "name": "Christine774",
+      "nickname": "Christine C.",
+      "avatar": "https://randomuser.me/api/portraits/women/68.jpg",
+      "balance": 66922
+    },
+    {
+      "name": "Janet_Harr",
+      "nickname": "Janet H.",
+      "avatar": "https://randomuser.me/api/portraits/women/69.jpg",
+      "balance": 14249
+    },
+    {
+      "name": "Betty.Bel",
+      "nickname": "Betty B.",
+      "avatar": "https://randomuser.me/api/portraits/women/70.jpg",
+      "balance": 33332
+    },
+    {
+      "name": "Brian_Rive",
+      "nickname": "Brian R.",
+      "avatar": "https://randomuser.me/api/portraits/men/71.jpg",
+      "balance": 62980
+    },
+    {
+      "name": "Laura741",
+      "nickname": "Laura R.",
+      "avatar": "https://randomuser.me/api/portraits/women/72.jpg",
+      "balance": 44822
+    },
+    {
+      "name": "Ryan_W",
+      "nickname": "Ryan W.",
+      "avatar": "https://randomuser.me/api/portraits/men/73.jpg",
+      "balance": 82243
+    },
+    {
+      "name": "Sara658",
+      "nickname": "Sara G.",
+      "avatar": "https://randomuser.me/api/portraits/women/74.jpg",
+      "balance": 80888
+    },
+    {
+      "name": "Jacob.Bro",
+      "nickname": "Jacob B.",
+      "avatar": "https://randomuser.me/api/portraits/men/75.jpg",
+      "balance": 46720
+    },
+    {
+      "name": "Christina_Rami",
+      "nickname": "Christina R.",
+      "avatar": "https://randomuser.me/api/portraits/women/76.jpg",
+      "balance": 80957
+    },
+    {
+      "name": "Donna_K",
+      "nickname": "Donna K.",
+      "avatar": "https://randomuser.me/api/portraits/women/77.jpg",
+      "balance": 86809
+    },
+    {
+      "name": "Kevin111",
+      "nickname": "Kevin B.",
+      "avatar": "https://randomuser.me/api/portraits/men/78.jpg",
+      "balance": 50738
+    },
+    {
+      "name": "Alan_Stew",
+      "nickname": "Alan S.",
+      "avatar": "https://randomuser.me/api/portraits/men/79.jpg",
+      "balance": 92161
+    },
+    {
+      "name": "Austin_Mill",
+      "nickname": "Austin M.",
+      "avatar": "https://randomuser.me/api/portraits/men/80.jpg",
+      "balance": 43344
+    },
+    {
+      "name": "KathrynF70",
+      "nickname": "Kathryn F.",
+      "avatar": "https://randomuser.me/api/portraits/women/81.jpg",
+      "balance": 56732
+    },
+    {
+      "name": "DanielC42",
+      "nickname": "Daniel C.",
+      "avatar": "https://randomuser.me/api/portraits/men/82.jpg",
+      "balance": 42287
+    },
+    {
+      "name": "Sophia_Stew",
+      "nickname": "Sophia S.",
+      "avatar": "https://randomuser.me/api/portraits/women/83.jpg",
+      "balance": 17033
+    },
+    {
+      "name": "Shirley_Mitc",
+      "nickname": "Shirley M.",
+      "avatar": "https://randomuser.me/api/portraits/women/84.jpg",
+      "balance": 64344
+    },
+    {
+      "name": "BillyS72",
+      "nickname": "Billy S.",
+      "avatar": "https://randomuser.me/api/portraits/men/85.jpg",
+      "balance": 66770
+    },
+    {
+      "name": "CherylL80",
+      "nickname": "Cheryl L.",
+      "avatar": "https://randomuser.me/api/portraits/women/86.jpg",
+      "balance": 73590
+    },
+    {
+      "name": "Jordan.Rus",
+      "nickname": "Jordan R.",
+      "avatar": "https://randomuser.me/api/portraits/men/87.jpg",
+      "balance": 18267
+    },
+    {
+      "name": "Amanda_H",
+      "nickname": "Amanda H.",
+      "avatar": "https://randomuser.me/api/portraits/women/88.jpg",
+      "balance": 48412
+    },
+    {
+      "name": "Theresa_B",
+      "nickname": "Theresa B.",
+      "avatar": "https://randomuser.me/api/portraits/women/89.jpg",
+      "balance": 20768
+    },
+    {
+      "name": "Nathan957",
+      "nickname": "Nathan H.",
+      "avatar": "https://randomuser.me/api/portraits/men/90.jpg",
+      "balance": 31035
+    },
+    {
+      "name": "Lawrence517",
+      "nickname": "Lawrence M.",
+      "avatar": "https://randomuser.me/api/portraits/men/91.jpg",
+      "balance": 16086
+    },
+    {
+      "name": "Charlotte_Reye",
+      "nickname": "Charlotte R.",
+      "avatar": "https://randomuser.me/api/portraits/women/92.jpg",
+      "balance": 42681
+    },
+    {
+      "name": "Alexander_Rodr",
+      "nickname": "Alexander R.",
+      "avatar": "https://randomuser.me/api/portraits/men/93.jpg",
+      "balance": 45173
+    },
+    {
+      "name": "ChristinaH77",
+      "nickname": "Christina H.",
+      "avatar": "https://randomuser.me/api/portraits/women/94.jpg",
+      "balance": 93241
+    },
+    {
+      "name": "Paul.Edw",
+      "nickname": "Paul E.",
+      "avatar": "https://randomuser.me/api/portraits/men/95.jpg",
+      "balance": 33184
+    },
+    {
+      "name": "Eugene_Diaz",
+      "nickname": "Eugene D.",
+      "avatar": "https://randomuser.me/api/portraits/men/96.jpg",
+      "balance": 40989
+    },
+    {
+      "name": "JerryG21",
+      "nickname": "Jerry G.",
+      "avatar": "https://randomuser.me/api/portraits/men/97.jpg",
+      "balance": 81463
+    },
+    {
+      "name": "Emily.Her",
+      "nickname": "Emily H.",
+      "avatar": "https://randomuser.me/api/portraits/women/98.jpg",
+      "balance": 22965
+    },
+    {
+      "name": "Thomas607",
+      "nickname": "Thomas O.",
+      "avatar": "https://randomuser.me/api/portraits/men/99.jpg",
+      "balance": 39329
+    },
+    {
+      "name": "Johnny.Smi",
+      "nickname": "Johnny S.",
+      "avatar": "https://randomuser.me/api/portraits/men/0.jpg",
+      "balance": 88951
+    },
+    {
+      "name": "Christopher365",
+      "nickname": "Christopher P.",
+      "avatar": "https://randomuser.me/api/portraits/men/1.jpg",
+      "balance": 32204
+    },
+    {
+      "name": "Evelyn.Tor",
+      "nickname": "Evelyn T.",
+      "avatar": "https://randomuser.me/api/portraits/women/2.jpg",
+      "balance": 29162
+    },
+    {
+      "name": "Maria.Gom",
+      "nickname": "Maria G.",
+      "avatar": "https://randomuser.me/api/portraits/women/3.jpg",
+      "balance": 78520
+    },
+    {
+      "name": "Kathryn65",
+      "nickname": "Kathryn P.",
+      "avatar": "https://randomuser.me/api/portraits/women/4.jpg",
+      "balance": 94040
+    },
+    {
+      "name": "Debra.Ngu",
+      "nickname": "Debra N.",
+      "avatar": "https://randomuser.me/api/portraits/women/5.jpg",
+      "balance": 58647
+    },
+    {
+      "name": "Jesse103",
+      "nickname": "Jesse R.",
+      "avatar": "https://randomuser.me/api/portraits/men/6.jpg",
+      "balance": 89200
+    },
+    {
+      "name": "Sean.Gra",
+      "nickname": "Sean G.",
+      "avatar": "https://randomuser.me/api/portraits/men/7.jpg",
+      "balance": 44034
+    },
+    {
+      "name": "Douglas_B",
+      "nickname": "Douglas B.",
+      "avatar": "https://randomuser.me/api/portraits/men/8.jpg",
+      "balance": 88889
+    },
+    {
+      "name": "Russell_Perr",
+      "nickname": "Russell P.",
+      "avatar": "https://randomuser.me/api/portraits/men/9.jpg",
+      "balance": 76452
+    },
+    {
+      "name": "John_Torr",
+      "nickname": "John T.",
+      "avatar": "https://randomuser.me/api/portraits/men/10.jpg",
+      "balance": 65753
+    },
+    {
+      "name": "Natalie.Coo",
+      "nickname": "Natalie C.",
+      "avatar": "https://randomuser.me/api/portraits/women/11.jpg",
+      "balance": 18790
+    },
+    {
+      "name": "Bryan_Reye",
+      "nickname": "Bryan R.",
+      "avatar": "https://randomuser.me/api/portraits/men/12.jpg",
+      "balance": 21616
+    },
+    {
+      "name": "BrendaR94",
+      "nickname": "Brenda R.",
+      "avatar": "https://randomuser.me/api/portraits/women/13.jpg",
+      "balance": 99479
+    },
+    {
+      "name": "Nicole.Mur",
+      "nickname": "Nicole M.",
+      "avatar": "https://randomuser.me/api/portraits/women/14.jpg",
+      "balance": 63922
+    },
+    {
+      "name": "RalphC78",
+      "nickname": "Ralph C.",
+      "avatar": "https://randomuser.me/api/portraits/men/15.jpg",
+      "balance": 59066
+    },
+    {
+      "name": "RandyP36",
+      "nickname": "Randy P.",
+      "avatar": "https://randomuser.me/api/portraits/men/16.jpg",
+      "balance": 19343
+    },
+    {
+      "name": "Douglas_Clar",
+      "nickname": "Douglas C.",
+      "avatar": "https://randomuser.me/api/portraits/men/17.jpg",
+      "balance": 31050
+    },
+    {
+      "name": "Anna861",
+      "nickname": "Anna G.",
+      "avatar": "https://randomuser.me/api/portraits/women/18.jpg",
+      "balance": 30346
+    },
+    {
+      "name": "Jacob.Pow",
+      "nickname": "Jacob P.",
+      "avatar": "https://randomuser.me/api/portraits/men/19.jpg",
+      "balance": 64699
+    },
+    {
+      "name": "Karen320",
+      "nickname": "Karen T.",
+      "avatar": "https://randomuser.me/api/portraits/women/20.jpg",
+      "balance": 25872
+    },
+    {
+      "name": "AndreaH48",
+      "nickname": "Andrea H.",
+      "avatar": "https://randomuser.me/api/portraits/women/21.jpg",
+      "balance": 28193
+    },
+    {
+      "name": "DianaT44",
+      "nickname": "Diana T.",
+      "avatar": "https://randomuser.me/api/portraits/women/22.jpg",
+      "balance": 51478
+    },
+    {
+      "name": "Victoria_B",
+      "nickname": "Victoria B.",
+      "avatar": "https://randomuser.me/api/portraits/women/23.jpg",
+      "balance": 75818
+    },
+    {
+      "name": "Thomas_P",
+      "nickname": "Thomas P.",
+      "avatar": "https://randomuser.me/api/portraits/men/24.jpg",
+      "balance": 11968
+    },
+    {
+      "name": "Joseph_Lewi",
+      "nickname": "Joseph L.",
+      "avatar": "https://randomuser.me/api/portraits/men/25.jpg",
+      "balance": 30168
+    },
+    {
+      "name": "Jesse_Rive",
+      "nickname": "Jesse R.",
+      "avatar": "https://randomuser.me/api/portraits/men/26.jpg",
+      "balance": 59951
+    },
+    {
+      "name": "Jerry_Tayl",
+      "nickname": "Jerry T.",
+      "avatar": "https://randomuser.me/api/portraits/men/27.jpg",
+      "balance": 74016
+    },
+    {
+      "name": "Robert.Gre",
+      "nickname": "Robert G.",
+      "avatar": "https://randomuser.me/api/portraits/men/28.jpg",
+      "balance": 46033
+    },
+    {
+      "name": "Alexis_N",
+      "nickname": "Alexis N.",
+      "avatar": "https://randomuser.me/api/portraits/women/29.jpg",
+      "balance": 43818
+    },
+    {
+      "name": "Paul_Whit",
+      "nickname": "Paul W.",
+      "avatar": "https://randomuser.me/api/portraits/men/30.jpg",
+      "balance": 19189
+    },
+    {
+      "name": "AnthonyP43",
+      "nickname": "Anthony P.",
+      "avatar": "https://randomuser.me/api/portraits/men/31.jpg",
+      "balance": 79062
+    },
+    {
+      "name": "Larry.Smi",
+      "nickname": "Larry S.",
+      "avatar": "https://randomuser.me/api/portraits/men/32.jpg",
+      "balance": 27468
+    },
+    {
+      "name": "RoyN92",
+      "nickname": "Roy N.",
+      "avatar": "https://randomuser.me/api/portraits/men/33.jpg",
+      "balance": 69813
+    },
+    {
+      "name": "Brenda_Jack",
+      "nickname": "Brenda J.",
+      "avatar": "https://randomuser.me/api/portraits/women/34.jpg",
+      "balance": 93718
+    },
+    {
+      "name": "ZacharyA22",
+      "nickname": "Zachary A.",
+      "avatar": "https://randomuser.me/api/portraits/men/35.jpg",
+      "balance": 19810
+    },
+    {
+      "name": "Amy_Alle",
+      "nickname": "Amy A.",
+      "avatar": "https://randomuser.me/api/portraits/women/36.jpg",
+      "balance": 40940
+    },
+    {
+      "name": "AnthonyA32",
+      "nickname": "Anthony A.",
+      "avatar": "https://randomuser.me/api/portraits/men/37.jpg",
+      "balance": 48953
+    },
+    {
+      "name": "Jordan_G",
+      "nickname": "Jordan G.",
+      "avatar": "https://randomuser.me/api/portraits/men/38.jpg",
+      "balance": 32832
+    },
+    {
+      "name": "ThomasL82",
+      "nickname": "Thomas L.",
+      "avatar": "https://randomuser.me/api/portraits/men/39.jpg",
+      "balance": 78115
+    },
+    {
+      "name": "Mary.Tor",
+      "nickname": "Mary T.",
+      "avatar": "https://randomuser.me/api/portraits/women/40.jpg",
+      "balance": 84228
+    },
+    {
+      "name": "Philip_Moor",
+      "nickname": "Philip M.",
+      "avatar": "https://randomuser.me/api/portraits/men/41.jpg",
+      "balance": 21069
+    },
+    {
+      "name": "MichelleB48",
+      "nickname": "Michelle B.",
+      "avatar": "https://randomuser.me/api/portraits/women/42.jpg",
+      "balance": 66103
+    },
+    {
+      "name": "AnnS15",
+      "nickname": "Ann S.",
+      "avatar": "https://randomuser.me/api/portraits/women/43.jpg",
+      "balance": 28913
+    },
+    {
+      "name": "Ashley_Garc",
+      "nickname": "Ashley G.",
+      "avatar": "https://randomuser.me/api/portraits/women/44.jpg",
+      "balance": 27030
+    },
+    {
+      "name": "CatherineR78",
+      "nickname": "Catherine R.",
+      "avatar": "https://randomuser.me/api/portraits/women/45.jpg",
+      "balance": 17139
+    },
+    {
+      "name": "Jack109",
+      "nickname": "Jack T.",
+      "avatar": "https://randomuser.me/api/portraits/men/46.jpg",
+      "balance": 38355
+    },
+    {
+      "name": "JenniferK24",
+      "nickname": "Jennifer K.",
+      "avatar": "https://randomuser.me/api/portraits/women/47.jpg",
+      "balance": 77709
+    },
+    {
+      "name": "Stephen_Gray",
+      "nickname": "Stephen G.",
+      "avatar": "https://randomuser.me/api/portraits/men/48.jpg",
+      "balance": 43162
+    },
+    {
+      "name": "Cheryl.Sul",
+      "nickname": "Cheryl S.",
+      "avatar": "https://randomuser.me/api/portraits/women/49.jpg",
+      "balance": 58052
+    },
+    {
+      "name": "CarolS20",
+      "nickname": "Carol S.",
+      "avatar": "https://randomuser.me/api/portraits/women/50.jpg",
+      "balance": 75175
+    },
+    {
+      "name": "Kimberly_Gome",
+      "nickname": "Kimberly G.",
+      "avatar": "https://randomuser.me/api/portraits/women/51.jpg",
+      "balance": 99007
+    },
+    {
+      "name": "Ryan261",
+      "nickname": "Ryan B.",
+      "avatar": "https://randomuser.me/api/portraits/men/52.jpg",
+      "balance": 33232
+    },
+    {
+      "name": "Jean_Mill",
+      "nickname": "Jean M.",
+      "avatar": "https://randomuser.me/api/portraits/women/53.jpg",
+      "balance": 86852
+    },
+    {
+      "name": "Pamela_D",
+      "nickname": "Pamela D.",
+      "avatar": "https://randomuser.me/api/portraits/women/54.jpg",
+      "balance": 72897
+    },
+    {
+      "name": "Andrea467",
+      "nickname": "Andrea L.",
+      "avatar": "https://randomuser.me/api/portraits/women/55.jpg",
+      "balance": 89522
+    },
+    {
+      "name": "Benjamin.Wat",
+      "nickname": "Benjamin W.",
+      "avatar": "https://randomuser.me/api/portraits/men/56.jpg",
+      "balance": 17818
+    },
+    {
+      "name": "Heather_R",
+      "nickname": "Heather R.",
+      "avatar": "https://randomuser.me/api/portraits/women/57.jpg",
+      "balance": 29070
+    },
+    {
+      "name": "Ann680",
+      "nickname": "Ann L.",
+      "avatar": "https://randomuser.me/api/portraits/women/58.jpg",
+      "balance": 54317
+    },
+    {
+      "name": "Brandon_Mill",
+      "nickname": "Brandon M.",
+      "avatar": "https://randomuser.me/api/portraits/men/59.jpg",
+      "balance": 65437
+    },
+    {
+      "name": "TheresaP46",
+      "nickname": "Theresa P.",
+      "avatar": "https://randomuser.me/api/portraits/women/60.jpg",
+      "balance": 29721
+    },
+    {
+      "name": "Anthony_Jack",
+      "nickname": "Anthony J.",
+      "avatar": "https://randomuser.me/api/portraits/men/61.jpg",
+      "balance": 32018
+    },
+    {
+      "name": "Carol_Brow",
+      "nickname": "Carol B.",
+      "avatar": "https://randomuser.me/api/portraits/women/62.jpg",
+      "balance": 70668
+    },
+    {
+      "name": "Susan644",
+      "nickname": "Susan R.",
+      "avatar": "https://randomuser.me/api/portraits/women/63.jpg",
+      "balance": 66894
+    },
+    {
+      "name": "Dennis_W",
+      "nickname": "Dennis W.",
+      "avatar": "https://randomuser.me/api/portraits/men/64.jpg",
+      "balance": 77670
+    },
+    {
+      "name": "Mason.You",
+      "nickname": "Mason Y.",
+      "avatar": "https://randomuser.me/api/portraits/men/65.jpg",
+      "balance": 62203
+    },
+    {
+      "name": "Mason_Whit",
+      "nickname": "Mason W.",
+      "avatar": "https://randomuser.me/api/portraits/men/66.jpg",
+      "balance": 12395
+    },
+    {
+      "name": "NicholasS62",
+      "nickname": "Nicholas S.",
+      "avatar": "https://randomuser.me/api/portraits/men/67.jpg",
+      "balance": 55589
+    },
+    {
+      "name": "Pamela809",
+      "nickname": "Pamela G.",
+      "avatar": "https://randomuser.me/api/portraits/women/68.jpg",
+      "balance": 39175
+    },
+    {
+      "name": "Jacob.Tor",
+      "nickname": "Jacob T.",
+      "avatar": "https://randomuser.me/api/portraits/men/69.jpg",
+      "balance": 16508
+    },
+    {
+      "name": "Doris_Clar",
+      "nickname": "Doris C.",
+      "avatar": "https://randomuser.me/api/portraits/women/70.jpg",
+      "balance": 35351
+    },
+    {
+      "name": "RogerS52",
+      "nickname": "Roger S.",
+      "avatar": "https://randomuser.me/api/portraits/men/71.jpg",
+      "balance": 17457
+    },
+    {
+      "name": "Carol_Flor",
+      "nickname": "Carol F.",
+      "avatar": "https://randomuser.me/api/portraits/women/72.jpg",
+      "balance": 69100
+    },
+    {
+      "name": "Alexis.Mar",
+      "nickname": "Alexis M.",
+      "avatar": "https://randomuser.me/api/portraits/women/73.jpg",
+      "balance": 77826
+    },
+    {
+      "name": "Bryan.How",
+      "nickname": "Bryan H.",
+      "avatar": "https://randomuser.me/api/portraits/men/74.jpg",
+      "balance": 94489
+    },
+    {
+      "name": "Carl_Guti",
+      "nickname": "Carl G.",
+      "avatar": "https://randomuser.me/api/portraits/men/75.jpg",
+      "balance": 36607
+    },
+    {
+      "name": "Paul_M",
+      "nickname": "Paul M.",
+      "avatar": "https://randomuser.me/api/portraits/men/76.jpg",
+      "balance": 89168
+    },
+    {
+      "name": "Lori_N",
+      "nickname": "Lori N.",
+      "avatar": "https://randomuser.me/api/portraits/women/77.jpg",
+      "balance": 41101
+    },
+    {
+      "name": "Christina723",
+      "nickname": "Christina L.",
+      "avatar": "https://randomuser.me/api/portraits/women/78.jpg",
+      "balance": 13447
+    },
+    {
+      "name": "Justin.Mor",
+      "nickname": "Justin M.",
+      "avatar": "https://randomuser.me/api/portraits/men/79.jpg",
+      "balance": 64439
+    },
+    {
+      "name": "RobertJ4",
+      "nickname": "Robert J.",
+      "avatar": "https://randomuser.me/api/portraits/men/80.jpg",
+      "balance": 18814
+    },
+    {
+      "name": "Judy250",
+      "nickname": "Judy S.",
+      "avatar": "https://randomuser.me/api/portraits/women/81.jpg",
+      "balance": 87200
+    },
+    {
+      "name": "Logan.Lon",
+      "nickname": "Logan L.",
+      "avatar": "https://randomuser.me/api/portraits/men/82.jpg",
+      "balance": 57298
+    },
+    {
+      "name": "Raymond_Brow",
+      "nickname": "Raymond B.",
+      "avatar": "https://randomuser.me/api/portraits/men/83.jpg",
+      "balance": 73026
+    },
+    {
+      "name": "JeanJ12",
+      "nickname": "Jean J.",
+      "avatar": "https://randomuser.me/api/portraits/women/84.jpg",
+      "balance": 26351
+    },
+    {
+      "name": "Linda_Turn",
+      "nickname": "Linda T.",
+      "avatar": "https://randomuser.me/api/portraits/women/85.jpg",
+      "balance": 62699
+    },
+    {
+      "name": "ZacharyS51",
+      "nickname": "Zachary S.",
+      "avatar": "https://randomuser.me/api/portraits/men/86.jpg",
+      "balance": 32061
+    },
+    {
+      "name": "Gary21",
+      "nickname": "Gary F.",
+      "avatar": "https://randomuser.me/api/portraits/men/87.jpg",
+      "balance": 20525
+    },
+    {
+      "name": "Willie_Harr",
+      "nickname": "Willie H.",
+      "avatar": "https://randomuser.me/api/portraits/men/88.jpg",
+      "balance": 83670
+    },
+    {
+      "name": "David731",
+      "nickname": "David M.",
+      "avatar": "https://randomuser.me/api/portraits/men/89.jpg",
+      "balance": 32954
+    },
+    {
+      "name": "DanielE32",
+      "nickname": "Daniel E.",
+      "avatar": "https://randomuser.me/api/portraits/men/90.jpg",
+      "balance": 71904
+    },
+    {
+      "name": "Abigail_D",
+      "nickname": "Abigail D.",
+      "avatar": "https://randomuser.me/api/portraits/women/91.jpg",
+      "balance": 98570
+    },
+    {
+      "name": "Anthony.Bel",
+      "nickname": "Anthony B.",
+      "avatar": "https://randomuser.me/api/portraits/men/92.jpg",
+      "balance": 26284
+    },
+    {
+      "name": "Carol_B",
+      "nickname": "Carol B.",
+      "avatar": "https://randomuser.me/api/portraits/women/93.jpg",
+      "balance": 20031
+    },
+    {
+      "name": "Philip478",
+      "nickname": "Philip T.",
+      "avatar": "https://randomuser.me/api/portraits/men/94.jpg",
+      "balance": 99571
+    },
+    {
+      "name": "Frances_Walk",
+      "nickname": "Frances W.",
+      "avatar": "https://randomuser.me/api/portraits/women/95.jpg",
+      "balance": 76151
+    },
+    {
+      "name": "Kimberly_J",
+      "nickname": "Kimberly J.",
+      "avatar": "https://randomuser.me/api/portraits/women/96.jpg",
+      "balance": 72068
+    },
+    {
+      "name": "BrittanyW11",
+      "nickname": "Brittany W.",
+      "avatar": "https://randomuser.me/api/portraits/women/97.jpg",
+      "balance": 58776
+    },
+    {
+      "name": "Bryan90",
+      "nickname": "Bryan M.",
+      "avatar": "https://randomuser.me/api/portraits/men/98.jpg",
+      "balance": 68537
+    },
+    {
+      "name": "Stephen_B",
+      "nickname": "Stephen B.",
+      "avatar": "https://randomuser.me/api/portraits/men/99.jpg",
+      "balance": 11942
+    }
+  ],
+  "existingBotAvatars": [
+    "https://randomuser.me/api/portraits/men/75.jpg",
+    "https://randomuser.me/api/portraits/women/65.jpg",
+    "https://randomuser.me/api/portraits/men/32.jpg",
+    "https://randomuser.me/api/portraits/women/44.jpg",
+    "https://randomuser.me/api/portraits/men/51.jpg",
+    "https://randomuser.me/api/portraits/women/22.jpg",
+    "https://randomuser.me/api/portraits/men/88.jpg",
+    "https://randomuser.me/api/portraits/women/91.jpg"
+  ]
+}

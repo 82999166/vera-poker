@@ -649,6 +649,11 @@ function decideBotAction(
   // === 底池赔率计算 ===
   const potOdds = toCall > 0 ? toCall / (pot + toCall) : 0;
 
+  // === 弃牌率配置调整 ===
+  // foldRate 67 = 默认（不调整），> 67 = 更容易弃牌（equity阈值上调），< 67 = 更激进（equity阈值下调）
+  const foldAdjust = (config.foldRate - 67) / 100; // 例如 foldRate=80 → +0.13, foldRate=50 → -0.17
+  equity -= foldAdjust; // foldRate越高，有效equity越低，越容易弃牌
+
   // === 决策逻辑 ===
 
   // 特殊情况：面对All-in
