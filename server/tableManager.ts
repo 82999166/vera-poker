@@ -154,11 +154,14 @@ export async function getPlayerView(roomId: number, playerId: number) {
     // SECURITY: Only reveal opponent hole cards during showdown/completed phase.
     // During preflop/flop/turn/river, opponents must only see face-down cards.
     // The requesting player always sees their own cards.
-    holeCards: (p.id === playerId)
-      ? p.holeCards  // Always show own cards
-      : (gs.phase === "showdown" || gs.phase === "completed")
-        ? p.holeCards  // Show opponent cards only at showdown
-        : [],          // Hide opponent cards during active betting rounds
+    // When waitingForReady is true, the hand is over - clear ALL cards to prevent stale display.
+    holeCards: table.waitingForReady
+      ? []  // Hand is over, clear all cards (prevents stale cards showing in next hand)
+      : (p.id === playerId)
+        ? p.holeCards  // Always show own cards
+        : (gs.phase === "showdown" || gs.phase === "completed")
+          ? p.holeCards  // Show opponent cards only at showdown
+          : [],          // Hide opponent cards during active betting rounds
     isSittingOut: false, // Active game players are never sitting out
     lastAction: playerLastActionMap.get(p.id) || null, // Last action in current phase for UI display
   }));

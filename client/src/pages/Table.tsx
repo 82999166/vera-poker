@@ -1003,6 +1003,27 @@ export default function Table() {
     prevHandNumberRef.current = handNumber;
   }, [handNumber]);
 
+  // === Phase transition: clear stale showdown state when new hand starts (preflop) ===
+  // This handles the edge case where handNumber hasn't changed yet but phase already moved to preflop
+  const prevPhaseForCleanupRef = useRef<string>("");
+  useEffect(() => {
+    const prev = prevPhaseForCleanupRef.current;
+    const curr = phase;
+    // If phase transitions from showdown/completed to preflop/waiting, clear all showdown visuals
+    if ((prev === "showdown" || prev === "completed") && (curr === "preflop" || curr === "waiting")) {
+      if (winnerTimeoutRef.current) { clearTimeout(winnerTimeoutRef.current); winnerTimeoutRef.current = null; }
+      setShowWinner(null);
+      setShowSettlement(null);
+      setWinnerPlayerIds([]);
+      revealTimersRef.current.forEach(t => clearTimeout(t));
+      revealTimersRef.current = [];
+      setRevealedOpponentIds(new Set());
+      setAnimateCards(false);
+      setDealingMyCards(false);
+    }
+    prevPhaseForCleanupRef.current = curr;
+  }, [phase]);
+
   // === Tournament context ===
   const tournamentInfo = (tableState as any)?.tournamentInfo ?? null;
   const isTournamentTable = !!tournamentInfo?.isTournament;
