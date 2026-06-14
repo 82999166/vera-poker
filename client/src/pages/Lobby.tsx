@@ -124,7 +124,7 @@ export default function Lobby() {
   // 点「入座」：先找到可用桌，直接跳转到游戏桌，在游戏桌内弹出买入弹窗
   const handleSitDown = useCallback(async (group: StakeGroup) => {
     if (!user) { navigate("/"); return; }
-    if (group.availableSeats === 0) { toast.error(t("lobby.full")); return; }
+    // No front-end full check - backend will auto-expand tables if all are full
     setJoiningStake(true);
     try {
       // 只找桌子，不传 buyIn（buyIn=0 表示仅分配桌子，不入座）
@@ -142,12 +142,11 @@ export default function Lobby() {
     }
   }, [user, joinByStakeMutation, navigate, t]);
 
-  // 一键开玩：优先选在线人数最多的场次
+  // 一键开玩：优先选在线人数最多的场次（所有场次都可以点，后端会自动扩桌）
   const handleQuickJoin = () => {
-    const available = filteredGroups.filter(g => g.availableSeats > 0);
-    if (available.length > 0) {
+    if (filteredGroups.length > 0) {
       // 选在线人数最多的场次
-      const best = available.reduce((a, b) => a.totalPlayers >= b.totalPlayers ? a : b);
+      const best = filteredGroups.reduce((a, b) => a.totalPlayers >= b.totalPlayers ? a : b);
       handleSitDown(best);
     } else {
       toast.info(t("lobby.noRooms"));
@@ -418,7 +417,6 @@ export default function Lobby() {
           </div>
         ) : (
           filteredGroups.map(group => {
-            const isFull = group.availableSeats === 0;
             return (
               <div key={`${group.smallBlind}/${group.bigBlind}`} className="glass rounded-xl p-4 card-hover">
                 <div className="flex items-center justify-between gap-2">
@@ -445,12 +443,9 @@ export default function Lobby() {
                     </div>
                     <button
                       onClick={() => handleSitDown(group)}
-                      className={`font-bold px-3 py-1.5 rounded-lg text-sm transition-all active:scale-95 ${
-                        isFull ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gold text-background hover:opacity-90"
-                      }`}
-                      disabled={isFull}
+                      className="font-bold px-3 py-1.5 rounded-lg text-sm transition-all active:scale-95 bg-gold text-background hover:opacity-90"
                     >
-                      {isFull ? t("lobby.full") : t("lobby.sit")}
+                      {t("lobby.sit")}
                     </button>
                   </div>
                 </div>

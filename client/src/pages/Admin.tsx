@@ -5869,6 +5869,8 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
     rotationHands?: number;
   }>({});
 
+  const [botTab, setBotTab] = useState<"users" | "settings" | "schedule" | "balance">("users");
+
   useEffect(() => {
     if (stats?.config) {
       setFormState({
@@ -5898,6 +5900,13 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
   const totalBalance = botDetails.reduce((sum: number, b: any) => sum + b.balance, 0);
   const totalTodayHands = botDetails.reduce((sum: number, b: any) => sum + b.todayHands, 0);
   const totalTodayProfit = botDetails.reduce((sum: number, b: any) => sum + parseFloat(b.todayProfit || "0"), 0);
+
+  const tabItems = [
+    { key: "users" as const, label: "机器人用户" },
+    { key: "settings" as const, label: "设置" },
+    { key: "schedule" as const, label: "调度与策略" },
+    { key: "balance" as const, label: "余额监控" },
+  ];
 
   return (
     <div className="space-y-6 p-4">
@@ -5949,277 +5958,380 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
         </div>
       </div>
 
-      {/* Bot Detail Stats Table (merged with behavior metrics) */}
-      <BotDetailTableMerged botDetails={botDetails} formState={formState} />
-
-      {/* Config Form */}
-      <div className="glass rounded-xl p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-foreground">调度与策略配置</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Enable Toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-            <div>
-              <p className="text-sm font-medium">启用Bot系统</p>
-              <p className="text-xs text-muted-foreground">开启后Bot将按在线人数动态调度</p>
-            </div>
-            <button
-              onClick={() => setFormState(s => ({ ...s, enabled: !s.enabled }))}
-              className={`relative w-11 h-6 rounded-full transition-colors ${formState.enabled ? "bg-emerald-500" : "bg-secondary"}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formState.enabled ? "translate-x-5" : ""}`} />
-            </button>
-          </div>
-
-          {/* Fill Without Real Players Toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-            <div>
-              <p className="text-sm font-medium">无真人时Bot自动对玩</p>
-              <p className="text-xs text-muted-foreground">无真人时每桌安排{formState.minPerTable ?? 3}-{formState.maxPerTable ?? 5}个Bot对玩</p>
-            </div>
-            <button
-              onClick={() => setFormState(s => ({ ...s, fillWithoutRealPlayers: !s.fillWithoutRealPlayers }))}
-              className={`relative w-11 h-6 rounded-full transition-colors ${formState.fillWithoutRealPlayers ? "bg-emerald-500" : "bg-secondary"}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formState.fillWithoutRealPlayers ? "translate-x-5" : ""}`} />
-            </button>
-          </div>
-
-          {/* Persistent Online Count */}
-          <div className="p-3 rounded-lg bg-secondary/50">
-            <label className="text-sm font-medium">长期在线Bot总数</label>
-            <input
-              type="number" min={0} max={200}
-              value={formState.persistentOnlineCount ?? 0}
-              onChange={e => setFormState(s => ({ ...s, persistentOnlineCount: parseInt(e.target.value) || 0 }))}
-              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
-            />
-            <p className="text-xs text-muted-foreground mt-1">设置后系统将保持此数量Bot分散在各牌桌上长期在线</p>
-          </div>
-
-          {/* Rotation Hands */}
-          <div className="p-3 rounded-lg bg-secondary/50">
-            <label className="text-sm font-medium">每桌轮换手数</label>
-            <input
-              type="number" min={0} max={1000}
-              value={formState.rotationHands ?? 0}
-              onChange={e => setFormState(s => ({ ...s, rotationHands: parseInt(e.target.value) || 0 }))}
-              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
-            />
-            <p className="text-xs text-muted-foreground mt-1">Bot在每张桌打此数手后自动轮换（0=不轮换）</p>
-          </div>
-
-          {/* Max Per Table */}
-          <div className="p-3 rounded-lg bg-secondary/50">
-            <label className="text-sm font-medium">每桌最多Bot数</label>
-            <input
-              type="number" min={1} max={50}
-              value={formState.maxPerTable ?? 5}
-              onChange={e => setFormState(s => ({ ...s, maxPerTable: parseInt(e.target.value) || 5 }))}
-              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
-            />
-          </div>
-
-          {/* Min Per Table (no real players) */}
-          <div className="p-3 rounded-lg bg-secondary/50">
-            <label className="text-sm font-medium">每桌最少Bot数（无真人时）</label>
-            <input
-              type="number" min={2} max={5}
-              value={formState.minPerTable ?? 3}
-              onChange={e => setFormState(s => ({ ...s, minPerTable: parseInt(e.target.value) || 3 }))}
-              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
-            />
-          </div>
-
-          {/* Daily Loss Limit */}
-          <div className="p-3 rounded-lg bg-secondary/50">
-            <label className="text-sm font-medium">每日亏损上限 ($)</label>
-            <input
-              type="number" min={0}
-              value={formState.dailyLossLimit ?? 500}
-              onChange={e => setFormState(s => ({ ...s, dailyLossLimit: parseFloat(e.target.value) || 500 }))}
-              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
-            />
-          </div>
-
-          {/* Fold Rate */}
-          <div className="p-3 rounded-lg bg-secondary/50">
-            <label className="text-sm font-medium">弃牌率 (%)</label>
-            <input
-              type="number" min={0} max={100}
-              value={formState.foldRate ?? 67}
-              onChange={e => setFormState(s => ({ ...s, foldRate: parseInt(e.target.value) || 67 }))}
-              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
-            />
-            <p className="text-xs text-muted-foreground mt-1">越高越保守（推荐60-75）</p>
-          </div>
-
-          {/* Min Action Delay */}
-          <div className="p-3 rounded-lg bg-secondary/50">
-            <label className="text-sm font-medium">最小操作延迟 (ms)</label>
-            <input
-              type="number" min={500} max={10000}
-              value={formState.minActionDelay ?? 2000}
-              onChange={e => setFormState(s => ({ ...s, minActionDelay: parseInt(e.target.value) || 2000 }))}
-              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
-            />
-          </div>
-
-          {/* Max Action Delay */}
-          <div className="p-3 rounded-lg bg-secondary/50">
-            <label className="text-sm font-medium">最大操作延迟 (ms)</label>
-            <input
-              type="number" min={1000} max={20000}
-              value={formState.maxActionDelay ?? 5000}
-              onChange={e => setFormState(s => ({ ...s, maxActionDelay: parseInt(e.target.value) || 5000 }))}
-              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
-            />
-          </div>
-        </div>
-
-        {/* Save & Reset Buttons */}
-        <div className="flex gap-3 pt-2">
+      {/* Tab Navigation */}
+      <div className="flex border-b border-border">
+        {tabItems.map(tab => (
           <button
-            onClick={() => updateConfig.mutate(formState)}
-            disabled={updateConfig.isPending}
-            className="px-4 py-2 bg-gold text-black rounded-lg text-sm font-medium hover:bg-gold/90 transition-colors disabled:opacity-50"
+            key={tab.key}
+            onClick={() => setBotTab(tab.key)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              botTab === tab.key
+                ? "border-gold text-gold"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
           >
-            {updateConfig.isPending ? "保存中..." : "保存配置"}
+            {tab.label}
           </button>
-          <button
-            onClick={() => resetLoss.mutate()}
-            disabled={resetLoss.isPending}
-            className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
-          >
-            重置今日亏损
-          </button>
-        </div>
+        ))}
       </div>
 
-      {/* Balance Monitor & Auto Refill */}
-      <div className="glass rounded-xl p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-foreground">余额监控与自动补充</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Auto Refill Toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-            <div>
-              <p className="text-sm font-medium">开启自动补充</p>
-              <p className="text-xs text-muted-foreground">余额不足时自动补充到指定金额</p>
+      {/* Tab Content */}
+      {botTab === "users" && (
+        <div className="space-y-6">
+          {/* Bot Detail Stats Table (merged with behavior metrics) */}
+          <BotDetailTableMerged botDetails={botDetails} formState={formState} />
+
+          {/* Export / Import */}
+          <div className="glass rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">机器人导出 / 导入</h3>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={async () => {
+                  try {
+                    const result = await utils.adminBot.exportBots.fetch();
+                    if (!result) { toast.error("导出失败"); return; }
+                    const blob = new Blob([JSON.stringify(result.bots, null, 2)], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url; a.download = `bots_export_${new Date().toISOString().slice(0,10)}.json`;
+                    a.click(); URL.revokeObjectURL(url);
+                    toast.success(`已导出 ${result.bots.length} 个机器人`);
+                  } catch { toast.error("导出失败"); }
+                }}
+                className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-500/30 transition-colors"
+              >
+                导出Bot列表 (JSON)
+              </button>
+              <label className="px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition-colors cursor-pointer">
+                导入Bot列表
+                <input type="file" accept=".json" className="hidden" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    const bots = Array.isArray(data) ? data : data.bots;
+                    if (!Array.isArray(bots) || bots.length === 0) { toast.error("无效的Bot数据"); return; }
+                    const importData = bots.map((b: any) => ({
+                      name: b.name || b.nickname || `Bot_${Math.random().toString(36).slice(2,6)}`,
+                      nickname: b.nickname || b.name,
+                      avatar: b.avatar || undefined,
+                      balance: parseFloat(b.balance) || 10000,
+                    }));
+                    importBots.mutate({ bots: importData });
+                  } catch (err: any) { toast.error("导入失败: " + (err.message || "格式错误")); }
+                  e.target.value = "";
+                }} />
+              </label>
             </div>
-            <button
-              onClick={() => setFormState(s => ({ ...s, autoRefillEnabled: !s.autoRefillEnabled }))}
-              className={`relative w-11 h-6 rounded-full transition-colors ${formState.autoRefillEnabled ? "bg-emerald-500" : "bg-secondary"}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formState.autoRefillEnabled ? "translate-x-5" : ""}`} />
-            </button>
+            <p className="text-xs text-muted-foreground">导出格式为JSON，可编辑后重新导入。导入时需包含 name 字段，balance 默认10000。</p>
+          </div>
+        </div>
+      )}
+
+      {botTab === "settings" && (
+        <div className="space-y-6">
+          {/* Global Config */}
+          <div className="glass rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">全局配置</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Enable Toggle */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                <div>
+                  <p className="text-sm font-medium">启用Bot系统</p>
+                  <p className="text-xs text-muted-foreground">开启后Bot将按在线人数动态调度</p>
+                </div>
+                <button
+                  onClick={() => setFormState(s => ({ ...s, enabled: !s.enabled }))}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${formState.enabled ? "bg-emerald-500" : "bg-secondary"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formState.enabled ? "translate-x-5" : ""}`} />
+                </button>
+              </div>
+
+              {/* Fill Without Real Players Toggle */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                <div>
+                  <p className="text-sm font-medium">无真人时Bot自动对玩</p>
+                  <p className="text-xs text-muted-foreground">无真人时每桌安排{formState.minPerTable ?? 3}-{formState.maxPerTable ?? 5}个Bot对玩</p>
+                </div>
+                <button
+                  onClick={() => setFormState(s => ({ ...s, fillWithoutRealPlayers: !s.fillWithoutRealPlayers }))}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${formState.fillWithoutRealPlayers ? "bg-emerald-500" : "bg-secondary"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formState.fillWithoutRealPlayers ? "translate-x-5" : ""}`} />
+                </button>
+              </div>
+
+              {/* Max Per Table */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">每桌最多Bot数</label>
+                <input
+                  type="number" min={1} max={50}
+                  value={formState.maxPerTable ?? 5}
+                  onChange={e => setFormState(s => ({ ...s, maxPerTable: parseInt(e.target.value) || 5 }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                />
+              </div>
+
+              {/* Min Per Table (no real players) */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">每桌最少Bot数（无真人时）</label>
+                <input
+                  type="number" min={2} max={50}
+                  value={formState.minPerTable ?? 3}
+                  onChange={e => setFormState(s => ({ ...s, minPerTable: parseInt(e.target.value) || 3 }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                />
+              </div>
+
+              {/* Daily Loss Limit */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">每日亏损上限 ($)</label>
+                <input
+                  type="number" min={0}
+                  value={formState.dailyLossLimit ?? 500}
+                  onChange={e => setFormState(s => ({ ...s, dailyLossLimit: parseFloat(e.target.value) || 500 }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                />
+              </div>
+
+              {/* Fold Rate */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">弃牌率 (%)</label>
+                <input
+                  type="number" min={0} max={100}
+                  value={formState.foldRate ?? 67}
+                  onChange={e => setFormState(s => ({ ...s, foldRate: parseInt(e.target.value) || 67 }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                />
+                <p className="text-xs text-muted-foreground mt-1">越高越保守（推荐60-75）</p>
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => updateConfig.mutate(formState)}
+                disabled={updateConfig.isPending}
+                className="px-4 py-2 bg-gold text-black rounded-lg text-sm font-medium hover:bg-gold/90 transition-colors disabled:opacity-50"
+              >
+                {updateConfig.isPending ? "保存中..." : "保存配置"}
+              </button>
+              <button
+                onClick={() => resetLoss.mutate()}
+                disabled={resetLoss.isPending}
+                className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
+              >
+                重置今日亏损
+              </button>
+            </div>
           </div>
 
-          {/* Balance Alert Threshold */}
-          <div className="p-3 rounded-lg bg-secondary/50">
-            <label className="text-sm font-medium">余额告警阈值 ($)</label>
-            <input
-              type="number" min={0}
-              value={formState.balanceAlertThreshold ?? 500}
-              onChange={e => setFormState(s => ({ ...s, balanceAlertThreshold: parseFloat(e.target.value) || 500 }))}
-              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
-            />
-            <p className="text-xs text-muted-foreground mt-1">低于此值时发送告警通知</p>
+          {/* Room-level Bot Config */}
+          <RoomBotConfigPanel />
+        </div>
+      )}
+
+      {botTab === "schedule" && (
+        <div className="space-y-6">
+          {/* Scheduling & Strategy */}
+          <div className="glass rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">调度参数</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Persistent Online Count */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">长期在线Bot总数</label>
+                <input
+                  type="number" min={0} max={200}
+                  value={formState.persistentOnlineCount ?? 0}
+                  onChange={e => setFormState(s => ({ ...s, persistentOnlineCount: parseInt(e.target.value) || 0 }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                />
+                <p className="text-xs text-muted-foreground mt-1">系统将保持此数量Bot分散在各牌桌上长期在线</p>
+              </div>
+
+              {/* Rotation Hands */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">每桌轮换手数</label>
+                <input
+                  type="number" min={0} max={1000}
+                  value={formState.rotationHands ?? 0}
+                  onChange={e => setFormState(s => ({ ...s, rotationHands: parseInt(e.target.value) || 0 }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Bot在每张桌打此数手后自动轮换（0=不轮换）</p>
+              </div>
+
+              {/* Min Action Delay */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">最小操作延迟 (ms)</label>
+                <input
+                  type="number" min={500} max={10000}
+                  value={formState.minActionDelay ?? 2000}
+                  onChange={e => setFormState(s => ({ ...s, minActionDelay: parseInt(e.target.value) || 2000 }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                />
+              </div>
+
+              {/* Max Action Delay */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">最大操作延迟 (ms)</label>
+                <input
+                  type="number" min={1000} max={20000}
+                  value={formState.maxActionDelay ?? 5000}
+                  onChange={e => setFormState(s => ({ ...s, maxActionDelay: parseInt(e.target.value) || 5000 }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                />
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => updateConfig.mutate(formState)}
+                disabled={updateConfig.isPending}
+                className="px-4 py-2 bg-gold text-black rounded-lg text-sm font-medium hover:bg-gold/90 transition-colors disabled:opacity-50"
+              >
+                {updateConfig.isPending ? "保存中..." : "保存配置"}
+              </button>
+            </div>
           </div>
 
-          {/* Auto Refill Amount */}
-          <div className="p-3 rounded-lg bg-secondary/50">
-            <label className="text-sm font-medium">自动补充金额 ($)</label>
-            <input
-              type="number" min={0}
-              value={formState.autoRefillAmount ?? 10000}
-              onChange={e => setFormState(s => ({ ...s, autoRefillAmount: parseFloat(e.target.value) || 10000 }))}
-              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
-            />
-            <p className="text-xs text-muted-foreground mt-1">补充后余额将达到此金额</p>
+          {/* Strategy Description */}
+          <div className="glass rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Bot 策略说明</h3>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <p>• <span className="text-foreground font-medium">调度逻辑：</span>根据场次独立配置分配Bot，未配置的场次不分配Bot</p>
+              <p>• <span className="text-foreground font-medium">决策引擎：</span>基于手牌强度+公共牌面计算equity，通过底池赔率数学比较决定跟注/弃牌</p>
+              <p>• <span className="text-foreground font-medium">轮换机制：</span>Bot在每张桌打满指定手数后自动离桌，由调度器补充新Bot</p>
+              <p>• <span className="text-foreground font-medium">操作延迟：</span>模拟真人思考时间（{formState.minActionDelay}ms - {formState.maxActionDelay}ms）</p>
+              <p>• <span className="text-foreground font-medium">亏损控制：</span>达到每日亏损上限后自动停止入座</p>
+              <p>• <span className="text-foreground font-medium">资金流转：</span>Bot使用真实余额，所有买入/结算/返还均记录完整流水</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {botTab === "balance" && (
+        <div className="space-y-6">
+          {/* Balance Monitor & Auto Refill */}
+          <div className="glass rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">余额监控与自动补充</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Auto Refill Toggle */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                <div>
+                  <p className="text-sm font-medium">开启自动补充</p>
+                  <p className="text-xs text-muted-foreground">余额不足时自动补充到指定金额</p>
+                </div>
+                <button
+                  onClick={() => setFormState(s => ({ ...s, autoRefillEnabled: !s.autoRefillEnabled }))}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${formState.autoRefillEnabled ? "bg-emerald-500" : "bg-secondary"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formState.autoRefillEnabled ? "translate-x-5" : ""}`} />
+                </button>
+              </div>
+
+              {/* Balance Alert Threshold */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">余额告警阈值 ($)</label>
+                <input
+                  type="number" min={0}
+                  value={formState.balanceAlertThreshold ?? 500}
+                  onChange={e => setFormState(s => ({ ...s, balanceAlertThreshold: parseFloat(e.target.value) || 500 }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                />
+                <p className="text-xs text-muted-foreground mt-1">低于此值时发送告警通知</p>
+              </div>
+
+              {/* Auto Refill Amount */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">自动补充金额 ($)</label>
+                <input
+                  type="number" min={0}
+                  value={formState.autoRefillAmount ?? 10000}
+                  onChange={e => setFormState(s => ({ ...s, autoRefillAmount: parseFloat(e.target.value) || 10000 }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                />
+                <p className="text-xs text-muted-foreground mt-1">补充后余额将达到此金额</p>
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => updateConfig.mutate(formState)}
+                disabled={updateConfig.isPending}
+                className="px-4 py-2 bg-gold text-black rounded-lg text-sm font-medium hover:bg-gold/90 transition-colors disabled:opacity-50"
+              >
+                {updateConfig.isPending ? "保存中..." : "保存配置"}
+              </button>
+            </div>
           </div>
 
           {/* Low Balance Bots Warning */}
-          <div className="p-3 rounded-lg bg-secondary/50">
-            <label className="text-sm font-medium">低余额Bot</label>
-            <div className="mt-2 space-y-1">
+          <div className="glass rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">低余额Bot告警</h3>
+            <div className="space-y-2">
               {botDetails.filter((b: any) => b.balance < (formState.balanceAlertThreshold ?? 500)).length > 0 ? (
-                botDetails.filter((b: any) => b.balance < (formState.balanceAlertThreshold ?? 500)).map((b: any) => (
-                  <div key={b.id} className="flex items-center justify-between text-xs">
-                    <span className="text-red-400">{b.name}</span>
-                    <span className="text-red-400 font-mono">${b.balance.toFixed(0)}</span>
-                  </div>
-                ))
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 px-2 text-muted-foreground font-medium">名称</th>
+                        <th className="text-right py-2 px-2 text-muted-foreground font-medium">当前余额</th>
+                        <th className="text-right py-2 px-2 text-muted-foreground font-medium">告警阈值</th>
+                        <th className="text-center py-2 px-2 text-muted-foreground font-medium">状态</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {botDetails.filter((b: any) => b.balance < (formState.balanceAlertThreshold ?? 500)).map((b: any) => (
+                        <tr key={b.id} className="border-b border-border/50">
+                          <td className="py-2 px-2 font-medium text-foreground">{b.name}</td>
+                          <td className="text-right py-2 px-2 text-red-400 font-mono">${b.balance.toFixed(2)}</td>
+                          <td className="text-right py-2 px-2 text-muted-foreground font-mono">${formState.balanceAlertThreshold ?? 500}</td>
+                          <td className="text-center py-2 px-2">
+                            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-red-500/20 text-red-400">余额不足</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <p className="text-xs text-emerald-400">✓ 所有Bot余额正常</p>
+                <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-500/10">
+                  <span className="text-emerald-400 text-lg">✓</span>
+                  <p className="text-sm text-emerald-400">所有Bot余额正常，无告警</p>
+                </div>
               )}
             </div>
           </div>
+
+          {/* Balance Distribution */}
+          <div className="glass rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">余额分布概览</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="p-3 rounded-lg bg-secondary/50 text-center">
+                <p className="text-xs text-muted-foreground">总余额</p>
+                <p className="text-lg font-bold text-foreground mt-1">${totalBalance.toFixed(0)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/50 text-center">
+                <p className="text-xs text-muted-foreground">平均余额</p>
+                <p className="text-lg font-bold text-foreground mt-1">${botDetails.length > 0 ? (totalBalance / botDetails.length).toFixed(0) : 0}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/50 text-center">
+                <p className="text-xs text-muted-foreground">最低余额</p>
+                <p className="text-lg font-bold text-red-400 mt-1">${botDetails.length > 0 ? Math.min(...botDetails.map((b: any) => b.balance)).toFixed(0) : 0}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/50 text-center">
+                <p className="text-xs text-muted-foreground">最高余额</p>
+                <p className="text-lg font-bold text-emerald-400 mt-1">${botDetails.length > 0 ? Math.max(...botDetails.map((b: any) => b.balance)).toFixed(0) : 0}</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* Export / Import */}
-      <div className="glass rounded-xl p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-foreground">机器人导出 / 导入</h3>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={async () => {
-              try {
-                const result = await utils.adminBot.exportBots.fetch();
-                if (!result) { toast.error("导出失败"); return; }
-                const blob = new Blob([JSON.stringify(result.bots, null, 2)], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url; a.download = `bots_export_${new Date().toISOString().slice(0,10)}.json`;
-                a.click(); URL.revokeObjectURL(url);
-                toast.success(`已导出 ${result.bots.length} 个机器人`);
-              } catch { toast.error("导出失败"); }
-            }}
-            className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-500/30 transition-colors"
-          >
-            导出Bot列表 (JSON)
-          </button>
-          <label className="px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition-colors cursor-pointer">
-            导入Bot列表
-            <input type="file" accept=".json" className="hidden" onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              try {
-                const text = await file.text();
-                const data = JSON.parse(text);
-                const bots = Array.isArray(data) ? data : data.bots;
-                if (!Array.isArray(bots) || bots.length === 0) { toast.error("无效的Bot数据"); return; }
-                const importData = bots.map((b: any) => ({
-                  name: b.name || b.nickname || `Bot_${Math.random().toString(36).slice(2,6)}`,
-                  nickname: b.nickname || b.name,
-                  avatar: b.avatar || undefined,
-                  balance: parseFloat(b.balance) || 10000,
-                }));
-                importBots.mutate({ bots: importData });
-              } catch (err: any) { toast.error("导入失败: " + (err.message || "格式错误")); }
-              e.target.value = "";
-            }} />
-          </label>
-        </div>
-        <p className="text-xs text-muted-foreground">导出格式为JSON，可编辑后重新导入。导入时需包含 name 字段，balance 默认10000。</p>
-      </div>
-
-      {/* Room-level Bot Config */}
-      <RoomBotConfigPanel />
-
-      {/* Behavior metrics merged into bot detail table above */}
-
-      {/* Bot Strategy Description */}
-      <div className="glass rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-3">Bot 策略说明</h3>
-        <div className="space-y-2 text-xs text-muted-foreground">
-          <p>• <span className="text-foreground font-medium">调度逻辑：</span>根据在线真人数动态调整Bot数量，无真人时每桌安排{formState.minPerTable ?? 3}-{formState.maxPerTable ?? 5}个Bot自动对玩</p>
-          <p>• <span className="text-foreground font-medium">决策引擎：</span>基于手牌强度+公共牌面计算equity，通过底池赔率数学比较决定跟注/弃牌</p>
-          <p>• <span className="text-foreground font-medium">资金流转：</span>Bot使用真实余额，所有买入/结算/返还均记录完整流水</p>
-          <p>• <span className="text-foreground font-medium">亏损控制：</span>达到每日亏损上限后自动停止入座</p>
-          <p>• <span className="text-foreground font-medium">余额监控：</span>每5分钟检查一次，低于阈值时告警并自动补充</p>
-          <p>• <span className="text-foreground font-medium">操作延迟：</span>模拟真人思考时间（{formState.minActionDelay}ms - {formState.maxActionDelay}ms）</p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
