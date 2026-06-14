@@ -3480,9 +3480,10 @@ function RiskPanel({ at }: { at: (k: string) => string }) {
                 </div>
                 <button
                   onClick={() => updateRuleMutation.mutate({ ruleId: rule.id, enabled: !rule.isEnabled })}
-                  className={`w-10 h-5 rounded-full transition-colors relative ${rule.isEnabled ? "bg-success" : "bg-muted/30"}`}
+                  className="w-10 h-5 rounded-full transition-colors relative"
+                  style={{ background: rule.isEnabled ? '#22c55e' : 'rgba(100,100,100,0.3)' }}
                 >
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${rule.isEnabled ? "right-0.5" : "left-0.5"}`} />
+                  <span className="absolute top-0.5 w-4 h-4 rounded-full transition-transform" style={{ background: '#ffffff', left: rule.isEnabled ? '20px' : '2px' }} />
                 </button>
               </div>
             ))}
