@@ -3806,10 +3806,13 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
   const [csTgUsername, setCsTgUsername] = useState("");
   const [tgMiniAppUrl, setTgMiniAppUrl] = useState("");
   const [adminTgChatId, setAdminTgChatId] = useState("");
-  // AI Customer Service config
-  const [aiCsApiUrl, setAiCsApiUrl] = useState("");
-  const [aiCsApiKey, setAiCsApiKey] = useState("");
-  const [aiCsModel, setAiCsModel] = useState("");
+  // DeepSeek AI 配置（全局AI服务）
+  const [deepseekApiKey, setDeepseekApiKey] = useState("");
+  const [deepseekApiUrl, setDeepseekApiUrl] = useState("https://api.deepseek.com");
+  const [deepseekModel, setDeepseekModel] = useState("deepseek-chat");
+  const [deepseekMaxTokens, setDeepseekMaxTokens] = useState("4096");
+  const [deepseekTemperature, setDeepseekTemperature] = useState("0.7");
+  // AI客服专属配置
   const [aiCsSystemPrompt, setAiCsSystemPrompt] = useState("");
   const [aiCsTemperature, setAiCsTemperature] = useState("0.7");
   // Share card config
@@ -3829,10 +3832,13 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
       setCsTgUsername(configMap.get("cs_tg_username") ?? "");
       setTgMiniAppUrl(configMap.get("tg_mini_app_url") ?? "");
       setAdminTgChatId(configMap.get("admin_tg_chat_id") ?? "");
-      // AI CS config
-      setAiCsApiUrl(configMap.get("ai_cs_api_url") ?? "");
-      setAiCsApiKey(configMap.get("ai_cs_api_key") ?? "");
-      setAiCsModel(configMap.get("ai_cs_model") ?? "");
+      // DeepSeek AI 全局配置
+      setDeepseekApiKey(configMap.get("deepseek_api_key") ?? "");
+      setDeepseekApiUrl(configMap.get("deepseek_api_url") ?? "https://api.deepseek.com");
+      setDeepseekModel(configMap.get("deepseek_model") ?? "deepseek-chat");
+      setDeepseekMaxTokens(configMap.get("deepseek_max_tokens") ?? "4096");
+      setDeepseekTemperature(configMap.get("deepseek_temperature") ?? "0.7");
+      // AI客服专属配置
       setAiCsSystemPrompt(configMap.get("ai_cs_system_prompt") ?? "");
       setAiCsTemperature(configMap.get("ai_cs_temperature") ?? "0.7");
       // Share card config
@@ -4070,50 +4076,72 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
       <div className="glass rounded-xl p-4">
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
           <Bot className="w-4 h-4 text-gold" />
-          {at("settings.aiCsTitle")}
+          DeepSeek AI 配置
         </h3>
-        <p className="text-xs text-muted-foreground mb-3">{at("settings.aiCsDesc")}</p>
+        <p className="text-xs text-muted-foreground mb-3">全局AI服务配置，用于AI客服、风控分析等所有AI功能</p>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.aiCsApiUrl")}</label>
+            <label className="text-xs text-muted-foreground mb-1 block">API Key</label>
             <div className="flex gap-2">
-              <input type="text" value={aiCsApiUrl} onChange={(e) => setAiCsApiUrl(e.target.value)} placeholder="https://api.openai.com" className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold" />
-              <button onClick={() => saveSystemSetting("ai_cs_api_url", aiCsApiUrl)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
+              <input type="password" value={deepseekApiKey} onChange={(e) => setDeepseekApiKey(e.target.value)} placeholder="sk-..." className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold" />
+              <button onClick={() => saveSystemSetting("deepseek_api_key", deepseekApiKey)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
             </div>
-            <p className="text-[10px] text-muted-foreground/60 mt-1">{at("settings.aiCsApiUrlHint")}</p>
+            <p className="text-[10px] text-muted-foreground/60 mt-1">从DeepSeek平台获取: platform.deepseek.com</p>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.aiCsApiKey")}</label>
+            <label className="text-xs text-muted-foreground mb-1 block">API URL</label>
             <div className="flex gap-2">
-              <input type="password" value={aiCsApiKey} onChange={(e) => setAiCsApiKey(e.target.value)} placeholder="sk-..." className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold" />
-              <button onClick={() => saveSystemSetting("ai_cs_api_key", aiCsApiKey)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
+              <input type="text" value={deepseekApiUrl} onChange={(e) => setDeepseekApiUrl(e.target.value)} placeholder="https://api.deepseek.com" className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold" />
+              <button onClick={() => saveSystemSetting("deepseek_api_url", deepseekApiUrl)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
+            </div>
+            <p className="text-[10px] text-muted-foreground/60 mt-1">兼容OpenAI格式的API地址，支持代理地址</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">模型</label>
+            <div className="flex gap-2">
+              <select value={deepseekModel} onChange={(e) => setDeepseekModel(e.target.value)} className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold bg-transparent">
+                <option value="deepseek-chat">deepseek-chat (通用对话)</option>
+                <option value="deepseek-reasoner">deepseek-reasoner (深度推理)</option>
+              </select>
+              <button onClick={() => saveSystemSetting("deepseek_model", deepseekModel)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
+            </div>
+            <p className="text-[10px] text-muted-foreground/60 mt-1">推荐deepseek-chat，性价比最高</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">最大Token数</label>
+            <div className="flex gap-2">
+              <input type="number" min="256" max="32768" value={deepseekMaxTokens} onChange={(e) => setDeepseekMaxTokens(e.target.value)} className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold" />
+              <button onClick={() => saveSystemSetting("deepseek_max_tokens", deepseekMaxTokens)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.aiCsModel")}</label>
-            <div className="flex gap-2">
-              <input type="text" value={aiCsModel} onChange={(e) => setAiCsModel(e.target.value)} placeholder="gpt-4o-mini" className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold" />
-              <button onClick={() => saveSystemSetting("ai_cs_model", aiCsModel)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
-            </div>
-            <p className="text-[10px] text-muted-foreground/60 mt-1">{at("settings.aiCsModelHint")}</p>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.aiCsTemperature")}</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Temperature</label>
             <div className="flex gap-2 items-center">
-              <input type="range" min="0" max="2" step="0.1" value={aiCsTemperature} onChange={(e) => setAiCsTemperature(e.target.value)} className="flex-1" />
-              <span className="text-xs text-gold w-8 text-center">{aiCsTemperature}</span>
-              <button onClick={() => saveSystemSetting("ai_cs_temperature", aiCsTemperature)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
+              <input type="range" min="0" max="2" step="0.1" value={deepseekTemperature} onChange={(e) => setDeepseekTemperature(e.target.value)} className="flex-1" />
+              <span className="text-xs text-gold w-8 text-center">{deepseekTemperature}</span>
+              <button onClick={() => saveSystemSetting("deepseek_temperature", deepseekTemperature)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
             </div>
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">{at("settings.aiCsPrompt")}</label>
-            <textarea value={aiCsSystemPrompt} onChange={(e) => setAiCsSystemPrompt(e.target.value)} placeholder={at("settings.aiCsPromptPlaceholder")} rows={4} className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold resize-y" />
-            <div className="flex justify-end mt-2">
-              <button onClick={() => saveSystemSetting("ai_cs_system_prompt", aiCsSystemPrompt)} className="px-3 py-1.5 rounded-lg bg-gold/10 text-gold hover:bg-gold/20 text-xs flex items-center gap-1"><Save className="w-3 h-3" /> {at("settings.saved").replace("！", "").replace("!", "")}</button>
+          <div className="border-t border-border/30 pt-3 mt-3">
+            <h4 className="text-xs font-semibold text-foreground mb-2">AI客服专属配置</h4>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Temperature (客服)</label>
+              <div className="flex gap-2 items-center">
+                <input type="range" min="0" max="2" step="0.1" value={aiCsTemperature} onChange={(e) => setAiCsTemperature(e.target.value)} className="flex-1" />
+                <span className="text-xs text-gold w-8 text-center">{aiCsTemperature}</span>
+                <button onClick={() => saveSystemSetting("ai_cs_temperature", aiCsTemperature)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20"><Save className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="text-xs text-muted-foreground mb-1 block">自定义客服System Prompt</label>
+              <textarea value={aiCsSystemPrompt} onChange={(e) => setAiCsSystemPrompt(e.target.value)} placeholder="自定义AI客服的系统提示词，留空则使用默认" rows={4} className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold resize-y" />
+              <div className="flex justify-end mt-2">
+                <button onClick={() => saveSystemSetting("ai_cs_system_prompt", aiCsSystemPrompt)} className="px-3 py-1.5 rounded-lg bg-gold/10 text-gold hover:bg-gold/20 text-xs flex items-center gap-1"><Save className="w-3 h-3" /> 保存</button>
+              </div>
             </div>
           </div>
-          {!aiCsApiUrl && !aiCsApiKey && (
-            <p className="text-[10px] text-emerald-400 bg-emerald-400/10 rounded-lg px-3 py-2">{at("settings.aiCsDefault")}</p>
+          {!deepseekApiKey && (
+            <p className="text-[10px] text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2">⚠️ 未配置API Key，AI功能将不可用。请在上方填入DeepSeek API Key。</p>
           )}
         </div>
       </div>

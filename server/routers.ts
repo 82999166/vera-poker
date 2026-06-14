@@ -10,7 +10,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "./db";
-import { invokeLLM } from "./_core/llm";
+import { invokeLLM } from "./deepseek";
 import { nanoid } from "nanoid";
 import * as tableManager from "./tableManager";
 import * as botManager from "./botManager";
@@ -1418,10 +1418,7 @@ export const appRouter = router({
       // Save user message to DB
       await db.saveCsMessage(ctx.user.id, "user", input.message);
 
-      // Load AI config from system_configs
-      const aiApiUrl = await db.getConfigValue("ai_cs_api_url", "");
-      const aiApiKey = await db.getConfigValue("ai_cs_api_key", "");
-      const aiModel = await db.getConfigValue("ai_cs_model", "");
+      // Load AI config from system_configs (DeepSeek API配置统一从 deepseek_* 读取)
       const aiCustomPrompt = await db.getConfigValue("ai_cs_system_prompt", "");
       const aiTemperature = parseFloat(await db.getConfigValue("ai_cs_temperature", "0.7"));
 
@@ -1512,25 +1509,8 @@ ${faqContext}
         }
 
         let response;
-        if (aiApiUrl && aiApiKey) {
-          // Use custom AI API configuration
-          const payload: Record<string, unknown> = {
-            model: aiModel || "gpt-4o-mini",
-            messages,
-            temperature: aiTemperature,
-            max_tokens: 2048,
-          };
-          const apiResponse = await fetch(aiApiUrl.replace(/\/$/, "") + "/v1/chat/completions", {
-            method: "POST",
-            headers: { "content-type": "application/json", authorization: `Bearer ${aiApiKey}` },
-            body: JSON.stringify(payload),
-          });
-          if (!apiResponse.ok) throw new Error(`AI API error: ${apiResponse.status}`);
-          response = await apiResponse.json();
-        } else {
-          // Fallback to built-in LLM
-          response = await invokeLLM({ messages });
-        }
+        // 统一使用 DeepSeek API（配置从管理后台 config 表读取）
+        response = await invokeLLM({ messages, temperature: aiTemperature, maxTokens: 2048 });
         const rawContent = response.choices?.[0]?.message?.content;
         const aiResponse = typeof rawContent === "string" ? rawContent : (rawContent ? JSON.stringify(rawContent) : "I'm sorry, I couldn't process your request. Please try again.");
 

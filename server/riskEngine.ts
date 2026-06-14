@@ -5,7 +5,7 @@
  * - 自动告警生成与 Bot 通知
  */
 import * as db from "./db";
-import { invokeLLM } from "./_core/llm";
+import { invokeLLM } from "./deepseek";
 import { notifyAdmins } from "./notifications";
 
 // ==================== TYPES ====================

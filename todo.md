@@ -706,3 +706,11 @@
 - [x] 前端: Admin机器人管理面板（开关、参数配置、机器人列表、亏损进度）
 - [x] 隐蔽性: 排行榜排除bot、代理佣金排除bot、AFK踢出不返还余额、随机延迟操作
 - [x] 测试: botManager.test.ts 6个测试全部通过
+
+## 2026-06-14 AI对接切换：Manus LLM → DeepSeek API
+- [x] 后端: 创建server/deepseek.ts模块（替代_core/llm.ts的invokeLLM）
+- [x] 后端: 从系统config表读取deepseek_api_key和deepseek_model配置（带缓存60秒）
+- [x] 后端: 替换所有invokeLLM调用为deepseek模块（routers.ts + riskEngine.ts）
+- [x] 前端: 管理后台DeepSeek配置面板（API Key/URL/模型/MaxTokens/Temperature + 客服专属配置）
+- [x] 移除对BUILT_IN_FORGE_API_KEY/URL的LLM依赖（不再引用_core/llm.ts）
+- [x] 测试验证: 169个测试全部通过（含5个deepseek专属测试）
