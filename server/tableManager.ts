@@ -1807,3 +1807,19 @@ export async function processAutoRebuy(roomId: number, userId: number, threshold
 export function removeActiveTable(roomId: number): void {
   activeTables.delete(roomId);
 }
+
+
+/**
+ * Get online player statistics per room (real players + bots)
+ * Returns total online count and per-room breakdown
+ */
+export function getOnlineStats(): { total: number; rooms: Array<{ roomId: number; players: number }> } {
+  let total = 0;
+  const rooms: Array<{ roomId: number; players: number }> = [];
+  for (const [roomId, table] of activeTables) {
+    const playerCount = table.gameState.players.length;
+    total += playerCount;
+    rooms.push({ roomId, players: playerCount });
+  }
+  return { total, rooms };
+}

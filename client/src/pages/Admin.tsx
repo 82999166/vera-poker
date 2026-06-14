@@ -4436,7 +4436,57 @@ function StatsPanel({ at, onNavigate }: { at: (k: string) => string; onNavigate?
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-bold">{at("stats.title")}</h2>
-      
+
+      {/* Online Players Stats */}
+      <div className="glass rounded-xl p-4 border border-emerald-400/20">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            实时在线人数
+          </h3>
+          <span className="text-2xl font-bold text-emerald-400">{stats?.totalOnline ?? 0}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="bg-secondary/30 rounded-lg p-2 text-center">
+            <p className="text-[10px] text-muted-foreground">真人玩家</p>
+            <p className="text-lg font-bold text-truth-blue">{stats?.totalOnlineReal ?? 0}</p>
+          </div>
+          <div className="bg-secondary/30 rounded-lg p-2 text-center">
+            <p className="text-[10px] text-muted-foreground">AI机器人</p>
+            <p className="text-lg font-bold text-purple-400">{stats?.totalOnlineBot ?? 0}</p>
+          </div>
+        </div>
+        {(stats as any)?.onlineByRoom && (stats as any).onlineByRoom.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border/30">
+                  <th className="text-left py-1.5 text-muted-foreground font-medium">场次</th>
+                  <th className="text-center py-1.5 text-muted-foreground font-medium">盲注</th>
+                  <th className="text-center py-1.5 text-muted-foreground font-medium">总人数</th>
+                  <th className="text-center py-1.5 text-muted-foreground font-medium">真人</th>
+                  <th className="text-center py-1.5 text-muted-foreground font-medium">Bot</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(stats as any).onlineByRoom.map((room: any) => (
+                  <tr key={room.roomId} className="border-b border-border/10">
+                    <td className="py-1.5 font-medium">{room.roomName}</td>
+                    <td className="text-center py-1.5">${room.smallBlind}/{room.bigBlind}</td>
+                    <td className="text-center py-1.5 font-bold text-emerald-400">{room.totalPlayers}</td>
+                    <td className="text-center py-1.5 text-truth-blue">{room.realPlayers}</td>
+                    <td className="text-center py-1.5 text-purple-400">{room.botPlayers}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {(!(stats as any)?.onlineByRoom || (stats as any).onlineByRoom.length === 0) && (
+          <p className="text-xs text-muted-foreground text-center">暂无活跃牌桌</p>
+        )}
+      </div>
+
       {/* Primary KPI Cards - 4 columns */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="glass rounded-xl p-4 text-center cursor-pointer hover:bg-secondary/30 transition-colors" onClick={() => onNavigate?.("users")}>

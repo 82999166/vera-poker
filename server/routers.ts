@@ -2235,6 +2235,29 @@ ${faqContext}
         .where(sql`status = 'completed'`);
       const [todayHandsCount] = await dbInstance.select({ count: sql<number>`count(*)` }).from(gameHands)
         .where(sql`DATE(startedAt) = CURDATE() AND status = 'completed'`);
+      // Online player stats (real-time from memory)
+      const onlineStats = tableManager.getOnlineStats();
+      const botPerRoom = botManager.getBotsPerRoom();
+      // Build per-room online breakdown with room info
+      const allRooms = await db.getPublicRooms();
+      const roomMap = new Map(allRooms.map((r: any) => [r.id, r]));
+      const onlineByRoom = onlineStats.rooms.map(r => {
+        const room = roomMap.get(r.roomId);
+        const botCount = botPerRoom.get(r.roomId) || 0;
+        return {
+          roomId: r.roomId,
+          roomName: room?.name || `Room ${r.roomId}`,
+          smallBlind: room?.smallBlind || 0,
+          bigBlind: room?.bigBlind || 0,
+          totalPlayers: r.players,
+          realPlayers: r.players - botCount,
+          botPlayers: botCount,
+        };
+      });
+      const totalOnline = onlineStats.total;
+      const totalOnlineReal = onlineByRoom.reduce((s, r) => s + r.realPlayers, 0);
+      const totalOnlineBot = onlineByRoom.reduce((s, r) => s + r.botPlayers, 0);
+
       return {
         totalUsers: userCount?.count ?? 0,
         totalRooms: roomCount?.count ?? 0,
@@ -2249,6 +2272,11 @@ ${faqContext}
         todayRake: parseFloat(todayRake?.total ?? "0").toFixed(2),
         totalHands: totalHandsCount?.count ?? 0,
         todayHands: todayHandsCount?.count ?? 0,
+        // Online stats
+        totalOnline,
+        totalOnlineReal,
+        totalOnlineBot,
+        onlineByRoom,
       };
     }),
     // Trend data for charts

@@ -793,3 +793,8 @@
 - [x] 后端修复：waitingForReady=true时清空所有玩家holeCards（防止旧牌泄露到新手牌）
 - [x] 前端修复：添加phase转换清理逻辑（showdown/completed→preflop/waiting时立即清除所有showdown视觉状态）
 - [x] 185个测试全部通过
+
+## 2026-06-14 数据统计：在线人数统计
+- [x] 后台数据统计增加在线人数总数（真人+bot，实时从内存读取）
+- [x] 每个场次的在线人数明细（场次名、盲注、总人数、真人、Bot）
+- [x] 185个测试全部通过
