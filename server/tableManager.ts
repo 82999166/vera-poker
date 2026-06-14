@@ -1557,6 +1557,11 @@ setInterval(() => {
   botManager.checkBotBalances().catch(e => console.error("[BotManager] Balance check error:", e));
 }, 300000);
 
+// 长期在线Bot调度器：每30秒检查并补充bot到目标数量
+setInterval(() => {
+  botManager.persistentBotScheduler().catch(e => console.error("[BotManager] Persistent scheduler error:", e));
+}, 30000);
+
 /**
  * Notify the next player that it's their turn via Telegram
  */

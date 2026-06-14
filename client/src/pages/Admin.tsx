@@ -5865,6 +5865,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
     autoRefillAmount?: number;
     autoRefillEnabled?: boolean;
     fillWithoutRealPlayers?: boolean;
+    persistentOnlineCount?: number;
   }>({});
 
   useEffect(() => {
@@ -5881,6 +5882,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
         autoRefillAmount: (stats.config as any).autoRefillAmount ?? 10000,
         autoRefillEnabled: (stats.config as any).autoRefillEnabled ?? true,
         fillWithoutRealPlayers: (stats.config as any).fillWithoutRealPlayers ?? true,
+        persistentOnlineCount: (stats.config as any).persistentOnlineCount ?? 0,
       });
     }
   }, [stats?.config]);
@@ -6034,6 +6036,18 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
             >
               <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formState.fillWithoutRealPlayers ? "translate-x-5" : ""}`} />
             </button>
+          </div>
+
+          {/* Persistent Online Count */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <label className="text-sm font-medium">长期在线Bot总数</label>
+            <input
+              type="number" min={0} max={200}
+              value={formState.persistentOnlineCount ?? 0}
+              onChange={e => setFormState(s => ({ ...s, persistentOnlineCount: parseInt(e.target.value) || 0 }))}
+              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+            <p className="text-xs text-muted-foreground mt-1">设置后系统将保持此数量Bot分散在各牌桌上长期在线</p>
           </div>
 
           {/* Max Per Table */}
@@ -6230,6 +6244,9 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
         <p className="text-xs text-muted-foreground">导出格式为JSON，可编辑后重新导入。导入时需包含 name 字段，balance 默认10000。</p>
       </div>
 
+      {/* Room-level Bot Config */}
+      <RoomBotConfigPanel />
+
       {/* VPIP / PFR Behavior Metrics */}
       <BotBehaviorMetrics />
 
@@ -6304,6 +6321,187 @@ function BotBehaviorMetrics() {
         <p>• <span className="text-foreground">VPIP</span>（主动入池率）：翻前主动投入筹码的比例，真人一般20-35%</p>
         <p>• <span className="text-foreground">PFR</span>（翻前加注率）：翻前加注的比例，真人一般15-25%</p>
         <p>• <span className="text-foreground">激进度</span>：加注/All-in占总操作的比例</p>
+      </div>
+    </div>
+  );
+}
+
+// Room-level Bot Configuration Panel
+function RoomBotConfigPanel() {
+  const { data, isLoading, refetch } = (trpc.adminBot as any).roomConfigs.useQuery(undefined, { refetchInterval: 10000 });
+  const upsertConfig = (trpc.adminBot as any).upsertRoomConfig.useMutation({
+    onSuccess: () => { toast.success("场次配置已保存"); refetch(); },
+    onError: (err: any) => toast.error(err.message),
+  });
+  const deleteConfig = (trpc.adminBot as any).deleteRoomConfig.useMutation({
+    onSuccess: () => { toast.success("场次配置已删除（将使用全局配置）"); refetch(); },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const [editingRoom, setEditingRoom] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<{
+    botCount: number;
+    enabled: boolean;
+    foldRate: number | null;
+    minActionDelay: number | null;
+    maxActionDelay: number | null;
+  }>({ botCount: 3, enabled: true, foldRate: null, minActionDelay: null, maxActionDelay: null });
+
+  if (isLoading) return <div className="glass rounded-xl p-5"><p className="text-sm text-muted-foreground">加载场次配置中...</p></div>;
+
+  const rooms = data?.rooms || [];
+  const configs = data?.configs || [];
+  const configMap = new Map((configs as any[]).map((c: any) => [c.roomId, c]));
+
+  const startEdit = (roomId: number) => {
+    const existing = configMap.get(roomId);
+    if (existing) {
+      setEditForm({
+        botCount: existing.botCount,
+        enabled: existing.enabled,
+        foldRate: existing.foldRate,
+        minActionDelay: existing.minActionDelay,
+        maxActionDelay: existing.maxActionDelay,
+      });
+    } else {
+      setEditForm({ botCount: 3, enabled: true, foldRate: null, minActionDelay: null, maxActionDelay: null });
+    }
+    setEditingRoom(roomId);
+  };
+
+  const saveEdit = () => {
+    if (editingRoom === null) return;
+    upsertConfig.mutate({
+      roomId: editingRoom,
+      botCount: editForm.botCount,
+      enabled: editForm.enabled,
+      foldRate: editForm.foldRate,
+      minActionDelay: editForm.minActionDelay,
+      maxActionDelay: editForm.maxActionDelay,
+    });
+    setEditingRoom(null);
+  };
+
+  return (
+    <div className="glass rounded-xl p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground">场次独立Bot配置</h3>
+        <p className="text-xs text-muted-foreground">为每个场次单独设置Bot数量和参数（未配置的使用全局设置）</p>
+      </div>
+      
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-2 px-2 text-muted-foreground font-medium">场次</th>
+              <th className="text-center py-2 px-2 text-muted-foreground font-medium">盲注</th>
+              <th className="text-center py-2 px-2 text-muted-foreground font-medium">Bot数量</th>
+              <th className="text-center py-2 px-2 text-muted-foreground font-medium">启用</th>
+              <th className="text-center py-2 px-2 text-muted-foreground font-medium">弃牌率</th>
+              <th className="text-center py-2 px-2 text-muted-foreground font-medium">延迟(ms)</th>
+              <th className="text-center py-2 px-2 text-muted-foreground font-medium">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rooms.map((room: any) => {
+              const cfg = configMap.get(room.id);
+              const isEditing = editingRoom === room.id;
+              return (
+                <tr key={room.id} className="border-b border-border/50 hover:bg-secondary/30">
+                  <td className="py-2 px-2 font-medium text-foreground">{room.name}</td>
+                  <td className="text-center py-2 px-2 text-muted-foreground">{room.smallBlind}/{room.bigBlind}</td>
+                  {isEditing ? (
+                    <>
+                      <td className="text-center py-2 px-2">
+                        <input type="number" min={0} max={8} value={editForm.botCount}
+                          onChange={e => setEditForm(s => ({ ...s, botCount: parseInt(e.target.value) || 0 }))}
+                          className="w-14 glass rounded px-2 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-gold" />
+                      </td>
+                      <td className="text-center py-2 px-2">
+                        <button onClick={() => setEditForm(s => ({ ...s, enabled: !s.enabled }))}
+                          className={`w-8 h-4 rounded-full transition-colors ${editForm.enabled ? "bg-emerald-500" : "bg-secondary"}`}>
+                          <span className={`block w-3 h-3 rounded-full bg-white transition-transform ${editForm.enabled ? "translate-x-4" : "translate-x-0.5"}`} />
+                        </button>
+                      </td>
+                      <td className="text-center py-2 px-2">
+                        <input type="number" min={0} max={100} value={editForm.foldRate ?? ""}
+                          placeholder="全局"
+                          onChange={e => setEditForm(s => ({ ...s, foldRate: e.target.value ? parseInt(e.target.value) : null }))}
+                          className="w-14 glass rounded px-2 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-gold" />
+                      </td>
+                      <td className="text-center py-2 px-2">
+                        <div className="flex items-center gap-1 justify-center">
+                          <input type="number" min={500} max={10000} value={editForm.minActionDelay ?? ""}
+                            placeholder="全局"
+                            onChange={e => setEditForm(s => ({ ...s, minActionDelay: e.target.value ? parseInt(e.target.value) : null }))}
+                            className="w-14 glass rounded px-1 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-gold" />
+                          <span className="text-muted-foreground">-</span>
+                          <input type="number" min={1000} max={20000} value={editForm.maxActionDelay ?? ""}
+                            placeholder="全局"
+                            onChange={e => setEditForm(s => ({ ...s, maxActionDelay: e.target.value ? parseInt(e.target.value) : null }))}
+                            className="w-14 glass rounded px-1 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-gold" />
+                        </div>
+                      </td>
+                      <td className="text-center py-2 px-2">
+                        <div className="flex items-center gap-1 justify-center">
+                          <button onClick={saveEdit} disabled={upsertConfig.isPending}
+                            className="px-2 py-1 bg-gold text-black rounded text-[10px] font-medium hover:bg-gold/90">
+                            保存
+                          </button>
+                          <button onClick={() => setEditingRoom(null)}
+                            className="px-2 py-1 bg-secondary text-muted-foreground rounded text-[10px] hover:bg-secondary/80">
+                            取消
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="text-center py-2 px-2">
+                        {cfg ? <span className="text-gold font-bold">{cfg.botCount}</span> : <span className="text-muted-foreground">全局</span>}
+                      </td>
+                      <td className="text-center py-2 px-2">
+                        {cfg ? (
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ${cfg.enabled ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
+                            {cfg.enabled ? "开" : "关"}
+                          </span>
+                        ) : <span className="text-muted-foreground">-</span>}
+                      </td>
+                      <td className="text-center py-2 px-2 text-muted-foreground">
+                        {cfg?.foldRate !== null && cfg?.foldRate !== undefined ? `${cfg.foldRate}%` : "全局"}
+                      </td>
+                      <td className="text-center py-2 px-2 text-muted-foreground">
+                        {cfg?.minActionDelay ? `${cfg.minActionDelay}-${cfg.maxActionDelay}` : "全局"}
+                      </td>
+                      <td className="text-center py-2 px-2">
+                        <div className="flex items-center gap-1 justify-center">
+                          <button onClick={() => startEdit(room.id)}
+                            className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-[10px] hover:bg-blue-500/30">
+                            配置
+                          </button>
+                          {cfg && (
+                            <button onClick={() => deleteConfig.mutate({ roomId: room.id })}
+                              className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-[10px] hover:bg-red-500/30">
+                              重置
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {rooms.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-4">暂无公共房间</p>
+        )}
+      </div>
+      <div className="text-xs text-muted-foreground space-y-1">
+        <p>• 点击"配置"为该场次设置独立的Bot参数，未配置的场次使用全局设置</p>
+        <p>• Bot数量：该场次固定分配的Bot数量（不受真人数量影响）</p>
+        <p>• 弃牌率/延迟：留空表示使用全局配置值</p>
       </div>
     </div>
   );

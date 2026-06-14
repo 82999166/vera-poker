@@ -1683,3 +1683,54 @@ export async function updateUserDeviceFingerprint(openId: string, newFingerprint
   await db.update(users).set({ deviceFingerprint: newFingerprint } as any).where(eq(users.openId, openId));
   return { isNewDevice, oldFingerprint };
 }
+
+
+// ==================== ROOM BOT CONFIG ====================
+
+export async function getRoomBotConfig(roomId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const { roomBotConfig } = await import("../drizzle/schema");
+  const [config] = await db.select().from(roomBotConfig).where(eq(roomBotConfig.roomId, roomId)).limit(1);
+  return config || null;
+}
+
+export async function getAllRoomBotConfigs() {
+  const db = await getDb();
+  if (!db) return [];
+  const { roomBotConfig } = await import("../drizzle/schema");
+  return db.select().from(roomBotConfig);
+}
+
+export async function upsertRoomBotConfig(roomId: number, data: { botCount?: number; enabled?: boolean; foldRate?: number | null; minActionDelay?: number | null; maxActionDelay?: number | null }) {
+  const db = await getDb();
+  if (!db) return;
+  const { roomBotConfig } = await import("../drizzle/schema");
+  
+  const existing = await db.select().from(roomBotConfig).where(eq(roomBotConfig.roomId, roomId)).limit(1);
+  if (existing.length > 0) {
+    const updateData: any = {};
+    if (data.botCount !== undefined) updateData.botCount = data.botCount;
+    if (data.enabled !== undefined) updateData.enabled = data.enabled;
+    if (data.foldRate !== undefined) updateData.foldRate = data.foldRate;
+    if (data.minActionDelay !== undefined) updateData.minActionDelay = data.minActionDelay;
+    if (data.maxActionDelay !== undefined) updateData.maxActionDelay = data.maxActionDelay;
+    await db.update(roomBotConfig).set(updateData).where(eq(roomBotConfig.roomId, roomId));
+  } else {
+    await db.insert(roomBotConfig).values({
+      roomId,
+      botCount: data.botCount ?? 3,
+      enabled: data.enabled ?? true,
+      foldRate: data.foldRate ?? null,
+      minActionDelay: data.minActionDelay ?? null,
+      maxActionDelay: data.maxActionDelay ?? null,
+    });
+  }
+}
+
+export async function deleteRoomBotConfig(roomId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const { roomBotConfig } = await import("../drizzle/schema");
+  await db.delete(roomBotConfig).where(eq(roomBotConfig.roomId, roomId));
+}

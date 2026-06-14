@@ -23,6 +23,17 @@ interface BotConfig {
   autoRefillAmount: number;  // 自动补充金额（美元）
   autoRefillEnabled: boolean; // 是否开启自动补充
   fillWithoutRealPlayers: boolean; // 无真人时是否填充bot自动对玩
+  persistentOnlineCount: number; // 长期在线bot总数（分散到各桌）
+}
+
+// 房间级别Bot配置
+interface RoomBotConfig {
+  roomId: number;
+  botCount: number;
+  enabled: boolean;
+  foldRate: number | null;
+  minActionDelay: number | null;
+  maxActionDelay: number | null;
 }
 
 // 默认配置
@@ -38,7 +49,13 @@ const DEFAULT_CONFIG: BotConfig = {
   autoRefillAmount: 10000,
   autoRefillEnabled: true,
   fillWithoutRealPlayers: true,
+  persistentOnlineCount: 0,
 };
+
+// 房间级别配置缓存
+let cachedRoomBotConfigs: Map<number, RoomBotConfig> = new Map();
+let roomConfigsCachedAt = 0;
+const ROOM_CONFIG_CACHE_TTL = 15000; // 15秒缓存
 
 // ==================== 内存状态 ====================
 // 当前配置缓存
@@ -82,6 +99,7 @@ export async function getBotConfig(): Promise<BotConfig> {
   const autoRefillAmount = await db.getConfigValue("bot_auto_refill_amount", "10000");
   const autoRefillEnabled = await db.getConfigValue("bot_auto_refill_enabled", "true");
   const fillWithoutRealPlayers = await db.getConfigValue("bot_fill_without_real_players", "true");
+  const persistentOnlineCount = await db.getConfigValue("bot_persistent_online_count", "0");
 
   cachedConfig = {
     enabled: enabled === "true",
@@ -95,9 +113,44 @@ export async function getBotConfig(): Promise<BotConfig> {
     autoRefillAmount: parseFloat(autoRefillAmount) || DEFAULT_CONFIG.autoRefillAmount,
     autoRefillEnabled: autoRefillEnabled === "true",
     fillWithoutRealPlayers: fillWithoutRealPlayers === "true",
+    persistentOnlineCount: parseInt(persistentOnlineCount) || 0,
   };
   configCachedAt = now;
   return cachedConfig;
+}
+
+/**
+ * 获取房间级别的Bot配置（带缓存）
+ */
+export async function getRoomBotConfig(roomId: number): Promise<RoomBotConfig | null> {
+  const now = Date.now();
+  if (now - roomConfigsCachedAt < ROOM_CONFIG_CACHE_TTL && cachedRoomBotConfigs.has(roomId)) {
+    return cachedRoomBotConfigs.get(roomId)!;
+  }
+  // 刷新全部房间配置缓存
+  await refreshRoomBotConfigs();
+  return cachedRoomBotConfigs.get(roomId) || null;
+}
+
+async function refreshRoomBotConfigs() {
+  const configs = await db.getAllRoomBotConfigs();
+  cachedRoomBotConfigs = new Map();
+  for (const c of configs) {
+    cachedRoomBotConfigs.set(c.roomId, {
+      roomId: c.roomId,
+      botCount: c.botCount,
+      enabled: c.enabled,
+      foldRate: c.foldRate,
+      minActionDelay: c.minActionDelay,
+      maxActionDelay: c.maxActionDelay,
+    });
+  }
+  roomConfigsCachedAt = Date.now();
+}
+
+export function invalidateRoomConfigCache() {
+  roomConfigsCachedAt = 0;
+  cachedRoomBotConfigs.clear();
 }
 
 // 强制刷新配置缓存
@@ -167,8 +220,8 @@ export function addBotWin(amount: number) {
 /**
  * 检查房间是否需要bot填充，并执行入座
  * 调度策略：
- * 1. 有真人时：根据在线人数动态调整bot数量（真人少则多bot，真人多则少bot）
- * 2. 无真人时：填充3-5个bot自动对玩（保持桌子活跃）
+ * 1. 优先使用房间级别配置（room_bot_config）的botCount
+ * 2. 无房间配置时，根据全局配置动态调整
  * 3. 每次只加一个bot（防止瞬间涌入太多）
  */
 export async function checkAndFillBots(roomId: number): Promise<void> {
@@ -183,6 +236,10 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
   const room = await db.getRoomById(roomId);
   if (!room || room.type !== "public") return; // 只在公共房间添加bot
 
+  // 检查房间级别配置
+  const roomConfig = await getRoomBotConfig(roomId);
+  if (roomConfig && !roomConfig.enabled) return; // 该房间禁用bot
+
   // 获取当前在座玩家
   const roomPlayers = await db.getRoomPlayers(roomId);
   const botUserIds = await getBotUserIds();
@@ -194,32 +251,27 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
   // 计算目标bot数量
   let targetBotCount: number;
   
-  if (realPlayers.length === 0) {
+  if (roomConfig) {
+    // 使用房间级别配置的botCount
+    targetBotCount = roomConfig.botCount;
+  } else if (realPlayers.length === 0) {
     // 无真人：填充minPerTable个bot自动对玩
     if (!config.fillWithoutRealPlayers) return;
-    targetBotCount = config.minPerTable; // 默认3个
+    targetBotCount = config.minPerTable;
   } else if (realPlayers.length === 1) {
-    // 1个真人：填充较多bot（4-5个）让牌局更热闹
     targetBotCount = Math.min(config.maxPerTable, 4);
   } else if (realPlayers.length === 2) {
-    // 2个真人：填充3个bot
     targetBotCount = 3;
   } else if (realPlayers.length === 3) {
-    // 3个真人：填充2个bot
     targetBotCount = 2;
   } else if (realPlayers.length === 4) {
-    // 4个真人：填充1个bot
     targetBotCount = 1;
   } else {
-    // 5+个真人：不需要bot
     targetBotCount = 0;
   }
 
   // 已达到目标数量
   if (botsAtTable.length >= targetBotCount) return;
-
-  // 检查bot上限
-  if (botsAtTable.length >= config.maxPerTable) return;
 
   // 检查桌子是否满了
   if (roomPlayers.length >= room.maxPlayers) return;
@@ -229,7 +281,6 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
   for (const [, bots] of seatedBots) {
     for (const id of bots) allSeatedBotIds.add(id);
   }
-  // 也检查DB中已入座的bot
   for (const rp of roomPlayers) {
     if (botUserIds.includes(rp.userId)) allSeatedBotIds.add(rp.userId);
   }
@@ -244,29 +295,23 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
   joiningBots.add(joinKey);
 
   try {
-    // Bot买入金额：使用房间最小买入
     const buyIn = parseFloat(room.minBuyIn);
-    
-    // 检查bot余额是否足够，不足则尝试自动补充
     const botUser = await db.getUserById(selectedBotId);
     if (!botUser) return;
     
     let currentBalance = parseFloat(String(botUser.balance));
     if (currentBalance < buyIn) {
-      // 尝试自动补充
       const refilled = await autoRefillBotBalance(selectedBotId, buyIn);
       if (!refilled) {
         console.log(`[BotManager] Bot ${selectedBotId} insufficient balance and refill failed, skipping`);
         return;
       }
-      // 重新获取余额
       const updatedUser = await db.getUserById(selectedBotId);
       if (!updatedUser) return;
       currentBalance = parseFloat(String(updatedUser.balance));
       if (currentBalance < buyIn) return;
     }
 
-    // 真实扣除余额（和真实玩家一样）
     const newBalance = await db.deductUserBalanceAtomic(selectedBotId, buyIn);
     if (newBalance === null) {
       console.log(`[BotManager] Bot ${selectedBotId} balance deduction failed, skipping`);
@@ -275,7 +320,6 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
 
     const result = await joinTable(roomId, selectedBotId, buyIn);
     if (result.success) {
-      // 记录买入交易流水
       await db.createTransaction({
         userId: selectedBotId,
         type: "buy_in",
@@ -287,18 +331,65 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
         referenceId: roomId,
         note: `买入房间 ${room.name || roomId}`,
       });
-      // 记录bot入座
       if (!seatedBots.has(roomId)) seatedBots.set(roomId, new Set());
       seatedBots.get(roomId)!.add(selectedBotId);
       console.log(`[BotManager] Bot ${selectedBotId} joined room ${roomId} at seat ${result.seatIndex}`);
     } else {
-      // 入座失败，退回余额
       await db.addUserBalanceAtomic(selectedBotId, buyIn);
     }
   } catch (e) {
     console.error(`[BotManager] Error adding bot to room ${roomId}:`, e);
   } finally {
     joiningBots.delete(joinKey);
+  }
+}
+
+/**
+ * 长期在线Bot调度器
+ * 根据 persistentOnlineCount 配置，确保总共有N个bot分散在各个公共牌桌上
+ * 每30秒执行一次，检查并补充bot到目标数量
+ */
+export async function persistentBotScheduler(): Promise<void> {
+  const config = await getBotConfig();
+  if (!config.enabled || config.persistentOnlineCount <= 0) return;
+
+  // 检查每日亏损限制
+  resetDailyLossIfNeeded();
+  if (dailyLossTotal >= config.dailyLossLimit) return;
+
+  // 获取所有公共房间
+  const publicRooms = await db.getPublicRooms();
+  if (publicRooms.length === 0) return;
+
+  const botUserIds = await getBotUserIds();
+  
+  // 统计当前在线的bot总数
+  const currentOnlineCount = getActiveBotsCount();
+  const target = config.persistentOnlineCount;
+
+  if (currentOnlineCount >= target) return;
+
+  // 需要补充的bot数量
+  const needed = target - currentOnlineCount;
+
+  // 将bot分散到各个房间（优先填充人少的房间）
+  for (let i = 0; i < Math.min(needed, 3); i++) { // 每次最多补充3个，防止瞬间涌入
+    // 找到bot最少的房间
+    let bestRoom: typeof publicRooms[0] | null = null;
+    let minBots = Infinity;
+    for (const room of publicRooms) {
+      const roomConfig = await getRoomBotConfig(room.id);
+      if (roomConfig && !roomConfig.enabled) continue; // 跳过禁用bot的房间
+      const botsInRoom = seatedBots.get(room.id)?.size || 0;
+      const maxAllowed = roomConfig?.botCount || config.maxPerTable;
+      if (botsInRoom < maxAllowed && botsInRoom < room.maxPlayers - 1 && botsInRoom < minBots) {
+        minBots = botsInRoom;
+        bestRoom = room;
+      }
+    }
+    if (bestRoom) {
+      await checkAndFillBots(bestRoom.id);
+    }
   }
 }
 
@@ -376,24 +467,31 @@ export async function triggerBotAction(roomId: number): Promise<void> {
   if (pendingActions.has(actionKey)) return;
   pendingActions.add(actionKey);
 
-  // 随机延迟2-5秒
-  const delay = config.minActionDelay + Math.random() * (config.maxActionDelay - config.minActionDelay);
+  // 获取房间级别配置（可能覆盖全局配置）
+  const roomConfig = await getRoomBotConfig(roomId);
+  const effectiveMinDelay = roomConfig?.minActionDelay ?? config.minActionDelay;
+  const effectiveMaxDelay = roomConfig?.maxActionDelay ?? config.maxActionDelay;
+
+  // 随机延迟
+  const delay = effectiveMinDelay + Math.random() * (effectiveMaxDelay - effectiveMinDelay);
 
   setTimeout(async () => {
     try {
-      // 重新获取最新状态（延迟期间可能已变化）
       const currentTable = getTable(roomId);
       if (!currentTable) return;
       const currentGs = currentTable.gameState;
       if (currentGs.phase === "waiting" || currentGs.phase === "completed" || currentGs.phase === "showdown") return;
       
       const player = currentGs.players[currentGs.currentPlayerIndex];
-      if (!player || player.id !== currentPlayer.id) return; // 不再是这个bot的回合
+      if (!player || player.id !== currentPlayer.id) return;
 
-      // AI决策（基于概率计算）
-      const decision = decideBotAction(currentGs, player, currentTable.bigBlind, config);
+      // AI决策（使用房间级别foldRate或全局foldRate）
+      const effectiveConfig = { ...config };
+      if (roomConfig?.foldRate !== null && roomConfig?.foldRate !== undefined) {
+        effectiveConfig.foldRate = roomConfig.foldRate;
+      }
+      const decision = decideBotAction(currentGs, player, currentTable.bigBlind, effectiveConfig);
       
-      // 执行操作
       await processPlayerAction(roomId, player.id, decision.action, decision.amount);
     } catch (e) {
       console.error(`[BotManager] Error executing bot action in room ${roomId}:`, e);

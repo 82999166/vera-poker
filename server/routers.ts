@@ -2384,6 +2384,7 @@ ${faqContext}
       autoRefillAmount: z.number().min(0).optional(),
       autoRefillEnabled: z.boolean().optional(),
       fillWithoutRealPlayers: z.boolean().optional(),
+      persistentOnlineCount: z.number().min(0).max(200).optional(),
     })).mutation(async ({ input }) => {
       if (input.enabled !== undefined) await db.upsertConfig("bot_enabled", String(input.enabled), "bot", "Bot启用", "boolean");
       if (input.maxPerTable !== undefined) await db.upsertConfig("bot_max_per_table", String(input.maxPerTable), "bot", "每桌最多Bot数", "number");
@@ -2396,7 +2397,37 @@ ${faqContext}
       if (input.autoRefillAmount !== undefined) await db.upsertConfig("bot_auto_refill_amount", String(input.autoRefillAmount), "bot", "自动补充金额($)", "number");
       if (input.autoRefillEnabled !== undefined) await db.upsertConfig("bot_auto_refill_enabled", String(input.autoRefillEnabled), "bot", "开启自动补充", "boolean");
       if (input.fillWithoutRealPlayers !== undefined) await db.upsertConfig("bot_fill_without_real_players", String(input.fillWithoutRealPlayers), "bot", "无真人时自动对玩", "boolean");
+      if (input.persistentOnlineCount !== undefined) await db.upsertConfig("bot_persistent_online_count", String(input.persistentOnlineCount), "bot", "长期在线Bot总数", "number");
       botManager.invalidateConfigCache();
+      return { success: true };
+    }),
+    // Room-level bot config
+    roomConfigs: staffProcedure.query(async () => {
+      const configs = await db.getAllRoomBotConfigs();
+      const publicRooms = await db.getPublicRooms();
+      return {
+        configs,
+        rooms: publicRooms.map(r => ({ id: r.id, name: r.name, smallBlind: r.smallBlind, bigBlind: r.bigBlind, maxPlayers: r.maxPlayers })),
+      };
+    }),
+    upsertRoomConfig: adminProcedure.input(z.object({
+      roomId: z.number(),
+      botCount: z.number().min(0).max(8).optional(),
+      enabled: z.boolean().optional(),
+      foldRate: z.number().min(0).max(100).nullable().optional(),
+      minActionDelay: z.number().min(500).max(10000).nullable().optional(),
+      maxActionDelay: z.number().min(1000).max(20000).nullable().optional(),
+    })).mutation(async ({ input }) => {
+      const { roomId, ...data } = input;
+      await db.upsertRoomBotConfig(roomId, data as any);
+      botManager.invalidateRoomConfigCache();
+      return { success: true };
+    }),
+    deleteRoomConfig: adminProcedure.input(z.object({
+      roomId: z.number(),
+    })).mutation(async ({ input }) => {
+      await db.deleteRoomBotConfig(input.roomId);
+      botManager.invalidateRoomConfigCache();
       return { success: true };
     }),
     // Reset daily loss counter

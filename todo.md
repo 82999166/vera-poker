@@ -759,3 +759,10 @@
 - [x] 补全现有8个机器人头像（更新为randomuser.me真实头像）
 - [x] 弃牌率配置已修复生效（通过foldAdjust调整equity阈值，foldRate越高越容易弃牌）
 - [x] 测试验证: 175个测试全部通过
+
+## 2026-06-14 机器人增强第四批
+- [x] 长期在线bot人数配置（persistentOnlineCount字段，每30秒调度器检查并补充）
+- [x] 所有机器人余额改为100以内（已批量更新数据库 RAND()*90+10）
+- [x] 机器人按场次独立配置（room_bot_config表，每个房间可独立设置botCount/enabled/foldRate/delay）
+- [x] 管理后台UI：场次独立bot配置面板（RoomBotConfigPanel组件）
+- [x] 测试验证: 185个测试全部通过

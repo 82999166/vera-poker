@@ -797,3 +797,17 @@ export const scheduledNotifications = mysqlTable("scheduled_notifications", {
 });
 export type ScheduledNotification = typeof scheduledNotifications.$inferSelect;
 export type InsertScheduledNotification = typeof scheduledNotifications.$inferInsert;
+
+// ==================== 房间Bot配置表（每个场次独立配置） ====================
+export const roomBotConfig = mysqlTable("room_bot_config", {
+  id: int("id").autoincrement().primaryKey(),
+  roomId: int("roomId").notNull(),
+  botCount: int("botCount").notNull().default(3), // 该场次分配的bot数量
+  enabled: boolean("enabled").notNull().default(true), // 该场次是否启用bot
+  foldRate: int("foldRate"), // 该场次bot弃牌率(null=使用全局)
+  minActionDelay: int("minActionDelay"), // 最小操作延迟ms(null=使用全局)
+  maxActionDelay: int("maxActionDelay"), // 最大操作延迟ms(null=使用全局)
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type RoomBotConfig = typeof roomBotConfig.$inferSelect;
