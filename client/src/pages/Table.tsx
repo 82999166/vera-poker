@@ -689,6 +689,8 @@ export default function Table() {
   // before enabling kicked detection. This prevents a race condition where tableState is fetched
   // before the server has added the player to gameState.players, causing a false "kicked" detection.
   const joinSettledRef = useRef(false); // true once tableState confirms player is in the game
+  const kickGraceCountRef = useRef(0); // Grace period counter: must see player missing N times before triggering kicked
+  const KICK_GRACE_THRESHOLD = 3; // Require 3 consecutive polls confirming player is missing
   const waitingStartRef = useRef<number | null>(null);
   const WAITING_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 
@@ -729,6 +731,10 @@ export default function Table() {
     // This prevents false positives during the brief window between joinMutation success and
     // the first tableState refresh that includes the new player.
     if (!myPlayerInState && !kickDetectedRef.current && joinSettledRef.current) {
+      // Grace period: require multiple consecutive polls confirming player is missing
+      // This prevents false kicks during async transitions (e.g. startNewHand deleting activeTables briefly)
+      kickGraceCountRef.current++;
+      if (kickGraceCountRef.current < KICK_GRACE_THRESHOLD) return;
       // TOURNAMENT: If eliminated or finished, show full-screen overlay
       const tInfo = (tableState as any)?.tournamentInfo;
       if (tInfo?.isTournament && (tInfo?.myEliminated || tInfo?.isFinished)) {
@@ -768,7 +774,7 @@ export default function Table() {
       setTimeout(() => navigate("/lobby"), 1500);
       return;
     }
-    if (myPlayerInState) { kickDetectedRef.current = false; }
+    if (myPlayerInState) { kickDetectedRef.current = false; kickGraceCountRef.current = 0; }
 
     // Check waiting timeout (no match found)
     const phase = tableState.phase;

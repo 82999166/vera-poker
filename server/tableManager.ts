@@ -1191,8 +1191,15 @@ async function startNewHand(roomId: number) {
 
   const roomPlayersList = await db.getRoomPlayers(roomId);
   if (roomPlayersList.length < 2) {
-    // Not enough players even after bot fill - clean up stale table state
-    activeTables.delete(roomId);
+    // Not enough players even after bot fill - reset table to waiting state
+    // IMPORTANT: Do NOT delete activeTables here! Deleting causes getPlayerView to query DB
+    // which can trigger false "kicked" detection on the frontend during async transitions.
+    // Instead, set waitingForReady=true so getPlayerView returns clean state with players still visible.
+    const existingTbl = activeTables.get(roomId);
+    if (existingTbl) {
+      existingTbl.waitingForReady = true;
+      existingTbl.settlementStartedAt = undefined;
+    }
     await db.updateRoom(roomId, { currentPlayers: roomPlayersList.length, status: "waiting" });
     return;
   }
@@ -1216,10 +1223,13 @@ async function startNewHand(roomId: number) {
   const activePlayers = roomPlayersList.filter((rp: any) => parseFloat(rp.chipCount) > 0);
   if (activePlayers.length < 2) {
     // Not enough players to start a new hand.
-    // CRITICAL: Delete the old activeTables entry so getPlayerView returns clean "waiting" state.
-    // Without this, the old gameState (with previous hand's communityCards/holeCards) would persist
-    // and be returned to the frontend since waitingForReady was already set to false by playerReady().
-    activeTables.delete(roomId);
+    // Reset to waiting state but keep activeTables entry alive so getPlayerView
+    // still returns the player list (prevents false "kicked" detection on frontend).
+    const existingTbl = activeTables.get(roomId);
+    if (existingTbl) {
+      existingTbl.waitingForReady = true;
+      existingTbl.settlementStartedAt = undefined;
+    }
     // Update room player count and status
     await db.updateRoom(roomId, { currentPlayers: activePlayers.length, status: "waiting" });
     return;
