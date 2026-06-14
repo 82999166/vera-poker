@@ -1367,7 +1367,7 @@ export default function Table() {
       {/* Floating room name + phase (top-center) */}
       <div
         className="absolute left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 border border-white/10 backdrop-blur-sm"
-        style={{ top: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px) + 4px)' }}
+        style={{ top: '56%', transform: 'translate(-50%, 0)' }}
       >
         {isTournamentTable && <Trophy className="w-3 h-3 text-gold" />}
         <span className="text-[11px] text-white/70 font-medium truncate max-w-[100px]">
@@ -1611,8 +1611,8 @@ export default function Table() {
               </div>
             </div>
 
-            {/* Pot display - centered below community cards, z-20 to stay visible */}
-            <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-20">
+            {/* Pot display - above community cards */}
+            <div className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-20">
               <AnimatedPot amount={displayPot} />
               {displayPlayers.length > 0 && (
                 <div className="flex items-center justify-center gap-1 mt-1">
