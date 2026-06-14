@@ -5866,6 +5866,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
     autoRefillEnabled?: boolean;
     fillWithoutRealPlayers?: boolean;
     persistentOnlineCount?: number;
+    rotationHands?: number;
   }>({});
 
   useEffect(() => {
@@ -5883,6 +5884,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
         autoRefillEnabled: (stats.config as any).autoRefillEnabled ?? true,
         fillWithoutRealPlayers: (stats.config as any).fillWithoutRealPlayers ?? true,
         persistentOnlineCount: (stats.config as any).persistentOnlineCount ?? 0,
+        rotationHands: (stats.config as any).rotationHands ?? 0,
       });
     }
   }, [stats?.config]);
@@ -5947,63 +5949,8 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
         </div>
       </div>
 
-      {/* Bot Detail Stats Table */}
-      <div className="glass rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-3">机器人数据统计</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-2 px-2 text-muted-foreground font-medium">名称</th>
-                <th className="text-center py-2 px-2 text-muted-foreground font-medium">状态</th>
-                <th className="text-right py-2 px-2 text-muted-foreground font-medium">余额</th>
-                <th className="text-right py-2 px-2 text-muted-foreground font-medium">总手数</th>
-                <th className="text-right py-2 px-2 text-muted-foreground font-medium">胜率</th>
-                <th className="text-right py-2 px-2 text-muted-foreground font-medium">总盈亏</th>
-                <th className="text-right py-2 px-2 text-muted-foreground font-medium">今日手数</th>
-                <th className="text-right py-2 px-2 text-muted-foreground font-medium">今日盈亏</th>
-                <th className="text-right py-2 px-2 text-muted-foreground font-medium">补充次数</th>
-              </tr>
-            </thead>
-            <tbody>
-              {botDetails.map((bot: any) => (
-                <tr key={bot.id} className="border-b border-border/50 hover:bg-secondary/30">
-                  <td className="py-2 px-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gold/20 flex items-center justify-center">
-                        <Bot className="w-3 h-3 text-gold" />
-                      </div>
-                      <span className="font-medium text-foreground">{bot.name}</span>
-                    </div>
-                  </td>
-                  <td className="text-center py-2 px-2">
-                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ${bot.isOnline ? "bg-emerald-500/20 text-emerald-400" : "bg-secondary text-muted-foreground"}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${bot.isOnline ? "bg-emerald-400" : "bg-muted-foreground"}`} />
-                      {bot.isOnline ? `房间${bot.currentRoom}` : "空闲"}
-                    </span>
-                  </td>
-                  <td className={`text-right py-2 px-2 font-mono ${bot.balance < (formState.balanceAlertThreshold ?? 500) ? "text-red-400 font-bold" : "text-foreground"}`}>
-                    ${bot.balance.toFixed(0)}
-                  </td>
-                  <td className="text-right py-2 px-2 text-muted-foreground">{bot.totalHands}</td>
-                  <td className="text-right py-2 px-2 text-foreground">{bot.winRate}%</td>
-                  <td className={`text-right py-2 px-2 font-mono ${parseFloat(bot.totalProfit) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {parseFloat(bot.totalProfit) >= 0 ? "+" : ""}{bot.totalProfit}
-                  </td>
-                  <td className="text-right py-2 px-2 text-muted-foreground">{bot.todayHands}</td>
-                  <td className={`text-right py-2 px-2 font-mono ${parseFloat(bot.todayProfit) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {parseFloat(bot.todayProfit) >= 0 ? "+" : ""}{bot.todayProfit}
-                  </td>
-                  <td className="text-right py-2 px-2 text-muted-foreground">{bot.refillCount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {botDetails.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">暂无统计数据</p>
-          )}
-        </div>
-      </div>
+      {/* Bot Detail Stats Table (merged with behavior metrics) */}
+      <BotDetailTableMerged botDetails={botDetails} formState={formState} />
 
       {/* Config Form */}
       <div className="glass rounded-xl p-5 space-y-4">
@@ -6048,6 +5995,18 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
               className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
             />
             <p className="text-xs text-muted-foreground mt-1">设置后系统将保持此数量Bot分散在各牌桌上长期在线</p>
+          </div>
+
+          {/* Rotation Hands */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <label className="text-sm font-medium">每桌轮换手数</label>
+            <input
+              type="number" min={0} max={1000}
+              value={formState.rotationHands ?? 0}
+              onChange={e => setFormState(s => ({ ...s, rotationHands: parseInt(e.target.value) || 0 }))}
+              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Bot在每张桌打此数手后自动轮换（0=不轮换）</p>
           </div>
 
           {/* Max Per Table */}
@@ -6247,8 +6206,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
       {/* Room-level Bot Config */}
       <RoomBotConfigPanel />
 
-      {/* VPIP / PFR Behavior Metrics */}
-      <BotBehaviorMetrics />
+      {/* Behavior metrics merged into bot detail table above */}
 
       {/* Bot Strategy Description */}
       <div className="glass rounded-xl p-5">
@@ -6502,6 +6460,115 @@ function RoomBotConfigPanel() {
         <p>• 点击"配置"为该场次设置独立的Bot参数，未配置的场次使用全局设置</p>
         <p>• Bot数量：该场次固定分配的Bot数量（不受真人数量影响）</p>
         <p>• 弃牌率/延迟：留空表示使用全局配置值</p>
+      </div>
+    </div>
+  );
+}
+
+
+// Merged Bot Detail Table with Behavior Metrics
+function BotDetailTableMerged({ botDetails, formState }: { botDetails: any[]; formState: any }) {
+  const { data: metrics } = trpc.adminBot.behaviorMetrics.useQuery(undefined, { refetchInterval: 30000 });
+  
+  // Build metrics map by bot id
+  const metricsMap = new Map<number, any>();
+  if (metrics) {
+    for (const m of metrics) {
+      metricsMap.set(m.id, m);
+    }
+  }
+
+  // Derive style label
+  function getStyleLabel(vpip: number, pfr: number): string {
+    let style = "";
+    if (vpip < 20) style = "极紧";
+    else if (vpip < 30) style = "紧凑";
+    else if (vpip < 45) style = "标准";
+    else if (vpip < 60) style = "松散";
+    else style = "极松";
+    if (pfr > vpip * 0.7) style += "/激进";
+    else if (pfr < vpip * 0.3) style += "/被动";
+    else style += "/平衡";
+    return style;
+  }
+
+  return (
+    <div className="glass rounded-xl p-5">
+      <h3 className="text-sm font-semibold text-foreground mb-3">机器人数据统计（含行为指标）</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-2 px-2 text-muted-foreground font-medium">名称</th>
+              <th className="text-center py-2 px-2 text-muted-foreground font-medium">状态</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">余额</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">总手数</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">胜率</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">总盈亏</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">今日盈亏</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">VPIP</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">PFR</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">激进度</th>
+              <th className="text-center py-2 px-2 text-muted-foreground font-medium">风格</th>
+            </tr>
+          </thead>
+          <tbody>
+            {botDetails.map((bot: any) => {
+              const m = metricsMap.get(bot.id);
+              const vpip = m ? parseFloat(m.vpip) : 0;
+              const pfr = m ? parseFloat(m.pfr) : 0;
+              const aggression = m ? m.aggressionFactor : "0.0";
+              const style = m ? getStyleLabel(vpip, pfr) : "-";
+              return (
+                <tr key={bot.id} className="border-b border-border/50 hover:bg-secondary/30">
+                  <td className="py-2 px-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gold/20 flex items-center justify-center">
+                        <span className="text-[10px] text-gold font-bold">B</span>
+                      </div>
+                      <span className="font-medium text-foreground">{bot.name}</span>
+                    </div>
+                  </td>
+                  <td className="text-center py-2 px-2">
+                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ${bot.isOnline ? "bg-emerald-500/20 text-emerald-400" : "bg-secondary text-muted-foreground"}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${bot.isOnline ? "bg-emerald-400" : "bg-muted-foreground"}`} />
+                      {bot.isOnline ? `房间${bot.currentRoom}` : "空闲"}
+                    </span>
+                  </td>
+                  <td className={`text-right py-2 px-2 font-mono ${bot.balance < (formState.balanceAlertThreshold ?? 500) ? "text-red-400 font-bold" : "text-foreground"}`}>
+                    ${bot.balance.toFixed(0)}
+                  </td>
+                  <td className="text-right py-2 px-2 text-muted-foreground">{bot.totalHands}</td>
+                  <td className="text-right py-2 px-2 text-foreground">{bot.winRate}%</td>
+                  <td className={`text-right py-2 px-2 font-mono ${parseFloat(bot.totalProfit) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {parseFloat(bot.totalProfit) >= 0 ? "+" : ""}{bot.totalProfit}
+                  </td>
+                  <td className={`text-right py-2 px-2 font-mono ${parseFloat(bot.todayProfit) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {parseFloat(bot.todayProfit) >= 0 ? "+" : ""}{bot.todayProfit}
+                  </td>
+                  <td className="text-right py-2 px-2 text-foreground font-mono">{m ? `${m.vpip}%` : "-"}</td>
+                  <td className="text-right py-2 px-2 text-foreground font-mono">{m ? `${m.pfr}%` : "-"}</td>
+                  <td className="text-right py-2 px-2 text-foreground font-mono">{m ? `${aggression}%` : "-"}</td>
+                  <td className="text-center py-2 px-2">
+                    {m ? (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-gold/20 text-gold">{style}</span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {botDetails.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-4">暂无统计数据</p>
+        )}
+      </div>
+      <div className="mt-3 text-xs text-muted-foreground space-y-1">
+        <p>• <span className="text-foreground">VPIP</span>（主动入池率）：翻前主动投入筹码的比例，真人一般20-35%</p>
+        <p>• <span className="text-foreground">PFR</span>（翻前加注率）：翻前加注的比例，真人一般15-25%</p>
+        <p>• <span className="text-foreground">激进度</span>：加注/All-in占总操作的比例</p>
       </div>
     </div>
   );

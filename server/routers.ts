@@ -2385,6 +2385,7 @@ ${faqContext}
       autoRefillEnabled: z.boolean().optional(),
       fillWithoutRealPlayers: z.boolean().optional(),
       persistentOnlineCount: z.number().min(0).max(200).optional(),
+      rotationHands: z.number().min(0).max(1000).optional(),
     })).mutation(async ({ input }) => {
       if (input.enabled !== undefined) await db.upsertConfig("bot_enabled", String(input.enabled), "bot", "Bot启用", "boolean");
       if (input.maxPerTable !== undefined) await db.upsertConfig("bot_max_per_table", String(input.maxPerTable), "bot", "每桌最多Bot数", "number");
@@ -2398,6 +2399,7 @@ ${faqContext}
       if (input.autoRefillEnabled !== undefined) await db.upsertConfig("bot_auto_refill_enabled", String(input.autoRefillEnabled), "bot", "开启自动补充", "boolean");
       if (input.fillWithoutRealPlayers !== undefined) await db.upsertConfig("bot_fill_without_real_players", String(input.fillWithoutRealPlayers), "bot", "无真人时自动对玩", "boolean");
       if (input.persistentOnlineCount !== undefined) await db.upsertConfig("bot_persistent_online_count", String(input.persistentOnlineCount), "bot", "长期在线Bot总数", "number");
+      if (input.rotationHands !== undefined) await db.upsertConfig("bot_rotation_hands", String(input.rotationHands), "bot", "每桌轮换手数(0=不轮换)", "number");
       botManager.invalidateConfigCache();
       return { success: true };
     }),

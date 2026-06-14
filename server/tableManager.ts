@@ -973,6 +973,13 @@ async function settleHand(roomId: number) {
   // Bot system: track bot winnings/losses for daily limit
   await botManager.processBotSettlement(playerWinAmounts, gs.players.map(p => ({ id: p.id, totalBet: p.totalBet })));
 
+  // Bot system: track hands played and rotate bots if needed
+  const botUserIds = await botManager.getBotUserIds();
+  const botsInThisHand = gs.players.filter(p => botUserIds.includes(p.id)).map(p => p.id);
+  if (botsInThisHand.length > 0) {
+    await botManager.trackBotHandAndRotate(roomId, botsInThisHand);
+  }
+
   // Distribute agent commissions from rake (skip for tournaments)
   if (totalRake > 0 && table.handId && !isTournamentRoom) {
     try {

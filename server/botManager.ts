@@ -24,6 +24,7 @@ interface BotConfig {
   autoRefillEnabled: boolean; // 是否开启自动补充
   fillWithoutRealPlayers: boolean; // 无真人时是否填充bot自动对玩
   persistentOnlineCount: number; // 长期在线bot总数（分散到各桌）
+  rotationHands: number;     // 每桌打多少把后轮换bot（0=不轮换）
 }
 
 // 房间级别Bot配置
@@ -50,12 +51,16 @@ const DEFAULT_CONFIG: BotConfig = {
   autoRefillEnabled: true,
   fillWithoutRealPlayers: true,
   persistentOnlineCount: 0,
+  rotationHands: 0,
 };
 
 // 房间级别配置缓存
 let cachedRoomBotConfigs: Map<number, RoomBotConfig> = new Map();
 let roomConfigsCachedAt = 0;
 const ROOM_CONFIG_CACHE_TTL = 15000; // 15秒缓存
+
+// Bot轮换跟踪：每个房间中每个bot已打手数
+const botHandsPlayed = new Map<string, number>(); // key: "roomId:botId" -> hands played
 
 // ==================== 内存状态 ====================
 // 当前配置缓存
@@ -100,6 +105,7 @@ export async function getBotConfig(): Promise<BotConfig> {
   const autoRefillEnabled = await db.getConfigValue("bot_auto_refill_enabled", "true");
   const fillWithoutRealPlayers = await db.getConfigValue("bot_fill_without_real_players", "true");
   const persistentOnlineCount = await db.getConfigValue("bot_persistent_online_count", "0");
+  const rotationHands = await db.getConfigValue("bot_rotation_hands", "0");
 
   cachedConfig = {
     enabled: enabled === "true",
@@ -114,6 +120,7 @@ export async function getBotConfig(): Promise<BotConfig> {
     autoRefillEnabled: autoRefillEnabled === "true",
     fillWithoutRealPlayers: fillWithoutRealPlayers === "true",
     persistentOnlineCount: parseInt(persistentOnlineCount) || 0,
+    rotationHands: parseInt(rotationHands) || 0,
   };
   configCachedAt = now;
   return cachedConfig;
@@ -408,6 +415,58 @@ export async function removeBotsFromRoom(roomId: number): Promise<void> {
     }
   }
   seatedBots.delete(roomId);
+}
+
+// ==================== Bot轮换逻辑 ====================
+/**
+ * 记录bot在某房间打了一手，并检查是否需要轮换
+ * 在每手结算后调用
+ */
+export async function trackBotHandAndRotate(roomId: number, botIdsInHand: number[]): Promise<void> {
+  const config = await getBotConfig();
+  if (!config.enabled || config.rotationHands <= 0) return;
+
+  const botsToRotate: number[] = [];
+  
+  for (const botId of botIdsInHand) {
+    const key = `${roomId}:${botId}`;
+    const current = (botHandsPlayed.get(key) || 0) + 1;
+    botHandsPlayed.set(key, current);
+    
+    if (current >= config.rotationHands) {
+      botsToRotate.push(botId);
+      botHandsPlayed.delete(key);
+    }
+  }
+  
+  if (botsToRotate.length === 0) return;
+  
+  // 轮换：移除达到手数的bot，下一轮checkAndFillBots会自动补充新bot
+  const roomBots = seatedBots.get(roomId);
+  for (const botId of botsToRotate) {
+    try {
+      await db.removeRoomPlayer(roomId, botId);
+      roomBots?.delete(botId);
+      console.log(`[BotManager] Rotated bot ${botId} out of room ${roomId} after ${config.rotationHands} hands`);
+    } catch (e) {
+      console.error(`[BotManager] Error rotating bot ${botId} from room ${roomId}:`, e);
+    }
+  }
+  
+  // 更新房间人数
+  const remaining = await db.getRoomPlayers(roomId);
+  await db.updateRoom(roomId, { currentPlayers: remaining.length });
+}
+
+/**
+ * 获取bot轮换状态（用于管理后台显示）
+ */
+export function getBotRotationStatus(): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const [key, hands] of botHandsPlayed) {
+    result[key] = hands;
+  }
+  return result;
 }
 
 // ==================== Bot自动Ready ====================

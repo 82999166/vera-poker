@@ -766,3 +766,8 @@
 - [x] 机器人按场次独立配置（room_bot_config表，每个房间可独立设置botCount/enabled/foldRate/delay）
 - [x] 管理后台UI：场次独立bot配置面板（RoomBotConfigPanel组件）
 - [x] 测试验证: 185个测试全部通过
+
+## 2026-06-14 机器人增强第五批
+- [x] 机器人行为指标合并到用户列表（BotDetailTableMerged组件，VPIP/PFR/激进度/风格判定直接显示在bot统计表格中）
+- [x] 机器人轮换设置（rotationHands配置，每桌打N把后自动换bot，settleHand中触发轮换）
+- [x] 测试验证: 185个测试全部通过
