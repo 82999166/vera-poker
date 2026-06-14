@@ -1746,7 +1746,7 @@ export default function Table() {
                           <CardView
                             key={`h${handNumber}-o${player.id}-${i}`}
                             card={card}
-                            className="!w-[44px] !h-[58px]"
+                            className="!w-[36px] !h-[48px]"
                             flip={revealedOpponentIds.has(player.id)}
                             delay={i * 200}
                           />
@@ -1774,8 +1774,8 @@ export default function Table() {
                   {/* Show face-down cards for opponents during active hand (preflop/flop/turn/river) */}
                   {!isHero && displayPhase !== "showdown" && displayPhase !== "completed" && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && !(player as any).isSittingOut && (
                     <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${rotatedIndex === 1 || rotatedIndex === 2 ? '140px' : rotatedIndex === 3 ? '60px' : rotatedIndex === 4 ? '-40px' : '-80px'}`, '--deal-from-y': `${rotatedIndex === 1 || rotatedIndex === 5 ? '-60px' : rotatedIndex === 2 || rotatedIndex === 4 ? '-140px' : '-180px'}` } as React.CSSProperties}>
-                      <CardView faceDown className={`!w-8 !h-[42px]${dealingMyCards ? ' animate-deal' : ''}`} />
-                      <CardView faceDown className={`!w-8 !h-[42px]${dealingMyCards ? ' animate-deal-2' : ''}`} />
+                      <CardView faceDown className={`!w-7 !h-[36px]${dealingMyCards ? ' animate-deal' : ''}`} />
+                      <CardView faceDown className={`!w-7 !h-[36px]${dealingMyCards ? ' animate-deal-2' : ''}`} />
                     </div>
                   )}
 

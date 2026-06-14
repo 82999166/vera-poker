@@ -208,7 +208,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background particle-bg flex flex-col">
       {/* Hero Section */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 safe-top text-center">
         {/* Logo */}
         <div className="mb-8 relative">
           <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-gold via-gold-dim to-truth-blue flex items-center justify-center shadow-2xl glow-gold">
