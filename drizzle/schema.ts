@@ -48,6 +48,8 @@ export const users = mysqlTable("users", {
   riskLevel: mysqlEnum("riskLevel", ["normal", "watch", "frozen", "banned"]).default("normal").notNull(),
   deviceFingerprint: varchar("deviceFingerprint", { length: 256 }),
   lastIp: varchar("lastIp", { length: 64 }),
+  // Bot flag
+  isBot: boolean("isBot").default(false).notNull(),
   // Stats
   totalGamesPlayed: int("totalGamesPlayed").default(0).notNull(),
   totalRakeGenerated: decimal("totalRakeGenerated", { precision: 18, scale: 2 }).default("0.00").notNull(),

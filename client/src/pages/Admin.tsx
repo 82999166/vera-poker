@@ -1392,7 +1392,7 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // ==================== ADMIN TABS ====================
-type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs" | "csRecords" | "banners" | "tournaments" | "marketing";
+type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs" | "csRecords" | "banners" | "tournaments" | "marketing" | "bots";
 
 // ==================== MAIN ADMIN COMPONENT ====================
 export default function Admin() {
@@ -1440,8 +1440,8 @@ export default function Admin() {
 
   // Role-based tab permissions
   const roleTabMap: Record<string, AdminTab[]> = {
-    super_admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs", "marketing"],
-    admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs", "marketing"],
+    super_admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs", "marketing", "bots"],
+    admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs", "marketing", "bots"],
     cs: ["stats", "users", "rooms", "faq", "csRecords"],
     finance: ["stats", "finance", "agents"],
     tech: ["stats", "config", "rooms", "risk", "settings", "banners"],
@@ -1464,6 +1464,7 @@ export default function Admin() {
     { key: "csRecords", icon: MessageSquare, label: at("tab.csRecords") },
     { key: "logs", icon: Eye, label: at("tab.logs") },
     { key: "marketing", icon: Megaphone, label: at("tab.marketing") },
+    { key: "bots", icon: Bot, label: "AI机器人" },
   ];
   const tabs = allTabs.filter(t => allowedTabs.includes(t.key));
 
@@ -1634,6 +1635,7 @@ function PanelContent({ tab, at, onNavigate }: { tab: AdminTab; at: (key: string
     case "banners": return <BannersPanel at={at} />;
     case "tournaments": return <TournamentsPanel at={at} />;
     case "marketing": return <MarketingPanel at={at} />;
+    case "bots": return <BotManagementPanel at={at} />;
     default: return null;
   }
 }
@@ -5801,6 +5803,239 @@ function RegistrationBonusConfig({ at, configs, saveSystemSetting }: { at: (k: s
             </ul>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+
+// ==================== BOT MANAGEMENT PANEL ====================
+function BotManagementPanel({ at }: { at: (k: string) => string }) {
+  const { data: stats, isLoading, refetch } = trpc.adminBot.stats.useQuery(undefined, { refetchInterval: 5000 });
+  const { data: botList } = trpc.adminBot.list.useQuery();
+  const updateConfig = trpc.adminBot.updateConfig.useMutation({
+    onSuccess: () => { toast.success("配置已更新"); refetch(); },
+    onError: (err) => toast.error(err.message),
+  });
+  const resetLoss = trpc.adminBot.resetDailyLoss.useMutation({
+    onSuccess: () => { toast.success("每日亏损已重置"); refetch(); },
+  });
+
+  const [formState, setFormState] = useState<{
+    enabled?: boolean;
+    maxPerTable?: number;
+    dailyLossLimit?: number;
+    foldRate?: number;
+    minActionDelay?: number;
+    maxActionDelay?: number;
+  }>({});
+
+  useEffect(() => {
+    if (stats?.config) {
+      setFormState({
+        enabled: stats.config.enabled,
+        maxPerTable: stats.config.maxPerTable,
+        dailyLossLimit: stats.config.dailyLossLimit,
+        foldRate: stats.config.foldRate,
+        minActionDelay: stats.config.minActionDelay,
+        maxActionDelay: stats.config.maxActionDelay,
+      });
+    }
+  }, [stats?.config]);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-8"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
+  }
+
+  const lossPercent = stats ? Math.min((stats.dailyLoss / stats.dailyLossLimit) * 100, 100) : 0;
+
+  return (
+    <div className="space-y-6 p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <Bot className="w-5 h-5 text-gold" />
+            AI 陪玩机器人管理
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">管理机器人入座、策略、每日亏损限制</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${stats?.enabled ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
+            <span className={`w-2 h-2 rounded-full ${stats?.enabled ? "bg-emerald-400 animate-pulse" : "bg-red-400"}`} />
+            {stats?.enabled ? "运行中" : "已停止"}
+          </span>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="glass rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">活跃Bot数</p>
+          <p className="text-2xl font-bold text-gold mt-1">{stats?.activeBots ?? 0}</p>
+        </div>
+        <div className="glass rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">今日亏损</p>
+          <p className="text-2xl font-bold text-red-400 mt-1">${stats?.dailyLoss?.toFixed(2) ?? "0.00"}</p>
+        </div>
+        <div className="glass rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">亏损上限</p>
+          <p className="text-2xl font-bold text-foreground mt-1">${stats?.dailyLossLimit?.toFixed(2) ?? "0.00"}</p>
+        </div>
+        <div className="glass rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">亏损进度</p>
+          <div className="mt-2">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-emerald-500 to-red-500 rounded-full transition-all" style={{ width: `${lossPercent}%` }} />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{lossPercent.toFixed(1)}%</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Config Form */}
+      <div className="glass rounded-xl p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">系统配置</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Enable Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+            <div>
+              <p className="text-sm font-medium">启用Bot系统</p>
+              <p className="text-xs text-muted-foreground">开启后Bot将自动入座公共房间</p>
+            </div>
+            <button
+              onClick={() => setFormState(s => ({ ...s, enabled: !s.enabled }))}
+              className={`relative w-11 h-6 rounded-full transition-colors ${formState.enabled ? "bg-emerald-500" : "bg-secondary"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formState.enabled ? "translate-x-5" : ""}`} />
+            </button>
+          </div>
+
+          {/* Max Per Table */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <label className="text-sm font-medium">每桌最多Bot数</label>
+            <input
+              type="number"
+              min={1}
+              max={5}
+              value={formState.maxPerTable ?? 2}
+              onChange={e => setFormState(s => ({ ...s, maxPerTable: parseInt(e.target.value) || 2 }))}
+              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+          </div>
+
+          {/* Daily Loss Limit */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <label className="text-sm font-medium">每日亏损上限 ($)</label>
+            <input
+              type="number"
+              min={0}
+              value={formState.dailyLossLimit ?? 200}
+              onChange={e => setFormState(s => ({ ...s, dailyLossLimit: parseFloat(e.target.value) || 200 }))}
+              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+          </div>
+
+          {/* Fold Rate */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <label className="text-sm font-medium">弃牌率 (%)</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={formState.foldRate ?? 67}
+              onChange={e => setFormState(s => ({ ...s, foldRate: parseInt(e.target.value) || 67 }))}
+              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+            <p className="text-xs text-muted-foreground mt-1">越高越保守（推荐60-75）</p>
+          </div>
+
+          {/* Min Action Delay */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <label className="text-sm font-medium">最小操作延迟 (ms)</label>
+            <input
+              type="number"
+              min={500}
+              max={10000}
+              value={formState.minActionDelay ?? 2000}
+              onChange={e => setFormState(s => ({ ...s, minActionDelay: parseInt(e.target.value) || 2000 }))}
+              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+          </div>
+
+          {/* Max Action Delay */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <label className="text-sm font-medium">最大操作延迟 (ms)</label>
+            <input
+              type="number"
+              min={1000}
+              max={20000}
+              value={formState.maxActionDelay ?? 5000}
+              onChange={e => setFormState(s => ({ ...s, maxActionDelay: parseInt(e.target.value) || 5000 }))}
+              className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+            />
+          </div>
+        </div>
+
+        {/* Save & Reset Buttons */}
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={() => updateConfig.mutate(formState)}
+            disabled={updateConfig.isPending}
+            className="px-4 py-2 bg-gold text-black rounded-lg text-sm font-medium hover:bg-gold/90 transition-colors disabled:opacity-50"
+          >
+            {updateConfig.isPending ? "保存中..." : "保存配置"}
+          </button>
+          <button
+            onClick={() => resetLoss.mutate()}
+            disabled={resetLoss.isPending}
+            className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
+          >
+            重置今日亏损
+          </button>
+        </div>
+      </div>
+
+      {/* Bot List */}
+      <div className="glass rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Bot 账户列表</h3>
+        <div className="space-y-2">
+          {botList?.map((bot: any) => (
+            <div key={bot.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30">
+              <div className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center">
+                <Bot className="w-4 h-4 text-gold" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{bot.nickname || bot.name}</p>
+                <p className="text-xs text-muted-foreground">ID: {bot.id}</p>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {stats?.botsPerRoom && Object.values(stats.botsPerRoom).flat().includes?.(bot.id) ? (
+                  <span className="text-emerald-400">在线</span>
+                ) : (
+                  <span>空闲</span>
+                )}
+              </span>
+            </div>
+          ))}
+          {(!botList || botList.length === 0) && (
+            <p className="text-sm text-muted-foreground text-center py-4">暂无Bot账户</p>
+          )}
+        </div>
+      </div>
+
+      {/* Bot Strategy Description */}
+      <div className="glass rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Bot 策略说明</h3>
+        <div className="space-y-2 text-xs text-muted-foreground">
+          <p>• <span className="text-foreground font-medium">入座条件：</span>公共房间真实玩家 1-2 人时自动入座</p>
+          <p>• <span className="text-foreground font-medium">操作风格：</span>偏弱策略，高弃牌率，不跟大注，永不All-in</p>
+          <p>• <span className="text-foreground font-medium">筹码来源：</span>系统虚拟资金池，不影响真实用户余额</p>
+          <p>• <span className="text-foreground font-medium">亏损控制：</span>达到每日亏损上限后自动停止入座</p>
+          <p>• <span className="text-foreground font-medium">排行榜：</span>Bot数据不计入排行榜</p>
+          <p>• <span className="text-foreground font-medium">操作延迟：</span>模拟真人思考时间（{formState.minActionDelay}ms - {formState.maxActionDelay}ms）</p>
+        </div>
       </div>
     </div>
   );

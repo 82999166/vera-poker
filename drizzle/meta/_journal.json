@@ -162,6 +162,13 @@
       "when": 1780481717677,
       "tag": "0022_messy_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1781413126524,
+      "tag": "0023_lethal_flatman",
+      "breakpoints": true
     }
   ]
 }

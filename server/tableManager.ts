@@ -7,6 +7,7 @@ import * as gameEngine from "./gameEngine";
 import * as db from "./db";
 import { notifyTurnAction } from "./notifications";
 import { onHandCompleted } from "./tonChain";
+import * as botManager from "./botManager";
 // tournamentEngine is imported dynamically to avoid circular dependency
 // import * as tournamentEngine from "./tournamentEngine";
 import type { GameState, PlayerAction, Card } from "./gameEngine";
@@ -968,10 +969,21 @@ async function settleHand(roomId: number) {
     await tournamentEngine.incrementHandCount(tId);
   }
 
-  // Distribute agent commissions from rake (skip for tournaments)
+  // Bot system: track bot winnings/losses for daily limit
+  await botManager.processBotSettlement(playerWinAmounts, gs.players.map(p => ({ id: p.id, totalBet: p.totalBet })));
+
+  // Distribute agent commissions from rake (skip for tournaments, skip bots)
   if (totalRake > 0 && table.handId && !isTournamentRoom) {
     try {
-      await distributeAgentCommissions(totalRake, gs.players.map(p => p.id), table.handId);
+      // Exclude bot players from agent commission distribution
+      const realPlayerIds = [];
+      const botIds = await botManager.getBotUserIds();
+      for (const p of gs.players) {
+        if (!botIds.includes(p.id)) realPlayerIds.push(p.id);
+      }
+      if (realPlayerIds.length > 0) {
+        await distributeAgentCommissions(totalRake, realPlayerIds, table.handId);
+      }
     } catch (e) {
       console.error("[Commission] Error distributing commissions:", e);
     }
@@ -1104,6 +1116,8 @@ async function settleHand(roomId: number) {
       if (currentTable && currentTable.settlementStartedAt === table.settlementStartedAt) {
         currentTable.waitingForReady = true;
         currentTable.readyDeadline = Date.now() + 30000; // 30 seconds to ready up
+        // Bot system: auto-ready all bots after a short delay
+        botManager.autoReadyBots(roomId);
       }
     }, 7000);
   }
@@ -1118,6 +1132,12 @@ async function startNewHand(roomId: number) {
 
   // Activate all sitting_out players (Wait for Big Blind → now joining the game)
   await db.activateSittingOutPlayers(roomId);
+
+  // Bot system: refill zero-chip bots before removing them
+  await botManager.refillBotChips(roomId);
+
+  // Bot system: fill bots if not enough real players
+  await botManager.checkAndFillBots(roomId);
 
   const roomPlayersList = await db.getRoomPlayers(roomId);
   if (roomPlayersList.length < 2) return;
@@ -1278,6 +1298,16 @@ export function checkTimeouts() {
     if (table.waitingForReady) continue; // Don't auto-fold during ready phase
     if (table.gameState.phase === "showdown") continue; // Don't auto-fold during showdown (settle timer is running)
     
+    // Bot system: if current player is a bot, trigger bot action (with delay)
+    const currentPlayerForBot = table.gameState.players[table.gameState.currentPlayerIndex];
+    if (currentPlayerForBot && !currentPlayerForBot.isFolded) {
+      const elapsed0 = (now - table.lastActionAt) / 1000;
+      // Only trigger bot if at least 1 second has passed (give bot time to register)
+      if (elapsed0 >= 1) {
+        botManager.triggerBotAction(roomId);
+      }
+    }
+
     const elapsed = (now - table.lastActionAt) / 1000;
     if (elapsed > table.turnTimeout) {
       const currentPlayer = table.gameState.players[table.gameState.currentPlayerIndex];
@@ -1345,6 +1375,15 @@ export function checkTimeouts() {
           // Async DB cleanup (fire-and-forget, game state already consistent)
           (async () => {
             try {
+              // Bot players: just remove from room, no balance return
+              const isBotPlayer = await botManager.isBot(timedOutPlayerId);
+              if (isBotPlayer) {
+                await db.removeRoomPlayer(roomId, timedOutPlayerId);
+                botManager.onBotLeftTable(roomId, timedOutPlayerId);
+                const remaining = await db.getRoomPlayers(roomId);
+                await db.updateRoom(roomId, { currentPlayers: remaining.length });
+                return;
+              }
               const user = await db.getUserById(timedOutPlayerId);
               if (user && chipsToReturn > 0) {
                 const balanceBefore = user.balance;
@@ -1418,9 +1457,16 @@ async function handleReadyTimeout(roomId: number) {
   const unreadyPlayers = allPlayerIds.filter(id => !table.readyPlayers.has(id));
 
   // Remove unready players from the room (return chips to balance)
+  const botIds = await botManager.getBotUserIds();
   for (const playerId of unreadyPlayers) {
     const player = gs.players.find(p => p.id === playerId);
     if (player) {
+      // Bot players: just remove, don't return chips to balance (virtual pool)
+      if (botIds.includes(playerId)) {
+        await db.removeRoomPlayer(roomId, playerId);
+        botManager.onBotLeftTable(roomId, playerId);
+        continue;
+      }
       // Return remaining chips to balance atomically
       const user = await db.getUserById(playerId);
       if (user && player.chips > 0) {

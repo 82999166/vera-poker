@@ -694,3 +694,15 @@
 - [x] 全局oklch颜色改为hex：index.css @theme所有变量从oklch改为标准hex/rgba
 - [x] Switch组件改为inline style确保老iOS兼容
 - [x] BottomNav/Admin中残留oklch清理
+
+## 2026-06-14 陪玩机器人系统
+- [x] DB: users表添加isBot字段，8个bot账户已插入
+- [x] DB: 使用系统config表存储bot配置（无需独立表）
+- [x] DB: 每日亏损追踪使用内存变量（无需独立表，重启重置）
+- [x] 后端: botManager.ts - AI决策引擎（手牌评估、策略决策、随机延迟2-5秒）
+- [x] 后端: botManager.ts - 机器人管理器（自动入座/退出、亏损控制、生命周期）
+- [x] 后端: 与tableManager集成（机器人参与游戏循环：startNewHand/checkTimeouts/settleHand/readyPhase）
+- [x] 后端: admin路由 - 机器人配置管理、统计查询、每日亏损重置
+- [x] 前端: Admin机器人管理面板（开关、参数配置、机器人列表、亏损进度）
+- [x] 隐蔽性: 排行榜排除bot、代理佣金排除bot、AFK踢出不返还余额、随机延迟操作
+- [x] 测试: botManager.test.ts 6个测试全部通过

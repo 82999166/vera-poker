@@ -13,6 +13,7 @@ import * as db from "./db";
 import { invokeLLM } from "./_core/llm";
 import { nanoid } from "nanoid";
 import * as tableManager from "./tableManager";
+import * as botManager from "./botManager";
 
 // Staff guard - supports both admin_users session and legacy game user roles
 const staffProcedure = publicProcedure.use(({ ctx, next }) => {
@@ -1806,7 +1807,7 @@ ${faqContext}
       const dbInstance = await db.getDb();
       if (!dbInstance) return [];
       const { handPlayers, users } = await import("../drizzle/schema");
-      const { sql, eq, desc } = await import("drizzle-orm");
+      const { sql, eq, desc, and } = await import("drizzle-orm");
       const result = await dbInstance.select({
         userId: handPlayers.userId,
         name: users.name,
@@ -1816,7 +1817,7 @@ ${faqContext}
         totalProfit: sql<string>`CAST(SUM(CAST(${handPlayers.winAmount} AS DECIMAL(18,2)) - CAST(${handPlayers.betAmount} AS DECIMAL(18,2))) AS CHAR)`,
         totalHands: sql<number>`count(*)`,
       }).from(handPlayers)
-        .innerJoin(users, eq(handPlayers.userId, users.id))
+        .innerJoin(users, and(eq(handPlayers.userId, users.id), eq(users.isBot, false)))
         .groupBy(handPlayers.userId, users.name, users.nickname, users.tgUsername, users.avatar)
         .orderBy(desc(sql`SUM(CAST(${handPlayers.winAmount} AS DECIMAL(18,2)) - CAST(${handPlayers.betAmount} AS DECIMAL(18,2)))`))
         .limit(input.limit);
@@ -1826,7 +1827,7 @@ ${faqContext}
       const dbInstance = await db.getDb();
       if (!dbInstance) return [];
       const { handPlayers, users } = await import("../drizzle/schema");
-      const { sql, eq, desc } = await import("drizzle-orm");
+      const { sql, eq, desc, and } = await import("drizzle-orm");
       const result = await dbInstance.select({
         userId: handPlayers.userId,
         name: users.name,
@@ -1836,7 +1837,7 @@ ${faqContext}
         winRate: sql<number>`ROUND(SUM(CASE WHEN ${handPlayers.isWinner} = 1 THEN 1 ELSE 0 END) * 100.0 / count(*), 1)`,
         totalHands: sql<number>`count(*)`,
       }).from(handPlayers)
-        .innerJoin(users, eq(handPlayers.userId, users.id))
+        .innerJoin(users, and(eq(handPlayers.userId, users.id), eq(users.isBot, false)))
         .groupBy(handPlayers.userId, users.name, users.nickname, users.tgUsername, users.avatar)
         .having(sql`count(*) >= ${input.minHands}`)
         .orderBy(desc(sql`SUM(CASE WHEN ${handPlayers.isWinner} = 1 THEN 1 ELSE 0 END) * 100.0 / count(*)`))
@@ -1847,7 +1848,7 @@ ${faqContext}
       const dbInstance = await db.getDb();
       if (!dbInstance) return [];
       const { handPlayers, users } = await import("../drizzle/schema");
-      const { sql, eq, desc } = await import("drizzle-orm");
+      const { sql, eq, desc, and } = await import("drizzle-orm");
       const result = await dbInstance.select({
         userId: handPlayers.userId,
         name: users.name,
@@ -1856,7 +1857,7 @@ ${faqContext}
         avatar: users.avatar,
         totalHands: sql<number>`count(*)`,
       }).from(handPlayers)
-        .innerJoin(users, eq(handPlayers.userId, users.id))
+        .innerJoin(users, and(eq(handPlayers.userId, users.id), eq(users.isBot, false)))
         .groupBy(handPlayers.userId, users.name, users.nickname, users.tgUsername, users.avatar)
         .orderBy(desc(sql`count(*)`))
         .limit(input.limit);
@@ -2378,6 +2379,40 @@ ${faqContext}
       const [result] = await dbInstance.select({ count: sql<number>`count(*)` }).from(users)
         .where(inArray(users.role, ["admin", "cs", "finance", "tech"]));
       return { count: result?.count ?? 0 };
+    }),
+  }),
+  // ==================== BOT MANAGEMENT ====================
+  adminBot: router({
+    // Get bot system stats
+    stats: staffProcedure.query(async () => {
+      return botManager.getBotStats();
+    }),
+    // Get all bot users
+    list: staffProcedure.query(async () => {
+      return botManager.getBotUsers();
+    }),
+    // Update bot config
+    updateConfig: adminProcedure.input(z.object({
+      enabled: z.boolean().optional(),
+      maxPerTable: z.number().min(1).max(5).optional(),
+      dailyLossLimit: z.number().min(0).optional(),
+      foldRate: z.number().min(0).max(100).optional(),
+      minActionDelay: z.number().min(500).max(10000).optional(),
+      maxActionDelay: z.number().min(1000).max(20000).optional(),
+    })).mutation(async ({ input }) => {
+      if (input.enabled !== undefined) await db.upsertConfig("bot_enabled", String(input.enabled), "bot", "Bot启用", "boolean");
+      if (input.maxPerTable !== undefined) await db.upsertConfig("bot_max_per_table", String(input.maxPerTable), "bot", "每桌最多Bot数", "number");
+      if (input.dailyLossLimit !== undefined) await db.upsertConfig("bot_daily_loss_limit", String(input.dailyLossLimit), "bot", "每日亏损上限", "number");
+      if (input.foldRate !== undefined) await db.upsertConfig("bot_fold_rate", String(input.foldRate), "bot", "弃牌率(%)", "number");
+      if (input.minActionDelay !== undefined) await db.upsertConfig("bot_min_action_delay", String(input.minActionDelay), "bot", "最小操作延迟(ms)", "number");
+      if (input.maxActionDelay !== undefined) await db.upsertConfig("bot_max_action_delay", String(input.maxActionDelay), "bot", "最大操作延迟(ms)", "number");
+      botManager.invalidateConfigCache();
+      return { success: true };
+    }),
+    // Reset daily loss counter
+    resetDailyLoss: adminProcedure.mutation(async () => {
+      botManager.addBotWin(botManager.getDailyBotLoss()); // reset to 0
+      return { success: true };
     }),
   }),
   // Admin CS Records

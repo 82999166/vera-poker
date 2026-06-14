@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `isBot` boolean DEFAULT false NOT NULL;
