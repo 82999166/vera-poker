@@ -5840,12 +5840,17 @@ function RegistrationBonusConfig({ at, configs, saveSystemSetting }: { at: (k: s
 // ==================== BOT MANAGEMENT PANEL ====================
 function BotManagementPanel({ at }: { at: (k: string) => string }) {
   const { data: stats, isLoading, refetch } = trpc.adminBot.stats.useQuery(undefined, { refetchInterval: 5000 });
+  const utils = trpc.useUtils();
   const updateConfig = trpc.adminBot.updateConfig.useMutation({
     onSuccess: () => { toast.success("配置已更新"); refetch(); },
     onError: (err: any) => toast.error(err.message),
   });
   const resetLoss = trpc.adminBot.resetDailyLoss.useMutation({
     onSuccess: () => { toast.success("每日亏损已重置"); refetch(); },
+  });
+  const importBots = trpc.adminBot.importBots.useMutation({
+    onSuccess: (data: any) => { toast.success(`成功导入 ${data.count} 个机器人`); refetch(); },
+    onError: (err: any) => toast.error("导入失败: " + err.message),
   });
 
   const [formState, setFormState] = useState<{
@@ -6179,6 +6184,55 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
         </div>
       </div>
 
+      {/* Export / Import */}
+      <div className="glass rounded-xl p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">机器人导出 / 导入</h3>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={async () => {
+              try {
+                const result = await utils.adminBot.exportBots.fetch();
+                if (!result) { toast.error("导出失败"); return; }
+                const blob = new Blob([JSON.stringify(result.bots, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = `bots_export_${new Date().toISOString().slice(0,10)}.json`;
+                a.click(); URL.revokeObjectURL(url);
+                toast.success(`已导出 ${result.bots.length} 个机器人`);
+              } catch { toast.error("导出失败"); }
+            }}
+            className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-500/30 transition-colors"
+          >
+            导出Bot列表 (JSON)
+          </button>
+          <label className="px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition-colors cursor-pointer">
+            导入Bot列表
+            <input type="file" accept=".json" className="hidden" onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                const bots = Array.isArray(data) ? data : data.bots;
+                if (!Array.isArray(bots) || bots.length === 0) { toast.error("无效的Bot数据"); return; }
+                const importData = bots.map((b: any) => ({
+                  name: b.name || b.nickname || `Bot_${Math.random().toString(36).slice(2,6)}`,
+                  nickname: b.nickname || b.name,
+                  avatar: b.avatar || undefined,
+                  balance: parseFloat(b.balance) || 10000,
+                }));
+                importBots.mutate({ bots: importData });
+              } catch (err: any) { toast.error("导入失败: " + (err.message || "格式错误")); }
+              e.target.value = "";
+            }} />
+          </label>
+        </div>
+        <p className="text-xs text-muted-foreground">导出格式为JSON，可编辑后重新导入。导入时需包含 name 字段，balance 默认10000。</p>
+      </div>
+
+      {/* VPIP / PFR Behavior Metrics */}
+      <BotBehaviorMetrics />
+
       {/* Bot Strategy Description */}
       <div className="glass rounded-xl p-5">
         <h3 className="text-sm font-semibold text-foreground mb-3">Bot 策略说明</h3>
@@ -6190,6 +6244,66 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
           <p>• <span className="text-foreground font-medium">余额监控：</span>每5分钟检查一次，低于阈值时告警并自动补充</p>
           <p>• <span className="text-foreground font-medium">操作延迟：</span>模拟真人思考时间（{formState.minActionDelay}ms - {formState.maxActionDelay}ms）</p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// VPIP/PFR Behavior Metrics sub-component
+function BotBehaviorMetrics() {
+  const { data: metrics, isLoading } = trpc.adminBot.behaviorMetrics.useQuery(undefined, { refetchInterval: 30000 });
+  
+  if (isLoading) return <div className="glass rounded-xl p-5"><p className="text-sm text-muted-foreground">加载行为指标中...</p></div>;
+  if (!metrics || metrics.length === 0) return null;
+  
+  return (
+    <div className="glass rounded-xl p-5">
+      <h3 className="text-sm font-semibold text-foreground mb-3">Bot 行为指标（最近200手）</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-2 px-2 text-muted-foreground font-medium">名称</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">样本手数</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">VPIP</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">PFR</th>
+              <th className="text-right py-2 px-2 text-muted-foreground font-medium">激进度</th>
+              <th className="text-center py-2 px-2 text-muted-foreground font-medium">风格判定</th>
+            </tr>
+          </thead>
+          <tbody>
+            {metrics.map((m: any) => {
+              const vpip = parseFloat(m.vpip);
+              const pfr = parseFloat(m.pfr);
+              let style = "未知";
+              if (vpip < 20) style = "极紧";
+              else if (vpip < 30) style = "紧凑";
+              else if (vpip < 45) style = "标准";
+              else if (vpip < 60) style = "松散";
+              else style = "极松";
+              if (pfr > vpip * 0.7) style += "/激进";
+              else if (pfr < vpip * 0.3) style += "/被动";
+              else style += "/平衡";
+              return (
+                <tr key={m.id} className="border-b border-border/50 hover:bg-secondary/30">
+                  <td className="py-2 px-2 font-medium text-foreground">{m.name}</td>
+                  <td className="text-right py-2 px-2 text-muted-foreground">{m.hands}</td>
+                  <td className="text-right py-2 px-2 text-foreground font-mono">{m.vpip}%</td>
+                  <td className="text-right py-2 px-2 text-foreground font-mono">{m.pfr}%</td>
+                  <td className="text-right py-2 px-2 text-foreground font-mono">{m.aggressionFactor}%</td>
+                  <td className="text-center py-2 px-2">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-gold/20 text-gold">{style}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-3 text-xs text-muted-foreground space-y-1">
+        <p>• <span className="text-foreground">VPIP</span>（主动入池率）：翻前主动投入筹码的比例，真人一般20-35%</p>
+        <p>• <span className="text-foreground">PFR</span>（翻前加注率）：翻前加注的比例，真人一般15-25%</p>
+        <p>• <span className="text-foreground">激进度</span>：加注/All-in占总操作的比例</p>
       </div>
     </div>
   );

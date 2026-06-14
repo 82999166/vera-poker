@@ -2404,6 +2404,126 @@ ${faqContext}
       botManager.addBotWin(botManager.getDailyBotLoss()); // reset to 0
       return { success: true };
     }),
+    // Export bot list as JSON
+    exportBots: staffProcedure.query(async () => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { bots: [] };
+      const { users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const bots = await dbInstance.select({
+        id: users.id,
+        openId: users.openId,
+        name: users.name,
+        nickname: users.nickname,
+        avatar: users.avatar,
+        balance: users.balance,
+        isBot: users.isBot,
+        createdAt: users.createdAt,
+      }).from(users).where(eq(users.isBot, true));
+      return { bots };
+    }),
+    // Import bots (batch create bot accounts)
+    importBots: adminProcedure.input(z.object({
+      bots: z.array(z.object({
+        name: z.string().min(1),
+        nickname: z.string().optional(),
+        avatar: z.string().optional(),
+        balance: z.number().default(10000),
+      }))
+    })).mutation(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { success: false, count: 0 };
+      const { users } = await import("../drizzle/schema");
+      let count = 0;
+      for (const bot of input.bots) {
+        const openId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await dbInstance.insert(users).values({
+          openId,
+          name: bot.name,
+          nickname: bot.nickname || bot.name,
+          avatar: bot.avatar || null,
+          balance: String(bot.balance),
+          isBot: true,
+          role: "user",
+        });
+        count++;
+      }
+      botManager.invalidateConfigCache();
+      return { success: true, count };
+    }),
+    // Get VPIP/PFR behavior metrics for bots
+    behaviorMetrics: staffProcedure.query(async () => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return [];
+      const { gameHands, users } = await import("../drizzle/schema");
+      const { eq, sql, inArray, desc } = await import("drizzle-orm");
+      
+      const botUserIds = await botManager.getBotUserIds();
+      if (botUserIds.length === 0) return [];
+      
+      // Get bot names
+      const botUsers = await dbInstance.select({ id: users.id, name: users.name, nickname: users.nickname })
+        .from(users).where(inArray(users.id, botUserIds));
+      const nameMap = new Map(botUsers.map(b => [b.id, b.nickname || b.name || `Bot#${b.id}`]));
+      
+      // Get recent 200 hands with actionTimeline
+      const recentHands = await dbInstance.select({
+        id: gameHands.id,
+        actionTimeline: gameHands.actionTimeline,
+        playerSnapshot: gameHands.playerSnapshot,
+      }).from(gameHands)
+        .where(sql`${gameHands.actionTimeline} IS NOT NULL`)
+        .orderBy(desc(gameHands.id))
+        .limit(200);
+      
+      // Calculate VPIP and PFR per bot
+      const metrics: Record<number, { hands: number; vpip: number; pfr: number; aggression: number; totalActions: number; aggressiveActions: number }> = {};
+      for (const id of botUserIds) {
+        metrics[id] = { hands: 0, vpip: 0, pfr: 0, aggression: 0, totalActions: 0, aggressiveActions: 0 };
+      }
+      
+      for (const hand of recentHands) {
+        if (!hand.actionTimeline || !hand.playerSnapshot) continue;
+        const timeline = hand.actionTimeline as Array<{ phase: string; playerId: number; action: string; amount: number }>;
+        const snapshot = hand.playerSnapshot as Array<{ id: number }>;
+        
+        // Only count hands where bot participated
+        const botParticipants = snapshot.filter(p => botUserIds.includes(p.id));
+        
+        for (const botPlayer of botParticipants) {
+          const botId = botPlayer.id;
+          if (!metrics[botId]) continue;
+          metrics[botId].hands++;
+          
+          // VPIP: voluntarily put money in pot preflop (call/raise/all_in, excluding blinds)
+          const preflopActions = timeline.filter(a => a.phase === "preflop" && a.playerId === botId && a.action !== "post_blind");
+          const voluntaryPreflop = preflopActions.some(a => ["call", "raise", "all_in"].includes(a.action));
+          if (voluntaryPreflop) metrics[botId].vpip++;
+          
+          // PFR: preflop raise (raise or all_in preflop, excluding blinds)
+          const preflopRaise = preflopActions.some(a => ["raise", "all_in"].includes(a.action));
+          if (preflopRaise) metrics[botId].pfr++;
+          
+          // Aggression factor: (raise + all_in) / (call + check) across all streets
+          const allBotActions = timeline.filter(a => a.playerId === botId && a.action !== "post_blind");
+          for (const action of allBotActions) {
+            if (["raise", "all_in"].includes(action.action)) metrics[botId].aggressiveActions++;
+            if (["call", "check", "raise", "all_in"].includes(action.action)) metrics[botId].totalActions++;
+          }
+        }
+      }
+      
+      return botUserIds.map(id => ({
+        id,
+        name: nameMap.get(id) || `Bot#${id}`,
+        hands: metrics[id].hands,
+        vpip: metrics[id].hands > 0 ? ((metrics[id].vpip / metrics[id].hands) * 100).toFixed(1) : "0.0",
+        pfr: metrics[id].hands > 0 ? ((metrics[id].pfr / metrics[id].hands) * 100).toFixed(1) : "0.0",
+        aggressionFactor: metrics[id].totalActions > 0 
+          ? (metrics[id].aggressiveActions / metrics[id].totalActions * 100).toFixed(1) 
+          : "0.0",
+      }));
+    }),
   }),
   // Admin CS Records
   adminCs: router({

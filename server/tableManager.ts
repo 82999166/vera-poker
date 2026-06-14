@@ -239,16 +239,17 @@ export async function getPlayerView(roomId: number, playerId: number) {
     }
   }
 
+  // When waitingForReady is true, the hand is over - clear cards so frontend doesn't show stale data
   return {
-    phase: gs.phase,
+    phase: table.waitingForReady ? 'completed' : gs.phase,
     players,
-    communityCards: gs.communityCards,
-    pot: gs.pot,
+    communityCards: table.waitingForReady ? [] : gs.communityCards,
+    pot: table.waitingForReady ? 0 : gs.pot,
     currentBet: gs.currentBet,
     currentPlayerIndex: gs.currentPlayerIndex,
     currentPlayerId: gs.currentPlayerIndex >= 0 ? gs.players[gs.currentPlayerIndex]?.id : null,
     dealerIndex: gs.dealerIndex,
-    myCards,
+    myCards: table.waitingForReady ? [] : myCards,
     handNumber: table.handNumber,
     serverSeedHash: gs.serverSeedHash,
     lastActionAt: table.lastActionAt,
