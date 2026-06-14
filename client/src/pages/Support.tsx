@@ -204,7 +204,7 @@ export default function Support() {
   return (
     <div className="h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="glass-strong px-4 py-3 flex items-center gap-3 z-10">
+      <header className="glass-strong px-4 py-3 flex items-center gap-3 z-10 safe-top">
         <button onClick={() => navigate("/lobby")} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </button>

@@ -298,14 +298,14 @@ function AnimatedPot({ amount }: { amount: number }) {
 const DEFAULT_AVATAR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/default-avatar-aXRqAewdDSMxKYhaCU9DtA.webp";
 
 // Player seat positions for 6-max table (oval layout)
-// Hero at bottom-center; side seats use % inset to stay within screen on all phones
+// Hero at bottom-center; side seats pulled inward to avoid edge clipping on all phones
 const SEAT_POSITIONS = [
-  { top: "80%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
-  { top: "67%", left: "3%",  transform: "translate(0, -50%)" },      // Left bottom
-  { top: "27%", left: "3%",  transform: "translate(0, -50%)" },      // Left top
-  { top: "5%",  left: "50%", transform: "translate(-50%, 0)" },       // Top
-  { top: "27%", left: "97%", transform: "translate(-100%, -50%)" }, // Right top
-  { top: "67%", left: "97%", transform: "translate(-100%, -50%)" }, // Right bottom
+  { top: "78%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
+  { top: "60%", left: "6%",  transform: "translate(0, -50%)" },      // Left bottom
+  { top: "28%", left: "6%",  transform: "translate(0, -50%)" },      // Left top
+  { top: "10%", left: "50%", transform: "translate(-50%, 0)" },       // Top
+  { top: "28%", left: "94%", transform: "translate(-100%, -50%)" }, // Right top
+  { top: "60%", left: "94%", transform: "translate(-100%, -50%)" }, // Right bottom
 ];
 
 // Hand rank translation helper - maps English server descriptions to i18n keys
@@ -1524,7 +1524,7 @@ export default function Table() {
         <div className="absolute inset-0">
 
             {/* ===== Deck Shoe (card shoe) - top right of table ===== */}
-            <div className={`absolute top-[10%] right-[10%] z-5 pointer-events-none ${(dealingMyCards || animateCards) ? 'animate-deck-pulse' : ''}`}>
+            <div className={`absolute top-[8%] right-[8%] z-5 pointer-events-none ${(dealingMyCards || animateCards) ? 'animate-deck-pulse' : ''}`}>
               {/* 3D stacked deck visual */}
               <div className="relative w-[30px] h-[42px]">
                 {/* Bottom cards (stack depth effect) */}
@@ -1551,7 +1551,7 @@ export default function Table() {
             </div>
 
             {/* Pot display */}
-            <div className="absolute top-[28%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+            <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
               <AnimatedPot amount={displayPot} />
               {displayPlayers.length > 0 && (
                 <div className="flex items-center justify-center gap-1 mt-1">
@@ -1562,7 +1562,7 @@ export default function Table() {
             </div>
 
             {/* Community Cards - responsive size for small screens */}
-            <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5" style={{ '--deal-comm-x': '130px', '--deal-comm-y': '-130px' } as React.CSSProperties}>
+            <div className="absolute top-[43%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5" style={{ '--deal-comm-x': '130px', '--deal-comm-y': '-130px' } as React.CSSProperties}>
               {displayCommunity.map((card, i) => {
                 // Only animate cards that are newly dealt (index >= animateFromIndex)
                 const isNewCard = animateCards && i >= animateFromIndex;
@@ -1577,7 +1577,7 @@ export default function Table() {
 
             {/* Showdown / Comparing Hands Banner */}
             {(displayPhase === "showdown") && !showWinner && (
-              <div className="absolute top-[58%] left-1/2 -translate-x-1/2 z-20 animate-banner">
+              <div className="absolute top-[55%] left-1/2 -translate-x-1/2 z-20 animate-banner">
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/80 border border-gold/50 backdrop-blur-sm shadow-[0_0_20px_rgba(234,179,8,0.2)]">
                   <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
                   <span className="text-xs font-bold text-gold">{t("table.comparingHands")}</span>
@@ -1705,7 +1705,7 @@ export default function Table() {
                   {/* Player cards next to seat */}
                   {isHero && displayMyCards.length > 0 && (
                     <div className="flex flex-col items-center gap-0.5 mb-0.5">
-                      <div className="flex gap-1" style={{ '--deal-from-x': '120px', '--deal-from-y': '-280px' } as React.CSSProperties}>
+                      <div className="flex gap-1" style={{ '--deal-from-x': '100px', '--deal-from-y': '-250px' } as React.CSSProperties}>
                         {displayMyCards.map((card, i) => (
                           <CardView key={`h${handNumber}-m${i}`} card={card} className={`!w-12 !h-[64px]${dealingMyCards ? (i === 0 ? ' animate-deal' : ' animate-deal-2') : ''}`} animate delay={i * 200} />
                         ))}
@@ -1773,7 +1773,7 @@ export default function Table() {
                   )}
                   {/* Show face-down cards for opponents during active hand (preflop/flop/turn/river) */}
                   {!isHero && displayPhase !== "showdown" && displayPhase !== "completed" && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && !(player as any).isSittingOut && (
-                    <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${rotatedIndex === 1 || rotatedIndex === 2 ? '160px' : rotatedIndex === 3 ? '50px' : rotatedIndex === 4 ? '-60px' : '-100px'}`, '--deal-from-y': `${rotatedIndex === 1 || rotatedIndex === 5 ? '-80px' : rotatedIndex === 2 || rotatedIndex === 4 ? '-160px' : '-200px'}` } as React.CSSProperties}>
+                    <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${rotatedIndex === 1 || rotatedIndex === 2 ? '140px' : rotatedIndex === 3 ? '60px' : rotatedIndex === 4 ? '-40px' : '-80px'}`, '--deal-from-y': `${rotatedIndex === 1 || rotatedIndex === 5 ? '-60px' : rotatedIndex === 2 || rotatedIndex === 4 ? '-140px' : '-180px'}` } as React.CSSProperties}>
                       <CardView faceDown className={`!w-9 !h-[50px]${dealingMyCards ? ' animate-deal' : ''}`} />
                       <CardView faceDown className={`!w-9 !h-[50px]${dealingMyCards ? ' animate-deal-2' : ''}`} />
                     </div>

@@ -640,3 +640,8 @@
 - [x] 全屏模式顶部safe area适配（使用--tg-safe-area-inset-top + --tg-content-safe-area-inset-top双变量）
 - [x] 大厅卡片间距加大（space-y-4 + p-4 + gap-4 + mt-1）
 - [x] 所有页面顶部safe-top类统一使用TG双变量计算
+
+## 2026-06-14 UI修复 Round 3
+
+- [x] 客服页面顶部header加safe area间距（返回按钮被TG状态栏遮挡）
+- [x] 游戏桌面布局重新调整（桌面大小、位置、所有玩家座位位置优化）
