@@ -269,10 +269,8 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
   // 应用全局maxPerTable限制
   targetBotCount = Math.min(targetBotCount, config.maxPerTable);
 
-  // 应用1:1比例限制：bot数不超过真人数
-  // 当有真人时，bot数 <= 真人数；无真人时不填充bot
-  if (realPlayers.length === 0) return; // 无真人时不添加bot
-  targetBotCount = Math.min(targetBotCount, realPlayers.length); // 1:1比例
+  // 无真人时，根据fillWithoutRealPlayers配置决定是否填充bot
+  if (realPlayers.length === 0 && !config.fillWithoutRealPlayers) return;
 
   // 如果bot超过目标数量，移除多余的bot
   if (botsAtTable.length > targetBotCount) {
@@ -289,7 +287,7 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
           }
           await db.removeRoomPlayer(roomId, bot.userId);
           seatedBots.get(roomId)?.delete(bot.userId);
-          console.log(`[BotManager] Removed excess bot ${bot.userId} from room ${roomId} (1:1 ratio enforcement)`);
+          console.log(`[BotManager] Removed excess bot ${bot.userId} from room ${roomId} (exceeded target count)`);
         }
       } catch (e) {
         console.error(`[BotManager] Error removing excess bot:`, e);
@@ -346,8 +344,28 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
       return;
     }
 
-    const result = await joinTable(roomId, selectedBotId, buyIn);
-    if (result.success) {
+    // 检查是否有活跃游戏会话
+    const existingTable = getTable(roomId);
+    
+    if (existingTable) {
+      // 有活跃游戏：直接将bot作为active状态加入，绕过joinTable的activeTables检查
+      // joinTable会在游戏进行中将新玩家标记为sitting_out，但bot在startNewHand中
+      // 被调用时需要立即作为active参与游戏
+      const existingPlayers = await db.getRoomPlayersAll(roomId);
+      const takenSeats = new Set(existingPlayers.map((p: any) => p.seatIndex));
+      let seatIndex = -1;
+      for (let i = 0; i < room.maxPlayers; i++) {
+        if (!takenSeats.has(i)) {
+          seatIndex = i;
+          break;
+        }
+      }
+      if (seatIndex === -1) {
+        await db.addUserBalanceAtomic(selectedBotId, buyIn);
+        return;
+      }
+      await db.addRoomPlayer(roomId, selectedBotId, seatIndex, buyIn.toString());
+      await db.updateRoom(roomId, { currentPlayers: existingPlayers.length + 1 });
       await db.createTransaction({
         userId: selectedBotId,
         type: "buy_in",
@@ -361,9 +379,28 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
       });
       if (!seatedBots.has(roomId)) seatedBots.set(roomId, new Set());
       seatedBots.get(roomId)!.add(selectedBotId);
-      console.log(`[BotManager] Bot ${selectedBotId} joined room ${roomId} at seat ${result.seatIndex}`);
+      console.log(`[BotManager] Bot ${selectedBotId} joined room ${roomId} at seat ${seatIndex}`);
     } else {
-      await db.addUserBalanceAtomic(selectedBotId, buyIn);
+      // 没有活跃游戏：使用joinTable（会自动触发startNewHand）
+      const result = await joinTable(roomId, selectedBotId, buyIn);
+      if (result.success) {
+        await db.createTransaction({
+          userId: selectedBotId,
+          type: "buy_in",
+          amount: buyIn.toFixed(2),
+          balanceBefore: String(currentBalance),
+          balanceAfter: newBalance,
+          status: "confirmed",
+          referenceType: "room",
+          referenceId: roomId,
+          note: `买入房间 ${room.name || roomId}`,
+        });
+        if (!seatedBots.has(roomId)) seatedBots.set(roomId, new Set());
+        seatedBots.get(roomId)!.add(selectedBotId);
+        console.log(`[BotManager] Bot ${selectedBotId} joined room ${roomId} at seat ${result.seatIndex}`);
+      } else {
+        await db.addUserBalanceAtomic(selectedBotId, buyIn);
+      }
     }
   } catch (e) {
     console.error(`[BotManager] Error adding bot to room ${roomId}:`, e);
@@ -403,7 +440,7 @@ export async function persistentBotScheduler(): Promise<void> {
   // 将bot分散到各个房间（只分配到明确配置了bot的房间，且有真人在等待的）
   // 每次只补充1个，防止瞬间涌入
   for (let i = 0; i < Math.min(needed, 1); i++) {
-    // 找到有真人且bot未达到1:1比例的房间
+    // 找到bot未达到配置数量的房间
     let bestRoom: typeof publicRooms[0] | null = null;
     let minBots = Infinity;
     for (const room of publicRooms) {
@@ -412,12 +449,11 @@ export async function persistentBotScheduler(): Promise<void> {
       if (!roomConfig.enabled) continue;
       const botsInRoom = seatedBots.get(room.id)?.size || 0;
       const maxAllowed = Math.min(roomConfig.botCount, config.maxPerTable);
-      // 检查该房间是否有真人玩家
+      // 检查该房间是否有真人玩家（无真人时根据fillWithoutRealPlayers配置决定）
       const roomPlayers = await db.getRoomPlayers(room.id);
       const realCount = roomPlayers.filter((rp: any) => !botUserIds.includes(rp.userId)).length;
-      // 1:1比例：bot不能超过真人数
-      const effectiveMax = Math.min(maxAllowed, realCount);
-      if (realCount > 0 && botsInRoom < effectiveMax && botsInRoom < room.maxPlayers - 1 && botsInRoom < minBots) {
+      if (realCount === 0 && !config.fillWithoutRealPlayers) continue;
+      if (botsInRoom < maxAllowed && botsInRoom < room.maxPlayers - 1 && botsInRoom < minBots) {
         minBots = botsInRoom;
         bestRoom = room;
       }
