@@ -1591,8 +1591,8 @@ export default function Table() {
               </div>
             </div>
 
-            {/* Pot display */}
-            <div className="absolute top-[33%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+            {/* Pot display - centered in table, z-20 to stay above cards */}
+            <div className="absolute top-[36%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-20">
               <AnimatedPot amount={displayPot} />
               {displayPlayers.length > 0 && (
                 <div className="flex items-center justify-center gap-1 mt-1">
@@ -1603,7 +1603,7 @@ export default function Table() {
             </div>
 
             {/* Community Cards - responsive size for small screens */}
-            <div className="absolute top-[46%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5" style={{ '--deal-comm-x': '130px', '--deal-comm-y': '-130px' } as React.CSSProperties}>
+            <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5 z-15" style={{ '--deal-comm-x': '130px', '--deal-comm-y': '-130px' } as React.CSSProperties}>
               {displayCommunity.map((card, i) => {
                 // Only animate cards that are newly dealt (index >= animateFromIndex)
                 const isNewCard = animateCards && i >= animateFromIndex;
@@ -1618,7 +1618,7 @@ export default function Table() {
 
             {/* Showdown / Comparing Hands Banner */}
             {(displayPhase === "showdown") && !showWinner && (
-              <div className="absolute top-[58%] left-1/2 -translate-x-1/2 z-20 animate-banner">
+              <div className="absolute top-[62%] left-1/2 -translate-x-1/2 z-20 animate-banner">
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/80 border border-gold/50 backdrop-blur-sm shadow-[0_0_20px_rgba(234,179,8,0.2)]">
                   <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
                   <span className="text-xs font-bold text-gold">{t("table.comparingHands")}</span>
@@ -1739,13 +1739,14 @@ export default function Table() {
             const isCurrentTurn = isDemoMode ? player.isActive : (tableState?.currentPlayerId === player.id);
             const isWinner = winnerPlayerIds.includes(player.id);
             const isLoser = winnerPlayerIds.length > 0 && !winnerPlayerIds.includes(player.id) && !player.isFolded;
+            const isTopPlayer = rotatedIndex === 3; // Top-center seat
             return (
               <div
                 key={player.id}
                 className={`absolute transition-all duration-300 z-10 ${isLoser ? "animate-loser" : ""}`}
                 style={{ top: pos.top, left: pos.left, transform: pos.transform }}
               >
-                <div className={`flex flex-col items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} ${isWinner ? "animate-winner-glow" : ""} transition-transform duration-200`}>
+                <div className={`flex ${isTopPlayer ? 'flex-col-reverse' : 'flex-col'} items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} ${isWinner ? "animate-winner-glow" : ""} transition-transform duration-200`}>
                   {/* Player cards next to seat */}
                   {isHero && displayMyCards.length > 0 && (
                     <div className="flex flex-col items-center gap-0.5 mb-0.5">
