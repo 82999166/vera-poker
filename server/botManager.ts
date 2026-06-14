@@ -259,10 +259,42 @@ export async function checkAndFillBots(roomId: number): Promise<void> {
   let targetBotCount: number;
   
   if (roomConfig) {
-    // 使用房间级别配置的botCount
+    // 使用房间级别配置的botCount作为上限
     targetBotCount = roomConfig.botCount;
   } else {
     // 未配置独立bot的房间，不自动填充bot
+    return;
+  }
+
+  // 应用全局maxPerTable限制
+  targetBotCount = Math.min(targetBotCount, config.maxPerTable);
+
+  // 应用1:1比例限制：bot数不超过真人数
+  // 当有真人时，bot数 <= 真人数；无真人时不填充bot
+  if (realPlayers.length === 0) return; // 无真人时不添加bot
+  targetBotCount = Math.min(targetBotCount, realPlayers.length); // 1:1比例
+
+  // 如果bot超过目标数量，移除多余的bot
+  if (botsAtTable.length > targetBotCount) {
+    const excessCount = botsAtTable.length - targetBotCount;
+    const botsToRemove = botsAtTable.slice(0, excessCount);
+    for (const bot of botsToRemove) {
+      try {
+        // 返还筹码并移除
+        const rp = roomPlayers.find((p: any) => p.userId === bot.userId);
+        if (rp) {
+          const chips = parseFloat(rp.chipCount);
+          if (chips > 0) {
+            await db.addUserBalanceAtomic(bot.userId, chips);
+          }
+          await db.removeRoomPlayer(roomId, bot.userId);
+          seatedBots.get(roomId)?.delete(bot.userId);
+          console.log(`[BotManager] Removed excess bot ${bot.userId} from room ${roomId} (1:1 ratio enforcement)`);
+        }
+      } catch (e) {
+        console.error(`[BotManager] Error removing excess bot:`, e);
+      }
+    }
     return;
   }
 
@@ -368,19 +400,24 @@ export async function persistentBotScheduler(): Promise<void> {
   // 需要补充的bot数量
   const needed = target - currentOnlineCount;
 
-  // 将bot分散到各个房间（只分配到明确配置了bot的房间）
-  for (let i = 0; i < Math.min(needed, 3); i++) { // 每次最多补充3个，防止瞬间涌入
-    // 找到bot最少的房间（只考虑有独立配置且启用的房间）
+  // 将bot分散到各个房间（只分配到明确配置了bot的房间，且有真人在等待的）
+  // 每次只补充1个，防止瞬间涌入
+  for (let i = 0; i < Math.min(needed, 1); i++) {
+    // 找到有真人且bot未达到1:1比例的房间
     let bestRoom: typeof publicRooms[0] | null = null;
     let minBots = Infinity;
     for (const room of publicRooms) {
       const roomConfig = await getRoomBotConfig(room.id);
-      // 只分配到明确配置了bot的房间，未配置的跳过
       if (!roomConfig) continue;
-      if (!roomConfig.enabled) continue; // 跳过禁用bot的房间
+      if (!roomConfig.enabled) continue;
       const botsInRoom = seatedBots.get(room.id)?.size || 0;
-      const maxAllowed = roomConfig.botCount;
-      if (botsInRoom < maxAllowed && botsInRoom < room.maxPlayers - 1 && botsInRoom < minBots) {
+      const maxAllowed = Math.min(roomConfig.botCount, config.maxPerTable);
+      // 检查该房间是否有真人玩家
+      const roomPlayers = await db.getRoomPlayers(room.id);
+      const realCount = roomPlayers.filter((rp: any) => !botUserIds.includes(rp.userId)).length;
+      // 1:1比例：bot不能超过真人数
+      const effectiveMax = Math.min(maxAllowed, realCount);
+      if (realCount > 0 && botsInRoom < effectiveMax && botsInRoom < room.maxPlayers - 1 && botsInRoom < minBots) {
         minBots = botsInRoom;
         bestRoom = room;
       }

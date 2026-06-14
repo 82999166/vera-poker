@@ -798,3 +798,11 @@
 - [x] 后台数据统计增加在线人数总数（真人+bot，实时从内存读取）
 - [x] 每个场次的在线人数明细（场次名、盲注、总人数、真人、Bot）
 - [x] 185个测试全部通过
+
+## 2026-06-14 Bot匹配逻辑优化：1:1比例 + maxPerTable生效
+- [x] 真人在牌桌等待时，自动匹配1个bot就位（每次只添加1个）
+- [x] 机器人与真人比例1:1（bot数 <= 真人数，无真人不添加bot）
+- [x] maxPerTable全局限制生效（targetBotCount受maxPerTable约束）
+- [x] 超额bot自动移除（真人离开后，多余bot会在下一手开始前被移除）
+- [x] persistentBotScheduler也遵守1:1比例和maxPerTable
+- [x] 185个测试全部通过
