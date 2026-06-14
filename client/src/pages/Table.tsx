@@ -1299,7 +1299,7 @@ export default function Table() {
       <button
         onClick={() => setShowTableMenu(true)}
         className="absolute z-30 w-9 h-9 rounded-full bg-black/60 border border-white/20 flex items-center justify-center backdrop-blur-sm active:scale-90 transition-transform left-2"
-        style={{ top: 'max(env(safe-area-inset-top, 0px), 8px)' }}
+        style={{ top: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px) + 4px)' }}
       >
         <Menu className="w-4.5 h-4.5 text-white/80" />
       </button>
@@ -1307,7 +1307,7 @@ export default function Table() {
       {/* Floating room name + phase (top-center) */}
       <div
         className="absolute left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 border border-white/10 backdrop-blur-sm"
-        style={{ top: 'max(env(safe-area-inset-top, 0px), 8px)' }}
+        style={{ top: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px) + 4px)' }}
       >
         {isTournamentTable && <Trophy className="w-3 h-3 text-gold" />}
         <span className="text-[11px] text-white/70 font-medium truncate max-w-[100px]">
@@ -1324,7 +1324,7 @@ export default function Table() {
       <button
         onClick={() => { setMuted(!muted); toggleSound(); }}
         className="absolute z-30 w-9 h-9 rounded-full bg-black/60 border border-white/20 flex items-center justify-center backdrop-blur-sm active:scale-90 transition-transform right-2"
-        style={{ top: 'max(env(safe-area-inset-top, 0px), 8px)' }}
+        style={{ top: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px) + 4px)' }}
       >
         {muted ? <VolumeX className="w-4 h-4 text-white/60" /> : <Volume2 className="w-4 h-4 text-white/80" />}
       </button>
@@ -1333,7 +1333,7 @@ export default function Table() {
       {showTableMenu && (
         <div className="fixed inset-0 z-[60]" onClick={() => setShowTableMenu(false)}>
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div className="absolute top-0 left-0 h-full w-[220px] bg-gradient-to-b from-[#1a2744] to-[#0d1a2e] border-r border-white/10 shadow-2xl p-4 flex flex-col gap-1" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }} onClick={e => e.stopPropagation()}>
+          <div className="absolute top-0 left-0 h-full w-[220px] bg-gradient-to-b from-[#1a2744] to-[#0d1a2e] border-r border-white/10 shadow-2xl p-4 flex flex-col gap-1" style={{ paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px) + 16px)' }} onClick={e => e.stopPropagation()}>
             {/* Close */}
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-bold text-white">{room?.name || t("table.demo")}</span>

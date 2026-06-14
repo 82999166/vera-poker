@@ -339,13 +339,16 @@ html, body, #root {
 }
 
 /* Safe area padding for notch devices */
-/* Use Telegram's own CSS variables first, fallback to standard env() */
+/* In TG fullscreen mode, total top offset = system safe area + content safe area */
 .safe-bottom {
   padding-bottom: var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 .safe-top {
-  padding-top: var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px));
+  padding-top: calc(
+    var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) +
+    var(--tg-content-safe-area-inset-top, 0px)
+  );
 }
 
 /* Prevent horizontal overflow on mobile */

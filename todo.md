@@ -637,5 +637,6 @@
 ## 2026-06-14 UI修复 Round 2
 
 - [x] 汉堡菜单内容检查（已确认完整：返回大厅/离开/手牌历史/验证/海报/语音）
-- [x] 全屏模式顶部safe area适配（浮动按钮+侧滑菜单加env(safe-area-inset-top)）
+- [x] 全屏模式顶部safe area适配（使用--tg-safe-area-inset-top + --tg-content-safe-area-inset-top双变量）
 - [x] 大厅卡片间距加大（space-y-4 + p-4 + gap-4 + mt-1）
+- [x] 所有页面顶部safe-top类统一使用TG双变量计算
