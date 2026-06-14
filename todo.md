@@ -714,3 +714,12 @@
 - [x] 前端: 管理后台DeepSeek配置面板（API Key/URL/模型/MaxTokens/Temperature + 客服专属配置）
 - [x] 移除对BUILT_IN_FORGE_API_KEY/URL的LLM依赖（不再引用_core/llm.ts）
 - [x] 测试验证: 169个测试全部通过（含5个deepseek专属测试）
+
+## 2026-06-14 AI机器人决策引擎优化（概率计算）
+- [x] 重写决策引擎：基于手牌强度+公共牌面计算胜率(equity)
+- [x] 实现preflop手牌分级（AA=85%、KK=82%、AKs=67%、弱牌72o=32%）
+- [x] 实现postflop牌力评估（成牌强度+听牌数outs+顶对/底对识别）
+- [x] 实现底池赔率计算（equity > potOdds 则跟注有正EV）
+- [x] 加入位置因素（后位+3%、前位-2%）
+- [x] 加入个性化偏差（基于playerId生成稳定风格偏差±5%）
+- [x] 测试验证: 175个测试全部通过（含12个botManager测试）

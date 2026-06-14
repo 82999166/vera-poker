@@ -302,8 +302,8 @@ export async function triggerBotAction(roomId: number): Promise<void> {
       const player = currentGs.players[currentGs.currentPlayerIndex];
       if (!player || player.id !== currentPlayer.id) return; // 不再是这个bot的回合
 
-      // AI决策
-      const decision = decideBotAction(currentGs, player, config);
+      // AI决策（基于概率计算）
+      const decision = decideBotAction(currentGs, player, currentTable.bigBlind, config);
       
       // 执行操作
       await processPlayerAction(roomId, player.id, decision.action, decision.amount);
@@ -315,131 +315,456 @@ export async function triggerBotAction(roomId: number): Promise<void> {
   }, delay);
 }
 
-/**
- * Bot AI 决策引擎
- * 策略：偏弱，高弃牌率，不跟大注，永不All-in
- */
-function decideBotAction(
-  gs: GameState,
-  player: typeof gs.players[0],
-  config: BotConfig
-): { action: PlayerAction; amount?: number } {
-  const { currentBet, communityCards, pot } = gs;
-  const toCall = currentBet - player.currentBet;
-  const canCheck = toCall <= 0;
-
-  // 评估手牌强度（如果有公共牌）
-  let handStrength = 0; // 0-10 scale
-  if (communityCards.length >= 3 && player.holeCards.length === 2) {
-    const evaluation = gameEngine.evaluateHand(player.holeCards, communityCards);
-    handStrength = evaluation.rankValue; // 1-10
-  } else if (player.holeCards.length === 2) {
-    // Preflop: 简单评估起手牌强度
-    handStrength = evaluatePreflopStrength(player.holeCards);
-  }
-
-  // === 核心策略 ===
-
-  // 1. 面对大注（> 3x大盲）且手牌弱：高概率弃牌
-  const bigBlind = gs.players.length >= 2 ? currentBet : 1; // 近似
-  if (toCall > bigBlind * 3 && handStrength < 5) {
-    // 90%弃牌
-    if (Math.random() < 0.9) {
-      return { action: "fold" };
-    }
-  }
-
-  // 2. 面对All-in：除非手牌很强，否则弃牌
-  const anyAllIn = gs.players.some(p => p.isAllIn && p.id !== player.id);
-  if (anyAllIn && handStrength < 7) {
-    return { action: "fold" };
-  }
-
-  // 3. 基础弃牌率判断
-  if (!canCheck && Math.random() * 100 < config.foldRate) {
-    // 但如果手牌很强(>=7)，降低弃牌概率
-    if (handStrength < 7) {
-      return { action: "fold" };
-    }
-  }
-
-  // 4. 可以check时：大部分时间check，偶尔小额加注
-  if (canCheck) {
-    // 手牌强时偶尔加注（20%概率）
-    if (handStrength >= 6 && Math.random() < 0.2) {
-      const raiseAmount = Math.min(
-        currentBet + gs.minRaise + Math.floor(Math.random() * gs.minRaise),
-        player.chips * 0.3 // 永远不超过30%筹码
-      );
-      if (raiseAmount >= currentBet + gs.minRaise && raiseAmount < player.chips) {
-        return { action: "raise", amount: Math.floor(raiseAmount * 100) / 100 };
-      }
-    }
-    return { action: "check" };
-  }
-
-  // 5. 需要跟注：根据手牌强度和底池赔率决定
-  const potOdds = toCall / (pot + toCall);
-  
-  // 手牌中等以上或底池赔率好：跟注
-  if (handStrength >= 4 || potOdds < 0.25) {
-    // 偶尔加注（手牌强时15%概率）
-    if (handStrength >= 7 && Math.random() < 0.15) {
-      const raiseAmount = currentBet + gs.minRaise + Math.floor(Math.random() * gs.minRaise * 2);
-      // 永不超过50%筹码（模拟保守玩家）
-      const maxRaise = player.chips * 0.5;
-      if (raiseAmount <= maxRaise && raiseAmount < player.chips) {
-        return { action: "raise", amount: Math.floor(raiseAmount * 100) / 100 };
-      }
-    }
-    return { action: "call" };
-  }
-
-  // 6. 手牌弱但跟注金额小（< 2x大盲）：偶尔跟注
-  if (toCall <= bigBlind * 2 && Math.random() < 0.3) {
-    return { action: "call" };
-  }
-
-  // 默认弃牌
-  return { action: "fold" };
-}
+// ==================== 智能决策引擎（基于概率计算） ====================
 
 /**
- * Preflop手牌强度简单评估 (0-10)
+ * Preflop手牌分级表（基于德州扎古典起手牌表）
+ * 返回 equity 估计值 0-1
  */
-function evaluatePreflopStrength(holeCards: Card[]): number {
-  if (holeCards.length < 2) return 3;
+function getPreflopEquity(holeCards: Card[]): number {
+  if (holeCards.length < 2) return 0.3;
   
-  const RANK_VALUES: Record<string, number> = {
+  const RANK_VAL: Record<string, number> = {
     "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8,
     "9": 9, "T": 10, "J": 11, "Q": 12, "K": 13, "A": 14,
   };
 
-  const r1 = RANK_VALUES[holeCards[0][0]] || 2;
-  const r2 = RANK_VALUES[holeCards[1][0]] || 2;
+  const r1 = RANK_VAL[holeCards[0][0]] || 2;
+  const r2 = RANK_VAL[holeCards[1][0]] || 2;
+  const high = Math.max(r1, r2);
+  const low = Math.min(r1, r2);
   const suited = holeCards[0][1] === holeCards[1][1];
   const paired = r1 === r2;
+  const gap = high - low;
 
-  let strength = 0;
-
-  // 对子
+  // 对子胜率表（近似值，基于全桦胜率统计）
   if (paired) {
-    strength = Math.min(3 + r1 / 2, 10); // AA=10, KK=9.5, 22=4
-  } else {
-    // 高牌值
-    const high = Math.max(r1, r2);
-    const low = Math.min(r1, r2);
-    strength = (high + low) / 5; // AK=5.4, 72=1.8
-    
-    // 同花加分
-    if (suited) strength += 1;
-    
-    // 连牌加分
-    if (Math.abs(r1 - r2) === 1) strength += 0.5;
-    if (Math.abs(r1 - r2) === 2) strength += 0.25;
+    // AA=85%, KK=82%, QQ=80%, JJ=77%, TT=75%, 99=72%, 88=69%, 77=66%, 66=63%, 55=60%, 44=57%, 33=54%, 22=51%
+    const pairEquity: Record<number, number> = {
+      14: 0.85, 13: 0.82, 12: 0.80, 11: 0.77, 10: 0.75,
+      9: 0.72, 8: 0.69, 7: 0.66, 6: 0.63, 5: 0.60, 4: 0.57, 3: 0.54, 2: 0.51
+    };
+    return pairEquity[r1] || 0.55;
   }
 
-  return Math.min(Math.max(strength, 1), 10);
+  // 非对子手牌胜率估算
+  let equity = 0.30; // 基础值
+
+  // 高牌加成
+  if (high === 14) equity += 0.12; // A高牌
+  else if (high === 13) equity += 0.09;
+  else if (high === 12) equity += 0.07;
+  else if (high === 11) equity += 0.05;
+  else if (high === 10) equity += 0.03;
+
+  // 低牌加成
+  if (low >= 10) equity += 0.06;
+  else if (low >= 8) equity += 0.03;
+  else if (low >= 6) equity += 0.01;
+
+  // 同花加成（约+3-4%胜率）
+  if (suited) equity += 0.035;
+
+  // 连牌加成（顺子潜力）
+  if (gap === 1) equity += 0.025;
+  else if (gap === 2) equity += 0.015;
+  else if (gap === 3) equity += 0.008;
+  // gap >= 4 无加成
+
+  // 经典强牌组合修正
+  // AKs ~ 67%, AKo ~ 65%, AQs ~ 66%, AJs ~ 65%
+  if (high === 14 && low === 13) equity = suited ? 0.67 : 0.65;
+  else if (high === 14 && low === 12) equity = suited ? 0.66 : 0.64;
+  else if (high === 14 && low === 11) equity = suited ? 0.65 : 0.63;
+  else if (high === 14 && low === 10) equity = suited ? 0.63 : 0.61;
+  else if (high === 13 && low === 12) equity = suited ? 0.63 : 0.61;
+  else if (high === 13 && low === 11) equity = suited ? 0.62 : 0.60;
+  else if (high === 12 && low === 11) equity = suited ? 0.60 : 0.58;
+
+  return Math.min(Math.max(equity, 0.20), 0.90);
+}
+
+/**
+ * Postflop牌力评估：结合成牌强度 + 听牌潜力
+ * 返回 equity 估计值 0-1
+ */
+function getPostflopEquity(holeCards: Card[], communityCards: Card[], gs: GameState): number {
+  // 评估当前成牌
+  const evaluation = gameEngine.evaluateHand(holeCards, communityCards);
+  const rankValue = evaluation.rankValue; // 1-10
+
+  // 基础胜率（根据牌型）
+  const baseEquity: Record<number, number> = {
+    1: 0.20,  // 高牌
+    2: 0.40,  // 一对
+    3: 0.55,  // 两对
+    4: 0.65,  // 三条
+    5: 0.72,  // 顺子
+    6: 0.78,  // 同花
+    7: 0.85,  // 葫芦
+    8: 0.92,  // 四条
+    9: 0.97,  // 同花顺
+    10: 0.99, // 皇家同花顺
+  };
+  let equity = baseEquity[rankValue] || 0.20;
+
+  // 对子质量调整（顶对 vs 底对）
+  if (rankValue === 2) {
+    const RANK_VAL: Record<string, number> = {
+      "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8,
+      "9": 9, "T": 10, "J": 11, "Q": 12, "K": 13, "A": 14,
+    };
+    // 检查是否是顶对（手牌与公共牌最大牌配对）
+    const holeRanks = holeCards.map(c => RANK_VAL[c[0]] || 2);
+    const communityRanks = communityCards.map(c => RANK_VAL[c[0]] || 2);
+    const maxCommunityRank = Math.max(...communityRanks);
+    const hasTopPair = holeRanks.some(r => r === maxCommunityRank);
+    const hasOverpair = holeRanks[0] === holeRanks[1] && holeRanks[0] > maxCommunityRank;
+    
+    if (hasOverpair) equity = 0.55; // 超对
+    else if (hasTopPair) {
+      // 顶对质量取决于kicker
+      const kicker = Math.max(...holeRanks.filter(r => r !== maxCommunityRank), 0);
+      equity = kicker >= 12 ? 0.50 : kicker >= 9 ? 0.42 : 0.35;
+    } else {
+      equity = 0.28; // 中对/底对
+    }
+  }
+
+  // 听牌加成（只在flop和turn时计算，因为river无听牌价值）
+  if (communityCards.length < 5 && rankValue <= 2) {
+    const outs = countOuts(holeCards, communityCards);
+    // 每个out约增加2%胜率（flop到river约4%，turn到river约2%）
+    const outMultiplier = communityCards.length === 3 ? 0.04 : 0.02;
+    equity += outs * outMultiplier;
+  }
+
+  // 根据对手数量调整（多人底池胜率降低）
+  const activePlayers = gs.players.filter(p => !p.isFolded && p.isActive).length;
+  if (activePlayers > 2) {
+    equity *= (1 - (activePlayers - 2) * 0.08); // 每多一个对手降低8%
+  }
+
+  return Math.min(Math.max(equity, 0.05), 0.99);
+}
+
+/**
+ * 计算听牌数（outs）
+ * 检查同花听牌、顺子听牌
+ */
+function countOuts(holeCards: Card[], communityCards: Card[]): number {
+  const allCards = [...holeCards, ...communityCards];
+  const suits = allCards.map(c => c[1]);
+  const RANK_VAL: Record<string, number> = {
+    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8,
+    "9": 9, "T": 10, "J": 11, "Q": 12, "K": 13, "A": 14,
+  };
+  const values = allCards.map(c => RANK_VAL[c[0]] || 2);
+  let outs = 0;
+
+  // 同花听牌：4张同花 = 9 outs
+  const suitCounts: Record<string, number> = {};
+  for (const s of suits) suitCounts[s] = (suitCounts[s] || 0) + 1;
+  for (const count of Object.values(suitCounts)) {
+    if (count === 4) { outs += 9; break; }
+  }
+
+  // 顺子听牌：两头听顺 = 8 outs，单头听顺 = 4 outs
+  const uniqueValues = [...new Set(values)].sort((a, b) => a - b);
+  let maxConsecutive = 1;
+  let currentConsecutive = 1;
+  for (let i = 1; i < uniqueValues.length; i++) {
+    if (uniqueValues[i] - uniqueValues[i - 1] === 1) {
+      currentConsecutive++;
+      maxConsecutive = Math.max(maxConsecutive, currentConsecutive);
+    } else {
+      currentConsecutive = 1;
+    }
+  }
+  // A也可以作为1用于A2345顺子
+  if (uniqueValues.includes(14)) {
+    const withAceLow = [1, ...uniqueValues.filter(v => v !== 14)].sort((a, b) => a - b);
+    let tempConsec = 1;
+    for (let i = 1; i < withAceLow.length; i++) {
+      if (withAceLow[i] - withAceLow[i - 1] === 1) {
+        tempConsec++;
+        maxConsecutive = Math.max(maxConsecutive, tempConsec);
+      } else {
+        tempConsec = 1;
+      }
+    }
+  }
+
+  if (maxConsecutive === 4) {
+    // 检查是否两头听顺（两端都可以接）
+    // 简化：如果4连牌不包含A和不包含最低牌，则两头听顺
+    const min4 = uniqueValues.find((_, i) => {
+      if (i + 3 >= uniqueValues.length) return false;
+      return uniqueValues[i + 3] - uniqueValues[i] === 3;
+    });
+    if (min4 && min4 > 2 && (min4 + 3) < 14) {
+      outs += 8; // 两头听顺 (open-ended straight draw)
+    } else {
+      outs += 4; // 单头听顺 (gutshot)
+    }
+  } else if (maxConsecutive === 3) {
+    // 3连牌，可能有单头听顺
+    outs += 4; // gutshot
+  }
+
+  // 避免重复计算（同花顺子听牌重叠）
+  if (outs > 15) outs = 15; // 封顶
+
+  return outs;
+}
+
+/**
+ * Bot AI 智能决策引擎
+ * 基于手牌胜率(equity) vs 底池赔率(pot odds) 做出数学正确的决策
+ * 同时加入位置、随机性、个性化因素让行为更像真人
+ */
+function decideBotAction(
+  gs: GameState,
+  player: typeof gs.players[0],
+  bigBlind: number,
+  config: BotConfig
+): { action: PlayerAction; amount?: number } {
+  const { currentBet, communityCards, pot, minRaise } = gs;
+  const toCall = currentBet - player.currentBet;
+  const canCheck = toCall <= 0;
+
+  // === 计算手牌胜率 (equity) ===
+  let equity: number;
+  if (communityCards.length === 0) {
+    // Preflop
+    equity = getPreflopEquity(player.holeCards);
+  } else {
+    // Postflop
+    equity = getPostflopEquity(player.holeCards, communityCards, gs);
+  }
+
+  // === 位置调整 ===
+  // 后位加成（后位信息优势，可以稍微放宽）
+  const totalPlayers = gs.players.filter(p => p.isActive).length;
+  const positionFromDealer = (player.seatIndex - gs.dealerIndex + totalPlayers) % totalPlayers;
+  const isLatePosition = positionFromDealer >= totalPlayers - 2; // 最后两个位置
+  const isEarlyPosition = positionFromDealer <= 1; // 前两个位置
+  
+  if (isLatePosition) equity += 0.03; // 后位加成
+  if (isEarlyPosition) equity -= 0.02; // 前位惩罚
+
+  // === 个性化随机偏差（让每个bot风格不同） ===
+  // 基于playerId生成稳定的偏差（同一个bot风格一致）
+  const personalityBias = ((player.id * 7919) % 100) / 1000 - 0.05; // -0.05 ~ +0.05
+  equity += personalityBias;
+
+  // === 底池赔率计算 ===
+  const potOdds = toCall > 0 ? toCall / (pot + toCall) : 0;
+
+  // === 决策逻辑 ===
+
+  // 特殊情况：面对All-in
+  const anyAllIn = gs.players.some(p => p.isAllIn && p.id !== player.id);
+  if (anyAllIn) {
+    // 面对All-in需要很强的牌才跟
+    if (equity < 0.55) return { action: "fold" };
+    if (equity >= 0.55) return { action: "call" };
+  }
+
+  // Preflop策略
+  if (communityCards.length === 0) {
+    return decidePreflopAction(equity, toCall, canCheck, pot, bigBlind, minRaise, player, isLatePosition);
+  }
+
+  // Postflop策略
+  return decidePostflopAction(equity, potOdds, toCall, canCheck, pot, bigBlind, minRaise, player, gs);
+}
+
+/**
+ * Preflop决策
+ */
+function decidePreflopAction(
+  equity: number,
+  toCall: number,
+  canCheck: boolean,
+  pot: number,
+  bigBlind: number,
+  minRaise: number,
+  player: { chips: number; currentBet: number },
+  isLatePosition: boolean
+): { action: PlayerAction; amount?: number } {
+
+  // 可以check（大盲位置无人加注）
+  if (canCheck) {
+    // 强牌加注 (equity >= 0.70)
+    if (equity >= 0.70 && Math.random() < 0.65) {
+      const raiseSize = bigBlind * (2.5 + Math.random() * 1.5); // 2.5-4x BB
+      return makeRaise(raiseSize, minRaise, player);
+    }
+    // 中等牌偶尔加注
+    if (equity >= 0.55 && Math.random() < 0.30) {
+      const raiseSize = bigBlind * (2 + Math.random()); // 2-3x BB
+      return makeRaise(raiseSize, minRaise, player);
+    }
+    return { action: "check" };
+  }
+
+  // 面对加注
+  const bbMultiple = toCall / bigBlind;
+
+  // 强牌 (equity >= 0.70): 跟注或反加
+  if (equity >= 0.70) {
+    // 40%概率反加
+    if (Math.random() < 0.40 && bbMultiple < 15) {
+      const raiseSize = toCall * (2.2 + Math.random() * 0.8); // 2.2-3x 当前注
+      return makeRaise(raiseSize + player.currentBet, minRaise, player);
+    }
+    return { action: "call" };
+  }
+
+  // 中等牌 (equity 0.50-0.70)
+  if (equity >= 0.50) {
+    // 小注跟注（< 5BB）
+    if (bbMultiple <= 5) return { action: "call" };
+    // 中注看位置
+    if (bbMultiple <= 10 && isLatePosition) return { action: "call" };
+    // 大注有概率弃牌
+    if (Math.random() < 0.4) return { action: "fold" };
+    return { action: "call" };
+  }
+
+  // 较弱牌 (equity 0.38-0.50)
+  if (equity >= 0.38) {
+    // 小注且后位可以跟
+    if (bbMultiple <= 3 && isLatePosition) return { action: "call" };
+    // 小注偏向跟注
+    if (bbMultiple <= 2 && Math.random() < 0.5) return { action: "call" };
+    return { action: "fold" };
+  }
+
+  // 弱牌 (equity < 0.38)
+  // 小注偶尔跟（偷鸡）
+  if (bbMultiple <= 2 && isLatePosition && Math.random() < 0.15) {
+    return { action: "call" };
+  }
+  return { action: "fold" };
+}
+
+/**
+ * Postflop决策（基于equity vs pot odds）
+ */
+function decidePostflopAction(
+  equity: number,
+  potOdds: number,
+  toCall: number,
+  canCheck: boolean,
+  pot: number,
+  bigBlind: number,
+  minRaise: number,
+  player: { chips: number; currentBet: number },
+  gs: GameState
+): { action: PlayerAction; amount?: number } {
+
+  // === 可以check的情况 ===
+  if (canCheck) {
+    // 强牌（equity >= 0.70）：下注获取价值
+    if (equity >= 0.70) {
+      // 60%概率下注，40%慢打（设套）
+      if (Math.random() < 0.60) {
+        const betSize = pot * (0.4 + Math.random() * 0.3); // 40-70% pot
+        return makeRaise(betSize + player.currentBet, minRaise, player);
+      }
+      return { action: "check" }; // 慢打
+    }
+
+    // 中等牌 (equity 0.45-0.70): 偶尔下注
+    if (equity >= 0.45) {
+      if (Math.random() < 0.30) {
+        const betSize = pot * (0.3 + Math.random() * 0.2); // 30-50% pot
+        return makeRaise(betSize + player.currentBet, minRaise, player);
+      }
+      return { action: "check" };
+    }
+
+    // 弱牌：check（偶尔bluff）
+    if (Math.random() < 0.08) {
+      // 8%概率bluff
+      const betSize = pot * (0.3 + Math.random() * 0.2);
+      return makeRaise(betSize + player.currentBet, minRaise, player);
+    }
+    return { action: "check" };
+  }
+
+  // === 面对下注的情况 ===
+
+  // 核心决策：equity > potOdds 则跟注有正EV
+  const hasPositiveEV = equity > potOdds;
+
+  // 强牌 (equity >= 0.65): 跟注或加注
+  if (equity >= 0.65) {
+    // 30%概率加注
+    if (Math.random() < 0.30) {
+      const raiseSize = toCall * 2.5 + pot * 0.3;
+      return makeRaise(raiseSize + player.currentBet, minRaise, player);
+    }
+    return { action: "call" };
+  }
+
+  // 中等牌 (equity 0.40-0.65)
+  if (equity >= 0.40) {
+    if (hasPositiveEV) {
+      // 正EV跟注
+      return { action: "call" };
+    }
+    // 负微EV但跟注金额小，偶尔跟（隐含赔率）
+    if (toCall <= bigBlind * 3 && Math.random() < 0.35) {
+      return { action: "call" };
+    }
+    // 负大EV弃牌
+    return { action: "fold" };
+  }
+
+  // 听牌手 (equity 0.25-0.40)
+  if (equity >= 0.25) {
+    if (hasPositiveEV) {
+      // 底池赔率足够，跟注看牌
+      return { action: "call" };
+    }
+    // 赔率不够但跟注小，偶尔跟
+    if (toCall <= bigBlind * 2 && Math.random() < 0.20) {
+      return { action: "call" };
+    }
+    return { action: "fold" };
+  }
+
+  // 空气牌 (equity < 0.25)
+  // 偶尔bluff（小注时）
+  if (toCall <= bigBlind * 2 && Math.random() < 0.05) {
+    return { action: "call" }; // 偷鸡跟注
+  }
+  return { action: "fold" };
+}
+
+/**
+ * 安全的加注操作（确保不超过筹码上限，不低于最小加注）
+ */
+function makeRaise(
+  targetAmount: number,
+  minRaise: number,
+  player: { chips: number; currentBet: number }
+): { action: PlayerAction; amount?: number } {
+  const minRaiseTotal = player.currentBet + minRaise;
+  // 永不超过60%筹码（模拟保守玩家，不All-in）
+  const maxAllowed = player.chips * 0.6;
+  let amount = Math.max(targetAmount, minRaiseTotal);
+  amount = Math.min(amount, maxAllowed);
+  
+  // 如果计算出的加注量超过筹码或不合理，改为跟注
+  if (amount >= player.chips || amount < minRaiseTotal) {
+    return { action: "call" };
+  }
+  
+  return { action: "raise", amount: Math.floor(amount * 100) / 100 };
 }
 
 // ==================== Bot筹码管理 ====================
