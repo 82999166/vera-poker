@@ -836,3 +836,9 @@
 - [x] 修复玩家进入牌桌后直接被弹回（Table.tsx:1055 Maximum update depth exceeded - showdown reveal useEffect无限循环）
 - [x] 修复Bot无法启动游戏的bug（根因：orphaned cleanup标记bot为left → 新bot只尝试seat 0 → 座位冲突。修复：addRoomPlayer只检查active/sitting_out状态的座位冲突，忽略left记录并在插入前清理）
 - [x] 修复startNewHand未捕获异常导致游戏静默失败（添加try-catch包裹）
+
+## 2026-06-15 生成300个中国人名机器人
+- [x] 生成300个中国人名bot（姓氏100个+男女名字随机组合，确保不重复）
+- [x] 每个bot配备DiceBear随机头像（8种风格随机分配）
+- [x] 批量插入数据库（isBot=true, 余额20-100随机）
+- [x] 验证：数据库总bot数508个（原208+新300）
