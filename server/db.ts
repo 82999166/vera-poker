@@ -581,6 +581,25 @@ export async function getPlayerActiveRoom(userId: number): Promise<{ roomId: num
 export async function addRoomPlayer(roomId: number, userId: number, seatIndex: number, chipCount: string) {
   const db = await getDb();
   if (!db) return;
+  // Prevent duplicate entries: check if this user is already in this room
+  const existing = await db.select().from(roomPlayers)
+    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.userId, userId)))
+    .limit(1);
+  if (existing.length > 0) {
+    // Already exists, update seat and status instead
+    await db.update(roomPlayers)
+      .set({ seatIndex, chipCount, status: "active" })
+      .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.userId, userId)));
+    return;
+  }
+  // Also check if seat is already taken
+  const seatTaken = await db.select().from(roomPlayers)
+    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.seatIndex, seatIndex)))
+    .limit(1);
+  if (seatTaken.length > 0) {
+    console.warn(`[DB] Seat ${seatIndex} already taken in room ${roomId} by user ${seatTaken[0].userId}, cannot add user ${userId}`);
+    return;
+  }
   await db.insert(roomPlayers).values({ roomId, userId, seatIndex, chipCount, status: "active" });
 }
 
@@ -588,6 +607,25 @@ export async function addRoomPlayer(roomId: number, userId: number, seatIndex: n
 export async function addRoomPlayerSittingOut(roomId: number, userId: number, seatIndex: number, chipCount: string) {
   const db = await getDb();
   if (!db) return;
+  // Prevent duplicate entries
+  const existing = await db.select().from(roomPlayers)
+    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.userId, userId)))
+    .limit(1);
+  if (existing.length > 0) {
+    // Already exists, update status to sitting_out
+    await db.update(roomPlayers)
+      .set({ seatIndex, chipCount, status: "sitting_out" })
+      .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.userId, userId)));
+    return;
+  }
+  // Check seat conflict
+  const seatTaken = await db.select().from(roomPlayers)
+    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.seatIndex, seatIndex)))
+    .limit(1);
+  if (seatTaken.length > 0) {
+    console.warn(`[DB] Seat ${seatIndex} already taken in room ${roomId}, cannot add sitting_out user ${userId}`);
+    return;
+  }
   await db.insert(roomPlayers).values({ roomId, userId, seatIndex, chipCount, status: "sitting_out" });
 }
 
