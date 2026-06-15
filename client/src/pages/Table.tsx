@@ -1042,14 +1042,17 @@ export default function Table() {
   // Track which opponent IDs have been "flipped" face-up during showdown
   const [revealedOpponentIds, setRevealedOpponentIds] = useState<Set<number>>(new Set());
   const prevShowdownPhaseRef = useRef(false);
+  const playersRef = useRef(players);
+  playersRef.current = players;
   useEffect(() => {
     const isShowdown = phase === "showdown" || phase === "completed";
     if (isShowdown && !prevShowdownPhaseRef.current) {
       // Just entered showdown: reveal opponents one by one
       prevShowdownPhaseRef.current = true;
       setRevealedOpponentIds(new Set()); // reset
+      const currentPlayers = playersRef.current;
       const order = showdownRevealOrder.length > 0 ? showdownRevealOrder
-        : players.filter(p => p.id !== user?.id && !p.isFolded && p.holeCards?.length > 0).map(p => p.id);
+        : currentPlayers.filter(p => p.id !== user?.id && !p.isFolded && p.holeCards?.length > 0).map(p => p.id);
       revealTimersRef.current.forEach(t => clearTimeout(t));
       revealTimersRef.current = [];
       order.forEach((pid, idx) => {
@@ -1059,11 +1062,11 @@ export default function Table() {
         }, idx * 600 + 300);
         revealTimersRef.current.push(timer);
       });
-    } else if (!isShowdown) {
+    } else if (!isShowdown && prevShowdownPhaseRef.current) {
       prevShowdownPhaseRef.current = false;
       setRevealedOpponentIds(new Set());
     }
-  }, [phase, showdownRevealOrder, players, user?.id, muted, playSound]);
+  }, [phase, showdownRevealOrder, user?.id, muted, playSound]);
 
   // Countdown timer with urgency feedback - runs for ALL players' turns (not just hero)
   const [countdown, setCountdown] = useState(30);

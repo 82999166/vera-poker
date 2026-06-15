@@ -825,7 +825,7 @@
 - [x] 修复：真实玩家弃牌后游戏结束，所有人被踢出牌桌返回大厅
 ## 2026-06-14 机器人配置优化 + 头像显示Bug
 - [x] 移除机器人与真人1:1的限制，改为直接使用AI机器人后台设置的数量
-- [ ] 修复真人玩家进入牌桌后看不到机器人头像的bug（但能听到语音播报）
+- [x] 修复真人玩家进入牌桌后看不到机器人头像的bug（根因：room_players重复记录+useEffect无限循环）
 
 ## 2026-06-15 投注延迟 + UI调整
 - [x] 优化投注轮转延迟（bot延迟500-1500ms，checkTimeouts间隔1s，触发等待0.3s）
@@ -833,3 +833,4 @@
 - [x] 修复游戏进行中玩家人数和位置不断变化的bug（阻止persistentBotScheduler在游戏中修改DB）
 - [x] 修复room_players表重复记录导致座位显示混乱（添加防重复检查到addRoomPlayer/addRoomPlayerSittingOut）
 - [x] 清理room_players脏数据（495条重复记录）
+- [x] 修复玩家进入牌桌后直接被弹回（Table.tsx:1055 Maximum update depth exceeded - showdown reveal useEffect无限循环）
