@@ -316,14 +316,15 @@ function AnimatedPot({ amount }: { amount: number }) {
 const DEFAULT_AVATAR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663286442691/PcTA5UMUHYgGBBmnDjVX7Q/default-avatar-aXRqAewdDSMxKYhaCU9DtA.webp";
 
 // Player seat positions for 6-max table (oval layout)
-// Hero at bottom-center; side seats pulled inward to avoid edge clipping on all phones
+// Each seatIndex maps to a FIXED physical position - no rotation
+// Shifted down slightly for better visual balance on mobile
 const SEAT_POSITIONS = [
-  { top: "82%", left: "50%", transform: "translate(-50%, -50%)" },   // Bottom (hero)
-  { top: "63%", left: "6%",  transform: "translate(0, -50%)" },      // Left bottom
-  { top: "32%", left: "6%",  transform: "translate(0, -50%)" },      // Left top
-  { top: "4%", left: "50%", transform: "translate(-50%, 0)" },       // Top
-  { top: "32%", left: "94%", transform: "translate(-100%, -50%)" }, // Right top
-  { top: "63%", left: "94%", transform: "translate(-100%, -50%)" }, // Right bottom
+  { top: "86%", left: "50%", transform: "translate(-50%, -50%)" },   // Seat 0: Bottom center
+  { top: "67%", left: "6%",  transform: "translate(0, -50%)" },      // Seat 1: Left bottom
+  { top: "36%", left: "6%",  transform: "translate(0, -50%)" },      // Seat 2: Left top
+  { top: "10%", left: "50%", transform: "translate(-50%, 0)" },      // Seat 3: Top center
+  { top: "36%", left: "94%", transform: "translate(-100%, -50%)" }, // Seat 4: Right top
+  { top: "67%", left: "94%", transform: "translate(-100%, -50%)" }, // Seat 5: Right bottom
 ];
 
 // Hand rank translation helper - maps English server descriptions to i18n keys
@@ -1758,18 +1759,15 @@ export default function Table() {
             )}
           {/* Player Seats - positioned outside the table */}
           {(() => {
-            const maxSeats = room?.maxPlayers ?? 6;
-            // Hero always at bottom: use hero's seatIndex for rotation, or 0 if not seated (fixed layout)
-            const heroSeatIndex = displayPlayers.find(p => p.id === user?.id)?.seatIndex ?? 0;
             return displayPlayers.map(player => {
-            const rotatedIndex = ((player.seatIndex - heroSeatIndex + maxSeats) % maxSeats) % SEAT_POSITIONS.length;
-            const pos = SEAT_POSITIONS[rotatedIndex];
+            // Fixed seat positions - no rotation, seatIndex directly maps to physical position
+            const pos = SEAT_POSITIONS[player.seatIndex % SEAT_POSITIONS.length];
             if (!pos) return null;
             const isHero = player.id === user?.id || (isDemoMode && player.seatIndex === 0);
             const isCurrentTurn = isDemoMode ? player.isActive : (tableState?.currentPlayerId === player.id);
             const isWinner = winnerPlayerIds.includes(player.id);
             const isLoser = winnerPlayerIds.length > 0 && !winnerPlayerIds.includes(player.id) && !player.isFolded;
-            const isTopPlayer = rotatedIndex === 3; // Top-center seat
+            const isTopPlayer = player.seatIndex === 3; // Top-center seat
             return (
               <div
                 key={player.id}
@@ -1848,7 +1846,7 @@ export default function Table() {
                   )}
                   {/* Show face-down cards for opponents during active hand (preflop/flop/turn/river) */}
                   {!isHero && displayPhase !== "showdown" && displayPhase !== "completed" && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && !(player as any).isSittingOut && (
-                    <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${rotatedIndex === 1 || rotatedIndex === 2 ? '140px' : rotatedIndex === 3 ? '60px' : rotatedIndex === 4 ? '-40px' : '-80px'}`, '--deal-from-y': `${rotatedIndex === 1 || rotatedIndex === 5 ? '-60px' : rotatedIndex === 2 || rotatedIndex === 4 ? '-140px' : '-180px'}`, ...(isTopPlayer ? { order: 10 } : {}) } as React.CSSProperties}>
+                    <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${player.seatIndex === 1 || player.seatIndex === 2 ? '140px' : player.seatIndex === 3 ? '60px' : player.seatIndex === 4 ? '-40px' : '-80px'}`, '--deal-from-y': `${player.seatIndex === 1 || player.seatIndex === 5 ? '-60px' : player.seatIndex === 2 || player.seatIndex === 4 ? '-140px' : '-180px'}`, ...(isTopPlayer ? { order: 10 } : {}) } as React.CSSProperties}>
                       <CardView faceDown className={`!w-7 !h-[36px]${dealingMyCards ? ' animate-deal' : ''}`} />
                       <CardView faceDown className={`!w-7 !h-[36px]${dealingMyCards ? ' animate-deal-2' : ''}`} />
                     </div>

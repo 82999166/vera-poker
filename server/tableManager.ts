@@ -361,13 +361,53 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
     return { success: false, seatIndex: -1, message: "Table is full" };
   }
 
-  // Find next available seat (exclude seats taken by both active and sitting_out players)
+  // Find available seat for the player
+  // For real players: prefer seat 0 (bottom-center position on screen)
+  // If seat 0 is taken by a bot, swap the bot to another seat
   const takenSeats = new Set(existingPlayers.map((p: any) => p.seatIndex));
+  const botManager = await import("./botManager");
+  const botUserIds = await botManager.getBotUserIds();
+  const isRealPlayer = !botUserIds.includes(userId);
   let seatIndex = -1;
-  for (let i = 0; i < room.maxPlayers; i++) {
-    if (!takenSeats.has(i)) {
-      seatIndex = i;
-      break;
+
+  if (isRealPlayer) {
+    // Real player: try seat 0 first
+    if (!takenSeats.has(0)) {
+      seatIndex = 0;
+    } else {
+      // Seat 0 is taken - check if it's a bot we can swap
+      const seat0Player = existingPlayers.find((p: any) => p.seatIndex === 0);
+      if (seat0Player && botUserIds.includes(seat0Player.userId)) {
+        // Find an empty seat for the bot
+        let botNewSeat = -1;
+        for (let i = 1; i < room.maxPlayers; i++) {
+          if (!takenSeats.has(i)) { botNewSeat = i; break; }
+        }
+        if (botNewSeat !== -1) {
+          // Swap bot to new seat
+          await db.updateRoomPlayerSeat(roomId, seat0Player.userId, botNewSeat);
+          seatIndex = 0;
+        } else {
+          // No empty seat to swap bot, find any available seat for real player
+          for (let i = 1; i < room.maxPlayers; i++) {
+            if (!takenSeats.has(i)) { seatIndex = i; break; }
+          }
+        }
+      } else {
+        // Seat 0 taken by real player, find next available
+        for (let i = 1; i < room.maxPlayers; i++) {
+          if (!takenSeats.has(i)) { seatIndex = i; break; }
+        }
+      }
+    }
+  } else {
+    // Bot: find first available seat (skip seat 0 to reserve for real players)
+    for (let i = 1; i < room.maxPlayers; i++) {
+      if (!takenSeats.has(i)) { seatIndex = i; break; }
+    }
+    // If no seat 1-5 available, use seat 0 as last resort
+    if (seatIndex === -1 && !takenSeats.has(0)) {
+      seatIndex = 0;
     }
   }
 

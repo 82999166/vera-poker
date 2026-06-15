@@ -678,6 +678,14 @@ export async function updateRoomPlayerChips(roomId: number, userId: number, chip
     .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.userId, userId), eq(roomPlayers.status, "active")));
 }
 
+export async function updateRoomPlayerSeat(roomId: number, userId: number, newSeatIndex: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(roomPlayers)
+    .set({ seatIndex: newSeatIndex })
+    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.userId, userId)));
+}
+
 // ==================== WALLET ADDRESS GENERATION ====================
 import crypto from "crypto";
 
