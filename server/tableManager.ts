@@ -1372,8 +1372,8 @@ export function checkTimeouts() {
     const currentPlayerForBot = table.gameState.players[table.gameState.currentPlayerIndex];
     if (currentPlayerForBot && !currentPlayerForBot.isFolded) {
       const elapsed0 = (now - table.lastActionAt) / 1000;
-      // Only trigger bot if at least 1 second has passed (give bot time to register)
-      if (elapsed0 >= 1) {
+      // Only trigger bot if at least 0.3 second has passed (prevent duplicate triggers)
+      if (elapsed0 >= 0.3) {
         botManager.triggerBotAction(roomId);
       }
     }
@@ -1622,8 +1622,8 @@ export async function playerReady(roomId: number, userId: number): Promise<{ suc
   return { success: true };
 }
 
-// Run timeout checker every 2 seconds for faster responsiveness
-setInterval(checkTimeouts, 2000);
+// Run timeout checker every 1 second for faster bot responsiveness
+setInterval(checkTimeouts, 1000);
 
 // Bot余额监控：每5分钟检查一次
 setInterval(() => {

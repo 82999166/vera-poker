@@ -1373,7 +1373,7 @@ export default function Table() {
       {/* Floating room name + phase (top-center) */}
       <div
         className="absolute z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 border border-white/10 backdrop-blur-sm"
-        style={{ top: '56%', left: '50%', transform: 'translateX(-50%)' }}
+        style={{ top: '48%', left: '50%', transform: 'translateX(-50%)' }}
       >
         {isTournamentTable && <Trophy className="w-3 h-3 text-gold" />}
         <span className="text-[11px] text-white/70 font-medium truncate max-w-[100px]">
