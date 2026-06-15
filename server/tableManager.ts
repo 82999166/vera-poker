@@ -382,13 +382,19 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
   const existingTable = activeTables.get(roomId);
   if (existingTable) {
     // Game session exists: add as sitting_out (waiting for next hand)
-    await db.addRoomPlayerSittingOut(roomId, userId, seatIndex, buyIn.toString());
+    const added = await db.addRoomPlayerSittingOut(roomId, userId, seatIndex, buyIn.toString());
+    if (!added) {
+      return { success: false, seatIndex: -1, message: "Failed to add player to table" };
+    }
     await db.updateRoom(roomId, { currentPlayers: existingPlayers.length + 1 });
     return { success: true, seatIndex, message: "WAITING_FOR_NEXT_HAND" };
   }
 
   // No active game session: add as active player
-  await db.addRoomPlayer(roomId, userId, seatIndex, buyIn.toString());
+  const added = await db.addRoomPlayer(roomId, userId, seatIndex, buyIn.toString());
+  if (!added) {
+    return { success: false, seatIndex: -1, message: "Failed to add player to table" };
+  }
   
   // Update room player count
   await db.updateRoom(roomId, { currentPlayers: existingPlayers.length + 1 });
@@ -1180,6 +1186,7 @@ async function startNewHand(roomId: number) {
   const room = await db.getRoomById(roomId);
   if (!room) return;
 
+  try {
   // Activate all sitting_out players (Wait for Big Blind → now joining the game)
   await db.activateSittingOutPlayers(roomId);
 
@@ -1350,6 +1357,9 @@ async function startNewHand(roomId: number) {
     actionTimeline: initialTimeline,
     playerSnapshot: playerSnapshotData,
   });
+  } catch (err: any) {
+    console.error(`[startNewHand] Room ${roomId}: ERROR - ${err.message}`, err.stack);
+  }
 }
 
 /**

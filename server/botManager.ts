@@ -371,7 +371,13 @@ export async function checkAndFillBots(roomId: number, calledFromStartNewHand = 
         await db.addUserBalanceAtomic(selectedBotId, buyIn);
         return;
       }
-      await db.addRoomPlayer(roomId, selectedBotId, seatIndex, buyIn.toString());
+      const added = await db.addRoomPlayer(roomId, selectedBotId, seatIndex, buyIn.toString());
+      if (!added) {
+        // Seat conflict or DB error, refund buy-in
+        await db.addUserBalanceAtomic(selectedBotId, buyIn);
+        console.warn(`[BotManager] Failed to add bot ${selectedBotId} to room ${roomId} at seat ${seatIndex}`);
+        return;
+      }
       await db.updateRoom(roomId, { currentPlayers: existingPlayers.length + 1 });
       await db.createTransaction({
         userId: selectedBotId,

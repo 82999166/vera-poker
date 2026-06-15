@@ -578,9 +578,9 @@ export async function getPlayerActiveRoom(userId: number): Promise<{ roomId: num
   return result.length > 0 ? result[0] : null;
 }
 
-export async function addRoomPlayer(roomId: number, userId: number, seatIndex: number, chipCount: string) {
+export async function addRoomPlayer(roomId: number, userId: number, seatIndex: number, chipCount: string): Promise<boolean> {
   const db = await getDb();
-  if (!db) return;
+  if (!db) return false;
   // Prevent duplicate entries: check if this user is already in this room
   const existing = await db.select().from(roomPlayers)
     .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.userId, userId)))
@@ -590,23 +590,26 @@ export async function addRoomPlayer(roomId: number, userId: number, seatIndex: n
     await db.update(roomPlayers)
       .set({ seatIndex, chipCount, status: "active" })
       .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.userId, userId)));
-    return;
+    return true;
   }
-  // Also check if seat is already taken
+  // Also check if seat is already taken (only by active or sitting_out players)
   const seatTaken = await db.select().from(roomPlayers)
-    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.seatIndex, seatIndex)))
+    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.seatIndex, seatIndex), or(eq(roomPlayers.status, "active"), eq(roomPlayers.status, "sitting_out"))))
     .limit(1);
   if (seatTaken.length > 0) {
     console.warn(`[DB] Seat ${seatIndex} already taken in room ${roomId} by user ${seatTaken[0].userId}, cannot add user ${userId}`);
-    return;
+    return false;
   }
+  // Clean up any 'left' record at this seat before inserting
+  await db.delete(roomPlayers).where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.seatIndex, seatIndex)));
   await db.insert(roomPlayers).values({ roomId, userId, seatIndex, chipCount, status: "active" });
+  return true;
 }
 
 // Add a player who joins mid-game as sitting_out (waiting for next hand)
-export async function addRoomPlayerSittingOut(roomId: number, userId: number, seatIndex: number, chipCount: string) {
+export async function addRoomPlayerSittingOut(roomId: number, userId: number, seatIndex: number, chipCount: string): Promise<boolean> {
   const db = await getDb();
-  if (!db) return;
+  if (!db) return false;
   // Prevent duplicate entries
   const existing = await db.select().from(roomPlayers)
     .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.userId, userId)))
@@ -616,17 +619,20 @@ export async function addRoomPlayerSittingOut(roomId: number, userId: number, se
     await db.update(roomPlayers)
       .set({ seatIndex, chipCount, status: "sitting_out" })
       .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.userId, userId)));
-    return;
+    return true;
   }
-  // Check seat conflict
+  // Check seat conflict (only active or sitting_out players block the seat)
   const seatTaken = await db.select().from(roomPlayers)
-    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.seatIndex, seatIndex)))
+    .where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.seatIndex, seatIndex), or(eq(roomPlayers.status, "active"), eq(roomPlayers.status, "sitting_out"))))
     .limit(1);
   if (seatTaken.length > 0) {
     console.warn(`[DB] Seat ${seatIndex} already taken in room ${roomId}, cannot add sitting_out user ${userId}`);
-    return;
+    return false;
   }
+  // Clean up any 'left' record at this seat before inserting
+  await db.delete(roomPlayers).where(and(eq(roomPlayers.roomId, roomId), eq(roomPlayers.seatIndex, seatIndex)));
   await db.insert(roomPlayers).values({ roomId, userId, seatIndex, chipCount, status: "sitting_out" });
+  return true;
 }
 
 // Get all sitting_out players for a room

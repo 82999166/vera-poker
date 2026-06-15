@@ -834,3 +834,5 @@
 - [x] 修复room_players表重复记录导致座位显示混乱（添加防重复检查到addRoomPlayer/addRoomPlayerSittingOut）
 - [x] 清理room_players脏数据（495条重复记录）
 - [x] 修复玩家进入牌桌后直接被弹回（Table.tsx:1055 Maximum update depth exceeded - showdown reveal useEffect无限循环）
+- [x] 修复Bot无法启动游戏的bug（根因：orphaned cleanup标记bot为left → 新bot只尝试seat 0 → 座位冲突。修复：addRoomPlayer只检查active/sitting_out状态的座位冲突，忽略left记录并在插入前清理）
+- [x] 修复startNewHand未捕获异常导致游戏静默失败（添加try-catch包裹）
