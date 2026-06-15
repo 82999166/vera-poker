@@ -518,16 +518,21 @@ export async function trackBotHandAndRotate(roomId: number, botIdsInHand: number
   
   if (botsToRotate.length === 0) return;
   
-  // 轮换：移除达到手数的bot，下一轮checkAndFillBots会自动补充新bot
+  // 轮换：每手最多只移除1个bot，避免座位大幅变动导致前端跳动
   const roomBots = seatedBots.get(roomId);
-  for (const botId of botsToRotate) {
-    try {
-      await db.removeRoomPlayer(roomId, botId);
-      roomBots?.delete(botId);
-      console.log(`[BotManager] Rotated bot ${botId} out of room ${roomId} after ${config.rotationHands} hands`);
-    } catch (e) {
-      console.error(`[BotManager] Error rotating bot ${botId} from room ${roomId}:`, e);
-    }
+  const botToRotate = botsToRotate[0]; // 只轮换第一个
+  // 其余bot重置计数（下一手再轮换）
+  for (let i = 1; i < botsToRotate.length; i++) {
+    const key = `${roomId}:${botsToRotate[i]}`;
+    botHandsPlayed.set(key, config.rotationHands - 1); // 下一手就轮换
+  }
+
+  try {
+    await db.removeRoomPlayer(roomId, botToRotate);
+    roomBots?.delete(botToRotate);
+    console.log(`[BotManager] Rotated bot ${botToRotate} out of room ${roomId} after ${config.rotationHands} hands`);
+  } catch (e) {
+    console.error(`[BotManager] Error rotating bot ${botToRotate} from room ${roomId}:`, e);
   }
   
   // 更新房间人数

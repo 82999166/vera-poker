@@ -1759,7 +1759,8 @@ export default function Table() {
           {/* Player Seats - positioned outside the table */}
           {(() => {
             const maxSeats = room?.maxPlayers ?? 6;
-            const heroSeatIndex = displayPlayers.find(p => p.id === user?.id)?.seatIndex ?? displayPlayers[0]?.seatIndex ?? 0;
+            // Hero always at bottom: use hero's seatIndex for rotation, or 0 if not seated (fixed layout)
+            const heroSeatIndex = displayPlayers.find(p => p.id === user?.id)?.seatIndex ?? 0;
             return displayPlayers.map(player => {
             const rotatedIndex = ((player.seatIndex - heroSeatIndex + maxSeats) % maxSeats) % SEAT_POSITIONS.length;
             const pos = SEAT_POSITIONS[rotatedIndex];
