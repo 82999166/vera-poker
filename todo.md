@@ -830,3 +830,4 @@
 ## 2026-06-15 投注延迟 + UI调整
 - [x] 优化投注轮转延迟（bot延迟500-1500ms，checkTimeouts间隔1s，触发等待0.3s）
 - [x] 牌桌信息栏（NL Hold'em 0.5/1）位置上移（top 56% → 48%）
+- [x] 修复游戏进行中玩家人数和位置不断变化的bug（阻止persistentBotScheduler在游戏中修改DB）

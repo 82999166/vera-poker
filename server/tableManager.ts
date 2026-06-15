@@ -1187,7 +1187,7 @@ async function startNewHand(roomId: number) {
   await botManager.refillBotChips(roomId);
 
   // Bot system: fill bots if not enough real players
-  await botManager.checkAndFillBots(roomId);
+  await botManager.checkAndFillBots(roomId, true);
 
   const roomPlayersList = await db.getRoomPlayers(roomId);
   if (roomPlayersList.length < 2) {

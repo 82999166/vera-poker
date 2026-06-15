@@ -231,9 +231,16 @@ export function addBotWin(amount: number) {
  * 2. 无房间配置时，根据全局配置动态调整
  * 3. 每次只加一个bot（防止瞬间涌入太多）
  */
-export async function checkAndFillBots(roomId: number): Promise<void> {
+export async function checkAndFillBots(roomId: number, calledFromStartNewHand = false): Promise<void> {
   const config = await getBotConfig();
   if (!config.enabled) return;
+
+  // 关键保护：如果有活跃游戏正在进行中，且不是从startNewHand调用的，
+  // 则不添加/移除bot，避免DB和内存状态不同步导致前端玩家列表跳动
+  const existingTable = getTable(roomId);
+  if (existingTable && !calledFromStartNewHand) {
+    return;
+  }
 
   // 检查每日亏损限制
   resetDailyLossIfNeeded();
