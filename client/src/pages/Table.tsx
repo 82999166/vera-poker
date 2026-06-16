@@ -161,7 +161,7 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   if (!card || faceDown) {
     // Card back: ALL inline styles for maximum iOS compatibility (no Tailwind classes for visual rendering)
     return (
-      <div className={`w-11 h-[60px] rounded-md overflow-hidden transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${className}`} style={{ ...sizeStyle, boxShadow: '0 4px 12px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4)' }}>
+      <div className={`w-11 h-[60px] rounded-md overflow-hidden ${animate && !visible ? "scale-0 opacity-0 transition-transform duration-200" : "scale-100 opacity-100"} ${className}`} style={{ ...sizeStyle, boxShadow: '0 4px 12px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4)' }}>
         <div style={{ width: '100%', height: '100%', background: 'linear-gradient(to bottom right, #d63031, #8b1a1a)', border: '2px solid #f0f0f0', borderRadius: '6px', position: 'relative' }}>
           {/* Inner border */}
           <div style={{ position: 'absolute', top: '3px', left: '3px', right: '3px', bottom: '3px', border: '1.5px solid #e0c0c0', borderRadius: '3px' }} />
@@ -205,7 +205,7 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const centerSuitPx = Math.floor(cardPx * 0.40); // center suit
 
   return (
-    <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] transition-all duration-300 ${animate && !visible ? "scale-0 opacity-0 -translate-y-4" : "scale-100 opacity-100 translate-y-0"} ${flip && flipped ? "animate-flip" : ""} ${className}`} style={sizeStyle}>
+    <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${flip && flipped ? "animate-flip" : ""} ${className}`} style={sizeStyle}>
       <div className="w-full h-full bg-white border-[1.5px] border-gray-200 rounded-lg relative">
         {/* Top-left corner: rank above suit, tightly packed */}
         <div className="absolute top-[2px] left-[2px] flex flex-col items-center leading-[1]">
@@ -562,7 +562,7 @@ export default function Table() {
         if (!muted) {
           const newCardCount = tableState.phase === "flop" ? 3 : 1;
           for (let ci = 0; ci < newCardCount; ci++) {
-            setTimeout(() => playSound("dealSingle"), ci * 450);
+            setTimeout(() => playSound("dealSingle"), ci * 300);
           }
         }
         // Detect all-in runout: if all non-folded players are all-in, show notification
@@ -1641,7 +1641,7 @@ export default function Table() {
                   return <div key={`h${handNumber}-empty${i}`} className="w-[44px] h-[62px]" />;
                 }
                 const isNewCard = animateCards && i >= animateFromIndex;
-                const cardDelay = isNewCard ? (i - animateFromIndex) * 450 : 0;
+                const cardDelay = isNewCard ? (i - animateFromIndex) * 300 : 0;
                 return (
                   <div key={`h${handNumber}-c${i}`} style={isNewCard ? { animationDelay: `${cardDelay}ms`, opacity: 0 } : undefined} className={isNewCard ? 'animate-deal-community' : ''}>
                     <CardView card={card} className="!w-[44px] !h-[62px]" />
