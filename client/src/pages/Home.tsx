@@ -1,4 +1,4 @@
-/** 首页 - 应用入口，Telegram 认证、引导注册、快速开始 */
+/** Home Page - App entry, Telegram auth, quick start */
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -6,7 +6,7 @@ import { getLoginUrl } from "@/const";
 import { useTelegramAuth, isTelegramMiniApp, getTelegramStartParam } from "@/hooks/useTelegramAuth";
 import { trpc } from "@/lib/trpc";
 import { useI18n, detectLocale, applyLocale } from "@/lib/i18n";
-import { Shield, Zap, Globe, Users, ArrowRight, Loader2, Lock, Eye, EyeOff } from "lucide-react";
+import { Shield, Zap, Trophy, Users, ArrowRight, Loader2, Lock, Eye, EyeOff } from "lucide-react";
 
 // Storage key for pending referral code
 const PENDING_REF_KEY = "vera_pending_ref_code";
@@ -36,14 +36,13 @@ export default function Home() {
       navigate("/lobby");
     },
     onError: (err) => {
-      // Show user-friendly error messages
       const msg = err.message;
       if (msg.includes("not found") || msg.includes("NOT_FOUND")) {
-        alert(locale.startsWith("zh") ? "用户不存在，请检查昵称" : "User not found, please check your nickname");
+        alert("User not found, please check your nickname");
       } else if (msg.includes("not set up") || msg.includes("BAD_REQUEST")) {
-        alert(locale.startsWith("zh") ? "该账号未设置备用密码" : "This account has no backup password set");
+        alert("This account has no backup password set");
       } else if (msg.includes("Incorrect") || msg.includes("UNAUTHORIZED")) {
-        alert(locale.startsWith("zh") ? "密码错误" : "Incorrect password");
+        alert("Incorrect password");
       } else {
         alert(msg);
       }
@@ -66,17 +65,12 @@ export default function Home() {
   });
 
   // Step 1: On first load, capture the start_param into localStorage BEFORE auth
-  // This ensures we don't lose the param during the auth redirect flow
   useEffect(() => {
-    // Read from multiple sources in priority order
     const captureRefCode = () => {
-      // 1. TG SDK start_param (most reliable when SDK is ready)
       const sdkParam = (window.Telegram?.WebApp as any)?.initDataUnsafe?.start_param;
-      // 2. URL hash fragment (web_app button injects #tgWebAppStartParam=xxx)
       const hash = window.location.hash;
       const hashParams = hash ? new URLSearchParams(hash.replace(/^#/, "")) : null;
       const hashParam = hashParams?.get("tgWebAppStartParam") || hashParams?.get("startapp");
-      // 3. URL query params
       const queryParams = new URLSearchParams(window.location.search);
       const queryParam = queryParams.get("startapp") || queryParams.get("tgWebAppStartParam");
 
@@ -90,12 +84,10 @@ export default function Home() {
       }
     };
 
-    // Run immediately
     captureRefCode();
-    // Also run after a short delay to catch late TG SDK initialization
     const timer = setTimeout(captureRefCode, 500);
     return () => clearTimeout(timer);
-  }, []); // Run once on mount
+  }, []);
 
   // Step 2: Auto-authenticate in Telegram Mini App
   useEffect(() => {
@@ -108,13 +100,8 @@ export default function Home() {
       if (result?.success) {
         setTgLoginSuccess(true);
         localStorage.setItem("vera_auth_method", "telegram");
-        // Always apply TG language on login.
-        // Priority: backend-returned language > TG SDK language_code > browser language
-        // We use applyLocale (not setLocale) so we don't write to localStorage,
-        // allowing TG language to be re-evaluated fresh on every load.
         const backendLang = (result as any).user?.language;
         if (backendLang) {
-          // Use the language from backend (which is the TG user's language_code)
           const langMap: Record<string, string> = {
             "en": "en", "zh": "zh-CN", "zh-cn": "zh-CN", "zh-tw": "zh-TW",
             "zh-hans": "zh-CN", "zh-hant": "zh-TW",
@@ -125,7 +112,6 @@ export default function Home() {
           const mapped = langMap[normalized] || langMap[normalized.split("-")[0]] || "en";
           applyLocale(mapped as any);
         } else {
-          // Fallback: re-detect from TG SDK
           const detectedLocale = detectLocale();
           applyLocale(detectedLocale);
         }
@@ -140,11 +126,9 @@ export default function Home() {
     if (deepLinkHandled.current) return;
     deepLinkHandled.current = true;
 
-    // Wait 2000ms to show splash screen before navigating
     const handleDeepLink = () => {
       const startParam = getTelegramStartParam();
 
-      // Handle room deep link
       if (startParam && startParam.startsWith("room_")) {
         const inviteCode = startParam.replace("room_", "");
         fetch(`/api/trpc/rooms.resolveInviteCode?input=${encodeURIComponent(JSON.stringify({ inviteCode }))}`)
@@ -157,14 +141,12 @@ export default function Home() {
         return;
       }
 
-      // Handle pending referral code (saved before auth)
       const pendingRefCode = localStorage.getItem(PENDING_REF_KEY);
       if (pendingRefCode) {
         console.log("[DeepLink] Processing pending ref code:", pendingRefCode);
         registerMutation.mutate({ inviteCode: pendingRefCode });
       }
 
-      // Always navigate to lobby
       navigate("/lobby");
     };
 
@@ -226,8 +208,8 @@ export default function Home() {
           "Where Truth Deals."
         </p>
         <p className="text-xs text-muted-foreground max-w-xs leading-relaxed mb-8">
-          The world's first provably fair poker platform with every card verifiable on-chain.
-          Play Texas Hold'em with confidence.
+          Play Texas Hold'em on the world's first provably fair poker platform.
+          Every hand is verifiable on-chain. No hidden decks, no rigged deals.
         </p>
 
         {/* Auth Error */}
@@ -246,7 +228,7 @@ export default function Home() {
               className="px-8 py-3.5 rounded-xl text-background font-bold text-sm glow-gold hover:opacity-90 transition-opacity active:scale-[0.97] flex items-center justify-center gap-2"
               style={{ background: 'linear-gradient(to right, #eab308, #a78b00)' }}
             >
-              {t("common.login")} <ArrowRight className="w-4 h-4" />
+              Enter Game <ArrowRight className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -259,7 +241,7 @@ export default function Home() {
               className="text-xs text-muted-foreground hover:text-gold/70 transition-colors flex items-center gap-1 mx-auto"
             >
               <Lock className="w-3 h-3" />
-              {locale.startsWith("zh") ? "备用密码登录" : "Login with backup password"}
+              Login with backup password
             </button>
           </div>
         )}
@@ -268,13 +250,13 @@ export default function Home() {
         {showPasswordLogin && (
           <div className="w-full max-w-xs mt-3 glass rounded-xl p-4 space-y-3">
             <p className="text-xs text-muted-foreground text-center">
-              {locale.startsWith("zh") ? "输入昵称和备用密码登录" : "Enter your nickname and backup password"}
+              Enter your nickname and backup password
             </p>
             <input
               type="text"
               value={pwdIdentifier}
               onChange={(e) => setPwdIdentifier(e.target.value)}
-              placeholder={locale.startsWith("zh") ? "昵称 / TG用户名" : "Nickname / TG username"}
+              placeholder="Nickname / TG username"
               className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
             />
             <div className="relative">
@@ -282,7 +264,7 @@ export default function Home() {
                 type={showPwd ? "text" : "password"}
                 value={pwdPassword}
                 onChange={(e) => setPwdPassword(e.target.value)}
-                placeholder={locale.startsWith("zh") ? "备用密码" : "Backup password"}
+                placeholder="Backup password"
                 className="w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold pr-10"
               />
               <button onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -300,7 +282,7 @@ export default function Home() {
               {passwordLoginMutation.isPending
                 ? <Loader2 className="w-4 h-4 animate-spin" />
                 : <Lock className="w-4 h-4" />}
-              {locale.startsWith("zh") ? "登录" : "Login"}
+              Login
             </button>
           </div>
         )}
@@ -308,10 +290,10 @@ export default function Home() {
         {/* Features */}
         <div className="grid grid-cols-2 gap-3 mt-12 w-full max-w-sm">
           {[
-            { icon: Shield, title: t("home.feature1Title"), desc: t("home.feature1Desc"), color: "text-truth-blue" },
-            { icon: Zap, title: t("home.feature2Title"), desc: t("home.feature2Desc"), color: "text-gold" },
-            { icon: Globe, title: t("home.feature3Title"), desc: t("home.feature3Desc"), color: "text-success" },
-            { icon: Users, title: t("home.feature4Title"), desc: t("home.feature4Desc"), color: "text-purple-400" },
+            { icon: Shield, title: "Provably Fair", desc: "On-chain verified deals", color: "text-truth-blue" },
+            { icon: Zap, title: "Instant Play", desc: "No download required", color: "text-gold" },
+            { icon: Trophy, title: "Tournaments", desc: "Compete for prizes", color: "text-success" },
+            { icon: Users, title: "Private Tables", desc: "Invite friends to play", color: "text-purple-400" },
           ].map((feat, i) => (
             <div key={i} className="glass rounded-xl p-3 text-center">
               <feat.icon className={`w-5 h-5 ${feat.color} mx-auto mb-1`} />
@@ -325,7 +307,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="py-4 text-center">
         <p className="text-[10px] text-muted-foreground">
-          Powered by TON Blockchain • Vera Poker © 2024
+          Powered by TON Blockchain &bull; Vera Poker &copy; 2025
         </p>
       </footer>
     </div>
@@ -360,7 +342,7 @@ function TelegramLoginButton({ onLogin }: { onLogin: (data: Record<string, unkno
       className="px-8 py-3.5 rounded-xl bg-[#54a9eb] hover:bg-[#4a96d4] text-white font-bold text-sm transition-colors active:scale-[0.97] flex items-center justify-center gap-2 disabled:opacity-60"
     >
       <TelegramIcon className="w-5 h-5" />
-      {isLoading ? t("common.loading") : t("common.loginWithTelegram")}
+      {isLoading ? "Loading..." : "Login with Telegram"}
     </button>
   );
 }
