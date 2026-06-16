@@ -1632,10 +1632,14 @@ export default function Table() {
               )}
             </div>
 
-            {/* Community Cards - responsive size for small screens */}
+            {/* Community Cards - fixed 5 positions from left to right */}
             <div className="absolute top-[46%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1.5 z-15" style={{ '--deal-comm-x': '130px', '--deal-comm-y': '-130px' } as React.CSSProperties}>
-              {displayCommunity.map((card, i) => {
-                // Only animate cards that are newly dealt (index >= animateFromIndex)
+              {[0, 1, 2, 3, 4].map((i) => {
+                const card = displayCommunity[i];
+                if (!card) {
+                  // Empty placeholder - invisible but reserves space
+                  return <div key={`h${handNumber}-empty${i}`} className="w-[44px] h-[62px]" />;
+                }
                 const isNewCard = animateCards && i >= animateFromIndex;
                 const cardDelay = isNewCard ? (i - animateFromIndex) * 450 : 0;
                 return (
