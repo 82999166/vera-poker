@@ -1759,15 +1759,28 @@ export default function Table() {
             )}
           {/* Player Seats - positioned outside the table */}
           {(() => {
+            // Rotation logic: rotate seats so hero is always at bottom (seat 0 position)
+            // Use hero's seatIndex as rotation anchor - stable across polling
+            const heroSeatIndex = (() => {
+              if (isDemoMode) return 0;
+              // Find my seatIndex from the players list
+              const me = displayPlayers.find(p => p.id === user?.id);
+              if (me) return me.seatIndex;
+              // Not seated: no rotation (fixed view)
+              return 0;
+            })();
+            const totalSeats = SEAT_POSITIONS.length; // 6
+
             return displayPlayers.map(player => {
-            // Fixed seat positions - no rotation, seatIndex directly maps to physical position
-            const pos = SEAT_POSITIONS[player.seatIndex % SEAT_POSITIONS.length];
+            // Rotate: shift player's visual position so hero appears at seat 0 (bottom)
+            const visualSeatIndex = (player.seatIndex - heroSeatIndex + totalSeats) % totalSeats;
+            const pos = SEAT_POSITIONS[visualSeatIndex];
             if (!pos) return null;
             const isHero = player.id === user?.id || (isDemoMode && player.seatIndex === 0);
             const isCurrentTurn = isDemoMode ? player.isActive : (tableState?.currentPlayerId === player.id);
             const isWinner = winnerPlayerIds.includes(player.id);
             const isLoser = winnerPlayerIds.length > 0 && !winnerPlayerIds.includes(player.id) && !player.isFolded;
-            const isTopPlayer = player.seatIndex === 3; // Top-center seat
+            const isTopPlayer = visualSeatIndex === 3; // Top-center visual position
             return (
               <div
                 key={player.id}
@@ -1846,7 +1859,7 @@ export default function Table() {
                   )}
                   {/* Show face-down cards for opponents during active hand (preflop/flop/turn/river) */}
                   {!isHero && displayPhase !== "showdown" && displayPhase !== "completed" && !player.isFolded && displayPhase !== "waiting" && !waitingForReady && !(player as any).isSittingOut && (
-                    <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${player.seatIndex === 1 || player.seatIndex === 2 ? '140px' : player.seatIndex === 3 ? '60px' : player.seatIndex === 4 ? '-40px' : '-80px'}`, '--deal-from-y': `${player.seatIndex === 1 || player.seatIndex === 5 ? '-60px' : player.seatIndex === 2 || player.seatIndex === 4 ? '-140px' : '-180px'}`, ...(isTopPlayer ? { order: 10 } : {}) } as React.CSSProperties}>
+                    <div className="flex gap-0.5 mb-0.5" style={{ '--deal-from-x': `${visualSeatIndex === 1 || visualSeatIndex === 2 ? '140px' : visualSeatIndex === 3 ? '60px' : visualSeatIndex === 4 ? '-40px' : '-80px'}`, '--deal-from-y': `${visualSeatIndex === 1 || visualSeatIndex === 5 ? '-60px' : visualSeatIndex === 2 || visualSeatIndex === 4 ? '-140px' : '-180px'}`, ...(isTopPlayer ? { order: 10 } : {}) } as React.CSSProperties}>
                       <CardView faceDown className={`!w-7 !h-[36px]${dealingMyCards ? ' animate-deal' : ''}`} />
                       <CardView faceDown className={`!w-7 !h-[36px]${dealingMyCards ? ' animate-deal-2' : ''}`} />
                     </div>
