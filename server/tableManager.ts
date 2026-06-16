@@ -231,6 +231,35 @@ export async function getPlayerView(roomId: number, playerId: number) {
   );
   players.push(...sittingOutPlayers);
 
+  // Also include active DB players NOT in gs.players (transition window: activateSittingOutPlayers
+  // already changed status to active in DB, but initializeGame hasn't added them to gameState yet)
+  const dbActivePlayers = await db.getRoomPlayers(roomId);
+  const allKnownIds = new Set(players.map(p => p.id));
+  const allKnownSeats = new Set(players.map(p => p.seatIndex));
+  const transitionPlayers = await Promise.all(
+    dbActivePlayers
+      .filter((sp: any) => !allKnownIds.has(sp.userId) && !allKnownSeats.has(sp.seatIndex))
+      .map(async (sp: any) => {
+        const info = await getCachedPlayerInfo(sp.userId);
+        return {
+          id: sp.userId,
+          seatIndex: sp.seatIndex,
+          chips: parseFloat(sp.chipCount || "0"),
+          currentBet: 0,
+          totalBet: 0,
+          isFolded: false,
+          isAllIn: false,
+          isActive: false,
+          name: info.name || `Player ${sp.seatIndex + 1}`,
+          avatar: info.avatar,
+          holeCards: [],
+          isSittingOut: true, // Transitioning - show as sitting out
+          lastAction: null,
+        };
+      })
+  );
+  players.push(...transitionPlayers);
+
   // Check if the requesting player is sitting out
   const amISittingOut = sittingOutList.some((sp: any) => sp.userId === playerId);
 

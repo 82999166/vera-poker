@@ -691,7 +691,7 @@ export default function Table() {
   // before the server has added the player to gameState.players, causing a false "kicked" detection.
   const joinSettledRef = useRef(false); // true once tableState confirms player is in the game
   const kickGraceCountRef = useRef(0); // Grace period counter: must see player missing N times before triggering kicked
-  const KICK_GRACE_THRESHOLD = 3; // Require 3 consecutive polls confirming player is missing
+  const KICK_GRACE_THRESHOLD = 6; // Require 6 consecutive polls confirming player is missing (~3-7s)
   const waitingStartRef = useRef<number | null>(null);
   const WAITING_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 
