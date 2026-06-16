@@ -854,3 +854,7 @@
 - [x] 根据盈亏状态动态调整bot equity阈值（getProfitControlAdjustment函数）
 - [x] 后台管理界面增加盈亏控制配置（profitControlEnabled/targetEdge/maxWinStreak）
 - [x] system_configs存储盈亏控制字段（bot_profit_control_enabled/bot_target_edge/bot_max_win_streak）
+
+## 2026-06-16 Bug修复：座位抢占 + 盈亏统计
+- [x] Bot入座时检查sitting_out状态的真人玩家座位，不能抢占（getRoomPlayersAll+跳过seat 0）
+- [x] Bot盈亏统计增加累计总盈亏卡片（totalAllTimeProfit）

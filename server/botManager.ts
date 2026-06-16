@@ -362,8 +362,8 @@ export async function checkAndFillBots(roomId: number, calledFromStartNewHand = 
   const roomConfig = await getRoomBotConfig(roomId);
   if (roomConfig && !roomConfig.enabled) return; // 该房间禁用bot
 
-  // 获取当前在座玩家
-  const roomPlayers = await db.getRoomPlayers(roomId);
+  // 获取当前在座玩家（包含sitting_out，确保不抢占观战玩家座位）
+  const roomPlayers = await db.getRoomPlayersAll(roomId);
   const botUserIds = await getBotUserIds();
 
   // 统计真实玩家和bot玩家
@@ -469,11 +469,16 @@ export async function checkAndFillBots(roomId: number, calledFromStartNewHand = 
       const existingPlayers = await db.getRoomPlayersAll(roomId);
       const takenSeats = new Set(existingPlayers.map((p: any) => p.seatIndex));
       let seatIndex = -1;
-      for (let i = 0; i < room.maxPlayers; i++) {
+      // Bot入座跳过seat 0，保留给真人玩家
+      for (let i = 1; i < room.maxPlayers; i++) {
         if (!takenSeats.has(i)) {
           seatIndex = i;
           break;
         }
+      }
+      // 只有当seat 1-5全满时才用seat 0
+      if (seatIndex === -1 && !takenSeats.has(0)) {
+        seatIndex = 0;
       }
       if (seatIndex === -1) {
         await db.addUserBalanceAtomic(selectedBotId, buyIn);

@@ -5956,6 +5956,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
   const totalBalance = botDetails.reduce((sum: number, b: any) => sum + b.balance, 0);
   const totalTodayHands = botDetails.reduce((sum: number, b: any) => sum + b.todayHands, 0);
   const totalTodayProfit = botDetails.reduce((sum: number, b: any) => sum + parseFloat(b.todayProfit || "0"), 0);
+  const totalAllTimeProfit = botDetails.reduce((sum: number, b: any) => sum + parseFloat(b.totalProfit || "0"), 0);
 
   const tabItems = [
     { key: "users" as const, label: "机器人用户" },
@@ -5984,7 +5985,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
       </div>
 
       {/* Overview Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="glass rounded-xl p-4">
           <p className="text-xs text-muted-foreground">在线Bot</p>
           <p className="text-2xl font-bold text-gold mt-1">{stats?.activeBots ?? 0}</p>
@@ -6001,6 +6002,12 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
           <p className="text-xs text-muted-foreground">今日盈亏</p>
           <p className={`text-2xl font-bold mt-1 ${totalTodayProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
             {totalTodayProfit >= 0 ? "+" : ""}{totalTodayProfit.toFixed(2)}
+          </p>
+        </div>
+        <div className="glass rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">累计总盈亏</p>
+          <p className={`text-2xl font-bold mt-1 ${totalAllTimeProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+            {totalAllTimeProfit >= 0 ? "+" : ""}{totalAllTimeProfit.toFixed(2)}
           </p>
         </div>
         <div className="glass rounded-xl p-4">
