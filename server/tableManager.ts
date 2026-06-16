@@ -12,6 +12,15 @@ import * as botManager from "./botManager";
 // import * as tournamentEngine from "./tournamentEngine";
 import type { GameState, PlayerAction, Card } from "./gameEngine";
 
+// Lazy-loaded tournament module reference for sync access in checkTimeouts
+let _tournamentMod: any = null;
+function getTournamentMod() {
+  if (!_tournamentMod) {
+    import("./tournamentEngine").then(m => { _tournamentMod = m; });
+  }
+  return _tournamentMod;
+}
+
 interface SettlementDetail {
   winners: { playerId: number; name: string; amount: number; handRank: string; handDescription: string }[];
   sidePots: { amount: number; winnerId: number; winnerName: string }[];
@@ -1222,9 +1231,11 @@ async function settleHand(roomId: number) {
 /**
  * Start a new hand at a table
  */
-async function startNewHand(roomId: number) {
+export async function startNewHand(roomId: number) {
   const room = await db.getRoomById(roomId);
   if (!room) return;
+
+  console.log(`[startNewHand] Called for room ${roomId}, activeTables.has=${activeTables.has(roomId)}`);
 
   try {
   // Activate all sitting_out players (Wait for Big Blind → now joining the game)
@@ -1237,6 +1248,7 @@ async function startNewHand(roomId: number) {
   await botManager.checkAndFillBots(roomId, true);
 
   const roomPlayersList = await db.getRoomPlayers(roomId);
+  console.log(`[startNewHand] Room ${roomId}: ${roomPlayersList.length} active players after bot fill`);
   if (roomPlayersList.length < 2) {
     // Not enough players even after bot fill - reset table to waiting state
     // IMPORTANT: Do NOT delete activeTables here! Deleting causes getPlayerView to query DB
@@ -1267,7 +1279,10 @@ async function startNewHand(roomId: number) {
   }
   
   // Re-fetch active players after removing zero-chip players
-  const activePlayers = roomPlayersList.filter((rp: any) => parseFloat(rp.chipCount) > 0);
+  // IMPORTANT: Sort by seatIndex to ensure array index matches physical seat order
+  // This guarantees dealer/SB/BB rotation follows clockwise seat positions
+  const activePlayers = roomPlayersList.filter((rp: any) => parseFloat(rp.chipCount) > 0)
+    .sort((a: any, b: any) => a.seatIndex - b.seatIndex);
   if (activePlayers.length < 2) {
     // Not enough players to start a new hand.
     // Reset to waiting state but keep activeTables entry alive so getPlayerView
@@ -1465,8 +1480,8 @@ export function checkTimeouts() {
         if (newCount >= AFK_KICK_THRESHOLD) {
           // Tournament tables: don't kick AFK players, just keep auto-folding them
           // In tournaments, players can only be eliminated by losing all chips
-          const { isTournamentTable: isTourneyTable } = require("./tournamentEngine");
-          if (isTourneyTable(roomId)) {
+          const tournamentMod = getTournamentMod();
+          if (tournamentMod?.isTournamentTable(roomId)) {
             table.afkFoldCount.set(timedOutPlayerId, 0);
             checkAndAdvanceGame(roomId);
             continue;

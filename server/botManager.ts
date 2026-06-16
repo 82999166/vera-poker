@@ -506,6 +506,16 @@ export async function checkAndFillBots(roomId: number, calledFromStartNewHand = 
       if (!seatedBots.has(roomId)) seatedBots.set(roomId, new Set());
       seatedBots.get(roomId)!.add(selectedBotId);
       console.log(`[BotManager] Bot ${selectedBotId} joined room ${roomId} at seat ${seatIndex}`);
+
+      // If table is in waitingForReady state (no active game), check if we now have enough players to start
+      if (existingTable.waitingForReady) {
+        const activePlayers = await db.getRoomPlayers(roomId);
+        if (activePlayers.length >= 2) {
+          console.log(`[BotManager] Table ${roomId} has ${activePlayers.length} active players in waitingForReady state, triggering startNewHand`);
+          const { startNewHand } = await import("./tableManager");
+          await startNewHand(roomId);
+        }
+      }
     } else {
       // 没有活跃游戏：使用joinTable（会自动触发startNewHand）
       const result = await joinTable(roomId, selectedBotId, buyIn);

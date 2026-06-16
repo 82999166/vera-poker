@@ -1412,7 +1412,7 @@ export default function Table() {
               </button>
             </div>
             {/* Menu items */}
-            <button onClick={() => { setShowTableMenu(false); navigate("/lobby"); }} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 hover:bg-white/10 active:scale-95 transition-all">
+            <button onClick={() => { setShowTableMenu(false); isLeavingRef.current = true; navigate("/lobby"); }} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/80 hover:bg-white/10 active:scale-95 transition-all">
               <ArrowLeft className="w-4 h-4" />
               <span className="text-sm">{t("common.back")}</span>
             </button>
