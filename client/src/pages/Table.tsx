@@ -649,7 +649,18 @@ export default function Table() {
           playSound("win");
         }
         // Announce winning hand type like a real casino dealer (follows system language)
-        const primaryWinner = tableState.settlementDetail?.winners?.sort((a: any, b: any) => b.amount - a.amount)?.[0];
+        // Sort by hand rank (best hand wins), not by amount
+        const HAND_RANK_ORDER: Record<string, number> = {
+          "royal_flush": 10, "straight_flush": 9, "four_of_a_kind": 8,
+          "full_house": 7, "flush": 6, "straight": 5, "three_of_a_kind": 4,
+          "two_pair": 3, "one_pair": 2, "high_card": 1, "last_standing": 0, "Last Standing": 0,
+        };
+        const primaryWinner = [...(tableState.settlementDetail?.winners || [])].sort((a: any, b: any) => {
+          const rankA = HAND_RANK_ORDER[a.handRank] || HAND_RANK_ORDER[a.handDescription] || 0;
+          const rankB = HAND_RANK_ORDER[b.handRank] || HAND_RANK_ORDER[b.handDescription] || 0;
+          if (rankB !== rankA) return rankB - rankA;
+          return b.amount - a.amount;
+        })?.[0];
         if (primaryWinner && primaryWinner.handDescription && primaryWinner.handDescription !== "Last Standing") {
           const handKey = HAND_RANK_MAP[primaryWinner.handDescription];
           const handName = handKey ? t(handKey) : primaryWinner.handDescription;
@@ -1504,16 +1515,26 @@ export default function Table() {
           </div>
           {/* Winner banner */}
           <div className="animate-banner bg-black/80 backdrop-blur-md rounded-2xl px-6 py-5 text-center max-w-[320px] border-2 border-gold/50 shadow-[0_0_30px_rgba(234,179,8,0.3)]">
-            {/* Winners list sorted by amount descending */}
+            {/* Winners list sorted by hand rank (best hand first) */}
             {(() => {
+              const HAND_RANK_SORT: Record<string, number> = {
+                "royal_flush": 10, "straight_flush": 9, "four_of_a_kind": 8,
+                "full_house": 7, "flush": 6, "straight": 5, "three_of_a_kind": 4,
+                "two_pair": 3, "one_pair": 2, "high_card": 1, "last_standing": 0, "Last Standing": 0,
+              };
               const sortedWinners = showSettlement?.winners?.length > 0
-                ? [...showSettlement.winners].sort((a: any, b: any) => b.amount - a.amount)
+                ? [...showSettlement.winners].sort((a: any, b: any) => {
+                    const rankA = HAND_RANK_SORT[a.handRank] || HAND_RANK_SORT[a.handDescription] || 0;
+                    const rankB = HAND_RANK_SORT[b.handRank] || HAND_RANK_SORT[b.handDescription] || 0;
+                    if (rankB !== rankA) return rankB - rankA;
+                    return b.amount - a.amount;
+                  })
                 : [{ playerId: 0, name: showWinner.name, amount: showWinner.amount, handDescription: showWinner.handDescription, handRank: '' }];
               const topAmount = sortedWinners[0]?.amount || 0;
               return (
                 <div className="space-y-3">
                   {sortedWinners.map((w: any, idx: number) => {
-                    const isTopWinner = w.amount === topAmount && idx === 0;
+                    const isTopWinner = idx === 0;
                     return (
                       <div key={w.playerId || idx} className={`${isTopWinner ? 'pb-2' : ''}`}>
                         {isTopWinner && (
