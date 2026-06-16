@@ -574,6 +574,8 @@ export default function Table() {
       }
       // Showdown: animate opponent card reveal + show entering showdown notification
       if (tableState.phase === "showdown" && lastPhase !== "showdown") {
+        // Set animateFromIndex to 5 so no community card (max index 4) gets re-animated
+        setAnimateFromIndex(5);
         setAnimateCards(true);
         setTimeout(() => setAnimateCards(false), 2000);
         if (!muted) playSound("cardFlip");
