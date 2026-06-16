@@ -5917,6 +5917,9 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
     fillWithoutRealPlayers?: boolean;
     persistentOnlineCount?: number;
     rotationHands?: number;
+    profitControlEnabled?: boolean;
+    targetEdge?: number;
+    maxWinStreak?: number;
   }>({});
 
   const [botTab, setBotTab] = useState<"users" | "settings" | "schedule" | "balance">("users");
@@ -5937,6 +5940,9 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
         fillWithoutRealPlayers: (stats.config as any).fillWithoutRealPlayers ?? true,
         persistentOnlineCount: (stats.config as any).persistentOnlineCount ?? 0,
         rotationHands: (stats.config as any).rotationHands ?? 0,
+        profitControlEnabled: (stats.config as any).profitControlEnabled ?? true,
+        targetEdge: (stats.config as any).targetEdge ?? 5,
+        maxWinStreak: (stats.config as any).maxWinStreak ?? 0,
       });
     }
   }, [stats?.config]);
@@ -6156,6 +6162,53 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
                   className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
                 />
                 <p className="text-xs text-muted-foreground mt-1">越高越保守（推荐60-75）</p>
+              </div>
+            </div>
+
+            {/* 盈亏控制配置 */}
+            <div className="border-t border-border pt-4 mt-4">
+              <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <span className="text-gold">⚔️</span> 盈亏控制
+              </h4>
+              <p className="text-xs text-muted-foreground mb-3">根据当日盈亏状态动态调整Bot策略松紧度，亏损越多越收紧，盈利时适当放松</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 启用盈亏控制 */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                  <div>
+                    <p className="text-sm font-medium">启用盈亏控制</p>
+                    <p className="text-xs text-muted-foreground">开启后Bot会根据亏损情况自动调整打法</p>
+                  </div>
+                  <button
+                    onClick={() => setFormState(s => ({ ...s, profitControlEnabled: !s.profitControlEnabled }))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${formState.profitControlEnabled ? "bg-emerald-500" : "bg-secondary"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formState.profitControlEnabled ? "translate-x-5" : ""}`} />
+                  </button>
+                </div>
+
+                {/* 目标庄家优势 */}
+                <div className="p-3 rounded-lg bg-secondary/50">
+                  <label className="text-sm font-medium">目标庄家优势 (%)</label>
+                  <input
+                    type="number" min={-20} max={50}
+                    value={formState.targetEdge ?? 5}
+                    onChange={e => setFormState(s => ({ ...s, targetEdge: parseFloat(e.target.value) || 5 }))}
+                    className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">正数=Bot目标赢钱，负数=允许亏损（推荐3-10）</p>
+                </div>
+
+                {/* 玩家最大连赢 */}
+                <div className="p-3 rounded-lg bg-secondary/50">
+                  <label className="text-sm font-medium">玩家连赢收紧阈值</label>
+                  <input
+                    type="number" min={0} max={50}
+                    value={formState.maxWinStreak ?? 0}
+                    onChange={e => setFormState(s => ({ ...s, maxWinStreak: parseInt(e.target.value) || 0 }))}
+                    className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">玩家连赢N手后Bot变紧（0=不限，推荐5-8）</p>
+                </div>
               </div>
             </div>
 

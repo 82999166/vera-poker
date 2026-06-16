@@ -848,3 +848,9 @@
 - [x] 真人玩家优先分配seat 0（底部中间），bot占据时自动让座
 - [x] Bot入座跳过seat 0，优先使用seat 1-5
 - [x] 牌桌整体下移（SEAT_POSITIONS top值增加）布局更美观
+
+## 2026-06-16 Bot盈亏控制系统
+- [x] 实时追踪bot当日盈亏（dailyBotTotalBet/Win + 玩家连赢追踪 playerWinStreaks）
+- [x] 根据盈亏状态动态调整bot equity阈值（getProfitControlAdjustment函数）
+- [x] 后台管理界面增加盈亏控制配置（profitControlEnabled/targetEdge/maxWinStreak）
+- [x] system_configs存储盈亏控制字段（bot_profit_control_enabled/bot_target_edge/bot_max_win_streak）

@@ -25,6 +25,10 @@ interface BotConfig {
   fillWithoutRealPlayers: boolean; // 无真人时是否填充bot自动对玩
   persistentOnlineCount: number; // 长期在线bot总数（分散到各桌）
   rotationHands: number;     // 每桌打多少把后轮换bot（0=不轮换）
+  // 盈亏控制
+  profitControlEnabled: boolean; // 是否启用盈亏控制
+  targetEdge: number;        // 目标庄家优势 (0-100, 如5表示bot目标赢5%)
+  maxWinStreak: number;      // 玩家最大连赢手数后收紧（0=不限）
 }
 
 // 房间级别Bot配置
@@ -52,6 +56,9 @@ const DEFAULT_CONFIG: BotConfig = {
   fillWithoutRealPlayers: true,
   persistentOnlineCount: 0,
   rotationHands: 0,
+  profitControlEnabled: true,
+  targetEdge: 5,
+  maxWinStreak: 0,
 };
 
 // 房间级别配置缓存
@@ -76,6 +83,98 @@ const BOT_USERS_CACHE_TTL = 60000; // 60秒缓存
 // 每日亏损追踪
 let dailyLossTotal = 0;
 let dailyLossDate = new Date().toDateString();
+
+// 盈亏控制：玩家连赢追踪 (userId -> 连续赢手数)
+const playerWinStreaks = new Map<number, number>();
+// 盈亏控制：当日bot总财务数据
+let dailyBotTotalBet = 0;  // bot当日总下注
+let dailyBotTotalWin = 0;  // bot当日总赢得
+
+/**
+ * 盈亏控制核心：根据当日盈亏状态计算equity调整值
+ * 返回值 > 0 表示bot应该打得更紧（提高equity阈值，减少亏损）
+ * 返回值 < 0 表示bot应该打得更松（降低equity阈值，让玩家赢一些）
+ * 返回值 = 0 表示不调整
+ */
+function getProfitControlAdjustment(config: BotConfig, opponentId?: number): number {
+  if (!config.profitControlEnabled) return 0;
+
+  let adjustment = 0;
+
+  // === 基于当日盈亏比例调整 ===
+  // lossRatio: bot亏损占dailyLossLimit的比例 (0~1+)
+  const lossRatio = dailyLossTotal / Math.max(config.dailyLossLimit, 1);
+  
+  if (lossRatio >= 0.8) {
+    // 亏损已达80%上限：强力收紧，bot只打强牌
+    adjustment += 0.15;
+  } else if (lossRatio >= 0.5) {
+    // 亏损50-80%：中度收紧
+    adjustment += 0.08;
+  } else if (lossRatio >= 0.3) {
+    // 亏损30-50%：轻微收紧
+    adjustment += 0.04;
+  } else if (lossRatio <= -0.3) {
+    // bot当日盈利较多（dailyLossTotal为负）：放松让玩家赢
+    adjustment -= 0.05;
+  }
+
+  // === 基于目标庄家优势调整 ===
+  // 如果bot当日打了足够多手，检查实际边际率vs目标
+  if (dailyBotTotalBet > 0) {
+    const actualEdge = (dailyBotTotalWin - dailyBotTotalBet) / dailyBotTotalBet * 100;
+    const targetEdge = config.targetEdge; // 目标: bot赢5%
+    const edgeDiff = actualEdge - targetEdge; // 正=bot赢太多，负=bot亏太多
+    
+    if (edgeDiff < -10) {
+      // bot亏得比目标多很多：收紧
+      adjustment += 0.10;
+    } else if (edgeDiff < -5) {
+      adjustment += 0.05;
+    } else if (edgeDiff > 10) {
+      // bot赢得比目标多很多：放松
+      adjustment -= 0.06;
+    } else if (edgeDiff > 5) {
+      adjustment -= 0.03;
+    }
+  }
+
+  // === 基于玩家连赢追踪调整 ===
+  if (config.maxWinStreak > 0 && opponentId) {
+    const streak = playerWinStreaks.get(opponentId) || 0;
+    if (streak >= config.maxWinStreak) {
+      // 玩家连赢超过阈值：收紧
+      adjustment += 0.08 + Math.min(streak - config.maxWinStreak, 5) * 0.02;
+    }
+  }
+
+  // 封顶调整值，避免过度影响游戏体验
+  return Math.max(-0.10, Math.min(0.25, adjustment));
+}
+
+/**
+ * 记录玩家赢牌（更新连赢追踪）
+ */
+export function recordPlayerWin(userId: number) {
+  const current = playerWinStreaks.get(userId) || 0;
+  playerWinStreaks.set(userId, current + 1);
+}
+
+/**
+ * 记录玩家输牌（重置连赢）
+ */
+export function recordPlayerLoss(userId: number) {
+  playerWinStreaks.set(userId, 0);
+}
+
+/**
+ * 记录bot下注和赢得（用于计算实际边际率）
+ */
+export function recordBotBetAndWin(betAmount: number, winAmount: number) {
+  resetDailyLossIfNeeded();
+  dailyBotTotalBet += betAmount;
+  dailyBotTotalWin += winAmount;
+}
 
 // 当前已入座的bot: roomId -> Set<botUserId>
 const seatedBots = new Map<number, Set<number>>();
@@ -106,6 +205,9 @@ export async function getBotConfig(): Promise<BotConfig> {
   const fillWithoutRealPlayers = await db.getConfigValue("bot_fill_without_real_players", "true");
   const persistentOnlineCount = await db.getConfigValue("bot_persistent_online_count", "0");
   const rotationHands = await db.getConfigValue("bot_rotation_hands", "0");
+  const profitControlEnabled = await db.getConfigValue("bot_profit_control_enabled", "true");
+  const targetEdge = await db.getConfigValue("bot_target_edge", "5");
+  const maxWinStreak = await db.getConfigValue("bot_max_win_streak", "0");
 
   cachedConfig = {
     enabled: enabled === "true",
@@ -121,6 +223,9 @@ export async function getBotConfig(): Promise<BotConfig> {
     fillWithoutRealPlayers: fillWithoutRealPlayers === "true",
     persistentOnlineCount: parseInt(persistentOnlineCount) || 0,
     rotationHands: parseInt(rotationHands) || 0,
+    profitControlEnabled: profitControlEnabled === "true",
+    targetEdge: parseFloat(targetEdge) || DEFAULT_CONFIG.targetEdge,
+    maxWinStreak: parseInt(maxWinStreak) || 0,
   };
   configCachedAt = now;
   return cachedConfig;
@@ -203,6 +308,9 @@ function resetDailyLossIfNeeded() {
   if (today !== dailyLossDate) {
     dailyLossTotal = 0;
     dailyLossDate = today;
+    dailyBotTotalBet = 0;
+    dailyBotTotalWin = 0;
+    playerWinStreaks.clear();
   }
 }
 
@@ -631,7 +739,11 @@ export async function triggerBotAction(roomId: number): Promise<void> {
       if (roomConfig?.foldRate !== null && roomConfig?.foldRate !== undefined) {
         effectiveConfig.foldRate = roomConfig.foldRate;
       }
-      const decision = decideBotAction(currentGs, player, currentTable.bigBlind, effectiveConfig);
+      // 盈亏控制：找到对手真人玩家ID（用于连赢追踪）
+      const botIds = await getBotUserIds();
+      const realOpponent = currentGs.players.find(p => p.isActive && !p.isFolded && !botIds.includes(p.id));
+      const opponentId = realOpponent?.id;
+      const decision = decideBotAction(currentGs, player, currentTable.bigBlind, effectiveConfig, opponentId);
       
       await processPlayerAction(roomId, player.id, decision.action, decision.amount);
     } catch (e) {
@@ -854,7 +966,8 @@ function decideBotAction(
   gs: GameState,
   player: typeof gs.players[0],
   bigBlind: number,
-  config: BotConfig
+  config: BotConfig,
+  opponentId?: number
 ): { action: PlayerAction; amount?: number } {
   const { currentBet, communityCards, pot, minRaise } = gs;
   const toCall = currentBet - player.currentBet;
@@ -892,6 +1005,11 @@ function decideBotAction(
   // foldRate 67 = 默认（不调整），> 67 = 更容易弃牌（equity阈值上调），< 67 = 更激进（equity阈值下调）
   const foldAdjust = (config.foldRate - 67) / 100; // 例如 foldRate=80 → +0.13, foldRate=50 → -0.17
   equity -= foldAdjust; // foldRate越高，有效equity越低，越容易弃牌
+
+  // === 盈亏控制动态调整 ===
+  // 根据当日盈亏状态动态调整bot策略松紧度
+  const profitAdj = getProfitControlAdjustment(config, opponentId);
+  equity -= profitAdj; // 正调整 = 降低equity = bot更容易fold = 减少亏损
 
   // === 决策逻辑 ===
 
@@ -1252,17 +1370,28 @@ export async function processBotSettlement(playerWinAmounts: Map<number, number>
   const botUserIds = await getBotUserIds();
   
   for (const player of players) {
-    if (!botUserIds.includes(player.id)) continue;
-    
-    const winAmount = playerWinAmounts.get(player.id) || 0;
-    const netProfit = winAmount - player.totalBet;
-    
-    if (netProfit < 0) {
-      // Bot亏损
-      addBotLoss(Math.abs(netProfit));
-    } else if (netProfit > 0) {
-      // Bot赢钱（减少亏损记录）
-      addBotWin(netProfit);
+    if (botUserIds.includes(player.id)) {
+      // Bot结算
+      const winAmount = playerWinAmounts.get(player.id) || 0;
+      const netProfit = winAmount - player.totalBet;
+      
+      // 记录bot下注和赢得（用于计算实际边际率）
+      recordBotBetAndWin(player.totalBet, winAmount);
+      
+      if (netProfit < 0) {
+        addBotLoss(Math.abs(netProfit));
+      } else if (netProfit > 0) {
+        addBotWin(netProfit);
+      }
+    } else {
+      // 真人玩家结算：追踪连赢
+      const winAmount = playerWinAmounts.get(player.id) || 0;
+      const netProfit = winAmount - player.totalBet;
+      if (netProfit > 0) {
+        recordPlayerWin(player.id);
+      } else if (netProfit < 0) {
+        recordPlayerLoss(player.id);
+      }
     }
   }
 }
