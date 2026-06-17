@@ -205,41 +205,26 @@ export const appRouter = router({
         if (!valid) {
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Incorrect password" });
         }
-        // Device exclusivity check for password login
+        // Device exclusivity: always increment sessionVersion to invalidate old sessions
         const { sdk } = await import("./_core/sdk");
         const { ONE_YEAR_MS } = await import("@shared/const");
-        const { updateUserDeviceFingerprint } = await import("./db");
-        const { createPendingLogin } = await import("./deviceAuth");
         
-        // Build fingerprint from request
-        const ua = ctx.req.headers["user-agent"] || "";
-        const ip = (ctx.req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || ctx.req.socket?.remoteAddress || "";
-        const fingerprint = `${ua}|${ip}`;
-        const fpResult = await updateUserDeviceFingerprint(user.openId, fingerprint);
-        
-        if (fpResult.isNewDevice) {
-          // New device detected - create pending login request for old device to approve
-          const nextSv = user.sessionVersion + 1;
-          const sessionToken = await sdk.createSessionToken(user.openId, {
-            name: user.name || user.nickname || "",
-            expiresInMs: ONE_YEAR_MS,
-            sessionVersion: nextSv,
-          });
-          const requestId = createPendingLogin({
-            userId: user.id,
-            openId: user.openId,
-            fingerprint,
-            userAgent: ua,
-            sessionToken,
-          });
-          return { success: true, pendingLogin: true, requestId, userId: user.id, user: { id: user.id, name: user.name, nickname: user.nickname, tgId: user.tgId } };
+        // Increment sessionVersion in DB to kick old device
+        const dbInstance = await db.getDb();
+        if (dbInstance) {
+          const { users } = await import("../drizzle/schema");
+          const { eq, sql } = await import("drizzle-orm");
+          await dbInstance.update(users)
+            .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
+            .where(eq(users.id, user.id));
         }
         
-        // Same device - normal login with current sessionVersion
+        // Create token with the NEW sessionVersion
+        const newSv = user.sessionVersion + 1;
         const sessionToken = await sdk.createSessionToken(user.openId, {
           name: user.name || user.nickname || "",
           expiresInMs: ONE_YEAR_MS,
-          sessionVersion: user.sessionVersion,
+          sessionVersion: newSv,
         });
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });

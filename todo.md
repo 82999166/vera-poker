@@ -912,3 +912,8 @@
 
 #- [x] 实现同账号只能在一个设备上游戏，后登录设备踢掉前设备（JWT嵌入sessionVersion + DB对比）
 - [x] 前端被踢时显示明确提示（SessionExpiredAlert弹窗 + 同意/拒绝按钮）如"您的账号已在其他设备登录"）
+
+## 2026-06-17 设备互斥未生效 + 关闭按钮翻译
+- [x] 修复同账号多设备仍可同时登录并游戏（每次登录强制递增sessionVersion，旧cookie无sv字段也会被踢）
+- [x] 游戏左上角关闭按钮是Telegram原生标题栏按钮，跟随用户TG客户端语言，无法通过代码控制
+- [x] 清理Table.tsx中残留的中文fallback字符串（lowChipsWarning、allInConfirmMsg）

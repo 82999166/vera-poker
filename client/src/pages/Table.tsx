@@ -1330,7 +1330,7 @@ export default function Table() {
       const minBuyIn = parseFloat(room.minBuyIn);
       const currentChips = myPlayer?.chips ?? 0;
       if (currentChips < minBuyIn * 0.5) {
-        toast.warning(t("table.lowChipsWarning") || `筹码不足 (${currentChips.toFixed(2)} USDT)，建议补充至 ${minBuyIn.toFixed(2)} USDT 以上`);
+        toast.warning(t("table.lowChipsWarning"));
       }
       navigate(`/table/${result.newRoomId}`);
     } catch (err: unknown) {
@@ -2482,7 +2482,7 @@ export default function Table() {
               </div>
               <h3 className="text-base font-black text-white">{t("table.allIn")}</h3>
               <p className="text-[12px] text-red-300 mt-1 text-center">
-                {t("table.allInConfirmMsg") || `确认押上全部筹码？`}
+                {t("table.allInConfirmMsg")}
               </p>
               <p className="text-xl font-black text-yellow-300 mt-2">
                 {myPlayer ? fmtAmt(myPlayer.chips) : ""}

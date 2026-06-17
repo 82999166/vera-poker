@@ -306,7 +306,9 @@ class SDKServer {
     }
 
     // Device exclusivity: check sessionVersion in JWT matches DB
-    if (session.sv !== undefined && user.sessionVersion !== session.sv) {
+    // Old cookies without sv field are treated as sv=1 (initial value)
+    const tokenSv = session.sv ?? 1;
+    if (user.sessionVersion !== tokenSv) {
       throw ForbiddenError("SESSION_EXPIRED_OTHER_DEVICE");
     }
 
