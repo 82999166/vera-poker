@@ -893,7 +893,7 @@
 
 ## 2026-06-17 Bug: Bot占满牌桌导致真人无法入座
 - [x] Bot填充时预留座位：checkAndFillBots中targetBotCount限制为min(botCount, maxPlayers-1)
-- [ ] game.join满了时自动跳转到同级别有空位的桌（或自动创建新桌）
+- [x] game.join满了时自动跳转到同级别有空位的桌（或自动创建新桌）
 
 ## 2026-06-17 Bug: 管理后台跳转到Manus OAuth登录
 - [x] 修复main.tsx中全局UNAUTHORIZED错误处理：admin路径下不触发OAuth重定向，使用独立的员工账号密码登录

@@ -845,6 +845,13 @@ export default function Table() {
   const reportLocationMutation = trpc.game.reportLocation.useMutation();
   const joinMutation = trpc.game.join.useMutation({
     onSuccess: (data) => {
+      // AUTO-REDIRECT: If server redirected to a different table, navigate there
+      if (data.redirectedRoomId && data.redirectedRoomId !== roomId) {
+        toast.success(t("table.redirectedToTable") || `Table full, redirected to ${data.redirectedRoomName || "another table"}`, { duration: 2000 });
+        utils.wallet.balance.invalidate();
+        navigate(`/table/${data.redirectedRoomId}`);
+        return;
+      }
       setIsSeated(true);
       setShowBuyIn(false);
       joinSettledRef.current = false; // reset: wait for tableState to confirm player presence

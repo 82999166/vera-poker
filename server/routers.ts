@@ -1258,7 +1258,7 @@ export const appRouter = router({
       if (alreadySeated) {
         if (alreadySeated.status === "sitting_out") {
           // Player is sitting_out (waiting for next hand) - allow rejoin without deducting balance
-          return { success: true, seatIndex: alreadySeated.seatIndex, message: "WAITING_FOR_NEXT_HAND" };
+          return { success: true, seatIndex: alreadySeated.seatIndex, message: "WAITING_FOR_NEXT_HAND", redirectedRoomId: null, redirectedRoomName: null };
         }
         // Active player on another device - reject
         throw new TRPCError({ 
@@ -1276,6 +1276,80 @@ export const appRouter = router({
       if (!result.success) {
         // Refund atomically (add back the deducted amount)
         await db.addUserBalanceAtomic(ctx.user.id, input.buyIn);
+
+        // AUTO-REDIRECT: If table is full, find another table at same stake level (public rooms only)
+        if ((result.message === "Table is full" || result.message === "No available seats") && room.type === "public") {
+          const allRooms = await db.getPublicRooms();
+          const candidates = allRooms.filter(r =>
+            r.id !== input.roomId &&
+            r.smallBlind === room.smallBlind &&
+            r.bigBlind === room.bigBlind &&
+            (r.status === "waiting" || r.status === "playing") &&
+            r.currentPlayers < r.maxPlayers
+          );
+          let targetRoom;
+          if (candidates.length > 0) {
+            // Pick table with most players (most action) but not full
+            targetRoom = candidates.sort((a, b) => b.currentPlayers - a.currentPlayers)[0];
+          } else {
+            // All same-stake tables are full, auto-create a new one
+            const sameStakeRooms = allRooms.filter(r =>
+              r.smallBlind === room.smallBlind && r.bigBlind === room.bigBlind
+            );
+            const tableNum = sameStakeRooms.length + 1;
+            const newRoomId = await db.createRoom({
+              name: `${room.name.replace(/ #\d+$/, "")} #${tableNum}`,
+              type: "public",
+              status: "waiting",
+              gameType: room.gameType,
+              smallBlind: room.smallBlind,
+              bigBlind: room.bigBlind,
+              minBuyIn: room.minBuyIn,
+              maxBuyIn: room.maxBuyIn,
+              maxPlayers: room.maxPlayers,
+              fairnessLevel: room.fairnessLevel,
+              rakePercent: room.rakePercent,
+              rakeCap: room.rakeCap,
+              billingMode: room.billingMode,
+              roundFee: room.roundFee,
+              currentPlayers: 0,
+            });
+            if (!newRoomId) {
+              throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create new table" });
+            }
+            const newRoom = await db.getRoomById(newRoomId);
+            if (!newRoom) {
+              throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to find new table" });
+            }
+            targetRoom = newRoom;
+            console.log(`[AutoRedirect] Created new table "${newRoom.name}" (id=${newRoomId}) for stake ${room.smallBlind}/${room.bigBlind}`);
+          }
+          // Re-deduct balance and try joining the target room
+          const newBalance2 = await db.deductUserBalanceAtomic(ctx.user.id, input.buyIn);
+          if (newBalance2 === null) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Insufficient balance" });
+          }
+          const result2 = await tableManager.joinTable(targetRoom.id, ctx.user.id, input.buyIn);
+          if (!result2.success) {
+            await db.addUserBalanceAtomic(ctx.user.id, input.buyIn);
+            throw new TRPCError({ code: "BAD_REQUEST", message: result2.message || "Cannot join table" });
+          }
+          // Record buy-in transaction for redirected table
+          await db.createTransaction({
+            userId: ctx.user.id,
+            type: "buy_in",
+            amount: input.buyIn.toFixed(2),
+            balanceBefore: balanceBefore,
+            balanceAfter: newBalance2,
+            status: "confirmed",
+            referenceType: "room",
+            referenceId: targetRoom.id,
+            note: `Buy-in (auto-redirect): ${targetRoom.name}`,
+          });
+          console.log(`[AutoRedirect] Player ${ctx.user.id} redirected from room ${input.roomId} to room ${targetRoom.id}`);
+          return { seatIndex: result2.seatIndex, newBalance: newBalance2, message: result2.message || null, redirectedRoomId: targetRoom.id, redirectedRoomName: targetRoom.name };
+        }
+
         throw new TRPCError({ code: "BAD_REQUEST", message: result.message || "Cannot join table" });
       }
       // Record buy-in transaction
@@ -1301,7 +1375,7 @@ export const appRouter = router({
           }
         }
       }
-      return { seatIndex: result.seatIndex, newBalance, message: result.message || null };
+      return { seatIndex: result.seatIndex, newBalance, message: result.message || null, redirectedRoomId: null, redirectedRoomName: null };
     }),
 
     // 上报地理位置（前端在加入牌桌时调用）
