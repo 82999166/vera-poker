@@ -897,3 +897,10 @@
 
 ## 2026-06-17 Bug: 管理后台跳转到Manus OAuth登录
 - [x] 修复main.tsx中全局UNAUTHORIZED错误处理：admin路径下不触发OAuth重定向，使用独立的员工账号密码登录
+
+## 2026-06-17 i18n 多语言翻译键补全
+- [x] 添加 table.redirectedToTable 多语言翻译键（12种语言）
+- [x] 添加 agent.tgLoginRequired / agent.sendFailed / agent.shareSending 多语言翻译键（12种语言）
+- [x] 添加 checkin.* / coupon.redeemSuccess 多语言翻译键（12种语言）
+- [x] 修复 Agent.tsx 中硬编码中文 toast 改为 t() 调用
+- [x] 修复 Profile.tsx CheckinWidget/CouponRedeemWidget 中硬编码双语文本改为 t() 调用

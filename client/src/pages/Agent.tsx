@@ -49,7 +49,7 @@ export default function Agent() {
       const { preparedMessageId } = await prepareShareMutation.mutateAsync({
         shareText: displayShareText,
         inviteLink: dashboard.inviteLink,
-        startButtonText: t("agent.startGameBtn") || "开始游戏 🎮",
+        startButtonText: t("agent.startGameBtn"),
       });
 
       // Step 2: 调用 Telegram WebApp SDK 弹出联系人选择器
@@ -57,7 +57,7 @@ export default function Agent() {
       if (tg?.shareMessage) {
         tg.shareMessage(preparedMessageId, (sent: boolean) => {
           if (sent) {
-            toast.success(t("agent.shareSuccess") || "✅ 分享成功！");
+            toast.success(t("agent.shareSuccess"));
           }
           // 用户取消不显示错误
         });
@@ -70,9 +70,9 @@ export default function Agent() {
     } catch (err: any) {
       const msg = err?.message || err?.data?.message || "";
       if (msg.includes("Telegram")) {
-        toast.error("请先用 Telegram 账号登录后再分享");
+        toast.error(t("agent.tgLoginRequired"));
       } else {
-        toast.error("发送失败：" + (msg || "请稍后重试"));
+        toast.error(t("agent.sendFailed").replace("{msg}", msg || ""));
       }
     } finally {
       setIsSending(false);
@@ -193,7 +193,7 @@ export default function Agent() {
               ) : (
                 <Gamepad2 className="w-5 h-5" />
               )}
-              {isSending ? (t("agent.shareSending") || "发送中...") : t("agent.shareButton")}
+              {isSending ? t("agent.shareSending") : t("agent.shareButton")}
             </button>
           </div>
         </div>

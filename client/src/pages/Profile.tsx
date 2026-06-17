@@ -791,17 +791,17 @@ function TelegramIcon({ className }: { className?: string }) {
 
 // ==================== Checkin Widget ====================
 function CheckinWidget({ locale, onClose }: { locale: string; onClose: () => void }) {
+  const { t } = useI18n();
   const { data: checkinData, refetch } = trpc.marketing.checkinStatus.useQuery();
   const { data: checkinConfig } = trpc.marketing.checkinConfig.useQuery();
   const checkinMut = trpc.marketing.checkinPerform.useMutation({
     onSuccess: (res: any) => {
-      toast.success(locale === "zh-CN" || locale === "zh-TW" ? `签到成功！获得 ${res.amount} USDT` : `Check-in success! Got ${res.amount} USDT`);
+      toast.success(t("checkin.success").replace("{amount}", res.amount));
       refetch();
     },
     onError: (err: any) => toast.error(err.message),
   });
 
-  const isChinese = locale === "zh-CN" || locale === "zh-TW";
   const config = checkinConfig;
   const streak = checkinData?.streak || 0;
   const checkedToday = checkinData?.checkedInToday || false;
@@ -809,7 +809,7 @@ function CheckinWidget({ locale, onClose }: { locale: string; onClose: () => voi
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-gold">{isChinese ? "每日签到" : "Daily Check-in"}</h3>
+        <h3 className="text-lg font-bold text-gold">{t("checkin.title")}</h3>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
       </div>
 
@@ -817,7 +817,7 @@ function CheckinWidget({ locale, onClose }: { locale: string; onClose: () => voi
         <>
           <div className="text-center">
             <div className="text-3xl font-bold text-gold">{streak}</div>
-            <div className="text-xs text-muted-foreground">{isChinese ? "连续签到天数" : "Day Streak"}</div>
+            <div className="text-xs text-muted-foreground">{t("checkin.streak")}</div>
           </div>
 
           {/* 7-day grid */}
@@ -838,9 +838,7 @@ function CheckinWidget({ locale, onClose }: { locale: string; onClose: () => voi
           </div>
 
           <div className="text-center text-xs text-muted-foreground">
-            {isChinese
-              ? `每日奖励: ${config[0]?.reward || "1.00"} ~ ${config[6]?.reward || "5.00"} USDT`
-              : `Daily: ${config[0]?.reward || "1.00"} ~ ${config[6]?.reward || "5.00"} USDT`}
+            {t("checkin.dailyReward").replace("{min}", config[0]?.reward || "1.00").replace("{max}", config[6]?.reward || "5.00")}
           </div>
 
           <button
@@ -853,15 +851,15 @@ function CheckinWidget({ locale, onClose }: { locale: string; onClose: () => voi
             }`}
           >
             {checkinMut.isPending
-              ? (isChinese ? "签到中..." : "Checking in...")
+              ? t("checkin.checking")
               : checkedToday
-              ? (isChinese ? "今日已签到 ✓" : "Checked in ✓")
-              : (isChinese ? "立即签到" : "Check in Now")}
+              ? t("checkin.checkedToday")
+              : t("checkin.checkNow")}
           </button>
         </>
       ) : (
         <div className="text-center py-6 text-muted-foreground text-sm">
-          {isChinese ? "签到活动暂未开启" : "Check-in not available"}
+          {t("checkin.notAvailable")}
         </div>
       )}
     </div>
@@ -870,11 +868,11 @@ function CheckinWidget({ locale, onClose }: { locale: string; onClose: () => voi
 
 // ==================== Coupon Redeem Widget ====================
 function CouponRedeemWidget({ locale, onClose }: { locale: string; onClose: () => void }) {
+  const { t } = useI18n();
   const [code, setCode] = useState("");
   const redeemMut = trpc.marketing.couponRedeem.useMutation({
     onSuccess: (res) => {
-      const isChinese = locale === "zh-CN" || locale === "zh-TW";
-      toast.success(isChinese ? `兑换成功！获得 ${res.amount} USDT` : `Redeemed! Got ${res.amount} USDT`);
+      toast.success(t("coupon.redeemSuccess").replace("{amount}", String(res.amount)));
       setCode("");
       onClose();
     },
