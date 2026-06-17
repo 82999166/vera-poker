@@ -2441,6 +2441,16 @@ ${faqContext}
       const totalOnlineReal = onlineByRoom.reduce((s, r) => s + r.realPlayers, 0);
       const totalOnlineBot = onlineByRoom.reduce((s, r) => s + r.botPlayers, 0);
 
+      // Deposit/Withdrawal stats
+      const [totalDeposit] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(amount), 0)` }).from(transactions)
+        .where(and(eq(transactions.type, "deposit"), eq(transactions.status, "completed")));
+      const [totalWithdraw] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(amount), 0)` }).from(transactions)
+        .where(and(eq(transactions.type, "withdraw"), eq(transactions.status, "completed")));
+      const [todayDeposit] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(amount), 0)` }).from(transactions)
+        .where(sql`type = 'deposit' AND status = 'completed' AND DATE(createdAt) = CURDATE()`);
+      const [todayWithdraw] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(amount), 0)` }).from(transactions)
+        .where(sql`type = 'withdraw' AND status = 'completed' AND DATE(createdAt) = CURDATE()`);
+
       return {
         totalUsers: userCount?.count ?? 0,
         totalRooms: roomCount?.count ?? 0,
@@ -2455,6 +2465,11 @@ ${faqContext}
         todayRake: parseFloat(todayRake?.total ?? "0").toFixed(2),
         totalHands: totalHandsCount?.count ?? 0,
         todayHands: todayHandsCount?.count ?? 0,
+        // Deposit/Withdrawal stats
+        totalDeposit: parseFloat(totalDeposit?.total ?? "0").toFixed(2),
+        totalWithdraw: parseFloat(totalWithdraw?.total ?? "0").toFixed(2),
+        todayDeposit: parseFloat(todayDeposit?.total ?? "0").toFixed(2),
+        todayWithdraw: parseFloat(todayWithdraw?.total ?? "0").toFixed(2),
         // Online stats
         totalOnline,
         totalOnlineReal,

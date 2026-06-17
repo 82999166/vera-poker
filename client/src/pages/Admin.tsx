@@ -259,6 +259,13 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.todayNew": "今日新增",
     "users.todayActive": "今日活跃",
     "users.totalBalance": "平台总余额",
+    "users.totalDeposit": "总充值",
+    "users.totalWithdraw": "总提现",
+    "users.todayDeposit": "今日充值",
+    "users.todayWithdraw": "今日提现",
+    "users.filterAll": "全部",
+    "users.filterReal": "真实用户",
+    "users.filterBot": "机器人",
     "users.search": "搜索用户名 / TG ID / 用户ID...",
     "users.colUser": "用户",
     "users.colIp": "IP / 地区",
@@ -458,6 +465,8 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "settings.bonusSummary3b": "仅公共房 ≥3人牌局计入，私房不计入",
     "settings.bonusSummary4": "未充值用户不能进入私人房间",
     "users.colBonus": "奖金",
+    "users.colDevice": "设备",
+    "users.colRegistered": "注册时间",
   },
   "zh-TW": {
     "admin.title": "Vera 管理後台",
@@ -670,6 +679,13 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.todayNew": "今日新增",
     "users.todayActive": "今日活躍",
     "users.totalBalance": "平台總餘額",
+    "users.totalDeposit": "總充值",
+    "users.totalWithdraw": "總提現",
+    "users.todayDeposit": "今日充值",
+    "users.todayWithdraw": "今日提現",
+    "users.filterAll": "全部",
+    "users.filterReal": "真實用戶",
+    "users.filterBot": "機器人",
     "users.search": "搜尋用戶名 / TG ID / 用戶ID...",
     "users.colUser": "用戶",
     "users.colIp": "IP / 地區",
@@ -865,6 +881,8 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "settings.bonusSummary3b": "僅公共房 ≥3人牌局計入，私房不計入",
     "settings.bonusSummary4": "未充值用戶不能進入私人房間",
     "users.colBonus": "獎金",
+    "users.colDevice": "設備",
+    "users.colRegistered": "註冊時間",
   },
   "en": {
     "admin.title": "Vera Admin",
@@ -1077,6 +1095,13 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.todayNew": "New Today",
     "users.todayActive": "Active Today",
     "users.totalBalance": "Platform Balance",
+    "users.totalDeposit": "Total Deposits",
+    "users.totalWithdraw": "Total Withdrawals",
+    "users.todayDeposit": "Today Deposits",
+    "users.todayWithdraw": "Today Withdrawals",
+    "users.filterAll": "All",
+    "users.filterReal": "Real Users",
+    "users.filterBot": "Bots",
     "users.search": "Search username / TG ID / User ID...",
     "users.colUser": "User",
     "users.colIp": "IP / Region",
@@ -1272,9 +1297,10 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "settings.bonusSummary3b": "Only public rooms with 3+ players count, private rooms excluded",
     "settings.bonusSummary4": "Users without deposits cannot enter private rooms",
     "users.colBonus": "Bonus",
+    "users.colDevice": "Device",
+    "users.colRegistered": "Registered",
   },
 };
-
 function useAdminLang() {
   const [lang, setLang] = useState<AdminLang>(() => {
     const saved = localStorage.getItem("vera-admin-lang") as AdminLang | null;
@@ -1795,7 +1821,8 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const { data, isLoading, refetch } = trpc.admin.users.useQuery({ page, limit: 20 });
+  const [userFilter, setUserFilter] = useState<"all" | "real" | "bot">("real");
+  const { data, isLoading, refetch } = trpc.admin.users.useQuery({ page, limit: 50 });
   const { data: statsData } = trpc.admin.stats.useQuery();
   const updateMutation = trpc.admin.updateUser.useMutation({
     onSuccess: () => { toast.success(at("users.updated")); refetch(); },
@@ -1809,14 +1836,21 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
 
   const users = (data as any)?.users ?? data ?? [];
   const total = (data as any)?.total ?? 0;
+  // Apply user type filter first
+  const typeFiltered = (users as any[]).filter((u: any) => {
+    if (userFilter === "real") return !u.isBot;
+    if (userFilter === "bot") return u.isBot;
+    return true;
+  });
+  // Then apply search filter
   const filtered = search
-    ? (users as any[]).filter((u: any) => 
+    ? typeFiltered.filter((u: any) => 
         (u.name || "").toLowerCase().includes(search.toLowerCase()) ||
         (u.tgUsername || "").toLowerCase().includes(search.toLowerCase()) ||
         (u.tgId || "").includes(search) ||
         String(u.id).includes(search)
       )
-    : users;
+    : typeFiltered;
 
   const riskColors: Record<string, string> = {
     normal: "bg-success/20 text-success",
@@ -1831,57 +1865,80 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
         <h2 className="text-lg font-bold">{at("users.title")}</h2>
         <span className="text-xs text-muted-foreground">{total} {at("users.totalGameUsers")}</span>
       </div>
-      {/* Stats overview cards */}
+      {/* Stats overview cards - 2 rows of 4 */}
       {statsData && (
-        <div className="grid grid-cols-2 gap-2">
-          <div className="glass rounded-xl p-3 flex flex-col gap-0.5">
+        <div className="grid grid-cols-4 gap-2">
+          <div className="glass rounded-xl p-2.5 flex flex-col gap-0.5">
             <span className="text-[10px] text-muted-foreground">{at("users.totalGameUsers")}</span>
-            <span className="text-lg font-bold text-gold">{(statsData as any).totalUsers ?? 0}</span>
+            <span className="text-base font-bold text-gold">{(statsData as any).totalUsers ?? 0}</span>
           </div>
-          <div className="glass rounded-xl p-3 flex flex-col gap-0.5">
+          <div className="glass rounded-xl p-2.5 flex flex-col gap-0.5">
             <span className="text-[10px] text-muted-foreground">{at("users.todayNew")}</span>
-            <span className="text-lg font-bold text-success">{(statsData as any).todayNewUsers ?? 0}</span>
+            <span className="text-base font-bold text-success">{(statsData as any).todayNewUsers ?? 0}</span>
           </div>
-          <div className="glass rounded-xl p-3 flex flex-col gap-0.5">
+          <div className="glass rounded-xl p-2.5 flex flex-col gap-0.5">
             <span className="text-[10px] text-muted-foreground">{at("users.todayActive")}</span>
-            <span className="text-lg font-bold text-truth-blue">{(statsData as any).todayActiveUsers ?? 0}</span>
+            <span className="text-base font-bold text-truth-blue">{(statsData as any).todayActiveUsers ?? 0}</span>
           </div>
-          <div className="glass rounded-xl p-3 flex flex-col gap-0.5">
+          <div className="glass rounded-xl p-2.5 flex flex-col gap-0.5">
             <span className="text-[10px] text-muted-foreground">{at("users.totalBalance")}</span>
-            <span className="text-lg font-bold text-gold">${(statsData as any).totalBalance ?? "0.00"}</span>
+            <span className="text-base font-bold text-gold">${(statsData as any).totalBalance ?? "0.00"}</span>
+          </div>
+          <div className="glass rounded-xl p-2.5 flex flex-col gap-0.5">
+            <span className="text-[10px] text-muted-foreground">{at("users.totalDeposit")}</span>
+            <span className="text-base font-bold text-emerald-400">${(statsData as any).totalDeposit ?? "0.00"}</span>
+          </div>
+          <div className="glass rounded-xl p-2.5 flex flex-col gap-0.5">
+            <span className="text-[10px] text-muted-foreground">{at("users.totalWithdraw")}</span>
+            <span className="text-base font-bold text-red-400">${(statsData as any).totalWithdraw ?? "0.00"}</span>
+          </div>
+          <div className="glass rounded-xl p-2.5 flex flex-col gap-0.5">
+            <span className="text-[10px] text-muted-foreground">{at("users.todayDeposit")}</span>
+            <span className="text-base font-bold text-emerald-400">${(statsData as any).todayDeposit ?? "0.00"}</span>
+          </div>
+          <div className="glass rounded-xl p-2.5 flex flex-col gap-0.5">
+            <span className="text-[10px] text-muted-foreground">{at("users.todayWithdraw")}</span>
+            <span className="text-base font-bold text-red-400">${(statsData as any).todayWithdraw ?? "0.00"}</span>
           </div>
         </div>
       )}
-      <input
-        type="text"
-        placeholder={at("users.search")}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full glass rounded-lg px-3 py-2 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-      />
-      {/* Column Header */}
-      <div className="grid grid-cols-[1fr_minmax(140px,auto)_auto_auto_auto_auto_auto] gap-2 px-3 text-[10px] text-muted-foreground font-medium">
-        <span>{at("users.colUser")}</span>
-        <span className="text-center">{at("users.colIp")}</span>
-        <span className="text-right w-28">{at("users.colLastLogin")}</span>
-        <span className="text-right w-16">{at("users.colBalance")}</span>
-        <span className="text-right w-16">{at("users.colBonus")}</span>
-        <span className="text-right w-20">{at("users.colStatus")}</span>
-        <span className="text-right w-14"></span>
+      {/* Filter tabs + Search */}
+      <div className="flex items-center gap-2">
+        <div className="flex gap-1">
+          {(["all", "real", "bot"] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setUserFilter(f)}
+              className={`px-2.5 py-1 text-[11px] rounded-lg font-medium transition-colors ${
+                userFilter === f ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {at(`users.filter${f.charAt(0).toUpperCase() + f.slice(1)}`)}
+            </button>
+          ))}
+        </div>
+        <input
+          type="text"
+          placeholder={at("users.search")}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 glass rounded-lg px-3 py-1.5 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+        />
       </div>
+      {/* User list - two-row card layout */}
       <div className="space-y-1.5">
         {(filtered as any[])?.map((u: any) => (
           <div
             key={u.id}
-            className="glass rounded-xl px-3 py-2.5 cursor-pointer hover:bg-secondary/50 transition-colors"
+            className="glass rounded-xl px-3 py-2 cursor-pointer hover:bg-secondary/50 transition-colors"
             onClick={() => setSelectedUserId(u.id)}
           >
-            {/* Single row layout */}
-            <div className="grid grid-cols-[1fr_minmax(140px,auto)_auto_auto_auto_auto_auto] gap-2 items-center">
+            {/* Row 1: User + IP + Device + Balance + Risk */}
+            <div className="grid grid-cols-[1fr_130px_140px_70px_70px] gap-2 items-center">
               {/* User info */}
               <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(to bottom right, rgba(234,179,8,0.3), rgba(234,179,8,0.1))" }}>
-                  <span className="text-[10px] font-bold text-gold">{(u.name || u.nickname || "?").charAt(0).toUpperCase()}</span>
+                <div className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center" style={{ background: u.isBot ? "linear-gradient(to bottom right, rgba(100,100,100,0.3), rgba(100,100,100,0.1))" : "linear-gradient(to bottom right, rgba(234,179,8,0.3), rgba(234,179,8,0.1))" }}>
+                  <span className={`text-[10px] font-bold ${u.isBot ? "text-muted-foreground" : "text-gold"}`}>{u.isBot ? "🤖" : (u.name || u.nickname || "?").charAt(0).toUpperCase()}</span>
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -1895,53 +1952,29 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
                   <span className="text-[10px] text-muted-foreground">#{u.id}{u.tgUsername ? ` @${u.tgUsername}` : ""}</span>
                 </div>
               </div>
-              {/* IP + Region column */}
+              {/* IP + Region */}
               <div className="text-center min-w-0">
                 {u.lastIp ? (
                   <div className="flex flex-col items-center">
                     <span className="text-[10px] font-mono text-yellow-400">{u.lastIp}</span>
-                    <span className="text-[9px] text-muted-foreground">{u.ipRegion || ""}</span>
+                    <span className="text-[9px] text-muted-foreground truncate">{u.ipRegion || ""}</span>
                   </div>
                 ) : (
                   <span className="text-[10px] text-muted-foreground">-</span>
                 )}
               </div>
-              {/* Device info */}
-              <span className="text-[10px] text-muted-foreground text-center w-28 shrink-0 truncate" title={u.lastLoginDevice || ""}>
+              {/* Device */}
+              <span className="text-[10px] text-muted-foreground text-center truncate" title={u.lastLoginDevice || ""}>
                 {u.lastLoginDevice || "-"}
               </span>
-              {/* Last login - full date + time */}
-              <span className="text-[10px] text-muted-foreground text-right w-28 shrink-0">
-                {u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}
-              </span>
               {/* Balance */}
-              <span className="text-sm font-mono text-gold text-right w-16 shrink-0">${formatBalance(u.balance)}</span>
-              {/* Bonus Status */}
-              <div className="w-16 shrink-0 flex justify-end">
-                {u.bonusUnlocked ? (
-                  <span className="px-1 py-0.5 rounded text-[9px] font-medium bg-emerald-500/20 text-emerald-400">✓ 已解锁</span>
-                ) : parseFloat(u.bonusBalance || "0") > 0 ? (
-                  <span className="px-1 py-0.5 rounded text-[9px] font-medium bg-yellow-500/20 text-yellow-400">${formatBalance(parseFloat(u.bonusBalance))}</span>
-                ) : (
-                  <span className="text-[9px] text-muted-foreground">-</span>
-                )}
-              </div>
-              {/* Online status */}
-              <div className="w-20 shrink-0 flex justify-end">
-                {u.onlineStatus?.online ? (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-500/20 text-emerald-400">
-                    {at("users.atTable")}: {u.onlineStatus.roomName}
-                  </span>
-                ) : (
-                  <span className="text-[9px] text-muted-foreground">{at("users.offline")}</span>
-                )}
-              </div>
-              {/* Risk status */}
-              <div className="w-14 shrink-0 flex justify-end" onClick={e => e.stopPropagation()}>
+              <span className="text-sm font-mono text-gold text-right">${formatBalance(u.balance)}</span>
+              {/* Risk */}
+              <div className="flex justify-end" onClick={e => e.stopPropagation()}>
                 <select
                   value={u.riskLevel ?? "normal"}
                   onChange={(e) => { updateMutation.mutate({ id: u.id, riskLevel: e.target.value as any }); }}
-                  className={`rounded px-1.5 py-0.5 text-[9px] font-medium bg-transparent outline-none border-0 cursor-pointer ${
+                  className={`rounded px-1 py-0.5 text-[9px] font-medium bg-transparent outline-none border-0 cursor-pointer ${
                     riskColors[u.riskLevel ?? "normal"]
                   }`}
                 >
@@ -1952,17 +1985,48 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
                 </select>
               </div>
             </div>
+            {/* Row 2: Registered + Last Login + Bonus + Online Status */}
+            <div className="grid grid-cols-[1fr_130px_140px_70px_70px] gap-2 items-center mt-1 pl-9">
+              {/* Registered time */}
+              <span className="text-[10px] text-muted-foreground">
+                {at("users.colRegistered")}: {u.createdAt ? new Date(u.createdAt).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}
+              </span>
+              {/* Last login */}
+              <span className="text-[10px] text-muted-foreground text-center">
+                {u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}
+              </span>
+              {/* Bonus */}
+              <div className="flex justify-center">
+                {u.bonusUnlocked ? (
+                  <span className="px-1 py-0.5 rounded text-[9px] font-medium bg-emerald-500/20 text-emerald-400">✓ 已解锁</span>
+                ) : parseFloat(u.bonusBalance || "0") > 0 ? (
+                  <span className="px-1 py-0.5 rounded text-[9px] font-medium bg-yellow-500/20 text-yellow-400">${formatBalance(parseFloat(u.bonusBalance))}</span>
+                ) : (
+                  <span className="text-[9px] text-muted-foreground">-</span>
+                )}
+              </div>
+              {/* Online status */}
+              <div className="col-span-2 flex justify-end">
+                {u.onlineStatus?.online ? (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-500/20 text-emerald-400">
+                    {at("users.atTable")}: {u.onlineStatus.roomName}
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-muted-foreground">{at("users.offline")}</span>
+                )}
+              </div>
+            </div>
           </div>
         ))}
         {((filtered as any[])?.length ?? 0) === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">{at("users.noUsers")}</p>
         )}
       </div>
-      {total > 20 && (
+      {total > 50 && (
         <div className="flex items-center justify-center gap-2 pt-2">
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs glass rounded disabled:opacity-50">{at("users.prevPage")}</button>
-          <span className="text-xs text-muted-foreground">{page} / {Math.ceil(total / 20)}</span>
-          <button onClick={() => setPage(p => p + 1)} disabled={page >= Math.ceil(total / 20)} className="px-3 py-1 text-xs glass rounded disabled:opacity-50">{at("users.nextPage")}</button>
+          <span className="text-xs text-muted-foreground">{page} / {Math.ceil(total / 50)}</span>
+          <button onClick={() => setPage(p => p + 1)} disabled={page >= Math.ceil(total / 50)} className="px-3 py-1 text-xs glass rounded disabled:opacity-50">{at("users.nextPage")}</button>
         </div>
       )}
     </div>
