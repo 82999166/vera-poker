@@ -427,6 +427,29 @@ export default function Table() {
   });
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
+    // Desktop TG or wide screen: limit width to mobile aspect ratio and center
+    const calcStyle = (h: number): React.CSSProperties => {
+      const w = window.innerWidth;
+      const isWideScreen = w > h * 0.75; // wider than 4:3 portrait ratio
+      if (isWideScreen) {
+        // Limit to 9:16 aspect ratio (phone-like), centered
+        const maxW = Math.min(h * 0.56, w, 500); // 9/16 ≈ 0.56, cap at 500px
+        return {
+          position: 'fixed', top: 0, left: '50%',
+          width: `${maxW}px`,
+          height: `${h}px`,
+          transform: 'translateX(-50%)',
+          overflow: 'hidden',
+        };
+      }
+      return {
+        position: 'fixed', top: 0, left: 0,
+        width: '100vw',
+        height: `${h}px`,
+        maxWidth: '100vw',
+        overflow: 'hidden',
+      };
+    };
     if (tg) {
       // Expand to full height in Telegram WebApp
       tg.expand?.();
@@ -438,30 +461,20 @@ export default function Table() {
         // viewportStableHeight excludes TG chrome (header/keyboard) for stable layout
         const h = tg.viewportStableHeight || tg.viewportHeight || window.innerHeight;
         if (h > 100) {
-          setContainerStyle({
-            position: 'fixed', top: 0, left: 0,
-            width: '100vw',
-            height: `${h}px`,
-            maxWidth: '100vw',
-            overflow: 'hidden',
-          });
+          setContainerStyle(calcStyle(h));
         }
       };
       update();
       tg.onEvent?.('viewportChanged', update);
+      window.addEventListener('resize', update);
       return () => {
         tg.offEvent?.('viewportChanged', update);
+        window.removeEventListener('resize', update);
       };
     } else {
-      // Standard browser: window.innerHeight is most reliable (doesn't change on keyboard open)
+      // Standard browser
       const update = () => {
-        setContainerStyle({
-          position: 'fixed', top: 0, left: 0,
-          width: '100vw',
-          height: `${window.innerHeight}px`,
-          maxWidth: '100vw',
-          overflow: 'hidden',
-        });
+        setContainerStyle(calcStyle(window.innerHeight));
       };
       update();
       window.addEventListener('resize', update);

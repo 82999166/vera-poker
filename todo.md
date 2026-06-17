@@ -883,3 +883,6 @@
 ## 2026-06-17 Bot分配修复：所有公共房间自动填充bot
 - [x] 修改checkAndFillBots：没有room_bot_config的公共房间使用全局配置的minPerTable作为目标bot数
 - [x] 修改persistentBotScheduler：遍历所有公共房间而非仅有room_bot_config的房间，改用填充率最低优先算法
+
+## 2026-06-17 Bug: TG桌面端打开游戏桌面变全屏
+- [x] 修复电脑端Telegram打开游戏时牌桌铺满全屏的问题，限制最大宽度为9:16比例居中显示
