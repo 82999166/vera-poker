@@ -48,7 +48,7 @@ const DEFAULT_CONFIG: BotConfig = {
   maxPerTable: 5,
   minPerTable: 3,
   dailyLossLimit: 500,
-  foldRate: 67,
+  foldRate: 75,
   minActionDelay: 500,
   maxActionDelay: 1500,
   balanceAlertThreshold: 100,
@@ -198,7 +198,7 @@ export async function getBotConfig(): Promise<BotConfig> {
   const maxPerTable = await db.getConfigValue("bot_max_per_table", "5");
   const minPerTable = await db.getConfigValue("bot_min_per_table", "3");
   const dailyLossLimit = await db.getConfigValue("bot_daily_loss_limit", "500");
-  const foldRate = await db.getConfigValue("bot_fold_rate", "67");
+  const foldRate = await db.getConfigValue("bot_fold_rate", "75");
   const minDelay = await db.getConfigValue("bot_min_action_delay", "2000");
   const maxDelay = await db.getConfigValue("bot_max_action_delay", "5000");
   const balanceAlertThreshold = await db.getConfigValue("bot_balance_alert_threshold", "100");
@@ -1037,9 +1037,9 @@ function decideBotAction(
   // 特殊情况：面对All-in
   const anyAllIn = gs.players.some(p => p.isAllIn && p.id !== player.id);
   if (anyAllIn) {
-    // 面对All-in需要很强的牌才跟
-    if (equity < 0.55) return { action: "fold" };
-    if (equity >= 0.55) return { action: "call" };
+    // 面对All-in需要非常强的牍才跟（收紧阈值）
+    if (equity < 0.62) return { action: "fold" };
+    return { action: "call" };
   }
 
   // Preflop策略
@@ -1067,13 +1067,13 @@ function decidePreflopAction(
 
   // 可以check（大盲位置无人加注）
   if (canCheck) {
-    // 强牌加注 (equity >= 0.70)
-    if (equity >= 0.70 && Math.random() < 0.65) {
+    // 强牌加注 (equity >= 0.75)
+    if (equity >= 0.75 && Math.random() < 0.55) {
       const raiseSize = bigBlind * (2.5 + Math.random() * 1.5); // 2.5-4x BB
       return makeRaise(raiseSize, minRaise, player);
     }
     // 中等牌偶尔加注
-    if (equity >= 0.55 && Math.random() < 0.30) {
+    if (equity >= 0.60 && Math.random() < 0.20) {
       const raiseSize = bigBlind * (2 + Math.random()); // 2-3x BB
       return makeRaise(raiseSize, minRaise, player);
     }
@@ -1083,39 +1083,39 @@ function decidePreflopAction(
   // 面对加注
   const bbMultiple = toCall / bigBlind;
 
-  // 强牌 (equity >= 0.70): 跟注或反加
-  if (equity >= 0.70) {
-    // 40%概率反加
-    if (Math.random() < 0.40 && bbMultiple < 15) {
-      const raiseSize = toCall * (2.2 + Math.random() * 0.8); // 2.2-3x 当前注
+  // 强牌 (equity >= 0.75): 跟注或反加
+  if (equity >= 0.75) {
+    // 30%概率反加（更保守）
+    if (Math.random() < 0.30 && bbMultiple < 12) {
+      const raiseSize = toCall * (2.0 + Math.random() * 0.5); // 2-2.5x 当前注
       return makeRaise(raiseSize + player.currentBet, minRaise, player);
     }
     return { action: "call" };
   }
 
-  // 中等牌 (equity 0.50-0.70)
-  if (equity >= 0.50) {
-    // 小注跟注（< 5BB）
-    if (bbMultiple <= 5) return { action: "call" };
-    // 中注看位置
-    if (bbMultiple <= 10 && isLatePosition) return { action: "call" };
-    // 大注有概率弃牌
-    if (Math.random() < 0.4) return { action: "fold" };
+  // 中等牌 (equity 0.55-0.75)
+  if (equity >= 0.55) {
+    // 小注跟注（< 3BB）
+    if (bbMultiple <= 3) return { action: "call" };
+    // 中注看位置（< 6BB 后位跟）
+    if (bbMultiple <= 6 && isLatePosition) return { action: "call" };
+    // 大注大概率弃牌
+    if (Math.random() < 0.6) return { action: "fold" };
     return { action: "call" };
   }
 
-  // 较弱牌 (equity 0.38-0.50)
-  if (equity >= 0.38) {
+  // 较弱牌 (equity 0.42-0.55)
+  if (equity >= 0.42) {
     // 小注且后位可以跟
-    if (bbMultiple <= 3 && isLatePosition) return { action: "call" };
-    // 小注偏向跟注
-    if (bbMultiple <= 2 && Math.random() < 0.5) return { action: "call" };
+    if (bbMultiple <= 2 && isLatePosition) return { action: "call" };
+    // 极小注偶尔跟
+    if (bbMultiple <= 1.5 && Math.random() < 0.3) return { action: "call" };
     return { action: "fold" };
   }
 
-  // 弱牌 (equity < 0.38)
-  // 小注偶尔跟（偷鸡）
-  if (bbMultiple <= 2 && isLatePosition && Math.random() < 0.15) {
+  // 弱牌 (equity < 0.42)
+  // 极小注偶尔跟（偷鸡，概率降低）
+  if (bbMultiple <= 1.5 && isLatePosition && Math.random() < 0.08) {
     return { action: "call" };
   }
   return { action: "fold" };
@@ -1138,29 +1138,29 @@ function decidePostflopAction(
 
   // === 可以check的情况 ===
   if (canCheck) {
-    // 强牌（equity >= 0.70）：下注获取价值
-    if (equity >= 0.70) {
-      // 60%概率下注，40%慢打（设套）
-      if (Math.random() < 0.60) {
-        const betSize = pot * (0.4 + Math.random() * 0.3); // 40-70% pot
+    // 强牌（equity >= 0.75）：下注获取价值
+    if (equity >= 0.75) {
+      // 50%概率下注，50%慢打（设套）
+      if (Math.random() < 0.50) {
+        const betSize = pot * (0.35 + Math.random() * 0.25); // 35-60% pot
         return makeRaise(betSize + player.currentBet, minRaise, player);
       }
       return { action: "check" }; // 慢打
     }
 
-    // 中等牌 (equity 0.45-0.70): 偶尔下注
-    if (equity >= 0.45) {
-      if (Math.random() < 0.30) {
-        const betSize = pot * (0.3 + Math.random() * 0.2); // 30-50% pot
+    // 中等牌 (equity 0.50-0.75): 偶尔下注
+    if (equity >= 0.50) {
+      if (Math.random() < 0.18) {
+        const betSize = pot * (0.25 + Math.random() * 0.2); // 25-45% pot
         return makeRaise(betSize + player.currentBet, minRaise, player);
       }
       return { action: "check" };
     }
 
-    // 弱牌：check（偶尔bluff）
-    if (Math.random() < 0.08) {
-      // 8%概率bluff
-      const betSize = pot * (0.3 + Math.random() * 0.2);
+    // 弱牌：check（极少bluff）
+    if (Math.random() < 0.03) {
+      // 3%概率bluff（大幅降低）
+      const betSize = pot * (0.25 + Math.random() * 0.15);
       return makeRaise(betSize + player.currentBet, minRaise, player);
     }
     return { action: "check" };
@@ -1171,47 +1171,48 @@ function decidePostflopAction(
   // 核心决策：equity > potOdds 则跟注有正EV
   const hasPositiveEV = equity > potOdds;
 
-  // 强牌 (equity >= 0.65): 跟注或加注
-  if (equity >= 0.65) {
-    // 30%概率加注
-    if (Math.random() < 0.30) {
-      const raiseSize = toCall * 2.5 + pot * 0.3;
+  // 强牌 (equity >= 0.72): 跟注或加注
+  if (equity >= 0.72) {
+    // 20%概率加注（更保守）
+    if (Math.random() < 0.20) {
+      const raiseSize = toCall * 2.0 + pot * 0.2;
       return makeRaise(raiseSize + player.currentBet, minRaise, player);
     }
     return { action: "call" };
   }
 
-  // 中等牌 (equity 0.40-0.65)
-  if (equity >= 0.40) {
-    if (hasPositiveEV) {
-      // 正EV跟注
+  // 中等牌 (equity 0.45-0.72)
+  if (equity >= 0.45) {
+    if (hasPositiveEV && toCall <= pot * 0.5) {
+      // 正EV且跟注金额不超过半池才跟
+      return { action: "call" };
+    }
+    if (hasPositiveEV && toCall <= pot * 0.8 && Math.random() < 0.5) {
+      // 正EV但跟注较大，50%概率跟
       return { action: "call" };
     }
     // 负微EV但跟注金额小，偶尔跟（隐含赔率）
-    if (toCall <= bigBlind * 3 && Math.random() < 0.35) {
-      return { action: "call" };
-    }
-    // 负大EV弃牌
-    return { action: "fold" };
-  }
-
-  // 听牌手 (equity 0.25-0.40)
-  if (equity >= 0.25) {
-    if (hasPositiveEV) {
-      // 底池赔率足够，跟注看牌
-      return { action: "call" };
-    }
-    // 赔率不够但跟注小，偶尔跟
     if (toCall <= bigBlind * 2 && Math.random() < 0.20) {
       return { action: "call" };
     }
+    // 其他情况弃牌
     return { action: "fold" };
   }
 
-  // 空气牌 (equity < 0.25)
-  // 偶尔bluff（小注时）
-  if (toCall <= bigBlind * 2 && Math.random() < 0.05) {
-    return { action: "call" }; // 偷鸡跟注
+  // 听牌手 (equity 0.28-0.45)
+  if (equity >= 0.28) {
+    if (hasPositiveEV && toCall <= pot * 0.35) {
+      // 底池赔率足够且跟注小，跟注看牌
+      return { action: "call" };
+    }
+    // 赔率不够或跟注大，弃牌
+    return { action: "fold" };
+  }
+
+  // 空气牌 (equity < 0.28)
+  // 几乎不跟注
+  if (toCall <= bigBlind * 1 && Math.random() < 0.02) {
+    return { action: "call" }; // 极少偷鸡跟注
   }
   return { action: "fold" };
 }
@@ -1225,13 +1226,18 @@ function makeRaise(
   player: { chips: number; currentBet: number }
 ): { action: PlayerAction; amount?: number } {
   const minRaiseTotal = player.currentBet + minRaise;
-  // 永不超过60%筹码（模拟保守玩家，不All-in）
-  const maxAllowed = player.chips * 0.6;
+  // 永不超过40%筹码（更保守，防止大注和all-in）
+  const maxAllowed = player.chips * 0.4;
   let amount = Math.max(targetAmount, minRaiseTotal);
   amount = Math.min(amount, maxAllowed);
   
   // 如果计算出的加注量超过筹码或不合理，改为跟注
   if (amount >= player.chips || amount < minRaiseTotal) {
+    return { action: "call" };
+  }
+  
+  // 额外保护：如果raise金额超过30%筹码，有概率改为call（避免过大下注）
+  if (amount > player.chips * 0.3 && Math.random() < 0.4) {
     return { action: "call" };
   }
   

@@ -869,3 +869,13 @@
 - [x] 去除单场bot数量上限（前后端max=50限制全部移除）
 - [x] 房间级别botCount不再受全局maxPerTable限制
 - [x] 新增"大厅显示虚拟在线人数"配置项（后台可设置，大厅totalOnline加上此数值）
+
+## 2026-06-17 Bot AI策略收紧（更难打/减少all-in）
+- [x] 默认foldRate从67提高到75（bot更倾向弃牌）
+- [x] Preflop: raise阈值从0.70提高到0.75，中等牌跟注范围从≤5BB收紧到≤3BB
+- [x] Preflop: 弱牌跟注范围从equity≥0.38收紧到≥0.42，偷鸡概率从15%降到8%
+- [x] Postflop: value bet阈值从0.70提高到0.75，bluff频率从8%降到3%
+- [x] Postflop: 强牌加注阈值从0.65提高到0.72，加注概率从30%降到20%
+- [x] Postflop: 中等牌跟注增加条件限制（需toCall≤pot*0.5才跟）
+- [x] makeRaise: 筹码上限从60%降到40%，超过30%筹码有40%概率改为call
+- [x] 面对All-in: 跟注阈值从equity≥0.55提高到≥0.62
