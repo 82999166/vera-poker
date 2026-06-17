@@ -10,6 +10,19 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { parseDeviceInfo } from "./deviceInfo";
+
+/** Helper: save device info + IP after successful Telegram login */
+async function saveDeviceInfoOnLogin(req: Request, openId: string) {
+  try {
+    const ua = req.headers["user-agent"] || "";
+    const deviceInfo = parseDeviceInfo(ua);
+    const loginIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "";
+    await db.updateUserDeviceInfo(openId, deviceInfo, loginIp);
+  } catch (e) {
+    console.error("[TelegramAuth] Failed to save device info:", e);
+  }
+}
 
 // ==================== TYPES ====================
 
@@ -183,6 +196,9 @@ export function registerTelegramAuthRoutes(app: Express) {
         return;
       }
 
+      // Save device info on Telegram login
+      await saveDeviceInfoOnLogin(req, user.openId);
+
       // Create session token - use nickname, not @username
       const displayName = `${tgUser.first_name}${tgUser.last_name ? " " + tgUser.last_name : ""}`;
 
@@ -291,6 +307,9 @@ export function registerTelegramAuthRoutes(app: Express) {
         return;
       }
 
+      // Save device info on Telegram widget login
+      await saveDeviceInfoOnLogin(req, user.openId);
+
       // Create session token - use nickname, not @username
       const displayName = `${data.first_name}${data.last_name ? " " + data.last_name : ""}`;
 
@@ -385,6 +404,9 @@ export function registerTelegramAuthRoutes(app: Express) {
         res.status(500).send("Failed to create user");
         return;
       }
+
+      // Save device info on Telegram widget callback login
+      await saveDeviceInfoOnLogin(req, user.openId);
 
       // Create session - use nickname, not @username
       const displayName = `${widgetData.first_name}${widgetData.last_name ? " " + widgetData.last_name : ""}`;
