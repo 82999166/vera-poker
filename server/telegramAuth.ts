@@ -24,6 +24,48 @@ async function saveDeviceInfoOnLogin(req: Request, openId: string) {
   }
 }
 
+/**
+ * Helper: Create session token with device exclusivity.
+ * Increments sessionVersion in DB to invalidate all old sessions,
+ * then creates a JWT with the new sv value.
+ */
+async function createExclusiveSessionToken(
+  req: Request,
+  res: Response,
+  user: { id: number; openId: string; sessionVersion: number },
+  displayName: string,
+  isNew: boolean
+) {
+  const cookieOptions = getSessionCookieOptions(req);
+
+  if (!isNew) {
+    // Existing user: increment sessionVersion to kick old devices
+    const dbInstance = await db.getDb();
+    if (dbInstance) {
+      const { users } = await import("../drizzle/schema");
+      const { eq, sql } = await import("drizzle-orm");
+      await dbInstance.update(users)
+        .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
+        .where(eq(users.id, user.id));
+    }
+    const newSv = user.sessionVersion + 1;
+    const sessionToken = await sdk.createSessionToken(user.openId, {
+      name: displayName,
+      expiresInMs: ONE_YEAR_MS,
+      sessionVersion: newSv,
+    });
+    res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+  } else {
+    // New user: sessionVersion starts at 1
+    const sessionToken = await sdk.createSessionToken(user.openId, {
+      name: displayName,
+      expiresInMs: ONE_YEAR_MS,
+      sessionVersion: 1,
+    });
+    res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+  }
+}
+
 // ==================== TYPES ====================
 
 export interface TelegramWebAppUser {
@@ -180,6 +222,10 @@ export function registerTelegramAuthRoutes(app: Express) {
         return;
       }
 
+      // Check if user already exists (to determine isNew for device exclusivity)
+      const existingBefore = await db.getUserByTgId(String(tgUser.id));
+      const isNew = !existingBefore;
+
       // Find or create user by tgId
       const user = await db.findOrCreateTelegramUser({
         tgId: String(tgUser.id),
@@ -199,20 +245,13 @@ export function registerTelegramAuthRoutes(app: Express) {
       // Save device info on Telegram login
       await saveDeviceInfoOnLogin(req, user.openId);
 
-      // Create session token - use nickname, not @username
+      // Create session token with device exclusivity (increments sessionVersion)
       const displayName = `${tgUser.first_name}${tgUser.last_name ? " " + tgUser.last_name : ""}`;
-
-      const sessionToken = await sdk.createSessionToken(user.openId, {
-        name: displayName,
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      // Set session cookie
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, {
-        ...cookieOptions,
-        maxAge: ONE_YEAR_MS,
-      });
+      await createExclusiveSessionToken(req, res, {
+        id: user.id,
+        openId: user.openId,
+        sessionVersion: (user as any).sessionVersion ?? 1,
+      }, displayName, isNew);
 
       // If refCode provided, bind referral relationship atomically during auth
       let refBound = false;
@@ -291,6 +330,10 @@ export function registerTelegramAuthRoutes(app: Express) {
         return;
       }
 
+      // Check if user already exists (to determine isNew for device exclusivity)
+      const existingBefore2 = await db.getUserByTgId(String(data.id));
+      const isNew2 = !existingBefore2;
+
       // Find or create user by tgId
       const user = await db.findOrCreateTelegramUser({
         tgId: String(data.id),
@@ -310,20 +353,13 @@ export function registerTelegramAuthRoutes(app: Express) {
       // Save device info on Telegram widget login
       await saveDeviceInfoOnLogin(req, user.openId);
 
-      // Create session token - use nickname, not @username
+      // Create session token with device exclusivity (increments sessionVersion)
       const displayName = `${data.first_name}${data.last_name ? " " + data.last_name : ""}`;
-
-      const sessionToken = await sdk.createSessionToken(user.openId, {
-        name: displayName,
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      // Set session cookie
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, {
-        ...cookieOptions,
-        maxAge: ONE_YEAR_MS,
-      });
+      await createExclusiveSessionToken(req, res, {
+        id: user.id,
+        openId: user.openId,
+        sessionVersion: (user as any).sessionVersion ?? 1,
+      }, displayName, isNew2);
 
       res.json({
         success: true,
@@ -389,6 +425,10 @@ export function registerTelegramAuthRoutes(app: Express) {
         return;
       }
 
+      // Check if user already exists (to determine isNew for device exclusivity)
+      const existingBefore3 = await db.getUserByTgId(String(widgetData.id));
+      const isNew3 = !existingBefore3;
+
       // Find or create user
       const user = await db.findOrCreateTelegramUser({
         tgId: String(widgetData.id),
@@ -408,19 +448,13 @@ export function registerTelegramAuthRoutes(app: Express) {
       // Save device info on Telegram widget callback login
       await saveDeviceInfoOnLogin(req, user.openId);
 
-      // Create session - use nickname, not @username
+      // Create session token with device exclusivity (increments sessionVersion)
       const displayName = `${widgetData.first_name}${widgetData.last_name ? " " + widgetData.last_name : ""}`;
-
-      const sessionToken = await sdk.createSessionToken(user.openId, {
-        name: displayName,
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, {
-        ...cookieOptions,
-        maxAge: ONE_YEAR_MS,
-      });
+      await createExclusiveSessionToken(req, res, {
+        id: user.id,
+        openId: user.openId,
+        sessionVersion: (user as any).sessionVersion ?? 1,
+      }, displayName, isNew3);
 
       // SECURITY FIX #6: Use window.location.origin instead of '*' for postMessage
       res.send(`<!DOCTYPE html><html><body><script>
@@ -607,6 +641,10 @@ export function registerTelegramAuthRoutes(app: Express) {
       const name = payload.name || username || "Telegram User";
       const photoUrl = payload.picture || null;
 
+            // Check if user already exists (to determine isNew for device exclusivity)
+      const existingBefore4 = await db.getUserByTgId(tgId);
+      const isNew4 = !existingBefore4;
+
       // Find or create user
       const user = await db.findOrCreateTelegramUser({
         tgId,
@@ -623,18 +661,16 @@ export function registerTelegramAuthRoutes(app: Express) {
         return;
       }
 
-      // Create session
-      const displayName = name || username || "Player";
-      const sessionToken = await sdk.createSessionToken(user.openId, {
-        name: displayName,
-        expiresInMs: ONE_YEAR_MS,
-      });
+      // Save device info on OIDC login
+      await saveDeviceInfoOnLogin(req, user.openId);
 
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, {
-        ...cookieOptions,
-        maxAge: ONE_YEAR_MS,
-      });
+      // Create session token with device exclusivity (increments sessionVersion)
+      const displayName = name || username || "Player";
+      await createExclusiveSessionToken(req, res, {
+        id: user.id,
+        openId: user.openId,
+        sessionVersion: (user as any).sessionVersion ?? 1,
+      }, displayName, isNew4);
 
       // Serve a page that notifies the opener (popup) and closes, or redirects
       res.send(`<!DOCTYPE html><html><body><script>

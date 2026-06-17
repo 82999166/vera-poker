@@ -939,3 +939,9 @@
 - [x] 清除所有真实用户数据（isBot=0），保留机器人
 - [x] 管理后台充值/提现增加语音播报功能（带开关，用Web Speech API）
 - [x] 财务管理页面补全充值/提现统计卡片（8个卡片：总流水、总交易数、待审核、总充值、总提现、今日充值、今日提现、平台余额）
+
+## 2026-06-17 设备互斥登录修复
+- [x] Telegram登录路由未递增sessionVersion，导致多设备可同时登录
+- [x] 新增createExclusiveSessionToken辅助函数，统一处理sessionVersion递增+JWT签发
+- [x] 所有4个Telegram登录路由均已修复（webapp/widget POST/widget callback/OIDC）
+- [x] 设备信息保存也已添加到OIDC路由
