@@ -106,8 +106,8 @@ const RANK_DISPLAY: Record<string, string> = {
   "J": "J", "Q": "Q", "K": "K",
 };
 
-function CardView({ card, faceDown = false, className = "", delay = 0, animate = false, flip = false }: {
-  card?: string; faceDown?: boolean; className?: string; delay?: number; animate?: boolean; flip?: boolean;
+function CardView({ card, faceDown = false, className = "", delay = 0, animate = false, flip = false, highlight = false }: {
+  card?: string; faceDown?: boolean; className?: string; delay?: number; animate?: boolean; flip?: boolean; highlight?: boolean;
 }) {
   // Parse explicit size from className (e.g. !w-7 → 28px, !h-[36px] → 36px)
   let explicitW: string | undefined;
@@ -205,8 +205,8 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const centerSuitPx = Math.floor(cardPx * 0.40); // center suit
 
   return (
-    <div className={`w-14 h-[76px] rounded-lg overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)] ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${flip && flipped ? "animate-flip" : ""} ${className}`} style={sizeStyle}>
-      <div className="w-full h-full bg-white border-[1.5px] border-gray-200 rounded-lg relative">
+    <div className={`w-14 h-[76px] rounded-lg overflow-hidden ${highlight ? 'shadow-[0_0_12px_rgba(234,179,8,0.8),0_0_24px_rgba(234,179,8,0.4)] animate-winner-card-glow' : 'shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)]'} ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${flip && flipped ? "animate-flip" : ""} ${className}`} style={sizeStyle}>
+      <div className={`w-full h-full bg-white rounded-lg relative ${highlight ? 'border-2 border-gold' : 'border-[1.5px] border-gray-200'}`}>
         {/* Top-left corner: rank above suit, tightly packed */}
         <div className="absolute top-[2px] left-[2px] flex flex-col items-center leading-[1]">
           <span style={{ fontSize: cornerRankPx }} className={`font-black leading-none ${rankColor}`}>{displayRank}</span>
@@ -397,6 +397,17 @@ export default function Table() {
   const [showWinner, setShowWinner] = useState<{ name: string; amount: number; handDescription?: string } | null>(null);
   const [showSettlement, setShowSettlement] = useState<any>(null);
   const [winnerPlayerIds, setWinnerPlayerIds] = useState<number[]>([]);
+  // Compute the set of cards that form the winner's best hand (for highlight)
+  const winnerBestCards = useMemo(() => {
+    if (!showSettlement?.showdownPlayers || winnerPlayerIds.length === 0) return new Set<string>();
+    const cards = new Set<string>();
+    for (const sp of showSettlement.showdownPlayers) {
+      if (winnerPlayerIds.includes(sp.playerId) && sp.bestCards) {
+        for (const c of sp.bestCards) cards.add(c);
+      }
+    }
+    return cards;
+  }, [showSettlement, winnerPlayerIds]);
   // Refs for cancellable timers (prevent previous-hand callbacks firing into new hand)
   const winnerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -1699,9 +1710,10 @@ export default function Table() {
                 }
                 const isNewCard = animateCards && i >= animateFromIndex;
                 const cardDelay = isNewCard ? (i - animateFromIndex) * 300 : 0;
+                const isWinnerCard = (displayPhase === "showdown" || displayPhase === "completed") && winnerBestCards.has(card);
                 return (
                   <div key={`h${handNumber}-c${i}`} style={isNewCard ? { animationDelay: `${cardDelay}ms`, opacity: 0 } : undefined} className={isNewCard ? 'animate-deal-community' : ''}>
-                    <CardView card={card} className="!w-[44px] !h-[62px]" />
+                    <CardView card={card} className="!w-[44px] !h-[62px]" highlight={isWinnerCard} />
                   </div>
                 );
               })}
@@ -1853,9 +1865,10 @@ export default function Table() {
                   {isHero && displayMyCards.length > 0 && (
                     <div className="flex flex-col items-center gap-0.5 mb-0.5" style={isTopPlayer ? { order: 10 } : undefined}>
                       <div className="flex gap-1" style={{ '--deal-from-x': '100px', '--deal-from-y': '-250px' } as React.CSSProperties}>
-                        {displayMyCards.map((card, i) => (
-                          <CardView key={`h${handNumber}-m${i}`} card={card} className={`!w-12 !h-[64px]${dealingMyCards ? (i === 0 ? ' animate-deal' : ' animate-deal-2') : ''}`} animate delay={i * 200} />
-                        ))}
+                        {displayMyCards.map((card, i) => {
+                          const isHighlighted = (displayPhase === "showdown" || displayPhase === "completed") && winnerPlayerIds.includes(user?.id || 0) && winnerBestCards.has(card);
+                          return <CardView key={`h${handNumber}-m${i}`} card={card} className={`!w-12 !h-[64px]${dealingMyCards ? (i === 0 ? ' animate-deal' : ' animate-deal-2') : ''}`} animate delay={i * 200} highlight={isHighlighted} />;
+                        })}
                       </div>
                       {/* Real-time hand strength hint: only show during flop/turn/river */}
                       {(displayPhase === "flop" || displayPhase === "turn" || displayPhase === "river") && displayMyCards.length >= 2 && displayCommunity.length >= 3 && (() => {
@@ -1889,15 +1902,19 @@ export default function Table() {
                   {!isHero && (displayPhase === "showdown" || displayPhase === "completed") && player.holeCards && player.holeCards.length > 0 && !waitingForReady && (
                     <div className="flex flex-col items-center gap-0.5 mb-0.5" style={isTopPlayer ? { order: 10 } : undefined}>
                       <div className="flex gap-0.5">
-                        {player.holeCards.map((card, i) => (
-                          <CardView
-                            key={`h${handNumber}-o${player.id}-${i}`}
-                            card={card}
-                            className="!w-[36px] !h-[48px]"
-                            flip={revealedOpponentIds.has(player.id)}
-                            delay={i * 200}
-                          />
-                        ))}
+                        {player.holeCards.map((card, i) => {
+                          const isHighlighted = winnerPlayerIds.includes(player.id) && winnerBestCards.has(card) && revealedOpponentIds.has(player.id);
+                          return (
+                            <CardView
+                              key={`h${handNumber}-o${player.id}-${i}`}
+                              card={card}
+                              className="!w-[36px] !h-[48px]"
+                              flip={revealedOpponentIds.has(player.id)}
+                              delay={i * 200}
+                              highlight={isHighlighted}
+                            />
+                          );
+                        })}
                       </div>
                       {/* Hand strength label - shows after cards are revealed */}
                       {revealedOpponentIds.has(player.id) && showSettlement?.showdownPlayers && (() => {

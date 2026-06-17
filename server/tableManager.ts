@@ -25,7 +25,7 @@ interface SettlementDetail {
   winners: { playerId: number; name: string; amount: number; handRank: string; handDescription: string }[];
   sidePots: { amount: number; winnerId: number; winnerName: string }[];
   rakeAmount: number;
-  showdownPlayers: { playerId: number; name: string; holeCards: string[]; handRank: string; handDescription: string }[];
+  showdownPlayers: { playerId: number; name: string; holeCards: string[]; handRank: string; handDescription: string; bestCards?: string[] }[];
 }
 
 // 玩家信息缓存，减少轮询时的 DB 查询（TTL: 30秒）
@@ -943,6 +943,7 @@ async function settleHand(roomId: number) {
         holeCards: player.holeCards,
         handRank: evaluation.rank,
         handDescription: evaluation.description,
+        bestCards: evaluation.bestCards || [],
       });
     }
 

@@ -226,6 +226,15 @@
   animation: winner-glow 2s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* Winning hand card highlight glow */
+@keyframes winner-card-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(234, 179, 8, 0.6), 0 0 16px rgba(234, 179, 8, 0.3); transform: scale(1); }
+  50% { box-shadow: 0 0 16px rgba(234, 179, 8, 1), 0 0 32px rgba(234, 179, 8, 0.6); transform: scale(1.05); }
+}
+.animate-winner-card-glow {
+  animation: winner-card-glow 1.5s ease-in-out infinite;
+}
+
 /* Chips flying to winner */
 @keyframes chips-fly-in {
   0% { transform: translateY(30px) scale(0.3); opacity: 0; }

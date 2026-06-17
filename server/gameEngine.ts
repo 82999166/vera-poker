@@ -370,6 +370,7 @@ export interface HandEvaluation {
   rankValue: number;
   kickers: number[];
   description: string;
+  bestCards?: Card[]; // The 5 cards that form the best hand
 }
 
 export function evaluateHand(holeCards: Card[], communityCards: Card[]): HandEvaluation {
@@ -377,14 +378,17 @@ export function evaluateHand(holeCards: Card[], communityCards: Card[]): HandEva
   const combinations = getCombinations(allCards, 5);
   
   let bestHand: HandEvaluation = { rank: "high_card", rankValue: 1, kickers: [0], description: "High Card" };
+  let bestCombo: Card[] = allCards.slice(0, 5);
   
   for (const combo of combinations) {
     const evaluation = evaluateFiveCards(combo);
     if (compareHands(evaluation, bestHand) > 0) {
       bestHand = evaluation;
+      bestCombo = combo;
     }
   }
   
+  bestHand.bestCards = bestCombo;
   return bestHand;
 }
 

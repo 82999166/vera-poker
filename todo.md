@@ -945,3 +945,11 @@
 - [x] 新增createExclusiveSessionToken辅助函数，统一处理sessionVersion递增+JWT签发
 - [x] 所有4个Telegram登录路由均已修复（webapp/widget POST/widget callback/OIDC）
 - [x] 设备信息保存也已添加到OIDC路由
+
+## 2026-06-17 赢家牌型高亮动画
+- [x] 后端：evaluateHand 返回 bestCards（构成最佳牌型的5张牌）
+- [x] 后端：showdownPlayers 数据增加 bestCards 字段
+- [x] 前端：showdown 阶段赢家的 bestCards 牌加金色发光边框+脉冲动画
+- [x] 前端：公共牌中属于赢家 bestCards 的也高亮
+- [x] 前端：对手手牌中属于赢家 bestCards 的也高亮
+- [x] CSS：新增 winner-card-glow 无限循环动画（金色发光+微缩放）
