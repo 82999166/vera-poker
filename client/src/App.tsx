@@ -28,6 +28,7 @@ import { trpc } from "./lib/trpc";
 
 /** Old device receives new device login confirmation request */
 function NewDeviceAlert() {
+  const { t } = useI18n();
   const [show, setShow] = useState(false);
   const [requestId, setRequestId] = useState("");
   const [deviceInfo, setDeviceInfo] = useState("");
@@ -65,15 +66,15 @@ function NewDeviceAlert() {
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 mx-4 max-w-xs w-full shadow-2xl">
-        <h3 className="text-white font-bold text-center text-base mb-3">New Device Login</h3>
+        <h3 className="text-white font-bold text-center text-base mb-3">{t("device.newLoginTitle")}</h3>
         <p className="text-white/80 text-sm text-center leading-relaxed mb-2">
-          Your account is trying to login on:
+          {t("device.newLoginDesc")}
         </p>
         <p className="text-yellow-400 text-sm text-center font-medium mb-4">
           {deviceInfo}
         </p>
         <p className="text-white/60 text-xs text-center mb-5">
-          After approval, this device will be logged out. Reject if not you!
+          {t("device.newLoginWarning")}
         </p>
         <div className="flex gap-3">
           <button
@@ -81,7 +82,7 @@ function NewDeviceAlert() {
             disabled={rejectMutation.isPending}
             className="flex-1 py-2.5 rounded-xl font-semibold text-sm text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
           >
-            Reject
+            {t("device.reject")}
           </button>
           <button
             onClick={() => approveMutation.mutate({ requestId })}
@@ -89,9 +90,44 @@ function NewDeviceAlert() {
             className="flex-1 py-2.5 rounded-xl font-semibold text-sm text-white transition-colors disabled:opacity-50"
             style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)" }}
           >
-            Approve
+            {t("device.approve")}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Shown on old device when session is invalidated by new device login */
+function SessionExpiredAlert() {
+  const { t } = useI18n();
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setShow(true);
+    window.addEventListener("session-expired-other-device", handler);
+    return () => window.removeEventListener("session-expired-other-device", handler);
+  }, []);
+
+  if (!show) return null;
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 mx-4 max-w-xs w-full shadow-2xl">
+        <div className="text-5xl text-center mb-4">📱</div>
+        <h3 className="text-white font-bold text-center text-base mb-3">{t("device.sessionExpiredTitle")}</h3>
+        <p className="text-white/80 text-sm text-center leading-relaxed mb-5">
+          {t("device.sessionExpiredDesc")}
+        </p>
+        <button
+          onClick={() => {
+            setShow(false);
+            window.location.href = "/";
+          }}
+          className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-colors"
+          style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}
+        >
+          {t("device.sessionExpiredBtn")}
+        </button>
       </div>
     </div>
   );
@@ -194,6 +230,7 @@ function App() {
         <TooltipProvider>
           <Toaster position="top-center" duration={1000} />
           <NewDeviceAlert />
+          <SessionExpiredAlert />
           <AppContent />
         </TooltipProvider>
       </ThemeProvider>

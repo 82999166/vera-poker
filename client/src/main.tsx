@@ -48,6 +48,12 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
   if (typeof window === "undefined") return;
 
+  // Device exclusivity: show modal instead of redirect
+  if (error.message === "SESSION_EXPIRED_OTHER_DEVICE") {
+    window.dispatchEvent(new CustomEvent("session-expired-other-device"));
+    return;
+  }
+
   const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
 
   if (!isUnauthorized) return;

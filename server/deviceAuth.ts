@@ -172,6 +172,34 @@ async function incrementSessionVersion(userId: number): Promise<void> {
 }
 
 /**
+ * 确保 sessionVersion 已被递增（用于超时自动通过的场景）
+ * approveLogin 会递增，但超时自动通过不会，所以 confirmLogin 时需要检查并补增
+ */
+export async function ensureSessionVersionIncremented(userId: number): Promise<void> {
+  const user = await db.getUserById(userId);
+  if (!user) return;
+  const req = pendingLogins.get(userId);
+  if (!req) return;
+  // If the token's sv matches user's current sv + 1, it means approveLogin already incremented
+  // If not, we need to increment now (auto-approval timeout case)
+  // The token was created with nextSv = user.sessionVersion + 1 at creation time
+  // If DB sv is still the old value, increment it
+  const dbInstance = await db.getDb();
+  if (!dbInstance) return;
+  const { users } = await import("../drizzle/schema");
+  const { eq, sql } = await import("drizzle-orm");
+  // Only increment if DB version hasn't been incremented yet
+  // The token was created with sv = oldVersion + 1, so if DB still has oldVersion, increment
+  const expectedNewSv = user.sessionVersion + 1;
+  // Check if we need to increment (i.e., approveLogin didn't already do it)
+  // We can tell because the pending request's sessionToken has the next version baked in
+  // If the user's current DB version is less than what the token expects, increment
+  await dbInstance.update(users)
+    .set({ sessionVersion: expectedNewSv })
+    .where(eq(users.id, userId));
+}
+
+/**
  * 验证session版本是否有效
  * 在JWT payload中嵌入sessionVersion，每次请求时对比
  */

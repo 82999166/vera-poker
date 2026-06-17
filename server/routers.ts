@@ -172,11 +172,13 @@ export const appRouter = router({
     confirmLogin: publicProcedure
       .input(z.object({ requestId: z.string(), userId: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        const { checkLoginRequestStatus } = await import("./deviceAuth");
+        const { checkLoginRequestStatus, ensureSessionVersionIncremented } = await import("./deviceAuth");
         const result = checkLoginRequestStatus(input.userId, input.requestId);
         if (result.status !== "approved" || !result.sessionToken) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Login not approved" });
         }
+        // Ensure sessionVersion is incremented (handles auto-approval timeout case)
+        await ensureSessionVersionIncremented(input.userId);
         // 设置session cookie
         const cookieOptions = getSessionCookieOptions(ctx.req);
         const { ONE_YEAR_MS } = await import("@shared/const");
@@ -203,16 +205,45 @@ export const appRouter = router({
         if (!valid) {
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Incorrect password" });
         }
-        // Create session token using the same SDK method as OAuth login
+        // Device exclusivity check for password login
         const { sdk } = await import("./_core/sdk");
         const { ONE_YEAR_MS } = await import("@shared/const");
+        const { updateUserDeviceFingerprint } = await import("./db");
+        const { createPendingLogin } = await import("./deviceAuth");
+        
+        // Build fingerprint from request
+        const ua = ctx.req.headers["user-agent"] || "";
+        const ip = (ctx.req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || ctx.req.socket?.remoteAddress || "";
+        const fingerprint = `${ua}|${ip}`;
+        const fpResult = await updateUserDeviceFingerprint(user.openId, fingerprint);
+        
+        if (fpResult.isNewDevice) {
+          // New device detected - create pending login request for old device to approve
+          const nextSv = user.sessionVersion + 1;
+          const sessionToken = await sdk.createSessionToken(user.openId, {
+            name: user.name || user.nickname || "",
+            expiresInMs: ONE_YEAR_MS,
+            sessionVersion: nextSv,
+          });
+          const requestId = createPendingLogin({
+            userId: user.id,
+            openId: user.openId,
+            fingerprint,
+            userAgent: ua,
+            sessionToken,
+          });
+          return { success: true, pendingLogin: true, requestId, userId: user.id, user: { id: user.id, name: user.name, nickname: user.nickname, tgId: user.tgId } };
+        }
+        
+        // Same device - normal login with current sessionVersion
         const sessionToken = await sdk.createSessionToken(user.openId, {
           name: user.name || user.nickname || "",
           expiresInMs: ONE_YEAR_MS,
+          sessionVersion: user.sessionVersion,
         });
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-        return { success: true, user: { id: user.id, name: user.name, nickname: user.nickname, tgId: user.tgId } };
+        return { success: true, pendingLogin: false, requestId: null, userId: null, user: { id: user.id, name: user.name, nickname: user.nickname, tgId: user.tgId } };
       }),
   }),
 

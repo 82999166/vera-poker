@@ -69,17 +69,19 @@ export function registerOAuthRoutes(app: Express) {
         await db.updateUserDeviceFingerprint(userInfo.openId, fingerprint);
       }
 
-      const sessionToken = await sdk.createSessionToken(userInfo.openId, {
-        name: userInfo.name || "",
-        expiresInMs: ONE_YEAR_MS,
-      });
-
       const cookieOptions = getSessionCookieOptions(req);
 
       // 如果是新设备且用户已存在，需要旧设备确认
       if (isNewDevice) {
         const existingUser = await db.getUserByOpenId(userInfo.openId);
         if (existingUser) {
+          // Create session token with NEXT sessionVersion (will be set after approval)
+          const nextSv = existingUser.sessionVersion + 1;
+          const sessionToken = await sdk.createSessionToken(userInfo.openId, {
+            name: userInfo.name || "",
+            expiresInMs: ONE_YEAR_MS,
+            sessionVersion: nextSv,
+          });
           // 创建待确认登录请求
           const requestId = createPendingLogin({
             userId: existingUser.id,
@@ -94,7 +96,14 @@ export function registerOAuthRoutes(app: Express) {
         }
       }
 
-      // 正常登录（非新设备或新用户）
+      // 正常登录（非新设备或新用户）- include current sessionVersion in token
+      const existingUser = await db.getUserByOpenId(userInfo.openId);
+      const currentSv = existingUser?.sessionVersion ?? 1;
+      const sessionToken = await sdk.createSessionToken(userInfo.openId, {
+        name: userInfo.name || "",
+        expiresInMs: ONE_YEAR_MS,
+        sessionVersion: currentSv,
+      });
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
       res.redirect(302, "/");
     } catch (error) {

@@ -31,7 +31,12 @@ export default function Home() {
   const [pwdPassword, setPwdPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const passwordLoginMutation = trpc.auth.passwordLogin.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data.pendingLogin && data.requestId && data.userId) {
+        // New device detected - redirect to verify-login page
+        navigate(`/verify-login?pendingLogin=${data.requestId}&userId=${data.userId}`);
+        return;
+      }
       refresh();
       navigate("/lobby");
     },

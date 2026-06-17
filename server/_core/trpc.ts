@@ -10,10 +10,16 @@ const t = initTRPC.context<TrpcContext>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
+const SESSION_EXPIRED_OTHER_DEVICE_MSG = "SESSION_EXPIRED_OTHER_DEVICE";
+
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
 
   if (!ctx.user) {
+    // Distinguish "kicked by other device" from normal unauthenticated
+    if (ctx.sessionExpiredOtherDevice) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: SESSION_EXPIRED_OTHER_DEVICE_MSG });
+    }
     throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
   }
 

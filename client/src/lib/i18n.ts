@@ -602,6 +602,15 @@ const en: Record<string, string> = {
   "admin.bannerUploadFailed": "Image upload failed",
   "admin.bannerCopied": "Copied",
   "admin.bannerDeleteConfirm": "Are you sure you want to delete this banner?",
+  // Device auth
+  "device.newLoginTitle": "New Device Login",
+  "device.newLoginDesc": "Your account is trying to login on:",
+  "device.newLoginWarning": "After approval, this device will be logged out. Reject if not you!",
+  "device.approve": "Approve",
+  "device.reject": "Reject",
+  "device.sessionExpiredTitle": "Logged Out",
+  "device.sessionExpiredDesc": "Your account has been logged in on another device. You have been logged out from this device.",
+  "device.sessionExpiredBtn": "OK",
   // Error messages (mapped from backend)
   "error.insufficientBalance": "Insufficient balance",
   "error.roomNotFound": "Room not found",
@@ -1227,6 +1236,15 @@ const zhCN: Record<string, string> = {
   "admin.bannerUploadFailed": "图片上传失败",
   "admin.bannerCopied": "已复制",
   "admin.bannerDeleteConfirm": "确定删除该 Banner?",
+  // 设备互斥登录
+  "device.newLoginTitle": "新设备登录请求",
+  "device.newLoginDesc": "您的账号正在尝试在以下设备登录：",
+  "device.newLoginWarning": "同意后，当前设备将被登出。如果不是您本人操作，请拒绝！",
+  "device.approve": "同意",
+  "device.reject": "拒绝",
+  "device.sessionExpiredTitle": "已下线",
+  "device.sessionExpiredDesc": "您的账号已在其他设备登录，当前设备已被登出。",
+  "device.sessionExpiredBtn": "确定",
   // 错误消息
   "error.insufficientBalance": "余额不足",
   "error.roomNotFound": "房间不存在",
@@ -1842,6 +1860,15 @@ const zhTW: Record<string, string> = {
   "admin.bannerUploadFailed": "圖片上傳失敗",
   "admin.bannerCopied": "已複製",
   "admin.bannerDeleteConfirm": "確定刪除該 Banner?",
+  // 設備互斥登入
+  "device.newLoginTitle": "新設備登入請求",
+  "device.newLoginDesc": "您的帳號正在嘗試在以下設備登入：",
+  "device.newLoginWarning": "同意後，當前設備將被登出。如果不是您本人操作，請拒絕！",
+  "device.approve": "同意",
+  "device.reject": "拒絕",
+  "device.sessionExpiredTitle": "已下線",
+  "device.sessionExpiredDesc": "您的帳號已在其他設備登入，當前設備已被登出。",
+  "device.sessionExpiredBtn": "確定",
   // 錯誤訊息
   "error.insufficientBalance": "餘額不足",
   "error.roomNotFound": "房間不存在",
@@ -2458,6 +2485,16 @@ const ja: Record<string, string> = {
   "replay.result": "結果",
   "replay.won": "勝ち",
   "replay.lost": "負け",
+
+  // Device auth
+  "device.newLoginTitle": "新しいデバイスからのログイン",
+  "device.newLoginDesc": "お使いのアカウントが以下のデバイスでログインを試みています：",
+  "device.newLoginWarning": "承認すると、このデバイスはログアウトされます。本人でない場合は拒否してください！",
+  "device.approve": "承認",
+  "device.reject": "拒否",
+  "device.sessionExpiredTitle": "ログアウトされました",
+  "device.sessionExpiredDesc": "お使いのアカウントが別のデバイスでログインしたため、このデバイスからログアウトされました。",
+  "device.sessionExpiredBtn": "OK",
 };
 // Korean
 const ko: Record<string, string> = {
@@ -3008,6 +3045,16 @@ const ko: Record<string, string> = {
   "replay.result": "결과",
   "replay.won": "승리",
   "replay.lost": "패배",
+
+  // Device auth
+  "device.newLoginTitle": "새 기기 로그인 요청",
+  "device.newLoginDesc": "계정이 다음 기기에서 로그인을 시도하고 있습니다:",
+  "device.newLoginWarning": "승인하면 현재 기기에서 로그아웃됩니다. 본인이 아니면 거부하세요!",
+  "device.approve": "승인",
+  "device.reject": "거부",
+  "device.sessionExpiredTitle": "로그아웃됨",
+  "device.sessionExpiredDesc": "계정이 다른 기기에서 로그인되어 현재 기기에서 로그아웃되었습니다.",
+  "device.sessionExpiredBtn": "확인",
 };
 // Other languages (key translations only, fallback to English for missing)
 const es: Record<string, string> = {
@@ -3363,6 +3410,16 @@ const es: Record<string, string> = {
   "replay.result": "Resultado",
   "replay.won": "Ganó",
   "replay.lost": "Perdió",
+
+  // Device auth
+  "device.newLoginTitle": "Inicio de sesión en nuevo dispositivo",
+  "device.newLoginDesc": "Tu cuenta está intentando iniciar sesión en:",
+  "device.newLoginWarning": "Si apruebas, este dispositivo será desconectado. ¡Rechaza si no eres tú!",
+  "device.approve": "Aprobar",
+  "device.reject": "Rechazar",
+  "device.sessionExpiredTitle": "Sesión cerrada",
+  "device.sessionExpiredDesc": "Tu cuenta ha iniciado sesión en otro dispositivo. Has sido desconectado.",
+  "device.sessionExpiredBtn": "Aceptar",
 };
 
 const pt: Record<string, string> = {
@@ -3911,6 +3968,16 @@ const pt: Record<string, string> = {
   "replay.result": "Resultado",
   "replay.won": "Ganhou",
   "replay.lost": "Perdeu",
+
+  // Device auth
+  "device.newLoginTitle": "Login em novo dispositivo",
+  "device.newLoginDesc": "Sua conta está tentando fazer login em:",
+  "device.newLoginWarning": "Ao aprovar, este dispositivo será desconectado. Rejeite se não for você!",
+  "device.approve": "Aprovar",
+  "device.reject": "Rejeitar",
+  "device.sessionExpiredTitle": "Desconectado",
+  "device.sessionExpiredDesc": "Sua conta foi conectada em outro dispositivo. Você foi desconectado deste.",
+  "device.sessionExpiredBtn": "OK",
 };
 
 const ru: Record<string, string> = {
@@ -4459,6 +4526,16 @@ const ru: Record<string, string> = {
   "replay.result": "Результат",
   "replay.won": "Выиграл",
   "replay.lost": "Проиграл",
+
+  // Device auth
+  "device.newLoginTitle": "Вход с нового устройства",
+  "device.newLoginDesc": "Ваш аккаунт пытается войти на:",
+  "device.newLoginWarning": "При одобрении это устройство будет отключено. Отклоните, если это не вы!",
+  "device.approve": "Одобрить",
+  "device.reject": "Отклонить",
+  "device.sessionExpiredTitle": "Отключено",
+  "device.sessionExpiredDesc": "Ваш аккаунт вошёл на другом устройстве. Вы были отключены.",
+  "device.sessionExpiredBtn": "ОК",
 };
 
 const ar: Record<string, string> = {
@@ -5007,6 +5084,16 @@ const ar: Record<string, string> = {
   "replay.result": "النتيجة",
   "replay.won": "فاز",
   "replay.lost": "خسر",
+
+  // Device auth
+  "device.newLoginTitle": "تسجيل دخول من جهاز جديد",
+  "device.newLoginDesc": "حسابك يحاول تسجيل الدخول من:",
+  "device.newLoginWarning": "عند الموافقة، سيتم تسجيل خروجك من هذا الجهاز. ارفض إذا لم تكن أنت!",
+  "device.approve": "موافقة",
+  "device.reject": "رفض",
+  "device.sessionExpiredTitle": "تم تسجيل الخروج",
+  "device.sessionExpiredDesc": "تم تسجيل الدخول لحسابك من جهاز آخر. تم تسجيل خروجك.",
+  "device.sessionExpiredBtn": "حسناً",
 };
 
 const vi: Record<string, string> = {
@@ -5555,6 +5642,16 @@ const vi: Record<string, string> = {
   "replay.result": "Kết quả",
   "replay.won": "Thắng",
   "replay.lost": "Thua",
+
+  // Device auth
+  "device.newLoginTitle": "Đăng nhập từ thiết bị mới",
+  "device.newLoginDesc": "Tài khoản của bạn đang cố đăng nhập từ:",
+  "device.newLoginWarning": "Nếu chấp nhận, thiết bị này sẽ bị đăng xuất. Từ chối nếu không phải bạn!",
+  "device.approve": "Chấp nhận",
+  "device.reject": "Từ chối",
+  "device.sessionExpiredTitle": "Đã đăng xuất",
+  "device.sessionExpiredDesc": "Tài khoản đã đăng nhập trên thiết bị khác. Bạn đã bị đăng xuất.",
+  "device.sessionExpiredBtn": "OK",
 };
 
 const th: Record<string, string> = {
@@ -6103,6 +6200,16 @@ const th: Record<string, string> = {
   "replay.result": "ผลลัพธ์",
   "replay.won": "ชนะ",
   "replay.lost": "แพ้",
+
+  // Device auth
+  "device.newLoginTitle": "เข้าสู่ระบบจากอุปกรณ์ใหม่",
+  "device.newLoginDesc": "บัญชีของคุณกำลังพยายามเข้าสู่ระบบจาก:",
+  "device.newLoginWarning": "หากอนุมัติ อุปกรณ์นี้จะถูกออกจากระบบ ปฏิเสธหากไม่ใช่คุณ!",
+  "device.approve": "อนุมัติ",
+  "device.reject": "ปฏิเสธ",
+  "device.sessionExpiredTitle": "ออกจากระบบแล้ว",
+  "device.sessionExpiredDesc": "บัญชีของคุณเข้าสู่ระบบบนอุปกรณ์อื่น คุณถูกออกจากระบบ",
+  "device.sessionExpiredBtn": "ตกลง",
 };
 
 const id: Record<string, string> = {
@@ -6651,6 +6758,16 @@ const id: Record<string, string> = {
   "replay.result": "Hasil",
   "replay.won": "Menang",
   "replay.lost": "Kalah",
+
+  // Device auth
+  "device.newLoginTitle": "Login dari perangkat baru",
+  "device.newLoginDesc": "Akun Anda mencoba login dari:",
+  "device.newLoginWarning": "Jika disetujui, perangkat ini akan logout. Tolak jika bukan Anda!",
+  "device.approve": "Setuju",
+  "device.reject": "Tolak",
+  "device.sessionExpiredTitle": "Terputus",
+  "device.sessionExpiredDesc": "Akun Anda telah login di perangkat lain. Anda telah dikeluarkan.",
+  "device.sessionExpiredBtn": "OK",
 };
 
 const translations: Record<Locale, Record<string, string>> = {

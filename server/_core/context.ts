@@ -17,6 +17,7 @@ export type TrpcContext = {
   res: CreateExpressContextOptions["res"];
   user: User | null;
   adminUser: AdminSessionUser | null;
+  sessionExpiredOtherDevice: boolean;
 };
 
 export async function createContext(
@@ -40,11 +41,15 @@ export async function createContext(
   }
 
   // Try game user session (only if no admin session)
+  let sessionExpiredOtherDevice = false;
   if (!adminUser) {
     try {
       user = await sdk.authenticateRequest(opts.req);
-    } catch {
+    } catch (err: any) {
       user = null;
+      if (err?.message === "SESSION_EXPIRED_OTHER_DEVICE") {
+        sessionExpiredOtherDevice = true;
+      }
     }
   }
 
@@ -53,5 +58,6 @@ export async function createContext(
     res: opts.res,
     user,
     adminUser,
+    sessionExpiredOtherDevice,
   };
 }
