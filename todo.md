@@ -879,3 +879,7 @@
 - [x] Postflop: 中等牌跟注增加条件限制（需toCall≤pot*0.5才跟）
 - [x] makeRaise: 筹码上限从60%降到40%，超过30%筹码有40%概率改为call
 - [x] 面对All-in: 跟注阈值从equity≥0.55提高到≥0.62
+
+## 2026-06-17 Bot分配修复：所有公共房间自动填充bot
+- [x] 修改checkAndFillBots：没有room_bot_config的公共房间使用全局配置的minPerTable作为目标bot数
+- [x] 修改persistentBotScheduler：遍历所有公共房间而非仅有room_bot_config的房间，改用填充率最低优先算法

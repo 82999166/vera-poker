@@ -381,13 +381,8 @@ export async function checkAndFillBots(roomId: number, calledFromStartNewHand = 
     // 使用房间级别配置的botCount作为上限
     targetBotCount = roomConfig.botCount;
   } else {
-    // 未配置独立bot的房间，不自动填充bot
-    return;
-  }
-
-  // 房间有独立配置时，以房间配置为准，不受全局maxPerTable限制
-  if (!roomConfig) {
-    targetBotCount = Math.min(targetBotCount, config.maxPerTable);
+    // 未配置独立bot的房间，使用全局minPerTable作为目标bot数
+    targetBotCount = Math.min(config.minPerTable, room.maxPlayers - 1);
   }
 
   // 无真人时，根据fillWithoutRealPlayers配置决定是否填充bot
@@ -579,24 +574,29 @@ export async function persistentBotScheduler(): Promise<void> {
   // 需要补充的bot数量
   const needed = target - currentOnlineCount;
 
-  // 将bot分散到各个房间（只分配到明确配置了bot的房间，且有真人在等待的）
-  // 每次只补充1个，防止瞬间涌入
-  for (let i = 0; i < Math.min(needed, 1); i++) {
-    // 找到bot未达到配置数量的房间
+  // 将bot分散到各个房间
+  // 每次补充最多3个，加速填充空房间
+  for (let i = 0; i < Math.min(needed, 3); i++) {
+    // 找到填充率最低的房间（按比例分配，而非绝对数量）
     let bestRoom: typeof publicRooms[0] | null = null;
-    let minBots = Infinity;
+    let lowestFillRatio = 1.0; // 1.0 = 已满
     for (const room of publicRooms) {
       const roomConfig = await getRoomBotConfig(room.id);
-      if (!roomConfig) continue;
-      if (!roomConfig.enabled) continue;
+      // 有房间配置但被禁用的房间跳过
+      if (roomConfig && !roomConfig.enabled) continue;
       const botsInRoom = seatedBots.get(room.id)?.size || 0;
-      const maxAllowed = roomConfig.botCount;
+      // 有房间配置用房间配置的botCount，没有则用全局minPerTable
+      const maxAllowed = roomConfig ? roomConfig.botCount : Math.min(config.minPerTable, room.maxPlayers - 1);
+      // 实际上限不能超过房间最大玩家数-1
+      const effectiveMax = Math.min(maxAllowed, room.maxPlayers - 1);
+      if (effectiveMax <= 0) continue;
       // 检查该房间是否有真人玩家（无真人时根据fillWithoutRealPlayers配置决定）
       const roomPlayers = await db.getRoomPlayers(room.id);
       const realCount = roomPlayers.filter((rp: any) => !botUserIds.includes(rp.userId)).length;
       if (realCount === 0 && !config.fillWithoutRealPlayers) continue;
-      if (botsInRoom < maxAllowed && botsInRoom < room.maxPlayers - 1 && botsInRoom < minBots) {
-        minBots = botsInRoom;
+      const fillRatio = botsInRoom / effectiveMax;
+      if (fillRatio < 1.0 && fillRatio < lowestFillRatio) {
+        lowestFillRatio = fillRatio;
         bestRoom = room;
       }
     }
