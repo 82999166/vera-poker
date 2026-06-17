@@ -575,7 +575,12 @@ export async function leaveTable(roomId: number, userId: number): Promise<{ succ
     }
   }
 
-    await db.removeRoomPlayer(roomId, userId);
+    // Clean up bot tracking if the leaving player is a bot
+  const isBotLeaving = (await botManager.getBotUserIds()).includes(userId);
+  if (isBotLeaving) {
+    botManager.onBotLeftTable(roomId, userId);
+  }
+  await db.removeRoomPlayer(roomId, userId);
   // Update player count (include sitting_out players)
   const remaining = await db.getRoomPlayersAll(roomId);
   await db.updateRoom(roomId, { currentPlayers: remaining.length });
@@ -1186,6 +1191,8 @@ async function settleHand(roomId: number) {
       }
       // Clear all players from the room
       await db.clearRoomPlayers(roomId);
+      // Clean up bot tracking for this room
+      botManager.onBotLeftTable(roomId, -1); // -1 signals full room cleanup
       // Invalidate the invite code and close the room
       await db.updateRoom(roomId, {
         status: "closed",

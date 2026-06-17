@@ -1452,6 +1452,11 @@ export async function isBot(userId: number): Promise<boolean> {
  * 当bot离开桌子时清理状态
  */
 export function onBotLeftTable(roomId: number, botId: number) {
+  if (botId === -1) {
+    // Full room cleanup: remove all bot tracking for this room
+    seatedBots.delete(roomId);
+    return;
+  }
   const bots = seatedBots.get(roomId);
   if (bots) {
     bots.delete(botId);

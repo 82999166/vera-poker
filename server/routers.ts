@@ -2403,14 +2403,16 @@ ${faqContext}
       const onlineByRoom = onlineStats.rooms.map(r => {
         const room = roomMap.get(r.roomId);
         const botCount = botPerRoom.get(r.roomId) || 0;
+        // Clamp botCount to actual player count to prevent negative realPlayers
+        const effectiveBotCount = Math.min(botCount, r.players);
         return {
           roomId: r.roomId,
           roomName: room?.name || `Room ${r.roomId}`,
           smallBlind: room?.smallBlind || 0,
           bigBlind: room?.bigBlind || 0,
           totalPlayers: r.players,
-          realPlayers: r.players - botCount,
-          botPlayers: botCount,
+          realPlayers: r.players - effectiveBotCount,
+          botPlayers: effectiveBotCount,
         };
       });
       const totalOnline = onlineStats.total;

@@ -904,3 +904,8 @@
 - [x] 添加 checkin.* / coupon.redeemSuccess 多语言翻译键（12种语言）
 - [x] 修复 Agent.tsx 中硬编码中文 toast 改为 t() 调用
 - [x] 修复 Profile.tsx CheckinWidget/CouponRedeemWidget 中硬编码双语文本改为 t() 调用
+
+## 2026-06-17 i18n覆盖率检测 + 在线人数负数Bug
+- [x] 创建 i18n 覆盖率检测脚本（pnpm i18n:check），自动发现缺失翻译键
+- [x] 修复检测到的所有缺失翻译键（741个缺失键已全部补全，12种语言100%覆盖）
+- [x] 修复管理后台在线人数显示为负数（-2人）的bug（botCount clamp + leaveTable清理bot跟踪）

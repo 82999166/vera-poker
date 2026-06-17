@@ -9,6 +9,8 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
+    "i18n:check": "node scripts/i18n-check.mjs",
+    "i18n:fix": "node scripts/i18n-fix.mjs",
     "test": "vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },
