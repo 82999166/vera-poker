@@ -25,6 +25,7 @@ interface BotConfig {
   fillWithoutRealPlayers: boolean; // 无真人时是否填充bot自动对玩
   persistentOnlineCount: number; // 长期在线bot总数（分散到各桌）
   rotationHands: number;     // 每桌打多少把后轮换bot（0=不轮换）
+  displayOnlineBoost: number; // 大厅显示虚拟在线人数
   // 盈亏控制
   profitControlEnabled: boolean; // 是否启用盈亏控制
   targetEdge: number;        // 目标庄家优势 (0-100, 如5表示bot目标赢5%)
@@ -56,6 +57,7 @@ const DEFAULT_CONFIG: BotConfig = {
   fillWithoutRealPlayers: true,
   persistentOnlineCount: 0,
   rotationHands: 0,
+  displayOnlineBoost: 0,
   profitControlEnabled: true,
   targetEdge: 5,
   maxWinStreak: 0,
@@ -205,6 +207,7 @@ export async function getBotConfig(): Promise<BotConfig> {
   const fillWithoutRealPlayers = await db.getConfigValue("bot_fill_without_real_players", "true");
   const persistentOnlineCount = await db.getConfigValue("bot_persistent_online_count", "0");
   const rotationHands = await db.getConfigValue("bot_rotation_hands", "0");
+  const displayOnlineBoost = await db.getConfigValue("bot_display_online_boost", "0");
   const profitControlEnabled = await db.getConfigValue("bot_profit_control_enabled", "true");
   const targetEdge = await db.getConfigValue("bot_target_edge", "5");
   const maxWinStreak = await db.getConfigValue("bot_max_win_streak", "0");
@@ -223,6 +226,7 @@ export async function getBotConfig(): Promise<BotConfig> {
     fillWithoutRealPlayers: fillWithoutRealPlayers === "true",
     persistentOnlineCount: parseInt(persistentOnlineCount) || 0,
     rotationHands: parseInt(rotationHands) || 0,
+    displayOnlineBoost: parseInt(displayOnlineBoost) || 0,
     profitControlEnabled: profitControlEnabled === "true",
     targetEdge: parseFloat(targetEdge) || DEFAULT_CONFIG.targetEdge,
     maxWinStreak: parseInt(maxWinStreak) || 0,
@@ -381,8 +385,10 @@ export async function checkAndFillBots(roomId: number, calledFromStartNewHand = 
     return;
   }
 
-  // 应用全局maxPerTable限制
-  targetBotCount = Math.min(targetBotCount, config.maxPerTable);
+  // 房间有独立配置时，以房间配置为准，不受全局maxPerTable限制
+  if (!roomConfig) {
+    targetBotCount = Math.min(targetBotCount, config.maxPerTable);
+  }
 
   // 无真人时，根据fillWithoutRealPlayers配置决定是否填充bot
   if (realPlayers.length === 0 && !config.fillWithoutRealPlayers) return;
@@ -584,7 +590,7 @@ export async function persistentBotScheduler(): Promise<void> {
       if (!roomConfig) continue;
       if (!roomConfig.enabled) continue;
       const botsInRoom = seatedBots.get(room.id)?.size || 0;
-      const maxAllowed = Math.min(roomConfig.botCount, config.maxPerTable);
+      const maxAllowed = roomConfig.botCount;
       // 检查该房间是否有真人玩家（无真人时根据fillWithoutRealPlayers配置决定）
       const roomPlayers = await db.getRoomPlayers(room.id);
       const realCount = roomPlayers.filter((rp: any) => !botUserIds.includes(rp.userId)).length;

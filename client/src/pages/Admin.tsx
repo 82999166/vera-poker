@@ -5916,6 +5916,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
     autoRefillEnabled?: boolean;
     fillWithoutRealPlayers?: boolean;
     persistentOnlineCount?: number;
+    displayOnlineBoost?: number;
     rotationHands?: number;
     profitControlEnabled?: boolean;
     targetEdge?: number;
@@ -5939,6 +5940,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
         autoRefillEnabled: (stats.config as any).autoRefillEnabled ?? true,
         fillWithoutRealPlayers: (stats.config as any).fillWithoutRealPlayers ?? true,
         persistentOnlineCount: (stats.config as any).persistentOnlineCount ?? 0,
+        displayOnlineBoost: (stats.config as any).displayOnlineBoost ?? 0,
         rotationHands: (stats.config as any).rotationHands ?? 0,
         profitControlEnabled: (stats.config as any).profitControlEnabled ?? true,
         targetEdge: (stats.config as any).targetEdge ?? 5,
@@ -6130,7 +6132,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
               <div className="p-3 rounded-lg bg-secondary/50">
                 <label className="text-sm font-medium">每桌最多Bot数</label>
                 <input
-                  type="number" min={1} max={50}
+                  type="number" min={1}
                   value={formState.maxPerTable ?? 5}
                   onChange={e => setFormState(s => ({ ...s, maxPerTable: parseInt(e.target.value) || 5 }))}
                   className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
@@ -6141,7 +6143,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
               <div className="p-3 rounded-lg bg-secondary/50">
                 <label className="text-sm font-medium">每桌最少Bot数（无真人时）</label>
                 <input
-                  type="number" min={2} max={50}
+                  type="number" min={0}
                   value={formState.minPerTable ?? 3}
                   onChange={e => setFormState(s => ({ ...s, minPerTable: parseInt(e.target.value) || 3 }))}
                   className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
@@ -6259,6 +6261,18 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
                   className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
                 />
                 <p className="text-xs text-muted-foreground mt-1">系统将保持此数量Bot分散在各牌桌上长期在线</p>
+              </div>
+
+              {/* Display Online Boost */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">大厅显示虚拟在线人数</label>
+                <input
+                  type="number" min={0}
+                  value={formState.displayOnlineBoost ?? 0}
+                  onChange={e => setFormState(s => ({ ...s, displayOnlineBoost: parseInt(e.target.value) || 0 }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+                />
+                <p className="text-xs text-muted-foreground mt-1">大厅在线人数将额外加上此数值（仅显示，不影响实际游戏）</p>
               </div>
 
               {/* Rotation Hands */}
@@ -6593,7 +6607,7 @@ function RoomBotConfigPanel() {
                   {isEditing ? (
                     <>
                       <td className="text-center py-2 px-2">
-                        <input type="number" min={0} max={50} value={editForm.botCount}
+                        <input type="number" min={0} value={editForm.botCount}
                           onChange={e => setEditForm(s => ({ ...s, botCount: parseInt(e.target.value) || 0 }))}
                           className="w-14 glass rounded px-2 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-gold" />
                       </td>

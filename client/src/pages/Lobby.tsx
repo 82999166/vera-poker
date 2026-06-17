@@ -35,7 +35,9 @@ export default function Lobby() {
   const [showWelcome, setShowWelcome] = useState(false);
 
   const locale = getLocale();
-  const { data: rooms, isLoading } = trpc.rooms.list.useQuery(undefined, { refetchInterval: 3000 });
+  const { data: roomsData, isLoading } = trpc.rooms.list.useQuery(undefined, { refetchInterval: 3000 });
+  const rooms = roomsData?.rooms;
+  const displayOnlineBoost = roomsData?.displayOnlineBoost || 0;
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
   const { data: activeRoom } = trpc.rooms.myActiveRoom.useQuery(undefined, { enabled: !!user });
   const { data: myTournamentTable } = trpc.tournaments.myTable.useQuery(undefined, { enabled: !!user, refetchInterval: 3000 });
@@ -111,7 +113,7 @@ export default function Lobby() {
     return true;
   });
 
-  const totalOnline = cashRooms.reduce((sum, r) => sum + r.currentPlayers, 0);
+  const totalOnline = cashRooms.reduce((sum, r) => sum + r.currentPlayers, 0) + displayOnlineBoost;
 
   const tableCountByLevel = {
     all: stakeGroups.length,

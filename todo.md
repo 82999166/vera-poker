@@ -864,3 +864,8 @@
 - [x] Bug2: 返回大厅找不到牌桌（修复beacon-leave误触发 + 增加kicked保护）
 - [x] Bug3: 下注顺序跳跃（代码按seatIndex排序正确，视觉因bot快速行动）
 - [x] Bug4: 观战玩家被误踢（增加KICK_GRACE_THRESHOLD到6 + getPlayerView覆盖状态转换窗口）
+
+## 2026-06-17 Bot数量上限 + 虚拟在线人数
+- [x] 去除单场bot数量上限（前后端max=50限制全部移除）
+- [x] 房间级别botCount不再受全局maxPerTable限制
+- [x] 新增"大厅显示虚拟在线人数"配置项（后台可设置，大厅totalOnline加上此数值）

@@ -243,7 +243,9 @@ export const appRouter = router({
   // ==================== ROOMS ====================
   rooms: router({
     list: publicProcedure.query(async () => {
-      return db.getPublicRooms();
+      const rooms = await db.getPublicRooms();
+      const displayOnlineBoost = parseInt(await db.getConfigValue("bot_display_online_boost", "0") || "0");
+      return { rooms, displayOnlineBoost };
     }),
     get: publicProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       return db.getRoomById(input.id);
@@ -2441,8 +2443,8 @@ ${faqContext}
     // Update bot config
     updateConfig: adminProcedure.input(z.object({
       enabled: z.boolean().optional(),
-      maxPerTable: z.number().min(1).max(50).optional(),
-      minPerTable: z.number().min(2).max(50).optional(),
+      maxPerTable: z.number().min(1).optional(),
+      minPerTable: z.number().min(0).optional(),
       dailyLossLimit: z.number().min(0).optional(),
       foldRate: z.number().min(0).max(100).optional(),
       minActionDelay: z.number().min(500).max(10000).optional(),
@@ -2451,7 +2453,8 @@ ${faqContext}
       autoRefillAmount: z.number().min(0).optional(),
       autoRefillEnabled: z.boolean().optional(),
       fillWithoutRealPlayers: z.boolean().optional(),
-      persistentOnlineCount: z.number().min(0).max(200).optional(),
+      persistentOnlineCount: z.number().min(0).optional(),
+      displayOnlineBoost: z.number().min(0).optional(),
       rotationHands: z.number().min(0).max(1000).optional(),
       profitControlEnabled: z.boolean().optional(),
       targetEdge: z.number().min(-20).max(50).optional(),
@@ -2469,6 +2472,7 @@ ${faqContext}
       if (input.autoRefillEnabled !== undefined) await db.upsertConfig("bot_auto_refill_enabled", String(input.autoRefillEnabled), "bot", "开启自动补充", "boolean");
       if (input.fillWithoutRealPlayers !== undefined) await db.upsertConfig("bot_fill_without_real_players", String(input.fillWithoutRealPlayers), "bot", "无真人时自动对玩", "boolean");
       if (input.persistentOnlineCount !== undefined) await db.upsertConfig("bot_persistent_online_count", String(input.persistentOnlineCount), "bot", "长期在线Bot总数", "number");
+      if (input.displayOnlineBoost !== undefined) await db.upsertConfig("bot_display_online_boost", String(input.displayOnlineBoost), "bot", "大厅显示虚拟在线人数", "number");
       if (input.rotationHands !== undefined) await db.upsertConfig("bot_rotation_hands", String(input.rotationHands), "bot", "每桌轮换手数(0=不轮换)", "number");
       if (input.profitControlEnabled !== undefined) await db.upsertConfig("bot_profit_control_enabled", String(input.profitControlEnabled), "bot", "启用盈亏控制", "boolean");
       if (input.targetEdge !== undefined) await db.upsertConfig("bot_target_edge", String(input.targetEdge), "bot", "目标庄家优势(%)", "number");
@@ -2487,7 +2491,7 @@ ${faqContext}
     }),
     upsertRoomConfig: adminProcedure.input(z.object({
       roomId: z.number(),
-      botCount: z.number().min(0).max(50).optional(),
+      botCount: z.number().min(0).optional(),
       enabled: z.boolean().optional(),
       foldRate: z.number().min(0).max(100).nullable().optional(),
       minActionDelay: z.number().min(500).max(10000).nullable().optional(),
