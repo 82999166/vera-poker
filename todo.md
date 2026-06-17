@@ -953,3 +953,9 @@
 - [x] 前端：公共牌中属于赢家 bestCards 的也高亮
 - [x] 前端：对手手牌中属于赢家 bestCards 的也高亮
 - [x] CSS：新增 winner-card-glow 无限循环动画（金色发光+微缩放）
+
+## 2026-06-17 Mini App 语言自动跟随 Telegram 系统语言
+- [x] TG Mini App 环境下 TG language_code 优先级高于 localStorage（detectLocale 重写）
+- [x] App.tsx syncTgLanguage 移除 localStorage 早期返回逻辑
+- [x] 首次注册赠送页面已确认使用 t() 函数，12种语言翻译均完整
+- [x] MobileRouter key={locale} 确保语言切换时整个应用重新渲染

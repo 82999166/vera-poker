@@ -171,10 +171,9 @@ function AppContent() {
   const { locale } = useI18n();
 
   // Global TG language sync: ensure TG Mini App users always see their language.
+  // In TG Mini App context, TG language_code always takes priority over localStorage.
   useEffect(() => {
     const syncTgLanguage = () => {
-      const manualLocale = localStorage.getItem("vera-locale");
-      if (manualLocale) return;
       const tg = (window as any).Telegram?.WebApp;
       if (!tg?.initDataUnsafe?.user?.language_code) return;
       const detected = detectLocale();
@@ -183,6 +182,7 @@ function AppContent() {
       }
     };
     syncTgLanguage();
+    // Retry after a short delay in case TG SDK initializes late
     const timer = setTimeout(syncTgLanguage, 300);
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

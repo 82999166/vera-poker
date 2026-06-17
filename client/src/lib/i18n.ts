@@ -6801,10 +6801,6 @@ let currentLocale: Locale = "en";
 const listeners: Set<() => void> = new Set();
 
 export function detectLocale(): Locale {
-  // 1. User's saved preference takes highest priority
-  const saved = localStorage.getItem("vera-locale") as Locale | null;
-  if (saved && translations[saved]) return saved;
-
   const langMap: Record<string, Locale> = {
     "en": "en", "zh": "zh-CN", "zh-cn": "zh-CN", "zh-tw": "zh-TW",
     "zh-hans": "zh-CN", "zh-hant": "zh-TW",
@@ -6812,7 +6808,9 @@ export function detectLocale(): Locale {
     "ar": "ar", "vi": "vi", "th": "th", "id": "id",
   };
 
-  // 2. Try Telegram WebApp language (most accurate for TG Mini App users)
+  // 1. In Telegram Mini App: TG language_code takes HIGHEST priority
+  //    This ensures the app always follows the user's TG system language,
+  //    even if localStorage has a stale value from a previous session.
   try {
     const tgLang = (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
     if (tgLang) {
@@ -6821,6 +6819,10 @@ export function detectLocale(): Locale {
       if (matched) return matched;
     }
   } catch {}
+
+  // 2. Outside TG (browser): use saved preference from localStorage
+  const saved = localStorage.getItem("vera-locale") as Locale | null;
+  if (saved && translations[saved]) return saved;
 
   // 3. Fallback to browser language
   const browserLang = navigator.language || "en";
