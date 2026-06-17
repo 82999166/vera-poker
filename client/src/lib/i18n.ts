@@ -603,6 +603,7 @@ const en: Record<string, string> = {
   "admin.bannerCopied": "Copied",
   "admin.bannerDeleteConfirm": "Are you sure you want to delete this banner?",
   // Device auth
+  "device.title": "Device",
   "device.newLoginTitle": "New Device Login",
   "device.newLoginDesc": "Your account is trying to login on:",
   "device.newLoginWarning": "After approval, this device will be logged out. Reject if not you!",
@@ -1237,6 +1238,7 @@ const zhCN: Record<string, string> = {
   "admin.bannerCopied": "已复制",
   "admin.bannerDeleteConfirm": "确定删除该 Banner?",
   // 设备互斥登录
+  "device.title": "登录设备",
   "device.newLoginTitle": "新设备登录请求",
   "device.newLoginDesc": "您的账号正在尝试在以下设备登录：",
   "device.newLoginWarning": "同意后，当前设备将被登出。如果不是您本人操作，请拒绝！",
@@ -1861,6 +1863,7 @@ const zhTW: Record<string, string> = {
   "admin.bannerCopied": "已複製",
   "admin.bannerDeleteConfirm": "確定刪除該 Banner?",
   // 設備互斥登入
+  "device.title": "登入設備",
   "device.newLoginTitle": "新設備登入請求",
   "device.newLoginDesc": "您的帳號正在嘗試在以下設備登入：",
   "device.newLoginWarning": "同意後，當前設備將被登出。如果不是您本人操作，請拒絕！",
@@ -2487,6 +2490,7 @@ const ja: Record<string, string> = {
   "replay.lost": "負け",
 
   // Device auth
+  "device.title": "デバイス",
   "device.newLoginTitle": "新しいデバイスからのログイン",
   "device.newLoginDesc": "お使いのアカウントが以下のデバイスでログインを試みています：",
   "device.newLoginWarning": "承認すると、このデバイスはログアウトされます。本人でない場合は拒否してください！",
@@ -3047,6 +3051,7 @@ const ko: Record<string, string> = {
   "replay.lost": "패배",
 
   // Device auth
+  "device.title": "기기",
   "device.newLoginTitle": "새 기기 로그인 요청",
   "device.newLoginDesc": "계정이 다음 기기에서 로그인을 시도하고 있습니다:",
   "device.newLoginWarning": "승인하면 현재 기기에서 로그아웃됩니다. 본인이 아니면 거부하세요!",
@@ -3412,6 +3417,7 @@ const es: Record<string, string> = {
   "replay.lost": "Perdió",
 
   // Device auth
+  "device.title": "Dispositivo",
   "device.newLoginTitle": "Inicio de sesión en nuevo dispositivo",
   "device.newLoginDesc": "Tu cuenta está intentando iniciar sesión en:",
   "device.newLoginWarning": "Si apruebas, este dispositivo será desconectado. ¡Rechaza si no eres tú!",
@@ -3970,6 +3976,7 @@ const pt: Record<string, string> = {
   "replay.lost": "Perdeu",
 
   // Device auth
+  "device.title": "Dispositivo",
   "device.newLoginTitle": "Login em novo dispositivo",
   "device.newLoginDesc": "Sua conta está tentando fazer login em:",
   "device.newLoginWarning": "Ao aprovar, este dispositivo será desconectado. Rejeite se não for você!",
@@ -4528,6 +4535,7 @@ const ru: Record<string, string> = {
   "replay.lost": "Проиграл",
 
   // Device auth
+  "device.title": "Устройство",
   "device.newLoginTitle": "Вход с нового устройства",
   "device.newLoginDesc": "Ваш аккаунт пытается войти на:",
   "device.newLoginWarning": "При одобрении это устройство будет отключено. Отклоните, если это не вы!",
@@ -5086,6 +5094,7 @@ const ar: Record<string, string> = {
   "replay.lost": "خسر",
 
   // Device auth
+  "device.title": "الجهاز",
   "device.newLoginTitle": "تسجيل دخول من جهاز جديد",
   "device.newLoginDesc": "حسابك يحاول تسجيل الدخول من:",
   "device.newLoginWarning": "عند الموافقة، سيتم تسجيل خروجك من هذا الجهاز. ارفض إذا لم تكن أنت!",
@@ -5644,6 +5653,7 @@ const vi: Record<string, string> = {
   "replay.lost": "Thua",
 
   // Device auth
+  "device.title": "Thiết bị",
   "device.newLoginTitle": "Đăng nhập từ thiết bị mới",
   "device.newLoginDesc": "Tài khoản của bạn đang cố đăng nhập từ:",
   "device.newLoginWarning": "Nếu chấp nhận, thiết bị này sẽ bị đăng xuất. Từ chối nếu không phải bạn!",
@@ -6202,6 +6212,7 @@ const th: Record<string, string> = {
   "replay.lost": "แพ้",
 
   // Device auth
+  "device.title": "อุปกรณ์",
   "device.newLoginTitle": "เข้าสู่ระบบจากอุปกรณ์ใหม่",
   "device.newLoginDesc": "บัญชีของคุณกำลังพยายามเข้าสู่ระบบจาก:",
   "device.newLoginWarning": "หากอนุมัติ อุปกรณ์นี้จะถูกออกจากระบบ ปฏิเสธหากไม่ใช่คุณ!",
@@ -6760,6 +6771,7 @@ const id: Record<string, string> = {
   "replay.lost": "Kalah",
 
   // Device auth
+  "device.title": "Perangkat",
   "device.newLoginTitle": "Login dari perangkat baru",
   "device.newLoginDesc": "Akun Anda mencoba login dari:",
   "device.newLoginWarning": "Jika disetujui, perangkat ini akan logout. Tolak jika bukan Anda!",

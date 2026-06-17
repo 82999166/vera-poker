@@ -205,6 +205,12 @@ export const appRouter = router({
         if (!valid) {
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Incorrect password" });
         }
+        // Save device info on login
+        const { parseDeviceInfo } = await import("./deviceInfo");
+        const deviceInfo = parseDeviceInfo(ctx.req.headers["user-agent"] || "");
+        const loginIp = (ctx.req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || ctx.req.ip || "";
+        await db.updateUserDeviceInfo(user.openId, deviceInfo, loginIp);
+
         // Device exclusivity: always increment sessionVersion to invalidate old sessions
         const { sdk } = await import("./_core/sdk");
         const { ONE_YEAR_MS } = await import("@shared/const");

@@ -1737,6 +1737,21 @@ export async function updateUserDeviceFingerprint(openId: string, newFingerprint
 }
 
 
+/**
+ * 更新用户设备信息和IP（每次登录时调用）
+ */
+export async function updateUserDeviceInfo(openId: string, deviceInfo: string, ip: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users)
+    .set({
+      lastLoginDevice: deviceInfo,
+      lastIp: ip,
+      lastSignedIn: new Date(),
+    } as any)
+    .where(eq(users.openId, openId));
+}
+
 // ==================== ROOM BOT CONFIG ====================
 
 export async function getRoomBotConfig(roomId: number) {

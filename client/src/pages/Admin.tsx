@@ -1906,6 +1906,10 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
                   <span className="text-[10px] text-muted-foreground">-</span>
                 )}
               </div>
+              {/* Device info */}
+              <span className="text-[10px] text-muted-foreground text-center w-28 shrink-0 truncate" title={u.lastLoginDevice || ""}>
+                {u.lastLoginDevice || "-"}
+              </span>
               {/* Last login - full date + time */}
               <span className="text-[10px] text-muted-foreground text-right w-28 shrink-0">
                 {u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}
@@ -2139,6 +2143,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
               <DetailRow label="Email" value={(user as any).email || "-"} />
               <DetailRow label={at("settings.defaultLang")} value={(user as any).language || "-"} />
               <DetailRow label="IP" value={(user as any).lastIp || "-"} />
+              <DetailRow label={at("device.title")} value={(user as any).lastLoginDevice || "-"} />
               <DetailRow label={at("users.lastLogin")} value={(user as any).lastSignedIn ? new Date((user as any).lastSignedIn).toLocaleString() : "-"} />
               <DetailRow label={at("users.registeredAt")} value={(user as any).createdAt ? new Date((user as any).createdAt).toLocaleString() : "-"} />
             </div>

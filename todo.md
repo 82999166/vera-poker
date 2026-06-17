@@ -917,3 +917,12 @@
 - [x] 修复同账号多设备仍可同时登录并游戏（每次登录强制递增sessionVersion，旧cookie无sv字段也会被踢）
 - [x] 游戏左上角关闭按钮是Telegram原生标题栏按钮，跟随用户TG客户端语言，无法通过代码控制
 - [x] 清理Table.tsx中残留的中文fallback字符串（lowChipsWarning、allInConfirmMsg）
+
+## 2026-06-17 用户设备信息获取与保存
+- [x] 数据库：users表添加 lastLoginDevice 字段（varchar 256）
+- [x] 服务端：登录时解析UA获取设备类型/浏览器/OS并保存（ua-parser-js ESM import）
+- [x] 服务端：OAuth登录和密码登录都保存设备信息和IP
+- [x] 管理后台：用户列表新增设备信息列，用户详情展示设备信息
+- [x] 前端：被踢弹窗显示"您的账号已在其他设备登录"（SessionExpiredAlert）
+- [x] i18n：device.title 翻译键添加到全部12种语言
+- [x] 修复 deviceInfo.ts 中 require() 在 ESM 环境下报错（改为 import { UAParser } from 'ua-parser-js'）

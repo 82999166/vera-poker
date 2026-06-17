@@ -48,6 +48,7 @@ export const users = mysqlTable("users", {
   riskLevel: mysqlEnum("riskLevel", ["normal", "watch", "frozen", "banned"]).default("normal").notNull(),
   deviceFingerprint: varchar("deviceFingerprint", { length: 256 }),
   lastIp: varchar("lastIp", { length: 64 }),
+  lastLoginDevice: varchar("lastLoginDevice", { length: 256 }), // 设备信息（如 "iPhone Safari" / "Windows Chrome"
   sessionVersion: int("sessionVersion").default(1).notNull(), // 递增版本号，用于设备互斥登录
   lastLatitude: decimal("lastLatitude", { precision: 10, scale: 7 }), // 最近GPS纬度
   lastLongitude: decimal("lastLongitude", { precision: 10, scale: 7 }), // 最近GPS经度

@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `lastLoginDevice` varchar(256);

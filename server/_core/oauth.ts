@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { parseDeviceInfo } from "../deviceInfo";
 // deviceAuth imports kept for pendingLogin/checkLoginStatus procedures in routers.ts
 
 function getQueryParam(req: Request, key: string): string | undefined {
@@ -44,6 +45,11 @@ export function registerOAuthRoutes(app: Express) {
       }
 
       const cookieOptions = getSessionCookieOptions(req);
+
+      // Save device info on login
+      const deviceInfo = parseDeviceInfo(req.headers["user-agent"] || "");
+      const loginIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "";
+      await db.updateUserDeviceInfo(userInfo.openId, deviceInfo, loginIp);
 
       // Device exclusivity: every login increments sessionVersion to invalidate old sessions
       // This ensures only ONE device can be active at a time
