@@ -14,6 +14,7 @@ import Agent from "./pages/Agent";
 import Support from "./pages/Support";
 import CreateRoom from "./pages/CreateRoom";
 import Verify from "./pages/Verify";
+import VerifyLogin from "./pages/VerifyLogin";
 import HandHistory from "./pages/HandHistory";
 import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
@@ -25,40 +26,72 @@ import ReplayPlayer from "./pages/ReplayPlayer";
 import { useClickSound } from "./hooks/useClickSound";
 import { trpc } from "./lib/trpc";
 
-/** 换设备登录提示弹窗 */
+/** Old device receives new device login confirmation request */
 function NewDeviceAlert() {
   const [show, setShow] = useState(false);
-  const [checked, setChecked] = useState(false);
-  const meQuery = trpc.auth.me.useQuery(undefined, { retry: false, refetchOnWindowFocus: false });
-  const clearCookieMutation = trpc.auth.clearNewDeviceCookie.useMutation();
+  const [requestId, setRequestId] = useState("");
+  const [deviceInfo, setDeviceInfo] = useState("");
+
+  // Poll for pending new device login requests
+  const pendingQuery = trpc.auth.pendingLogin.useQuery(undefined, {
+    refetchInterval: 3000,
+    retry: false,
+  });
+
+  const approveMutation = trpc.auth.approveLogin.useMutation({
+    onSuccess: () => {
+      setShow(false);
+      window.location.href = "/";
+    },
+  });
+
+  const rejectMutation = trpc.auth.rejectLogin.useMutation({
+    onSuccess: () => {
+      setShow(false);
+    },
+  });
 
   useEffect(() => {
-    if (checked) return;
-    const user = meQuery.data as any;
-    if (user && user.newDeviceLogin) {
+    if (pendingQuery.data?.hasPending && pendingQuery.data.requestId) {
       setShow(true);
-      setChecked(true);
-      clearCookieMutation.mutate();
-    } else if (user && !user.newDeviceLogin) {
-      setChecked(true);
+      setRequestId(pendingQuery.data.requestId);
+      setDeviceInfo(pendingQuery.data.deviceInfo || "Unknown Device");
+    } else {
+      setShow(false);
     }
-  }, [meQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pendingQuery.data]);
 
   if (!show) return null;
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 mx-4 max-w-xs w-full shadow-2xl">
-        <h3 className="text-white font-bold text-center text-base mb-3">提示</h3>
-        <p className="text-white/80 text-sm text-center leading-relaxed mb-5">
-          您的账号在另一台设备上登录。<br />如非本人操作请联系客服处理！
+        <h3 className="text-white font-bold text-center text-base mb-3">New Device Login</h3>
+        <p className="text-white/80 text-sm text-center leading-relaxed mb-2">
+          Your account is trying to login on:
         </p>
-        <button
-          onClick={() => setShow(false)}
-          className="w-full py-2.5 rounded-xl font-semibold text-sm text-white"
-          style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)" }}
-        >
-          确定
-        </button>
+        <p className="text-yellow-400 text-sm text-center font-medium mb-4">
+          {deviceInfo}
+        </p>
+        <p className="text-white/60 text-xs text-center mb-5">
+          After approval, this device will be logged out. Reject if not you!
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => rejectMutation.mutate({ requestId })}
+            disabled={rejectMutation.isPending}
+            className="flex-1 py-2.5 rounded-xl font-semibold text-sm text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
+          >
+            Reject
+          </button>
+          <button
+            onClick={() => approveMutation.mutate({ requestId })}
+            disabled={approveMutation.isPending}
+            className="flex-1 py-2.5 rounded-xl font-semibold text-sm text-white transition-colors disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)" }}
+          >
+            Approve
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -75,6 +108,7 @@ function MobileRouter() {
       <Route path="/support" component={Support} />
       <Route path="/create-room" component={CreateRoom} />
       <Route path="/verify" component={Verify} />
+      <Route path="/verify-login" component={VerifyLogin} />
       <Route path="/history/:id" component={HandHistory} />
       <Route path="/profile" component={Profile} />
       <Route path="/leaderboard" component={Leaderboard} />
@@ -122,6 +156,8 @@ function AppContent() {
   const isAdmin = window.location.pathname.startsWith("/admin");
   // Table page uses full-screen layout (no max-width container)
   const isTable = window.location.pathname.startsWith("/table/");
+  // Verify login page uses full-screen layout
+  const isVerifyLogin = window.location.pathname === "/verify-login";
 
   if (isStaffLogin) {
     return <StaffLogin key={locale} />;
@@ -129,6 +165,10 @@ function AppContent() {
 
   if (isAdmin) {
     return <Admin key={locale} />;
+  }
+
+  if (isVerifyLogin) {
+    return <MobileRouter key={locale} />;
   }
 
   if (isTable) {

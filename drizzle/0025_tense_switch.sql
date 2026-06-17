@@ -1,0 +1,1 @@
+ALTER TABLE `risk_events` MODIFY COLUMN `eventType` enum('multi_account','collusion','bot_behavior','abnormal_withdraw','self_play','ip_cluster','geo_proximity') NOT NULL;

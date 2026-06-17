@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { createPendingLogin, checkLoginRequestStatus } from "../deviceAuth";
 
 /** Build a lightweight device fingerprint from request headers */
 function buildDeviceFingerprint(req: Request): string {
@@ -74,12 +75,27 @@ export function registerOAuthRoutes(app: Express) {
       });
 
       const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-      // Signal new device login to frontend via short-lived cookie
+
+      // 如果是新设备且用户已存在，需要旧设备确认
       if (isNewDevice) {
-        res.cookie("vera_new_device", "1", { ...cookieOptions, maxAge: 60 * 1000 }); // expires in 60s
+        const existingUser = await db.getUserByOpenId(userInfo.openId);
+        if (existingUser) {
+          // 创建待确认登录请求
+          const requestId = createPendingLogin({
+            userId: existingUser.id,
+            openId: userInfo.openId,
+            fingerprint: buildDeviceFingerprint(req),
+            userAgent: req.headers["user-agent"] || "",
+            sessionToken,
+          });
+          // 重定向到等待确认页面
+          res.redirect(302, `/verify-login?pendingLogin=${requestId}&userId=${existingUser.id}`);
+          return;
+        }
       }
 
+      // 正常登录（非新设备或新用户）
+      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
       res.redirect(302, "/");
     } catch (error) {
       console.error("[OAuth] Callback failed", error);

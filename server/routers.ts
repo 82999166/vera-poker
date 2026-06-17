@@ -125,6 +125,65 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    // ==================== 设备互斥登录 ====================
+    // 检查是否有待确认的新设备登录请求（旧设备轮询）
+    pendingLogin: protectedProcedure.query(async ({ ctx }) => {
+      const { getPendingLoginForUser } = await import("./deviceAuth");
+      return getPendingLoginForUser(ctx.user.id);
+    }),
+
+    // 旧设备同意新设备登录
+    approveLogin: protectedProcedure
+      .input(z.object({ requestId: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const { approveLogin } = await import("./deviceAuth");
+        const result = await approveLogin(ctx.user.id, input.requestId);
+        if (!result.success) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: result.message });
+        }
+        // 清除旧设备的session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+        return { success: true };
+      }),
+
+    // 旧设备拒绝新设备登录
+    rejectLogin: protectedProcedure
+      .input(z.object({ requestId: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const { rejectLogin } = await import("./deviceAuth");
+        const result = rejectLogin(ctx.user.id, input.requestId);
+        if (!result.success) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: result.message });
+        }
+        return { success: true };
+      }),
+
+    // 新设备检查登录请求状态（轮询）
+    checkLoginStatus: publicProcedure
+      .input(z.object({ requestId: z.string(), userId: z.number() }))
+      .query(async ({ input }) => {
+        const { checkLoginRequestStatus } = await import("./deviceAuth");
+        const result = checkLoginRequestStatus(input.userId, input.requestId);
+        return result;
+      }),
+
+    // 新设备确认登录成功后设置cookie
+    confirmLogin: publicProcedure
+      .input(z.object({ requestId: z.string(), userId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const { checkLoginRequestStatus } = await import("./deviceAuth");
+        const result = checkLoginRequestStatus(input.userId, input.requestId);
+        if (result.status !== "approved" || !result.sessionToken) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Login not approved" });
+        }
+        // 设置session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        const { ONE_YEAR_MS } = await import("@shared/const");
+        ctx.res.cookie(COOKIE_NAME, result.sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        return { success: true };
+      }),
+
     // Password login - user provides tgId/nickname + password
     passwordLogin: publicProcedure
       .input(z.object({
@@ -1244,6 +1303,30 @@ export const appRouter = router({
       }
       return { seatIndex: result.seatIndex, newBalance, message: result.message || null };
     }),
+
+    // 上报地理位置（前端在加入牌桌时调用）
+    reportLocation: protectedProcedure
+      .input(z.object({
+        roomId: z.number(),
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { updateUserLocation, checkGeoProximity, triggerGeoAlert } = await import("./deviceAuth");
+        // 更新用户位置
+        await updateUserLocation(ctx.user.id, input.latitude, input.longitude);
+        // 检查同桌玩家距离
+        const geoThreshold = parseInt(await db.getConfigValue("geo_proximity_threshold") || "500");
+        const nearbyPlayers = await checkGeoProximity(
+          input.roomId, ctx.user.id, input.latitude, input.longitude, geoThreshold
+        );
+        if (nearbyPlayers.length > 0) {
+          // 触发风控告警（异步，不阻塞用户）
+          triggerGeoAlert(ctx.user.id, input.roomId, nearbyPlayers).catch(console.error);
+        }
+        return { success: true, nearbyCount: nearbyPlayers.length };
+      }),
+
     // Leave a table
     leave: protectedProcedure.input(z.object({ roomId: z.number() })).mutation(async ({ ctx, input }) => {
       const result = await tableManager.leaveTable(input.roomId, ctx.user.id);

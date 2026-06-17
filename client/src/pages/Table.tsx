@@ -842,6 +842,7 @@ export default function Table() {
   }, [(tableState as any)?.lastActionInfo, muted, user?.id, announceAction]);
 
   // Mutations
+  const reportLocationMutation = trpc.game.reportLocation.useMutation();
   const joinMutation = trpc.game.join.useMutation({
     onSuccess: (data) => {
       setIsSeated(true);
@@ -858,6 +859,19 @@ export default function Table() {
       utils.game.tableState.invalidate({ roomId });
       utils.rooms.getPlayers.invalidate({ roomId });
       utils.wallet.balance.invalidate();
+      // Report geolocation for anti-collusion detection
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            reportLocationMutation.mutate({
+              roomId,
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            });
+          },
+          () => { /* GPS denied or unavailable, skip */ }
+        );
+      }
     },
     onError: (err) => {
       // If already in another game, show localized message and redirect to lobby

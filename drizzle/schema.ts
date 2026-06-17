@@ -48,6 +48,10 @@ export const users = mysqlTable("users", {
   riskLevel: mysqlEnum("riskLevel", ["normal", "watch", "frozen", "banned"]).default("normal").notNull(),
   deviceFingerprint: varchar("deviceFingerprint", { length: 256 }),
   lastIp: varchar("lastIp", { length: 64 }),
+  sessionVersion: int("sessionVersion").default(1).notNull(), // 递增版本号，用于设备互斥登录
+  lastLatitude: decimal("lastLatitude", { precision: 10, scale: 7 }), // 最近GPS纬度
+  lastLongitude: decimal("lastLongitude", { precision: 10, scale: 7 }), // 最近GPS经度
+  lastLocationAt: timestamp("lastLocationAt"), // 最近位置上报时间
   // Bot flag
   isBot: boolean("isBot").default(false).notNull(),
   // Stats
@@ -246,7 +250,7 @@ export const commissionRecords = mysqlTable("commission_records", {
 export const riskEvents = mysqlTable("risk_events", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  eventType: mysqlEnum("eventType", ["multi_account", "collusion", "bot_behavior", "abnormal_withdraw", "self_play", "ip_cluster"]).notNull(),
+  eventType: mysqlEnum("eventType", ["multi_account", "collusion", "bot_behavior", "abnormal_withdraw", "self_play", "ip_cluster", "geo_proximity"]).notNull(),
   severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).default("low").notNull(),
   details: json("details"),
   actionTaken: mysqlEnum("actionTaken", ["none", "flagged", "frozen", "banned"]).default("none").notNull(),
