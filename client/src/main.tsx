@@ -52,6 +52,11 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
+  // Admin pages have their own staff login system, skip OAuth redirect
+  if (window.location.pathname.startsWith("/admin") || window.location.pathname === "/staff-login") {
+    return;
+  }
+
   // In Telegram Mini App, don't redirect to Manus OAuth
   // The TG auth flow is handled by useTelegramAuth hook
   const isTgMiniApp = !!(window as any).Telegram?.WebApp?.initData;

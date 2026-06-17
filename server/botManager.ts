@@ -378,8 +378,8 @@ export async function checkAndFillBots(roomId: number, calledFromStartNewHand = 
   let targetBotCount: number;
   
   if (roomConfig) {
-    // 使用房间级别配置的botCount作为上限
-    targetBotCount = roomConfig.botCount;
+    // 使用房间级别配置的botCount作为上限，但不能超过maxPlayers-1（给真人预留1个座位）
+    targetBotCount = Math.min(roomConfig.botCount, room.maxPlayers - 1);
   } else {
     // 未配置独立bot的房间，使用全局minPerTable作为目标bot数
     targetBotCount = Math.min(config.minPerTable, room.maxPlayers - 1);

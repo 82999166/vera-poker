@@ -890,3 +890,10 @@
 ## 2026-06-17 安全功能：设备互斥登录 + 地理位置防作弊
 - [x] 新设备登录需旧设备确认：新设备发起登录请求→旧设备收到通知→旧设备同意后新设备才能登录
 - [x] 地理位置防作弊：前端上报GPS坐标，同桌玩家距离过近时触发风险提示给管理员
+
+## 2026-06-17 Bug: Bot占满牌桌导致真人无法入座
+- [x] Bot填充时预留座位：checkAndFillBots中targetBotCount限制为min(botCount, maxPlayers-1)
+- [ ] game.join满了时自动跳转到同级别有空位的桌（或自动创建新桌）
+
+## 2026-06-17 Bug: 管理后台跳转到Manus OAuth登录
+- [x] 修复main.tsx中全局UNAUTHORIZED错误处理：admin路径下不触发OAuth重定向，使用独立的员工账号密码登录
