@@ -1,5 +1,5 @@
 /** 管理后台页面 - 用户管理、财务审核、系统配置、营销工具 */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useMobile";
@@ -369,6 +369,13 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "finance.tabAll": "全部",
     "finance.totalVolume2": "总流水",
     "finance.totalTxCount": "总交易数",
+    "finance.totalDeposit": "总充值",
+    "finance.totalWithdraw": "总提现",
+    "finance.todayDeposit": "今日充值",
+    "finance.todayWithdraw": "今日提现",
+    "finance.voiceAnnounce": "语音播报",
+    "finance.voiceOn": "已开启",
+    "finance.voiceOff": "已关闭",
     "finance.pendingReview": "待审核",
     "finance.chainLabel": "链",
     "finance.statusLabel": "状态",
@@ -789,6 +796,13 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "finance.tabAll": "全部",
     "finance.totalVolume2": "總流水",
     "finance.totalTxCount": "總交易數",
+    "finance.totalDeposit": "總充值",
+    "finance.totalWithdraw": "總提現",
+    "finance.todayDeposit": "今日充值",
+    "finance.todayWithdraw": "今日提現",
+    "finance.voiceAnnounce": "語音播報",
+    "finance.voiceOn": "已開啟",
+    "finance.voiceOff": "已關閉",
     "finance.pendingReview": "待審核",
     "finance.chainLabel": "鏈",
     "finance.statusLabel": "狀態",
@@ -1205,6 +1219,13 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "finance.tabAll": "All",
     "finance.totalVolume2": "Total Volume",
     "finance.totalTxCount": "Total Transactions",
+    "finance.totalDeposit": "Total Deposits",
+    "finance.totalWithdraw": "Total Withdrawals",
+    "finance.todayDeposit": "Today Deposits",
+    "finance.todayWithdraw": "Today Withdrawals",
+    "finance.voiceAnnounce": "Voice Alert",
+    "finance.voiceOn": "On",
+    "finance.voiceOff": "Off",
     "finance.pendingReview": "Pending Review",
     "finance.chainLabel": "Chain",
     "finance.statusLabel": "Status",
@@ -2953,9 +2974,53 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
   const [financeTab, setFinanceTab] = useState<"pending" | "deposits" | "withdrawals" | "all" | "rake">("pending");
   const [approveDialog, setApproveDialog] = useState<{ txId: number; amount: string; address: string; chain: string } | null>(null);
   const [txHashInput, setTxHashInput] = useState("");
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    try { return localStorage.getItem("finance_voice_enabled") === "true"; } catch { return false; }
+  });
+  const lastTxCountRef = useRef<number>(0);
   const utils = trpc.useUtils();
-  const { data: txData, isLoading } = trpc.wallet.allTransactions.useQuery({ page: 1, limit: 50, type: financeTab === "deposits" ? "deposit" : financeTab === "withdrawals" ? "withdraw" : undefined });
-  const { data: stats } = trpc.admin.stats.useQuery();
+  const { data: txData, isLoading } = trpc.wallet.allTransactions.useQuery(
+    { page: 1, limit: 50, type: financeTab === "deposits" ? "deposit" : financeTab === "withdrawals" ? "withdraw" : undefined },
+    { refetchInterval: 10000 } // Poll every 10s for new transactions
+  );
+  const { data: stats } = trpc.admin.stats.useQuery(undefined, { refetchInterval: 15000 });
+
+  // Voice announcement when new pending transaction arrives
+  useEffect(() => {
+    const allTxList = (txData as any)?.transactions ?? [];
+    const pendingList = allTxList.filter((tx: any) => tx.status === "pending");
+    const currentCount = pendingList.length;
+    if (lastTxCountRef.current > 0 && currentCount > lastTxCountRef.current && voiceEnabled) {
+      // New pending transaction detected - play voice
+      const newTx = pendingList[0]; // Most recent
+      const typeText = newTx?.type === "deposit" ? "新充值" : "新提现";
+      const amount = newTx?.amount ? `${parseFloat(newTx.amount).toFixed(2)}美元` : "";
+      const text = `${typeText}订单，金额${amount}，请及时处理`;
+      try {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "zh-CN";
+        utterance.rate = 1.1;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance);
+      } catch {}
+    }
+    lastTxCountRef.current = currentCount;
+  }, [txData, voiceEnabled]);
+
+  const toggleVoice = () => {
+    const next = !voiceEnabled;
+    setVoiceEnabled(next);
+    try { localStorage.setItem("finance_voice_enabled", String(next)); } catch {}
+    if (next) {
+      // Test voice
+      try {
+        const utterance = new SpeechSynthesisUtterance("语音播报已开启");
+        utterance.lang = "zh-CN";
+        utterance.rate = 1.1;
+        window.speechSynthesis.speak(utterance);
+      } catch {}
+    }
+  };
 
   const confirmDepositMutation = trpc.wallet.confirmDeposit.useMutation({
     onSuccess: () => { toast.success(at("finance.depositConfirmed")); utils.wallet.allTransactions.invalidate(); },
@@ -2978,21 +3043,52 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">{at("finance.title")}</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">{at("finance.title")}</h2>
+        {/* Voice announcement toggle */}
+        <button
+          onClick={toggleVoice}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+            voiceEnabled ? "bg-emerald-500/20 text-emerald-400" : "bg-secondary text-muted-foreground"
+          }`}
+        >
+          {voiceEnabled ? "🔊" : "🔇"} {at("finance.voiceAnnounce")}: {voiceEnabled ? at("finance.voiceOn") : at("finance.voiceOff")}
+        </button>
+      </div>
       
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="glass rounded-xl p-3 text-center">
+      {/* Stats - expanded with deposit/withdraw */}
+      <div className="grid grid-cols-4 gap-2">
+        <div className="glass rounded-xl p-2.5 text-center">
           <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.totalVolume2")}</p>
-          <p className="text-lg font-bold text-gold">${stats?.totalVolume ?? "0.00"}</p>
+          <p className="text-base font-bold text-gold">${stats?.totalVolume ?? "0.00"}</p>
         </div>
-        <div className="glass rounded-xl p-3 text-center">
+        <div className="glass rounded-xl p-2.5 text-center">
           <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.totalTxCount")}</p>
-          <p className="text-lg font-bold text-truth-blue">{stats?.totalTransactions ?? 0}</p>
+          <p className="text-base font-bold text-truth-blue">{stats?.totalTransactions ?? 0}</p>
         </div>
-        <div className="glass rounded-xl p-3 text-center">
+        <div className="glass rounded-xl p-2.5 text-center">
           <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.pendingReview")}</p>
-          <p className="text-lg font-bold text-warning">{pendingTx.length}</p>
+          <p className="text-base font-bold text-warning">{pendingTx.length}</p>
+        </div>
+        <div className="glass rounded-xl p-2.5 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.totalDeposit")}</p>
+          <p className="text-base font-bold text-emerald-400">${(stats as any)?.totalDeposit ?? "0.00"}</p>
+        </div>
+        <div className="glass rounded-xl p-2.5 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.totalWithdraw")}</p>
+          <p className="text-base font-bold text-red-400">${(stats as any)?.totalWithdraw ?? "0.00"}</p>
+        </div>
+        <div className="glass rounded-xl p-2.5 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.todayDeposit")}</p>
+          <p className="text-base font-bold text-emerald-400">${(stats as any)?.todayDeposit ?? "0.00"}</p>
+        </div>
+        <div className="glass rounded-xl p-2.5 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("finance.todayWithdraw")}</p>
+          <p className="text-base font-bold text-red-400">${(stats as any)?.todayWithdraw ?? "0.00"}</p>
+        </div>
+        <div className="glass rounded-xl p-2.5 text-center">
+          <p className="text-[10px] text-muted-foreground mb-0.5">{at("users.totalBalance")}</p>
+          <p className="text-base font-bold text-gold">${(stats as any)?.totalBalance ?? "0.00"}</p>
         </div>
       </div>
 
