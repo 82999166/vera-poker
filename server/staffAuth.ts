@@ -21,8 +21,8 @@ function getSessionSecret(): string {
 // SECURITY FIX #7: In-memory rate limiter for login attempts
 const loginAttempts = new Map<string, { count: number; firstAttempt: number; lockedUntil: number }>();
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_DURATION = 30 * 60 * 1000; // 30 minutes lockout
+const MAX_ATTEMPTS = 9999; // 不限制登录次数
+const LOCKOUT_DURATION = 0; // 不锁定
 
 function checkRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
   const now = Date.now();
