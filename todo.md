@@ -1001,3 +1001,6 @@
 - [x] Fixed leaderboard (profit, winRate, handsPlayed) endpoints to resolve avatar URLs
 - [x] Fixed tournament results and leaderboard endpoints to resolve avatar URLs
 - [x] Fixed telegramAuth.ts WebApp and Widget auth responses to resolve avatar URLs
+- [x] Root cause: S3 emoji/avatar images were broken placeholders (colored squares ~800B) or non-existent (XML error)
+- [x] Final fix: Replaced all 1000 bot /manus-storage/ avatars with ui-avatars.com URLs (same format as working old 508 bots)
+- [x] Verified: 0 remaining /manus-storage/ bot avatars in database
