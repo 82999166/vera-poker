@@ -2469,13 +2469,13 @@ ${faqContext}
 
       // Deposit/Withdrawal stats
       const [totalDeposit] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(amount), 0)` }).from(transactions)
-        .where(and(eq(transactions.type, "deposit"), eq(transactions.status, "completed")));
+        .where(sql`type = 'deposit' AND status IN ('confirmed', 'completed')`);
       const [totalWithdraw] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(amount), 0)` }).from(transactions)
-        .where(and(eq(transactions.type, "withdraw"), eq(transactions.status, "completed")));
+        .where(sql`type = 'withdraw' AND status IN ('confirmed', 'completed')`);
       const [todayDeposit] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(amount), 0)` }).from(transactions)
-        .where(sql`type = 'deposit' AND status = 'completed' AND DATE(createdAt) = CURDATE()`);
+        .where(sql`type = 'deposit' AND status IN ('confirmed', 'completed') AND DATE(createdAt) = CURDATE()`);
       const [todayWithdraw] = await dbInstance.select({ total: sql<string>`COALESCE(SUM(amount), 0)` }).from(transactions)
-        .where(sql`type = 'withdraw' AND status = 'completed' AND DATE(createdAt) = CURDATE()`);
+        .where(sql`type = 'withdraw' AND status IN ('confirmed', 'completed') AND DATE(createdAt) = CURDATE()`);
 
       return {
         totalUsers: userCount?.count ?? 0,

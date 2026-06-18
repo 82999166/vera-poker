@@ -1004,3 +1004,8 @@
 - [x] Root cause: S3 emoji/avatar images were broken placeholders (colored squares ~800B) or non-existent (XML error)
 - [x] Final fix: Replaced all 1000 bot /manus-storage/ avatars with ui-avatars.com URLs (same format as working old 508 bots)
 - [x] Verified: 0 remaining /manus-storage/ bot avatars in database
+
+## Bug Fix: 财务统计充值/提现显示$0
+
+- [x] Root cause: admin.stats query used status='completed' but actual deposit records use status='confirmed'
+- [x] Fix: Changed all 4 deposit/withdrawal queries to use `status IN ('confirmed', 'completed')`
