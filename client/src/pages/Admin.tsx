@@ -474,6 +474,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.colBonus": "奖金",
     "users.colDevice": "设备",
     "users.colRegistered": "注册时间",
+    "users.colLanguage": "语种",
   },
   "zh-TW": {
     "admin.title": "Vera 管理後台",
@@ -897,6 +898,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.colBonus": "獎金",
     "users.colDevice": "設備",
     "users.colRegistered": "註冊時間",
+    "users.colLanguage": "語種",
   },
   "en": {
     "admin.title": "Vera Admin",
@@ -1320,6 +1322,7 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "users.colBonus": "Bonus",
     "users.colDevice": "Device",
     "users.colRegistered": "Registered",
+    "users.colLanguage": "Language",
   },
 };
 function useAdminLang() {
@@ -2006,11 +2009,15 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
                 </select>
               </div>
             </div>
-            {/* Row 2: Registered + Last Login + Bonus + Online Status */}
-            <div className="grid grid-cols-[1fr_130px_140px_70px_70px] gap-2 items-center mt-1 pl-9">
+            {/* Row 2: Registered + Language + Last Login + Bonus + Online Status */}
+            <div className="grid grid-cols-[1fr_50px_130px_140px_70px_70px] gap-2 items-center mt-1 pl-9">
               {/* Registered time */}
               <span className="text-[10px] text-muted-foreground">
                 {at("users.colRegistered")}: {u.createdAt ? new Date(u.createdAt).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}
+              </span>
+              {/* Language */}
+              <span className="text-[10px] text-muted-foreground text-center" title={u.language || ""}>
+                {u.language ? u.language.toUpperCase() : "-"}
               </span>
               {/* Last login */}
               <span className="text-[10px] text-muted-foreground text-center">

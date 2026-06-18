@@ -21,6 +21,79 @@ const TelegramUpdateSchema = z.object({
   }).optional(),
 }).passthrough();
 
+// Bot command responses in multiple languages
+function getBotCommandText(langCode: string | undefined): { help: string; balance: string; rooms: string; unknown: string } {
+  const lang = (langCode || "en").toLowerCase().split("-")[0];
+  const cmdTexts: Record<string, { help: string; balance: string; rooms: string; unknown: string }> = {
+    "zh": {
+      help: "可用命令：\n/start - 启动机器人\n/balance - 查看余额\n/rooms - 查看活跃房间\n/help - 显示此帮助",
+      balance: "请先通过 /start 绑定您的账户",
+      rooms: "活跃房间: {count} 个\n\n请进入应用加入游戏！",
+      unknown: "未识别的命令。请使用 /help 查看可用命令。",
+    },
+    "ja": {
+      help: "利用可能なコマンド：\n/start - ボットを開始\n/balance - 残高確認\n/rooms - アクティブなルーム一覧\n/help - このヘルプを表示",
+      balance: "まず /start でアカウントをリンクしてください",
+      rooms: "アクティブなルーム: {count}\n\nアプリでゲームに参加してください！",
+      unknown: "認識できないコマンドです。/help で利用可能なコマンドを確認してください。",
+    },
+    "ko": {
+      help: "사용 가능한 명령어:\n/start - 봇 시작\n/balance - 잔액 확인\n/rooms - 활성 룸 목록\n/help - 이 도움말 표시",
+      balance: "먼저 /start로 계정을 연결해 주세요",
+      rooms: "활성 룸: {count}개\n\n앱에서 게임에 참여하세요!",
+      unknown: "인식할 수 없는 명령어입니다. /help로 사용 가능한 명령어를 확인하세요.",
+    },
+    "ru": {
+      help: "Доступные команды:\n/start - Запустить бота\n/balance - Проверить баланс\n/rooms - Список активных комнат\n/help - Показать эту справку",
+      balance: "Сначала привяжите аккаунт через /start",
+      rooms: "Активных комнат: {count}\n\nОткройте приложение, чтобы присоединиться!",
+      unknown: "Не понял эту команду. Используйте /help для списка команд.",
+    },
+    "vi": {
+      help: "Lệnh khả dụng:\n/start - Khởi động bot\n/balance - Kiểm tra số dư\n/rooms - Danh sách phòng hoạt động\n/help - Hiển thị trợ giúp này",
+      balance: "Vui lòng liên kết tài khoản trước bằng /start",
+      rooms: "Phòng hoạt động: {count}\n\nMở ứng dụng để tham gia trò chơi!",
+      unknown: "Không nhận dạng lệnh. Dùng /help để xem các lệnh khả dụng.",
+    },
+    "th": {
+      help: "คำสั่งที่ใช้ได้:\n/start - เริ่มบอท\n/balance - ตรวจสอบยอดเงิน\n/rooms - รายการห้องที่เปิดอยู่\n/help - แสดงความช่วยเหลือนี้",
+      balance: "กรุณาเชื่อมต่อบัญชีก่อนโดยใช้ /start",
+      rooms: "ห้องที่เปิดอยู่: {count}\n\nเปิดแอปเพื่อเข้าร่วมเกม!",
+      unknown: "ไม่รู้จักคำสั่งนี้ ใช้ /help เพื่อดูคำสั่งที่ใช้ได้",
+    },
+    "es": {
+      help: "Comandos disponibles:\n/start - Iniciar el bot\n/balance - Consultar saldo\n/rooms - Listar salas activas\n/help - Mostrar esta ayuda",
+      balance: "Primero vincula tu cuenta con /start",
+      rooms: "Salas activas: {count}\n\n¡Abre la app para unirte a un juego!",
+      unknown: "Comando no reconocido. Usa /help para ver los comandos disponibles.",
+    },
+    "pt": {
+      help: "Comandos disponíveis:\n/start - Iniciar o bot\n/balance - Verificar saldo\n/rooms - Listar salas ativas\n/help - Mostrar esta ajuda",
+      balance: "Primeiro vincule sua conta com /start",
+      rooms: "Salas ativas: {count}\n\nAbra o app para entrar em um jogo!",
+      unknown: "Comando não reconhecido. Use /help para ver os comandos disponíveis.",
+    },
+    "id": {
+      help: "Perintah yang tersedia:\n/start - Mulai bot\n/balance - Cek saldo\n/rooms - Daftar ruangan aktif\n/help - Tampilkan bantuan ini",
+      balance: "Silakan hubungkan akun Anda terlebih dahulu dengan /start",
+      rooms: "Ruangan aktif: {count}\n\nBuka aplikasi untuk bergabung!",
+      unknown: "Perintah tidak dikenali. Gunakan /help untuk melihat perintah yang tersedia.",
+    },
+    "ar": {
+      help: "الأوامر المتاحة:\n/start - تشغيل البوت\n/balance - التحقق من الرصيد\n/rooms - قائمة الغرف النشطة\n/help - عرض هذه المساعدة",
+      balance: "يرجى ربط حسابك أولاً باستخدام /start",
+      rooms: "الغرف النشطة: {count}\n\nافتح التطبيق للانضمام!",
+      unknown: "لم أفهم هذا الأمر. استخدم /help لعرض الأوامر المتاحة.",
+    },
+  };
+  return cmdTexts[lang] || {
+    help: "Available commands:\n/start - Start the bot\n/balance - Check your balance\n/rooms - List active rooms\n/help - Show this message",
+    balance: "Please link your account first using /start",
+    rooms: "Active rooms: {count}\n\nVisit the app to join a game!",
+    unknown: "I didn't understand that command. Use /help for available commands.",
+  };
+}
+
 // Bot welcome messages in multiple languages
 function getBotWelcomeText(langCode: string | undefined): { welcome: string; button: string; ref: string; room: string } {
   const lang = (langCode || "en").toLowerCase().split("-")[0];
@@ -262,12 +335,15 @@ export function registerTelegramRoutes(app: Express) {
           }
         }
       } else if (text.startsWith("/help")) {
-        replyText = `Available commands:\n/start - Start the bot\n/balance - Check your balance\n/rooms - List active rooms\n/help - Show this message`;
+        const cmdTexts = getBotCommandText(userLang);
+        replyText = cmdTexts.help;
       } else if (text.startsWith("/balance")) {
-        replyText = "Please link your account first using /start";
+        const cmdTexts = getBotCommandText(userLang);
+        replyText = cmdTexts.balance;
       } else if (text.startsWith("/rooms")) {
+        const cmdTexts = getBotCommandText(userLang);
         const rooms = await db.getPublicRooms();
-        replyText = `Active rooms: ${rooms.length}\n\nVisit the app to join a game!`;
+        replyText = cmdTexts.rooms.replace("{count}", String(rooms.length));
       } else {
         // Check auto-reply rules first (keyword matching)
         const { matchAutoReply } = await import("../marketing");
@@ -292,7 +368,8 @@ export function registerTelegramRoutes(app: Express) {
             return;
           }
         } else {
-          replyText = "I didn't understand that command. Use /help for available commands.";
+          const cmdTexts = getBotCommandText(userLang);
+          replyText = cmdTexts.unknown;
         }
       }
 

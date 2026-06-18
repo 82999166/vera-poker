@@ -959,3 +959,8 @@
 - [x] App.tsx syncTgLanguage 移除 localStorage 早期返回逻辑
 - [x] 首次注册赠送页面已确认使用 t() 函数，12种语言翻译均完整
 - [x] MobileRouter key={locale} 确保语言切换时整个应用重新渲染
+
+## 2026-06-17 用户列表语种 + Bot通知随用户语言
+- [x] 管理后台用户列表增加“语种”列显示
+- [x] Bot系统通知消息根据用户 language 字段发送对应语言（notifications.ts 全部使用 getUserLang）
+- [x] Bot 命令回复（/help /balance /rooms 未识别命令）改为多语言（10种语言）
