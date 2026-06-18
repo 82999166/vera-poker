@@ -163,19 +163,24 @@ export async function executeBroadcast(taskId: number): Promise<void> {
         if (task.buttons && task.buttons.length > 0) {
           // Group buttons by row (default row 0)
           const rowMap = new Map<number, Array<Record<string, unknown>>>();
-          for (const btn of task.buttons as Array<{ text: string; url: string; type?: string; row?: number }>) {
+          for (const btn of task.buttons as Array<{ text: string; url?: string; callback_data?: string; type?: string; row?: number }>) {
             const row = btn.row ?? 0;
             if (!rowMap.has(row)) rowMap.set(row, []);
-            // NOTE: web_app buttons CANNOT be sent via Bot private chat (DM).
-            // TG API restriction: web_app inline buttons only work in group/channel messages.
-            // For broadcast (private chat), always convert web_app buttons to regular url buttons.
-            let btnUrl = btn.url;
-            if (btnUrl.startsWith("/") && miniAppUrl) {
-              btnUrl = miniAppUrl + btnUrl;
-            } else if (!btnUrl.startsWith("http") && miniAppUrl) {
-              btnUrl = miniAppUrl + (btnUrl.startsWith("/") ? "" : "/") + btnUrl;
+            if (btn.type === "callback" && btn.callback_data) {
+              // callback_data buttons work in both private chat and groups
+              rowMap.get(row)!.push({ text: btn.text, callback_data: btn.callback_data });
+            } else {
+              // NOTE: web_app buttons CANNOT be sent via Bot private chat (DM).
+              // TG API restriction: web_app inline buttons only work in group/channel messages.
+              // For broadcast (private chat), always convert web_app buttons to regular url buttons.
+              let btnUrl = btn.url || "";
+              if (btnUrl.startsWith("/") && miniAppUrl) {
+                btnUrl = miniAppUrl + btnUrl;
+              } else if (btnUrl && !btnUrl.startsWith("http") && miniAppUrl) {
+                btnUrl = miniAppUrl + (btnUrl.startsWith("/") ? "" : "/") + btnUrl;
+              }
+              if (btnUrl) rowMap.get(row)!.push({ text: btn.text, url: btnUrl });
             }
-            rowMap.get(row)!.push({ text: btn.text, url: btnUrl });
           }
           const sortedRows = [...rowMap.entries()].sort((a, b) => a[0] - b[0]);
           body.reply_markup = {

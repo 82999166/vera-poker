@@ -4069,10 +4069,10 @@ ${faqContext}
           ...extraButtonRows,
         ],
       };
-      // For broadcast (private chat): use url button
+      // For broadcast (private chat): also use callback_data so users can claim directly in TG
       const broadcastReplyMarkup = {
         inline_keyboard: [
-          [{ text: "🧧 领取红包", url: packetUrl }],
+          [{ text: "🧧 抢红包", callback_data: `claim_rp_${packet.id}` }],
           ...extraButtonRows,
         ],
       };
@@ -4124,7 +4124,7 @@ ${faqContext}
           title: `[红包推送] ${packet.title}`,
           content: msgText,
           imageUrl: packet.imageUrl || null,
-          buttons: [{ text: "🧧 领取红包", url: packetUrl, type: "url", row: 0 }, ...(packet.buttons as any[] || [])],
+          buttons: [{ text: "🧧 抢红包", callback_data: `claim_rp_${packet.id}`, type: "callback", row: 0 }, ...(packet.buttons as any[] || [])],
           targetType: "all",
           targetUserIds: null,
           scheduledAt: null,
