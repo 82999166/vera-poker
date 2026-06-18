@@ -2633,7 +2633,16 @@ function RedPacketPushDialog({ open, onOpenChange, packetId, packetTitle, conten
   const [selectedGroupChatIds, setSelectedGroupChatIds] = useState<string[]>([]);
   const [groupResult, setGroupResult] = useState<{ sent: number; failed: number; results: Array<{ chatId: string; success: boolean; error?: string }> } | null>(null);
   const [msgText, setMsgText] = useState(content);
+  // Broadcast mode state
+  const [broadcastFilter, setBroadcastFilter] = useState<"all" | "active" | "deposited">("all");
+  const [broadcastSearch, setBroadcastSearch] = useState("");
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [broadcastMode, setBroadcastMode] = useState<"filter" | "custom">("filter"); // filter=send to all matching; custom=pick users
   const { data: botGroupsData } = trpc.marketing.getBotAdminGroups.useQuery(undefined, { enabled: open && mode === "groups" });
+  const { data: followersData, isLoading: followersLoading } = trpc.marketing.getBotFollowers.useQuery(
+    { filter: broadcastFilter, search: broadcastSearch, limit: 200 },
+    { enabled: open && mode === "broadcast" && broadcastMode === "custom" }
+  );
 
   const allGroups = useMemo(() => {
     const map = new Map<string, { id?: number; chatId: string; name: string; type: string; enabled?: boolean }>();
@@ -2666,11 +2675,25 @@ function RedPacketPushDialog({ open, onOpenChange, packetId, packetTitle, conten
     onError: (e) => toast.error(e.message),
   });
 
+  const broadcastToUsersMut = trpc.marketing.broadcastToUsers.useMutation({
+    onSuccess: () => { toast.success("已创建推送任务，正在后台发送..."); onOpenChange(false); },
+    onError: (e) => toast.error(e.message),
+  });
+
   const handleSend = () => {
     if (mode === "groups") {
       if (selectedGroupChatIds.length === 0) { toast.error("请至少选择一个群组"); return; }
       pushMut.mutate({ id: packetId, mode: "group", groupChatIds: selectedGroupChatIds, message: msgText || undefined });
+    } else if (broadcastMode === "custom") {
+      if (selectedUserIds.length === 0) { toast.error("请至少选择一个用户"); return; }
+      broadcastToUsersMut.mutate({
+        userIds: selectedUserIds,
+        content: msgText,
+        imageUrl: imageUrl || undefined,
+        buttons: [{ text: "🧧 领取红包", url: `/red-packet/${packetId}`, type: "url", row: 0 }],
+      });
     } else {
+      // filter mode: all/active/deposited via redPacketPush broadcast
       pushMut.mutate({ id: packetId, mode: "broadcast", message: msgText || undefined });
     }
   };
@@ -2760,15 +2783,89 @@ function RedPacketPushDialog({ open, onOpenChange, packetId, packetTitle, conten
             )}
 
             {mode === "broadcast" && (
-              <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">
-                将向所有 Bot 用户发送红包消息（私聊用 url 按钮，点击跳转 Mini App 领取）
+              <div className="space-y-3">
+                {/* Broadcast sub-mode */}
+                <div className="flex gap-2">
+                  <Button size="sm" variant={broadcastMode === "filter" ? "default" : "outline"} className="flex-1 text-xs" onClick={() => setBroadcastMode("filter")}>
+                    按条件筛选发送
+                  </Button>
+                  <Button size="sm" variant={broadcastMode === "custom" ? "default" : "outline"} className="flex-1 text-xs" onClick={() => setBroadcastMode("custom")}>
+                    手动选择用户
+                  </Button>
+                </div>
+
+                {broadcastMode === "filter" && (
+                  <div className="space-y-2">
+                    <Label className="text-xs">目标用户</Label>
+                    <Select value={broadcastFilter} onValueChange={(v: any) => setBroadcastFilter(v)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">全部Bot用户</SelectItem>
+                        <SelectItem value="active">近30天活跃用户</SelectItem>
+                        <SelectItem value="deposited">有充值记录用户</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">私聊发送，按钮点击跳转 Mini App 领取</p>
+                  </div>
+                )}
+
+                {broadcastMode === "custom" && (
+                  <div className="space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <Select value={broadcastFilter} onValueChange={(v: any) => setBroadcastFilter(v)}>
+                        <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">全部用户</SelectItem>
+                          <SelectItem value="active">近30天活跃</SelectItem>
+                          <SelectItem value="deposited">有充值记录</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder="搜索用户名/TG..."
+                        value={broadcastSearch}
+                        onChange={e => setBroadcastSearch(e.target.value)}
+                        className="h-7 text-xs flex-1"
+                      />
+                    </div>
+                    <div className="border border-border rounded-lg max-h-48 overflow-y-auto">
+                      {followersLoading ? (
+                        <p className="text-xs text-muted-foreground text-center py-3">加载中...</p>
+                      ) : !followersData?.users?.length ? (
+                        <p className="text-xs text-muted-foreground text-center py-3">暂无用户</p>
+                      ) : (
+                        <>
+                          <div className="sticky top-0 bg-background border-b border-border px-2 py-1 flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">共 {followersData.total} 个用户</span>
+                            <Button size="sm" variant="ghost" className="h-5 text-xs px-1" onClick={() => {
+                              if (selectedUserIds.length === followersData.users.length) setSelectedUserIds([]);
+                              else setSelectedUserIds(followersData.users.map((u: any) => u.id));
+                            }}>
+                              {selectedUserIds.length === followersData.users.length ? '取消全选' : '全选当前页'}
+                            </Button>
+                          </div>
+                          {followersData.users.map((u: any) => (
+                            <label key={u.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-secondary/50 cursor-pointer">
+                              <input type="checkbox" checked={selectedUserIds.includes(u.id)}
+                                onChange={() => setSelectedUserIds(prev => prev.includes(u.id) ? prev.filter(x => x !== u.id) : [...prev, u.id])}
+                              />
+                              <span className="text-xs flex-1 truncate">{u.nickname || u.name || `用户${u.id}`}</span>
+                              {u.tgUsername && <span className="text-xs text-muted-foreground">@{u.tgUsername}</span>}
+                            </label>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">已选 {selectedUserIds.length} 个用户</p>
+                  </div>
+                )}
               </div>
             )}
 
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
-              <Button onClick={handleSend} disabled={pushMut.isPending}>
-                <Send className="w-4 h-4 mr-1" />{pushMut.isPending ? "发送中..." : "确认发送"}
+              <Button onClick={handleSend} disabled={pushMut.isPending || broadcastToUsersMut.isPending}>
+                <Send className="w-4 h-4 mr-1" />{(pushMut.isPending || broadcastToUsersMut.isPending) ? "发送中..." : "确认发送"}
+                {mode === "broadcast" && broadcastMode === "filter" && ` (全部${broadcastFilter === "all" ? "Bot用户" : broadcastFilter === "active" ? "活跃用户" : "充值用户"})`}
               </Button>
             </DialogFooter>
           </div>
