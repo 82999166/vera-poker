@@ -2290,7 +2290,6 @@ function RedPacketPanel() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [showDetail, setShowDetail] = useState<number | null>(null);
-  const [rpQuickBroadcast, setRpQuickBroadcast] = useState<{ open: boolean; content: string; buttons: Array<{ text: string; url: string; type?: string; row?: number }> }>({ open: false, content: "", buttons: [] });
   const [form, setForm] = useState({
     title: "", description: "", totalAmount: "", totalCount: 10,
     type: "random" as "random" | "fixed",
@@ -2427,7 +2426,7 @@ function RedPacketPanel() {
                 <div className="space-y-1 pt-2 border-t border-border/50">
                   <ActivityLinkBar label="Mini App 链接" link={`${window.location.origin}/red-packet/${pkt.id}`} />
                   {rpBotUsername && <ActivityLinkBar label="TG 链接" link={`https://t.me/${rpBotUsername}/app?startapp=hongbao_${pkt.id}`}
-                    onSendToTG={() => setRpQuickBroadcast({ open: true, content: `🧧 ${pkt.title}\n总额 ${pkt.totalAmount} USDT，共 ${pkt.totalCount} 份\n点击下方按钮抢红包！`, buttons: [{ text: '🧧 抢红包', url: `/red-packet/${pkt.id}`, type: 'web_app', row: 0 }] })}
+                    onSendToTG={() => setPushDialog({ open: true, packetId: pkt.id, packetTitle: pkt.title, content: `🧧 ${pkt.title}\n总额 ${pkt.totalAmount} USDT，共 ${pkt.totalCount} 份\n点击下方按钮抢红包！`, imageUrl: pkt.imageUrl || undefined, buttons: (pkt.buttons as any[] || []) })}
                   />}
                 </div>
               </div>
@@ -2532,14 +2531,6 @@ function RedPacketPanel() {
 
       {/* Detail Dialog */}
       {showDetail && <RedPacketDetailDialog id={showDetail} onClose={() => setShowDetail(null)} />}
-      {/* Quick Broadcast Dialog */}
-      <QuickBroadcastDialog
-        open={rpQuickBroadcast.open}
-        onOpenChange={(v) => setRpQuickBroadcast(prev => ({ ...prev, open: v }))}
-        content={rpQuickBroadcast.content}
-        buttons={rpQuickBroadcast.buttons}
-      />
-
       {/* Push Dialog - dedicated red packet push (callback_data) */}
       {pushDialog && (
         <RedPacketPushDialog
