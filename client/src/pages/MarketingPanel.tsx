@@ -92,44 +92,61 @@ function ButtonEditor({ buttons, onChange }: { buttons: Array<{ text: string; ur
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label>按钮列表（可选，支持多行多列）</Label>
         <Button type="button" size="sm" variant="outline" onClick={addButton}>
           <Plus className="w-3 h-3 mr-1" />添加按钮
         </Button>
       </div>
-      {buttons.length > 0 && (
-        <div className="flex gap-1.5 items-center text-xs text-muted-foreground px-0.5">
-          <span className="flex-1">按钮文字</span>
-          <span className="w-20">类型</span>
-          <span className="flex-1">链接地址</span>
-          <span className="w-14 text-center">行号</span>
-          <span className="w-8"></span>
-        </div>
-      )}
       {buttons.map((btn, idx) => (
-        <div key={idx} className="flex gap-1.5 items-center">
-          <Input className="flex-1" placeholder="按钮文字" value={btn.text}
-            onChange={e => updateButton(idx, "text", e.target.value)} />
-          <Select value={btn.type || "url"} onValueChange={v => updateButton(idx, "type", v)}>
-            <SelectTrigger className="w-20 h-9 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="url">链接</SelectItem>
-              <SelectItem value="web_app">小程序</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input className="flex-1" placeholder={btn.type === "web_app" ? "Mini App URL" : "https://..."} value={btn.url}
-            onChange={e => updateButton(idx, "url", e.target.value)} />
-          <Input className="w-14" type="number" placeholder="行" value={btn.row ?? 0}
-            onChange={e => updateButton(idx, "row", parseInt(e.target.value) || 0)} title="行号（同行号的按钮在同一行）" />
-          <Button type="button" size="sm" variant="ghost" className="text-destructive shrink-0" onClick={() => removeButton(idx)}>
-            <Trash2 className="w-3 h-3" />
-          </Button>
+        <div key={idx} className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-muted-foreground">按钮 {idx + 1}</span>
+            <Button type="button" size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={() => removeButton(idx)}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">按钮文字</Label>
+              <Input placeholder="如：领取红包" value={btn.text}
+                onChange={e => updateButton(idx, "text", e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">按钮类型</Label>
+              <Select value={btn.type || "url"} onValueChange={v => updateButton(idx, "type", v)}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="url">🔗 URL链接</SelectItem>
+                  <SelectItem value="web_app">📱 小程序(WebApp)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            <div className="col-span-3 space-y-1">
+              <Label className="text-xs text-muted-foreground">
+                {btn.type === "web_app" ? "Mini App URL（如：https://t.me/xxx?startapp=yyy）" : "跳转链接（如：https://t.me/channel）"}
+              </Label>
+              <Input placeholder={btn.type === "web_app" ? "https://t.me/BotName?startapp=..." : "https://..."} value={btn.url}
+                onChange={e => updateButton(idx, "url", e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">行号</Label>
+              <Input type="number" placeholder="0" value={btn.row ?? 0}
+                onChange={e => updateButton(idx, "row", parseInt(e.target.value) || 0)}
+                title="同行号的按钮排在同一行" />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">💡 行号相同的按钮显示在同一行，行号不同则换行</p>
         </div>
       ))}
       {buttons.length === 0 && (
-        <p className="text-xs text-muted-foreground">未添加按钮。点击"添加按钮"可添加 inline keyboard 按钮（链接=打开URL，小程序=打开 Mini App）。</p>
+        <div className="rounded-md border border-dashed border-border p-4 text-center">
+          <p className="text-sm text-muted-foreground">暂无按钮</p>
+          <p className="text-xs text-muted-foreground mt-1">点击"添加按钮"可为消息添加 Telegram inline 按钮</p>
+        </div>
       )}
     </div>
   );
