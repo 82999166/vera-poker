@@ -306,7 +306,10 @@ export const appRouter = router({
           const webhookUrl = input.key === "tg_webhook_url" ? input.value : await db.getConfigValue("tg_webhook_url");
           const webhookSecret = input.key === "tg_webhook_secret" ? input.value : await db.getConfigValue("tg_webhook_secret");
           if (botToken && webhookUrl) {
-            const params: Record<string, string> = { url: webhookUrl };
+            const params: Record<string, any> = {
+              url: webhookUrl,
+              allowed_updates: ["message", "callback_query", "my_chat_member", "channel_post"],
+            };
             if (webhookSecret) params.secret_token = webhookSecret;
             const resp = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
               method: "POST",
@@ -322,6 +325,34 @@ export const appRouter = router({
       }
       
       return { success: true };
+    }),
+    // Refresh/re-register webhook with correct allowed_updates (including callback_query)
+    refreshWebhook: adminProcedure.mutation(async () => {
+      const botToken = await db.getConfigValue("tg_bot_token");
+      const webhookUrl = await db.getConfigValue("tg_webhook_url");
+      const webhookSecret = await db.getConfigValue("tg_webhook_secret");
+      if (!botToken || !webhookUrl) return { success: false, error: "Bot token or webhook URL not configured" };
+      const params: Record<string, any> = {
+        url: webhookUrl,
+        allowed_updates: ["message", "callback_query", "my_chat_member", "channel_post"],
+      };
+      if (webhookSecret) params.secret_token = webhookSecret;
+      const resp = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      });
+      const result = await resp.json() as any;
+      console.log("[Config] Manual refreshWebhook result:", result);
+      return { success: result.ok === true, description: result.description };
+    }),
+    // Get current webhook info from Telegram
+    getWebhookInfo: adminProcedure.query(async () => {
+      const botToken = await db.getConfigValue("tg_bot_token");
+      if (!botToken) return null;
+      const resp = await fetch(`https://api.telegram.org/bot${botToken}/getWebhookInfo`);
+      const result = await resp.json() as any;
+      return result.ok ? result.result : null;
     }),
   }),
   // ==================== ROOMS ====================

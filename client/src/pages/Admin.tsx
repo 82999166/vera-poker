@@ -4266,6 +4266,10 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
             <label className="text-xs text-muted-foreground mb-1 block">{at("tg.setWebhookCmd")}</label>
             <CopyableUrl value={`https://api.telegram.org/bot[TOKEN]/setWebhook?url=${window.location.origin}/api/telegram/webhook`} small />
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Webhook 注册状态（含 callback_query）</label>
+            <WebhookStatusPanel />
+          </div>
         </div>
       </div>
 
@@ -4999,6 +5003,49 @@ function TrendChart({ data, dataKey, color, label, isVolume, noDataText }: { dat
         <span className="text-[9px] text-muted-foreground">{data[0]?.date?.slice(5) ?? ""}</span>
         <span className="text-[9px] text-muted-foreground">{data[data.length - 1]?.date?.slice(5) ?? ""}</span>
       </div>
+    </div>
+  );
+}
+
+function WebhookStatusPanel() {
+  const refreshMut = trpc.config.refreshWebhook.useMutation();
+  const { data: webhookInfo, refetch } = trpc.config.getWebhookInfo.useQuery(undefined, { refetchOnWindowFocus: false });
+  const handleRefresh = async () => {
+    const result = await refreshMut.mutateAsync();
+    if (result.success) {
+      toast.success("Webhook 已重新注册，callback_query 已启用！");
+      refetch();
+    } else {
+      toast.error(result.description || "注册失败，请检查 Bot Token 和 Webhook URL 配置");
+    }
+  };
+  const allowedUpdates = (webhookInfo as any)?.allowed_updates as string[] | undefined;
+  const hasCallbackQuery = allowedUpdates?.includes("callback_query");
+  return (
+    <div className="space-y-2">
+      {webhookInfo && (
+        <div className="text-[10px] space-y-1">
+          <div className="flex items-center gap-1">
+            <span className={hasCallbackQuery ? "text-green-400" : "text-red-400"}>
+              {hasCallbackQuery ? "✅" : "❌"}
+            </span>
+            <span className={hasCallbackQuery ? "text-green-400" : "text-red-400"}>
+              callback_query: {hasCallbackQuery ? "已启用" : "未启用（按钮点击无响应）"}
+            </span>
+          </div>
+          <div className="text-muted-foreground">当前 allowed_updates: {allowedUpdates?.join(", ") || "默认（不含callback_query）"}</div>
+          {(webhookInfo as any).last_error_message && (
+            <div className="text-red-400">最近错误: {(webhookInfo as any).last_error_message}</div>
+          )}
+        </div>
+      )}
+      <button
+        onClick={handleRefresh}
+        disabled={refreshMut.isPending}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold/10 text-gold hover:bg-gold/20 text-xs disabled:opacity-50"
+      >
+        {refreshMut.isPending ? "注册中..." : "🔄 重新注册 Webhook（启用 callback_query）"}
+      </button>
     </div>
   );
 }
