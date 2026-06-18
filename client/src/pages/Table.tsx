@@ -1536,104 +1536,8 @@ export default function Table() {
         </div>
       )}
 
-      {/* Winner Announcement Overlay - positioned in center without blocking player card areas */}
-      {showWinner && (
-        <div className="absolute z-30 flex items-center justify-center pointer-events-none" style={{ top: '20%', left: '15%', right: '15%', bottom: '35%' }}>
-          {/* Confetti particles */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {Array.from({ length: 20 }).map((_, i) => (
-              <div
-                key={i}
-                className="absolute animate-confetti"
-                style={{
-                  left: `${10 + Math.random() * 80}%`,
-                  top: `${20 + Math.random() * 30}%`,
-                  width: `${4 + Math.random() * 6}px`,
-                  height: `${4 + Math.random() * 6}px`,
-                  backgroundColor: ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'][i % 6],
-                  borderRadius: Math.random() > 0.5 ? '50%' : '2px',
-                  animationDelay: `${Math.random() * 0.8}s`,
-                  animationDuration: `${1.5 + Math.random() * 1}s`,
-                }}
-              />
-            ))}
-          </div>
-          {/* Winner banner */}
-          <div className="animate-banner bg-black/80 backdrop-blur-md rounded-2xl px-4 py-3 text-center max-w-[260px] border-2 border-gold/50 shadow-[0_0_30px_rgba(234,179,8,0.3)]">
-            {/* Winners list sorted by hand rank (best hand first) */}
-            {(() => {
-              const HAND_RANK_SORT: Record<string, number> = {
-                "royal_flush": 10, "straight_flush": 9, "four_of_a_kind": 8,
-                "full_house": 7, "flush": 6, "straight": 5, "three_of_a_kind": 4,
-                "two_pair": 3, "one_pair": 2, "high_card": 1, "last_standing": 0, "Last Standing": 0,
-              };
-              const sortedWinners = showSettlement?.winners?.length > 0
-                ? [...showSettlement.winners].sort((a: any, b: any) => {
-                    const rankA = HAND_RANK_SORT[a.handRank] || HAND_RANK_SORT[a.handDescription] || 0;
-                    const rankB = HAND_RANK_SORT[b.handRank] || HAND_RANK_SORT[b.handDescription] || 0;
-                    if (rankB !== rankA) return rankB - rankA;
-                    return b.amount - a.amount;
-                  })
-                : [{ playerId: 0, name: showWinner.name, amount: showWinner.amount, handDescription: showWinner.handDescription, handRank: '' }];
-              const topAmount = sortedWinners[0]?.amount || 0;
-              return (
-                <div className="space-y-3">
-                  {sortedWinners.map((w: any, idx: number) => {
-                    const isTopWinner = idx === 0;
-                    return (
-                      <div key={w.playerId || idx} className={`${isTopWinner ? 'pb-2' : ''}`}>
-                        {isTopWinner && (
-                          <div className="relative mb-1">
-                            <Trophy className="w-9 h-9 text-gold mx-auto drop-shadow-[0_0_10px_rgba(234,179,8,0.6)]" />
-                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-11 h-11 rounded-full bg-gold/10 animate-ping" />
-                          </div>
-                        )}
-                        <p className={`font-bold drop-shadow-[0_0_4px_rgba(234,179,8,0.4)] ${isTopWinner ? 'text-base text-gold' : 'text-sm text-foreground/80'}`}>
-                          {!isTopWinner && <span className="text-foreground/50 mr-1">#{idx + 1}</span>}
-                          {w.name} {t("table.won")}
-                        </p>
-                        <p className={`font-black drop-shadow-[0_0_8px_rgba(234,179,8,0.6)] mt-0.5 ${isTopWinner ? 'text-2xl text-yellow-300' : 'text-lg text-yellow-300/70'}`}>
-                          {fmtAmt(w.amount)}
-                        </p>
-                        {w.handDescription && w.handDescription !== "Last Standing" && (
-                          <p className={`mt-0.5 font-medium ${isTopWinner ? 'text-sm text-gold/80' : 'text-xs text-foreground/60'}`}>
-                            {HAND_RANK_MAP[w.handDescription] ? t(HAND_RANK_MAP[w.handDescription]) : w.handDescription}
-                          </p>
-                        )}
-                        {isTopWinner && sortedWinners.length > 1 && (
-                          <div className="border-b border-gold/20 mt-3" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-            {/* Side pots info */}
-            {showSettlement?.sidePots?.length > 1 && (
-              <div className="mt-3 border-t border-gold/20 pt-2">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t("table.sidePots")}</p>
-                {showSettlement.sidePots.map((sp: any, i: number) => (
-                  <p key={i} className="text-xs text-foreground/80">
-                    {t("table.potNumber", { n: i + 1 })}: {fmtAmt(sp.amount)} → {sp.winnerName}
-                  </p>
-                ))}
-              </div>
-            )}
-            {/* Showdown players hand comparison */}
-            {showSettlement?.showdownPlayers?.length > 1 && (
-              <div className="mt-3 border-t border-gold/20 pt-2 space-y-1.5">
-                {showSettlement.showdownPlayers.map((sp: any) => (
-                  <div key={sp.playerId} className="flex items-center justify-between text-xs">
-                    <span className="text-foreground/70">{sp.name}</span>
-                    <span className={`font-medium ${winnerPlayerIds.includes(sp.playerId) ? "text-gold" : "text-foreground/90"}`}>{HAND_RANK_MAP[sp.handDescription] ? t(HAND_RANK_MAP[sp.handDescription]) : sp.handDescription}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Winner Announcement - minimal banner below community cards, only shows winner name + amount + hand type */}
+      {/* Removed: confetti, trophy icon, showdown players comparison list, side pots display */}
 
       {/* Table Area - flex-1 min-h-0 ensures it fills all remaining vertical space */}
       {/* max-h limits table to ~55% of screen so it doesn't look oversized on tall phones */}
@@ -1726,6 +1630,30 @@ export default function Table() {
                   <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
                   <span className="text-xs font-bold text-gold">{t("table.comparingHands")}</span>
                   <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                </div>
+              </div>
+            )}
+
+            {/* Winner Result Banner - positioned below community cards, only shows winner info */}
+            {showWinner && (
+              <div className="absolute top-[58%] left-1/2 -translate-x-1/2 z-20 animate-banner pointer-events-none">
+                <div className="bg-black/80 backdrop-blur-md rounded-xl px-4 py-2.5 text-center border border-gold/50 shadow-[0_0_20px_rgba(234,179,8,0.3)]">
+                  {(() => {
+                    const primaryWinner = showSettlement?.winners?.length > 0
+                      ? [...showSettlement.winners].sort((a: any, b: any) => b.amount - a.amount)[0]
+                      : { name: showWinner.name, amount: showWinner.amount, handDescription: showWinner.handDescription };
+                    const handKey = primaryWinner.handDescription && HAND_RANK_MAP[primaryWinner.handDescription];
+                    const handName = handKey ? t(handKey) : primaryWinner.handDescription;
+                    return (
+                      <div className="flex flex-col items-center gap-0.5">
+                        <p className="text-sm font-bold text-gold">{primaryWinner.name} {t("table.won")}</p>
+                        <p className="text-lg font-black text-yellow-300">{fmtAmt(primaryWinner.amount)}</p>
+                        {handName && handName !== "Last Standing" && (
+                          <p className="text-xs font-medium text-gold/80">{handName}</p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -1860,7 +1788,7 @@ export default function Table() {
                 className={`absolute transition-all duration-300 ${(displayPhase === "showdown" || displayPhase === "completed") ? "z-[35]" : "z-10"} ${isLoser ? "animate-loser" : ""}`}
                 style={{ top: pos.top, left: pos.left, transform: pos.transform }}
               >
-                <div className={`flex flex-col items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} ${isWinner ? "animate-winner-glow" : ""} transition-transform duration-200`}>
+                <div className={`flex flex-col items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} transition-transform duration-200`}>
                   {/* Player cards next to seat */}
                   {isHero && displayMyCards.length > 0 && (
                     <div className="flex flex-col items-center gap-0.5 mb-0.5" style={isTopPlayer ? { order: 10 } : undefined}>
@@ -2048,27 +1976,7 @@ export default function Table() {
                     </div>
                   )}
 
-                  {/* Winner gold coins flying in + amount pop-up */}
-                  {isWinner && showWinner && (
-                    <div className="relative mt-1" style={isTopPlayer ? { order: 12 } : undefined}>
-                      {/* Flying gold coins */}
-                      <div className="flex justify-center gap-0.5 mb-1">
-                        {[0, 1, 2, 3, 4].map((i) => (
-                          <div
-                            key={i}
-                            className="animate-chips-fly w-4 h-4 rounded-full flex items-center justify-center"
-                            style={{ background: 'linear-gradient(to bottom right, #fde047, #eab308, #a16207)', border: '1px solid #ca8a04', boxShadow: '0 0 6px rgba(234,179,8,0.5)', animationDelay: `${i * 150}ms` }}
-                          >
-                            <span className="text-[6px] font-black text-yellow-900">$</span>
-                          </div>
-                        ))}
-                      </div>
-                      {/* Win amount - show each player's actual win amount from settlement detail */}
-                      <div className="animate-amount-pop flex items-center justify-center gap-1 bg-black/70 rounded-full px-3 py-1 border border-gold/50 shadow-[0_0_12px_rgba(234,179,8,0.4)]">
-                        <span className="text-base font-black text-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]">+{fmtAmt(showSettlement?.winners?.find((w: any) => w.playerId === player.id)?.amount ?? showWinner.amount)}</span>
-                      </div>
-                    </div>
-                  )}
+
                 </div>
               </div>
             );
