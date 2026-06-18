@@ -158,11 +158,15 @@ export async function getAllUsers(page = 1, limit = 20) {
   const ipRegionMap = new Map<string, string>();
   if (uniqueIps.length > 0) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000); // 3s timeout
       const resp = await fetch("http://ip-api.com/batch?fields=query,country,city,status&lang=zh-CN", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(uniqueIps.map(ip => ({ query: ip }))),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (resp.ok) {
         const results = await resp.json() as Array<{ query: string; country?: string; city?: string; status: string }>;
         for (const r of results) {

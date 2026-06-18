@@ -248,10 +248,10 @@ export const appRouter = router({
       }
       return result;
     }),
-    getAll: adminProcedure.query(async () => {
+    getAll: staffProcedure.query(async () => {
       return db.getAllConfigs();
     }),
-    getByCategory: adminProcedure.input(z.object({ category: z.string() })).query(async ({ input }) => {
+    getByCategory: staffProcedure.input(z.object({ category: z.string() })).query(async ({ input }) => {
       return db.getConfigsByCategory(input.category);
     }),
     upsert: adminProcedure.input(z.object({
@@ -402,7 +402,7 @@ export const appRouter = router({
       return { success: true, inviteCode: room.inviteCode };
     }),
     // Admin: manage all rooms
-    adminList: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
+    adminList: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { rooms: [], total: 0 };
       const { rooms: roomsTable } = await import("../drizzle/schema");
@@ -861,11 +861,11 @@ export const appRouter = router({
       return db.getUserTransactions(ctx.user.id, input.page, input.limit, input.category);
     }),
     // Admin
-    allTransactions: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), type: z.string().optional() })).query(async ({ input }) => {
+    allTransactions: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), type: z.string().optional() })).query(async ({ input }) => {
       return db.getAllTransactions(input.page, input.limit, input.type);
     }),
     // Admin confirm deposit
-    confirmDeposit: adminProcedure.input(z.object({
+    confirmDeposit: staffProcedure.input(z.object({
       transactionId: z.number(),
     })).mutation(async ({ input }) => {
       const dbInstance = await db.getDb();
@@ -900,7 +900,7 @@ export const appRouter = router({
       return { success: true, newBalance };
     }),
     // Admin reject deposit/withdrawal
-    rejectTransaction: adminProcedure.input(z.object({
+    rejectTransaction: staffProcedure.input(z.object({
       transactionId: z.number(),
       reason: z.string().optional(),
     })).mutation(async ({ input }) => {
@@ -934,7 +934,7 @@ export const appRouter = router({
       return { success: true };
     }),
     // Admin confirm withdrawal
-    confirmWithdrawal: adminProcedure.input(z.object({
+    confirmWithdrawal: staffProcedure.input(z.object({
       transactionId: z.number(),
       txHash: z.string().optional(),
     })).mutation(async ({ input }) => {
@@ -2082,7 +2082,7 @@ ${faqContext}
 
   // ==================== ADMIN ====================
   admin: router({
-    users: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
+    users: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       return db.getAllUsers(input.page, input.limit);
     }),
     updateUser: adminProcedure.input(z.object({
@@ -2138,10 +2138,10 @@ ${faqContext}
       
       return { success: true };
     }),
-    userDetail: adminProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
+    userDetail: staffProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       return db.getUserDetail(input.id);
     }),
-    userTransactions: adminProcedure.input(z.object({ userId: z.number(), page: z.number().default(1), limit: z.number().default(20), type: z.string().optional() })).query(async ({ input }) => {
+    userTransactions: staffProcedure.input(z.object({ userId: z.number(), page: z.number().default(1), limit: z.number().default(20), type: z.string().optional() })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { transactions: [], total: 0 };
       const { transactions } = await import("../drizzle/schema");
@@ -2156,20 +2156,20 @@ ${faqContext}
       ]);
       return { transactions: data, total: countResult[0]?.count ?? 0 };
     }),
-    userGameHistory: adminProcedure.input(z.object({ userId: z.number(), page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
+    userGameHistory: staffProcedure.input(z.object({ userId: z.number(), page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       return db.getUserGameHistory(input.userId, input.page, input.limit);
     }),
-    userDownlines: adminProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
+    userDownlines: staffProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
       return db.getAdminUserDownlines(input.userId);
     }),
-    riskEvents: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
+    riskEvents: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       return db.getRiskEvents(input.page, input.limit);
     }),
     // FAQ management
-    faqList: adminProcedure.query(async () => {
+    faqList: staffProcedure.query(async () => {
       return db.getAllFaqs();
     }),
-    faqUpsert: adminProcedure.input(z.object({
+    faqUpsert: staffProcedure.input(z.object({
       id: z.number().optional(),
       category: z.string(),
       question: z.string(),
@@ -2193,7 +2193,7 @@ ${faqContext}
       }
       return { success: true };
     }),
-    faqDelete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    faqDelete: staffProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { success: false };
       const { faqEntries } = await import("../drizzle/schema");
@@ -2202,7 +2202,7 @@ ${faqContext}
       return { success: true };
     }),
     // Agent management
-    agents: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
+    agents: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { relationships: [], total: 0 };
       const { agentRelationships, users } = await import("../drizzle/schema");
@@ -2218,7 +2218,7 @@ ${faqContext}
       const enriched = data.map(r => ({ ...r, agentInfo: userMap[r.agentId] || null, downlineInfo: userMap[r.downlineId] || null }));
       return { relationships: enriched, total: countResult?.count ?? 0 };
     }),
-    agentDetail: adminProcedure.input(z.object({ agentId: z.number() })).query(async ({ input }) => {
+    agentDetail: staffProcedure.input(z.object({ agentId: z.number() })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return null;
       const { agentRelationships, users, commissionRecords } = await import("../drizzle/schema");
@@ -2244,7 +2244,7 @@ ${faqContext}
         recentCommissions,
       };
     }),
-    agentUnlock: adminProcedure.input(z.object({ relationshipId: z.number(), lock: z.boolean().optional() })).mutation(async ({ input }) => {
+    agentUnlock: staffProcedure.input(z.object({ relationshipId: z.number(), lock: z.boolean().optional() })).mutation(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { success: false };
       const { agentRelationships } = await import("../drizzle/schema");
@@ -2252,11 +2252,11 @@ ${faqContext}
       await dbInstance.update(agentRelationships).set({ isUnlocked: input.lock ? false : true }).where(eq(agentRelationships.id, input.relationshipId));
       return { success: true };
     }),
-    commissions: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
+    commissions: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
       return db.getAllCommissions(input.page, input.limit);
     }),
     // Risk Control Management
-    riskRules: adminProcedure.query(async () => {
+    riskRules: staffProcedure.query(async () => {
       const { getRiskRules } = await import("./riskEngine");
       return getRiskRules();
     }),
@@ -2271,7 +2271,7 @@ ${faqContext}
       const { ruleId, ...updates } = input;
       return updateRiskRule(ruleId, updates);
     }),
-    riskAlerts: adminProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), status: z.string().optional() })).query(async ({ input }) => {
+    riskAlerts: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), status: z.string().optional() })).query(async ({ input }) => {
       const { getRiskAlerts } = await import("./riskEngine");
       return getRiskAlerts(input.page, input.limit, input.status);
     }),
@@ -2293,7 +2293,7 @@ ${faqContext}
       await runRiskChecks(input.userId, "manual_check");
       return { success: true };
     }),
-    userEarningsFlow: adminProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
+    userEarningsFlow: staffProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
       const { getUserEarningsFlow } = await import("./riskEngine");
       return getUserEarningsFlow(input.userId);
     }),
@@ -2368,7 +2368,7 @@ ${faqContext}
       return { success: true };
     }),
     // Manual top-up for game users
-    manualTopUp: adminProcedure.input(z.object({
+    manualTopUp: staffProcedure.input(z.object({
       userId: z.number(),
       amount: z.number().positive(),
       note: z.string().optional(),
@@ -2405,7 +2405,7 @@ ${faqContext}
       return { success: true, newBalance };
     }),
     // Stats
-    stats: adminProcedure.query(async () => {
+    stats: staffProcedure.query(async () => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { totalUsers: 0, totalRooms: 0, totalTransactions: 0, totalVolume: "0.00", todayNewUsers: 0, todayActiveUsers: 0, totalBalance: "0.00" };
       const { users, rooms, transactions } = await import("../drizzle/schema");
@@ -2500,7 +2500,7 @@ ${faqContext}
       };
     }),
     // Trend data for charts
-    trends: adminProcedure.input(z.object({ days: z.number().default(14) })).query(async ({ input }) => {
+    trends: staffProcedure.input(z.object({ days: z.number().default(14) })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { dailyUsers: [], dailyVolume: [], dailyHands: [] };
       const { users, transactions, gameHands } = await import("../drizzle/schema");

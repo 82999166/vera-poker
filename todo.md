@@ -971,3 +971,8 @@
 - [x] 前端：StaffPanel 权限管理UI（16模块复选框、角色选择器、全选/清空）
 - [x] 前端：侧边栏/标签导航根据 adminUser.permissions 动态过滤（super_admin 全部可见，其他角色按权限数组显示）
 - [x] 前端：权限为空时回退到角色默认权限（cs/finance/tech 各有默认可见标签）
+
+## 2026-06-18 Bug: 员工登录后加载慢 + 财务管理无数据
+- [x] 员工登录后页面一直转圈加载很慢（原因：adminProcedure拒绝非admin角色，改为staffProcedure）
+- [x] 财务管理面板看不到数据（原因：wallet.allTransactions使用adminProcedure，改为staffProcedure）
+- [x] IP地理位置查询增加3s超时防止用户列表加载过慢
