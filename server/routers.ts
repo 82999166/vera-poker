@@ -4108,6 +4108,94 @@ ${faqContext}
       const { deleteTgGroup } = await import("./marketing");
       await deleteTgGroup(input.id);
     }),
+    // Get bot followers (users with tgId) for multi-select in push dialog
+    getBotFollowers: adminProcedure.input(z.object({
+      search: z.string().optional(),
+      filter: z.enum(["all", "active", "deposited"]).default("all"),
+      page: z.number().default(1),
+      limit: z.number().default(100),
+    })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { users: [], total: 0 };
+      const { users } = await import("../drizzle/schema");
+      const { isNotNull, like, and, or, sql, desc, gt } = await import("drizzle-orm");
+      const offset = (input.page - 1) * input.limit;
+      const conditions: any[] = [isNotNull(users.tgId)];
+      if (input.search) {
+        const p = `%${input.search}%`;
+        conditions.push(or(like(users.nickname, p), like(users.tgUsername, p), like(users.name, p), like(users.tgId, p)));
+      }
+      if (input.filter === "active") {
+        const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        conditions.push(gt(users.lastSignedIn, cutoff));
+      } else if (input.filter === "deposited") {
+        conditions.push(gt(users.totalDeposited, "0"));
+      }
+      const where = conditions.length === 1 ? conditions[0] : and(...conditions);
+      const [data, countResult] = await Promise.all([
+        dbInstance.select({
+          id: users.id,
+          nickname: users.nickname,
+          tgUsername: users.tgUsername,
+          tgId: users.tgId,
+          name: users.name,
+          lastSignedIn: users.lastSignedIn,
+        }).from(users).where(where).orderBy(desc(users.lastSignedIn)).limit(input.limit).offset(offset),
+        dbInstance.select({ count: sql<number>`count(*)` }).from(users).where(where),
+      ]);
+      return { users: data, total: Number(countResult[0]?.count ?? 0) };
+    }),
+    // Broadcast to specific user IDs (custom target)
+    broadcastToUsers: adminProcedure.input(z.object({
+      userIds: z.array(z.number()).min(1),
+      content: z.string().min(1),
+      imageUrl: z.string().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), type: z.string().optional(), row: z.number().optional() })).optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const { createBroadcastTask, executeBroadcast } = await import("./marketing");
+      const adminId = (ctx.user?.id) ?? 0;
+      const id = await createBroadcastTask({
+        title: `自定义用户推送-${new Date().toLocaleString()}`,
+        content: input.content,
+        imageUrl: input.imageUrl,
+        buttons: input.buttons,
+        targetType: "custom",
+        targetUserIds: input.userIds,
+        createdBy: adminId,
+      });
+      executeBroadcast(id).catch(e => console.error("[BroadcastToUsers] Error:", e));
+      return { taskId: id };
+    }),
+    // Get groups where the bot has admin rights (via Telegram API) + manual groups
+    getBotAdminGroups: adminProcedure.query(async () => {
+      const botToken = await db.getConfigValue("tg_bot_token");
+      const { listTgGroups } = await import("./marketing");
+      const manualGroups = await listTgGroups();
+      if (!botToken) return { tgGroups: [], manualGroups };
+      try {
+        // Use getUpdates to discover recent chats where bot has been active
+        const updatesRes = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?limit=100`);
+        const updatesData = await updatesRes.json() as any;
+        const chatMap = new Map<string, { chatId: string; name: string; type: string }>();
+        if (updatesData.ok && updatesData.result) {
+          for (const update of updatesData.result) {
+            const chat = update.message?.chat || update.my_chat_member?.chat || update.channel_post?.chat;
+            if (chat && (chat.type === "group" || chat.type === "supergroup" || chat.type === "channel")) {
+              chatMap.set(String(chat.id), {
+                chatId: String(chat.id),
+                name: chat.title || chat.username || String(chat.id),
+                type: chat.type,
+              });
+            }
+          }
+        }
+        const tgGroups = Array.from(chatMap.values());
+        return { tgGroups, manualGroups };
+      } catch (e) {
+        console.error("[getBotAdminGroups] Error:", e);
+        return { tgGroups: [], manualGroups };
+      }
+    }),
     // Send a message to multiple TG groups (used by all marketing modules)
     sendToGroups: adminProcedure.input(z.object({
       groupIds: z.array(z.number()).min(1),

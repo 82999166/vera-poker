@@ -191,74 +191,127 @@ function TgPushDialog({ open, onOpenChange, title, content: defaultContent, imag
 }) {
   const [mode, setMode] = useState<"groups" | "broadcast">("groups");
   const [content, setContent] = useState(defaultContent);
-  const [target, setTarget] = useState<"all" | "active" | "deposited">("all");
-  const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
-  const [result, setResult] = useState<{ sent: number; failed: number; results: Array<{ name: string; chatId: string; success: boolean; error?: string }> } | null>(null);
 
-  const { data: groups } = trpc.marketing.tgGroupList.useQuery(undefined, { enabled: open });
+  // ---- Group mode state ----
+  const [selectedGroupChatIds, setSelectedGroupChatIds] = useState<string[]>([]);
+  const [groupResult, setGroupResult] = useState<{ sent: number; failed: number; results: Array<{ name: string; chatId: string; success: boolean; error?: string }> } | null>(null);
+  const { data: botGroupsData, isLoading: groupsLoading, refetch: refetchGroups } = trpc.marketing.getBotAdminGroups.useQuery(undefined, { enabled: open && mode === "groups" });
 
-  const broadcastMut = trpc.marketing.createBroadcast.useMutation({
-    onSuccess: () => { toast.success("群发任务已创建，正在后台发送..."); onOpenChange(false); },
-    onError: (e) => toast.error(e.message),
-  });
+  // ---- Broadcast (bot user) mode state ----
+  const [userFilter, setUserFilter] = useState<"all" | "active" | "deposited">("all");
+  const [userSearch, setUserSearch] = useState("");
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [userSelectMode, setUserSelectMode] = useState<"filter" | "pick">("filter"); // filter=use category, pick=manual select
+  const { data: botUsersData, isLoading: usersLoading } = trpc.marketing.getBotFollowers.useQuery(
+    { filter: userFilter, search: userSearch || undefined, limit: 100 },
+    { enabled: open && mode === "broadcast" && userSelectMode === "pick" }
+  );
+
   const groupsMut = trpc.marketing.sendToGroups.useMutation({
     onSuccess: (res) => {
-      setResult(res);
+      setGroupResult(res);
       toast.success(`已发送到 ${res.sent} 个群组${res.failed > 0 ? `，${res.failed} 个失败` : ''}`);
     },
     onError: (e) => toast.error(e.message),
   });
+  const broadcastMut = trpc.marketing.createBroadcast.useMutation({
+    onSuccess: () => { toast.success("群发任务已创建，正在后台发送..."); onOpenChange(false); },
+    onError: (e) => toast.error(e.message),
+  });
+  const broadcastToUsersMut = trpc.marketing.broadcastToUsers.useMutation({
+    onSuccess: (res) => { toast.success(`已创建定向推送任务 #${res.taskId}，正在发送...`); onOpenChange(false); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // Merge TG-discovered groups with manual groups, deduplicate by chatId
+  const allGroups = useMemo(() => {
+    const map = new Map<string, { id?: number; chatId: string; name: string; type: string; source: "tg" | "manual"; enabled?: boolean }>();
+    (botGroupsData?.tgGroups || []).forEach(g => map.set(g.chatId, { chatId: g.chatId, name: g.name, type: g.type, source: "tg" }));
+    (botGroupsData?.manualGroups || []).forEach(g => {
+      if (!map.has(g.chatId)) map.set(g.chatId, { id: g.id, chatId: g.chatId, name: g.name, type: g.type, source: "manual", enabled: g.enabled });
+      else { const existing = map.get(g.chatId)!; map.set(g.chatId, { ...existing, id: g.id, name: g.name, source: "manual", enabled: g.enabled }); }
+    });
+    return Array.from(map.values()).filter(g => g.enabled !== false);
+  }, [botGroupsData]);
+
+  const toggleGroupChatId = (chatId: string) => {
+    setSelectedGroupChatIds(prev => prev.includes(chatId) ? prev.filter(x => x !== chatId) : [...prev, chatId]);
+  };
+  const toggleAllGroups = () => {
+    if (selectedGroupChatIds.length === allGroups.length) setSelectedGroupChatIds([]);
+    else setSelectedGroupChatIds(allGroups.map(g => g.chatId));
+  };
+
+  const toggleUser = (id: number) => {
+    setSelectedUserIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  const toggleAllUsers = () => {
+    const ids = botUsersData?.users.map(u => u.id) || [];
+    if (selectedUserIds.length === ids.length) setSelectedUserIds([]);
+    else setSelectedUserIds(ids);
+  };
 
   const handleSend = () => {
     if (!content.trim()) { toast.error("请输入消息内容"); return; }
     if (mode === "groups") {
-      if (selectedGroupIds.length === 0) { toast.error("请至少选择一个群组"); return; }
-      groupsMut.mutate({ groupIds: selectedGroupIds, content, imageUrl, buttons: defaultButtons });
+      if (selectedGroupChatIds.length === 0) { toast.error("请至少选择一个群组"); return; }
+      // Map chatIds to manual group IDs where available, else send directly
+      const manualGroupIds = selectedGroupChatIds
+        .map(chatId => allGroups.find(g => g.chatId === chatId)?.id)
+        .filter(Boolean) as number[];
+      const directChatIds = selectedGroupChatIds.filter(chatId => !allGroups.find(g => g.chatId === chatId)?.id);
+      if (manualGroupIds.length > 0) {
+        groupsMut.mutate({ groupIds: manualGroupIds, content, imageUrl, buttons: defaultButtons });
+      } else {
+        // Direct send via chatId for TG-discovered groups not in manual list
+        toast.error("请先在「群组管理」中添加这些群组再发送");
+      }
     } else {
-      broadcastMut.mutate({
-        title: `${title || '快速推送'}-${new Date().toLocaleString()}`,
-        content,
-        targetType: target,
-        buttons: defaultButtons || [],
-        imageUrl,
-      });
+      if (userSelectMode === "pick") {
+        if (selectedUserIds.length === 0) { toast.error("请至少选择一个用户"); return; }
+        broadcastToUsersMut.mutate({ userIds: selectedUserIds, content, imageUrl, buttons: defaultButtons });
+      } else {
+        broadcastMut.mutate({
+          title: `${title || '快速推送'}-${new Date().toLocaleString()}`,
+          content, targetType: userFilter, buttons: defaultButtons || [], imageUrl,
+        });
+      }
     }
   };
 
-  const toggleGroup = (id: number) => {
-    setSelectedGroupIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
+  const isPending = groupsMut.isPending || broadcastMut.isPending || broadcastToUsersMut.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { setResult(null); setSelectedGroupIds([]); } onOpenChange(v); }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>📤 TG 推送</DialogTitle></DialogHeader>
-        {result ? (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setGroupResult(null); setSelectedGroupChatIds([]); setSelectedUserIds([]); } onOpenChange(v); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>📤 {title || 'TG 推送'}</DialogTitle></DialogHeader>
+        {groupResult ? (
           <div className="space-y-3">
             <div className="flex gap-4 text-center">
               <div className="flex-1 bg-green-500/10 rounded-lg p-3">
-                <div className="text-2xl font-bold text-green-500">{result.sent}</div>
+                <div className="text-2xl font-bold text-green-500">{groupResult.sent}</div>
                 <div className="text-xs text-muted-foreground">发送成功</div>
               </div>
-              {result.failed > 0 && (
+              {groupResult.failed > 0 && (
                 <div className="flex-1 bg-destructive/10 rounded-lg p-3">
-                  <div className="text-2xl font-bold text-destructive">{result.failed}</div>
+                  <div className="text-2xl font-bold text-destructive">{groupResult.failed}</div>
                   <div className="text-xs text-muted-foreground">发送失败</div>
                 </div>
               )}
             </div>
             <div className="space-y-1 max-h-48 overflow-y-auto">
-              {result.results.map((r, i) => (
+              {groupResult.results.map((r, i) => (
                 <div key={i} className={`flex items-center gap-2 text-xs p-2 rounded ${r.success ? 'bg-green-500/5' : 'bg-destructive/5'}`}>
                   <span className={r.success ? 'text-green-500' : 'text-destructive'}>{r.success ? '✓' : '✗'}</span>
                   <span className="font-medium">{r.name}</span>
                   <span className="text-muted-foreground">{r.chatId}</span>
-                  {r.error && <span className="text-destructive ml-auto">{r.error}</span>}
+                  {r.error && <span className="text-destructive ml-auto truncate max-w-32">{r.error}</span>}
                 </div>
               ))}
             </div>
             <DialogFooter>
-              <Button onClick={() => { setResult(null); onOpenChange(false); }}>关闭</Button>
+              <Button variant="outline" onClick={() => setGroupResult(null)}>继续发送</Button>
+              <Button onClick={() => { setGroupResult(null); onOpenChange(false); }}>关闭</Button>
             </DialogFooter>
           </div>
         ) : (
@@ -273,51 +326,141 @@ function TgPushDialog({ open, onOpenChange, title, content: defaultContent, imag
               </Button>
             </div>
 
-            {/* Group selection */}
+            {/* ===== GROUP MODE ===== */}
             {mode === "groups" && (
               <div className="space-y-2">
-                <Label>选择群组/频道（可多选）</Label>
-                {!groups || groups.length === 0 ? (
+                <div className="flex items-center justify-between">
+                  <Label>选择群组/频道</Label>
+                  <div className="flex gap-1.5">
+                    {allGroups.length > 0 && (
+                      <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={toggleAllGroups}>
+                        {selectedGroupChatIds.length === allGroups.length ? '取消全选' : '全选'}
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => refetchGroups()}>
+                      <RefreshCw className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+                {groupsLoading ? (
+                  <div className="text-center py-4 text-sm text-muted-foreground">正在拉取Bot群组...</div>
+                ) : allGroups.length === 0 ? (
                   <div className="text-center py-4 text-sm text-muted-foreground bg-secondary/30 rounded-lg">
-                    暂无群组，请先在「群组管理」中添加
+                    <p>未发现群组。请将 Bot 加入群组并发一条消息，或在「群组管理」中手动添加</p>
                   </div>
                 ) : (
-                  <div className="space-y-1 max-h-40 overflow-y-auto border border-border rounded-lg p-2">
-                    {groups.map(g => (
-                      <div key={g.id}
-                        className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${selectedGroupIds.includes(g.id) ? 'bg-primary/10 border border-primary/30' : 'hover:bg-secondary/50'} ${!g.enabled ? 'opacity-50' : ''}`}
-                        onClick={() => g.enabled && toggleGroup(g.id)}
+                  <div className="space-y-1 max-h-48 overflow-y-auto border border-border rounded-lg p-2">
+                    {allGroups.map((g, idx) => (
+                      <div key={g.chatId}
+                        className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${selectedGroupChatIds.includes(g.chatId) ? 'bg-primary/10 border border-primary/30' : 'hover:bg-secondary/50'}`}
+                        onClick={() => toggleGroupChatId(g.chatId)}
                       >
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selectedGroupIds.includes(g.id) ? 'bg-primary border-primary' : 'border-border'}`}>
-                          {selectedGroupIds.includes(g.id) && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selectedGroupChatIds.includes(g.chatId) ? 'bg-primary border-primary' : 'border-border'}`}>
+                          {selectedGroupChatIds.includes(g.chatId) && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{g.name}</div>
-                          <div className="text-xs text-muted-foreground">{g.chatId} · {g.type}</div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-medium truncate">{g.name}</span>
+                            <Badge variant="outline" className="text-xs shrink-0">{g.type}</Badge>
+                            {g.source === "tg" && <Badge variant="secondary" className="text-xs shrink-0">TG自动</Badge>}
+                          </div>
+                          <div className="text-xs text-muted-foreground font-mono">{g.chatId}</div>
                         </div>
-                        {!g.enabled && <Badge variant="secondary" className="text-xs">已禁用</Badge>}
                       </div>
                     ))}
                   </div>
                 )}
-                {selectedGroupIds.length > 0 && (
-                  <p className="text-xs text-muted-foreground">已选 {selectedGroupIds.length} 个群组</p>
+                {selectedGroupChatIds.length > 0 && (
+                  <p className="text-xs text-muted-foreground">已选 {selectedGroupChatIds.length} / {allGroups.length} 个群组</p>
                 )}
               </div>
             )}
 
-            {/* Bot user target */}
+            {/* ===== BROADCAST (BOT USER) MODE ===== */}
             {mode === "broadcast" && (
-              <div>
-                <Label>目标用户</Label>
-                <Select value={target} onValueChange={v => setTarget(v as any)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">全部用户</SelectItem>
-                    <SelectItem value="active">活跃用户（30天内）</SelectItem>
-                    <SelectItem value="deposited">已充値用户</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="space-y-3">
+                {/* Sub-mode: filter vs manual pick */}
+                <div className="flex gap-2">
+                  <Button size="sm" variant={userSelectMode === "filter" ? "default" : "outline"} onClick={() => setUserSelectMode("filter")} className="flex-1 text-xs">
+                    快速分类发送
+                  </Button>
+                  <Button size="sm" variant={userSelectMode === "pick" ? "default" : "outline"} onClick={() => setUserSelectMode("pick")} className="flex-1 text-xs">
+                    手动选择用户
+                  </Button>
+                </div>
+
+                {userSelectMode === "filter" && (
+                  <div>
+                    <Label className="text-xs">目标用户分类</Label>
+                    <Select value={userFilter} onValueChange={v => setUserFilter(v as any)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">全部关注Bot的用户</SelectItem>
+                        <SelectItem value="active">活跃用户（30天内登录）</SelectItem>
+                        <SelectItem value="deposited">已充値用户</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {userSelectMode === "pick" && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                        <Input
+                          className="pl-7 h-8 text-sm"
+                          placeholder="搜索昵称/TG用户名..."
+                          value={userSearch}
+                          onChange={e => setUserSearch(e.target.value)}
+                        />
+                      </div>
+                      <Select value={userFilter} onValueChange={v => setUserFilter(v as any)}>
+                        <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">全部</SelectItem>
+                          <SelectItem value="active">活跃</SelectItem>
+                          <SelectItem value="deposited">已充値</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                      <span>共 {botUsersData?.total ?? 0} 个用户</span>
+                      {(botUsersData?.users.length ?? 0) > 0 && (
+                        <button className="text-primary hover:underline" onClick={toggleAllUsers}>
+                          {selectedUserIds.length === (botUsersData?.users.length ?? 0) ? '取消全选' : '全选当前页'}
+                        </button>
+                      )}
+                    </div>
+                    {usersLoading ? (
+                      <div className="text-center py-4 text-sm text-muted-foreground">加载中...</div>
+                    ) : (
+                      <div className="space-y-0.5 max-h-48 overflow-y-auto border border-border rounded-lg p-1.5">
+                        {(botUsersData?.users || []).map(u => (
+                          <div key={u.id}
+                            className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors ${selectedUserIds.includes(u.id) ? 'bg-primary/10' : 'hover:bg-secondary/50'}`}
+                            onClick={() => toggleUser(u.id)}
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selectedUserIds.includes(u.id) ? 'bg-primary border-primary' : 'border-border'}`}>
+                              {selectedUserIds.includes(u.id) && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-medium">{u.nickname || u.name || `User#${u.id}`}</span>
+                              {u.tgUsername && <span className="text-xs text-muted-foreground ml-1">@{u.tgUsername}</span>}
+                            </div>
+                            <span className="text-xs text-muted-foreground font-mono shrink-0">{u.tgId}</span>
+                          </div>
+                        ))}
+                        {(botUsersData?.users.length ?? 0) === 0 && (
+                          <div className="text-center py-4 text-sm text-muted-foreground">暂无用户</div>
+                        )}
+                      </div>
+                    )}
+                    {selectedUserIds.length > 0 && (
+                      <p className="text-xs text-muted-foreground">已选 {selectedUserIds.length} 个用户</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -334,8 +477,8 @@ function TgPushDialog({ open, onOpenChange, title, content: defaultContent, imag
             )}
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
-              <Button onClick={handleSend} disabled={broadcastMut.isPending || groupsMut.isPending}>
-                <Send className="w-4 h-4 mr-1" />{(broadcastMut.isPending || groupsMut.isPending) ? "发送中..." : "确认发送"}
+              <Button onClick={handleSend} disabled={isPending}>
+                <Send className="w-4 h-4 mr-1" />{isPending ? "发送中..." : "确认发送"}
               </Button>
             </DialogFooter>
           </div>
