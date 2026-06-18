@@ -491,7 +491,7 @@ export const broadcastTasks = mysqlTable("broadcast_tasks", {
   imageUrl: text("imageUrl"), // Optional image attachment
   buttonText: varchar("buttonText", { length: 128 }), // Optional inline button text (legacy single)
   buttonUrl: text("buttonUrl"), // Optional inline button URL (legacy single)
-  buttons: json("buttons").$type<Array<{ text: string; url: string; type?: string; row?: number }>>(), // Multi-button: [{text, url, type?, row}] type: url|web_app
+  buttons: json("buttons").$type<Array<{ text: string; url?: string; callback_data?: string; type?: string; row?: number }>>(), // Multi-button: [{text, url?, callback_data?, type?, row}] type: url|web_app|callback
   // Target: "all" = all users with tgId, "active" = users active in last 30 days, "custom" = specific user IDs
   targetType: mysqlEnum("targetType", ["all", "active", "deposited", "custom"]).default("all").notNull(),
   targetUserIds: json("targetUserIds").$type<number[]>(), // Used when targetType = "custom"

@@ -2690,7 +2690,7 @@ function RedPacketPushDialog({ open, onOpenChange, packetId, packetTitle, conten
         userIds: selectedUserIds,
         content: msgText,
         imageUrl: imageUrl || undefined,
-        buttons: [{ text: "🧧 领取红包", url: `/red-packet/${packetId}`, type: "url", row: 0 }],
+        buttons: [{ text: "🧧 抢红包", callback_data: `claim_rp_${packetId}`, type: "callback", row: 0 }],
       });
     } else {
       // filter mode: all/active/deposited via redPacketPush broadcast
