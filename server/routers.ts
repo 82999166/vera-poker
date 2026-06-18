@@ -2082,8 +2082,8 @@ ${faqContext}
 
   // ==================== ADMIN ====================
   admin: router({
-    users: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
-      return db.getAllUsers(input.page, input.limit);
+    users: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), filter: z.enum(["all", "real", "bot"]).default("all") })).query(async ({ input }) => {
+      return db.getAllUsers(input.page, input.limit, input.filter);
     }),
     updateUser: adminProcedure.input(z.object({
       id: z.number(),

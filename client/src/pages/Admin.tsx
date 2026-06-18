@@ -1861,7 +1861,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [userFilter, setUserFilter] = useState<"all" | "real" | "bot">("real");
-  const { data, isLoading, refetch } = trpc.admin.users.useQuery({ page, limit: 50 });
+  const { data, isLoading, refetch } = trpc.admin.users.useQuery({ page, limit: 50, filter: userFilter });
   const { data: statsData } = trpc.admin.stats.useQuery();
   const updateMutation = trpc.admin.updateUser.useMutation({
     onSuccess: () => { toast.success(at("users.updated")); refetch(); },
@@ -1875,21 +1875,15 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
 
   const users = (data as any)?.users ?? data ?? [];
   const total = (data as any)?.total ?? 0;
-  // Apply user type filter first
-  const typeFiltered = (users as any[]).filter((u: any) => {
-    if (userFilter === "real") return !u.isBot;
-    if (userFilter === "bot") return u.isBot;
-    return true;
-  });
-  // Then apply search filter
+  // Search filter only (type filter is now done server-side)
   const filtered = search
-    ? typeFiltered.filter((u: any) => 
+    ? (users as any[]).filter((u: any) => 
         (u.name || "").toLowerCase().includes(search.toLowerCase()) ||
         (u.tgUsername || "").toLowerCase().includes(search.toLowerCase()) ||
         (u.tgId || "").includes(search) ||
         String(u.id).includes(search)
       )
-    : typeFiltered;
+    : users;
 
   const riskColors: Record<string, string> = {
     normal: "bg-success/20 text-success",
@@ -1947,7 +1941,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
           {(["all", "real", "bot"] as const).map(f => (
             <button
               key={f}
-              onClick={() => setUserFilter(f)}
+              onClick={() => { setUserFilter(f); setPage(1); }}
               className={`px-2.5 py-1 text-[11px] rounded-lg font-medium transition-colors ${
                 userFilter === f ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-foreground"
               }`}
