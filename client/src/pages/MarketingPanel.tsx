@@ -834,7 +834,7 @@ function FissionPanel() {
   const [showCreate, setShowCreate] = useState(false);
   const [showDetail, setShowDetail] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [quickBroadcast, setQuickBroadcast] = useState<{ open: boolean; content: string; buttons: Array<{ text: string; url: string; type?: string; row?: number }> }>({ open: false, content: "", buttons: [] });
+  const [fissionPushDialog, setFissionPushDialog] = useState<{ open: boolean; campaignId: number; campaignName: string } | null>(null);
   const [form, setForm] = useState({
     name: "", description: "", rewardType: "balance" as "balance" | "none",
     inviterReward: "0.00", inviteeReward: "0.00",
@@ -941,7 +941,7 @@ function FissionPanel() {
                 <div className="space-y-1 pt-2 border-t border-border/50">
                   <ActivityLinkBar label="网页链接" link={`${window.location.origin}/api/ref/${c.linkCode}`} />
                   {botUsername && <ActivityLinkBar label="TG 链接" link={`https://t.me/${botUsername}/app?startapp=fission_${c.linkCode}`}
-                    onSendToTG={() => setQuickBroadcast({ open: true, content: `🎁 ${c.name}\n${c.description || '点击下方按钮参与活动'}`, buttons: [{ text: '🎁 参与活动', url: `/api/ref/${c.linkCode}`, type: 'web_app', row: 0 }] })}
+                    onSendToTG={() => setFissionPushDialog({ open: true, campaignId: c.id, campaignName: c.name })}
                   />}
                 </div>
               </div>
@@ -1016,13 +1016,16 @@ function FissionPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* Quick Broadcast Dialog */}
-      <QuickBroadcastDialog
-        open={quickBroadcast.open}
-        onOpenChange={(v) => setQuickBroadcast(prev => ({ ...prev, open: v }))}
-        content={quickBroadcast.content}
-        buttons={quickBroadcast.buttons}
-      />
+      {/* Fission Push Dialog */}
+      {fissionPushDialog && (
+        <CallbackPushDialog
+          open={fissionPushDialog.open}
+          onOpenChange={(v: boolean) => { if (!v) setFissionPushDialog(null); }}
+          title={`裂变推送: ${fissionPushDialog.campaignName}`}
+          pushType="fission"
+          pushId={fissionPushDialog.campaignId}
+        />
+      )}
     </div>
   );
 }
@@ -1641,9 +1644,188 @@ function WelcomePanel() {
   );
 }
 
+// ==================== CALLBACK PUSH DIALOG (generic for coupon/checkin/event/fission) ====================
+/** Generic push dialog for coupon/checkin/event/fission - uses dedicated push routes with callback_data */
+function CallbackPushDialog({ open, onOpenChange, title, pushType, pushId }: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  pushType: "coupon" | "checkin" | "event" | "fission";
+  pushId?: number; // required for coupon/event/fission
+}) {
+  const [mode, setMode] = useState<"groups" | "broadcast">("groups");
+  const [selectedGroupChatIds, setSelectedGroupChatIds] = useState<string[]>([]);
+  const [groupResult, setGroupResult] = useState<{ sent: number; failed: number; results: Array<{ chatId: string; success: boolean; error?: string }> } | null>(null);
+  const [msgText, setMsgText] = useState("");
+  const { data: botGroupsData } = trpc.marketing.getBotAdminGroups.useQuery(undefined, { enabled: open && mode === "groups" });
+
+  const allGroups = useMemo(() => {
+    const map = new Map<string, { id?: number; chatId: string; name: string; type: string; enabled?: boolean }>();
+    (botGroupsData?.tgGroups || []).forEach(g => map.set(g.chatId, { chatId: g.chatId, name: g.name, type: g.type }));
+    (botGroupsData?.manualGroups || []).forEach(g => {
+      if (!map.has(g.chatId)) map.set(g.chatId, { id: g.id, chatId: g.chatId, name: g.name, type: g.type, enabled: g.enabled });
+      else { const existing = map.get(g.chatId)!; map.set(g.chatId, { ...existing, id: g.id, name: g.name, enabled: g.enabled }); }
+    });
+    return Array.from(map.values()).filter(g => g.enabled !== false);
+  }, [botGroupsData]);
+
+  const toggleGroupChatId = (chatId: string) => {
+    setSelectedGroupChatIds(prev => prev.includes(chatId) ? prev.filter(x => x !== chatId) : [...prev, chatId]);
+  };
+  const toggleAll = () => {
+    if (selectedGroupChatIds.length === allGroups.length) setSelectedGroupChatIds([]);
+    else setSelectedGroupChatIds(allGroups.map(g => g.chatId));
+  };
+
+  const couponPushMut = trpc.marketing.couponPush.useMutation({
+    onSuccess: (res: any) => handlePushSuccess(res),
+    onError: (e: any) => toast.error(e.message),
+  });
+  const checkinPushMut = trpc.marketing.checkinPush.useMutation({
+    onSuccess: (res: any) => handlePushSuccess(res),
+    onError: (e: any) => toast.error(e.message),
+  });
+  const eventPushMut = trpc.marketing.eventPush.useMutation({
+    onSuccess: (res: any) => handlePushSuccess(res),
+    onError: (e: any) => toast.error(e.message),
+  });
+  const fissionPushMut = trpc.marketing.fissionPush.useMutation({
+    onSuccess: (res: any) => handlePushSuccess(res),
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const handlePushSuccess = (res: any) => {
+    if (mode === "groups" && res.results) {
+      setGroupResult({ sent: res.sent || 0, failed: res.failed || 0, results: res.results });
+      toast.success(`已发送到 ${res.sent} 个群组${res.failed ? `，${res.failed} 个失败` : ''}`);
+    } else {
+      toast.success("推送任务已创建，正在后台发送...");
+      onOpenChange(false);
+    }
+  };
+
+  const isPending = couponPushMut.isPending || checkinPushMut.isPending || eventPushMut.isPending || fissionPushMut.isPending;
+
+  const handleSend = () => {
+    if (mode === "groups" && selectedGroupChatIds.length === 0) { toast.error("请至少选择一个群组"); return; }
+    const commonPayload = {
+      mode: (mode === "groups" ? "group" : "broadcast") as "group" | "broadcast",
+      groupChatIds: mode === "groups" ? selectedGroupChatIds : undefined,
+      message: msgText || undefined,
+    };
+    if (pushType === "coupon") {
+      couponPushMut.mutate({ couponId: pushId!, ...commonPayload });
+    } else if (pushType === "checkin") {
+      checkinPushMut.mutate(commonPayload);
+    } else if (pushType === "event") {
+      eventPushMut.mutate({ eventId: pushId!, ...commonPayload });
+    } else if (pushType === "fission") {
+      fissionPushMut.mutate({ campaignId: pushId!, ...commonPayload });
+    }
+  };
+
+  const pushTypeLabels: Record<string, string> = { coupon: "优惠券", checkin: "签到", event: "活动", fission: "裂变" };
+
+  return (
+    <Dialog open={open} onOpenChange={(v: boolean) => { if (!v) { setGroupResult(null); setSelectedGroupChatIds([]); } onOpenChange(v); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>📤 {title}</DialogTitle></DialogHeader>
+        {groupResult ? (
+          <div className="space-y-3">
+            <div className="flex gap-4 text-center">
+              <div className="flex-1 bg-green-500/10 rounded-lg p-3">
+                <div className="text-2xl font-bold text-green-500">{groupResult.sent}</div>
+                <div className="text-xs text-muted-foreground">发送成功</div>
+              </div>
+              {groupResult.failed > 0 && (
+                <div className="flex-1 bg-destructive/10 rounded-lg p-3">
+                  <div className="text-2xl font-bold text-destructive">{groupResult.failed}</div>
+                  <div className="text-xs text-muted-foreground">发送失败</div>
+                </div>
+              )}
+            </div>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {groupResult.results.map((r, i) => (
+                <div key={i} className={`flex items-center gap-2 text-xs p-2 rounded ${r.success ? 'bg-green-500/5' : 'bg-destructive/5'}`}>
+                  <span className={r.success ? 'text-green-500' : 'text-destructive'}>{r.success ? '✓' : '✗'}</span>
+                  <span className="font-medium">{r.chatId}</span>
+                  {r.error && <span className="text-destructive ml-auto truncate max-w-32">{r.error}</span>}
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setGroupResult(null)}>继续发送</Button>
+              <Button onClick={() => { setGroupResult(null); onOpenChange(false); }}>关闭</Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button size="sm" variant={mode === "groups" ? "default" : "outline"} onClick={() => setMode("groups")} className="flex-1">
+                <Send className="w-3 h-3 mr-1" />发送到群组/频道
+              </Button>
+              <Button size="sm" variant={mode === "broadcast" ? "default" : "outline"} onClick={() => setMode("broadcast")} className="flex-1">
+                <Users className="w-3 h-3 mr-1" />群发给Bot用户
+              </Button>
+            </div>
+
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-xs text-blue-400">
+              ℹ️ 群组推送使用 callback_data 按钮，用户可在群内直接点击“{pushTypeLabels[pushType]}”按钮完成操作，无需跳转网页。
+            </div>
+
+            <div>
+              <Label>自定义推送文案（可选，留空用默认）</Label>
+              <Textarea value={msgText} onChange={e => setMsgText(e.target.value)} rows={3} placeholder="留空将使用默认文案" />
+            </div>
+
+            {mode === "groups" && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>选择群组/频道</Label>
+                  {allGroups.length > 0 && (
+                    <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={toggleAll}>
+                      {selectedGroupChatIds.length === allGroups.length ? '取消全选' : '全选'}
+                    </Button>
+                  )}
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-1 border border-border rounded-lg p-2">
+                  {allGroups.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-3">暂无可用群组，请先在“TG群组管理”中添加</p>
+                  ) : allGroups.map(g => (
+                    <label key={g.chatId} className="flex items-center gap-2 p-1.5 rounded hover:bg-secondary/50 cursor-pointer">
+                      <input type="checkbox" checked={selectedGroupChatIds.includes(g.chatId)} onChange={() => toggleGroupChatId(g.chatId)} className="rounded" />
+                      <span className="text-sm flex-1 truncate">{g.name}</span>
+                      <span className="text-xs text-muted-foreground">{g.type}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">已选 {selectedGroupChatIds.length} / {allGroups.length} 个群组</p>
+              </div>
+            )}
+
+            {mode === "broadcast" && (
+              <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">
+                将向所有 Bot 用户发送{pushTypeLabels[pushType]}消息（私聊用 url 按钮，点击跳转 Mini App）
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+              <Button onClick={handleSend} disabled={isPending}>
+                <Send className="w-4 h-4 mr-1" />{isPending ? "发送中..." : "确认发送"}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ==================== COUPONS PANEL ====================
 function CouponsPanel() {
   const [showCreate, setShowCreate] = useState(false);
+  const [couponPushDialog, setCouponPushDialog] = useState<{ open: boolean; couponId: number; couponName: string } | null>(null);
   const [form, setForm] = useState({ code: "", type: "fixed" as "fixed" | "percent", amount: "", minDeposit: "0", maxUses: "100", perUserLimit: "1", expiresAt: "" });
   const { data: coupons, refetch } = trpc.marketing.couponList.useQuery();
   const { data: couponStats } = trpc.marketing.couponStats.useQuery();
@@ -1679,6 +1861,9 @@ function CouponsPanel() {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" className="text-blue-500" onClick={() => setCouponPushDialog({ open: true, couponId: c.id, couponName: c.name || c.code })} title="推送到TG">
+                <Send className="w-4 h-4" />
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => toggleStatusMut.mutate({ id: c.id, status: c.status === "active" ? "paused" : "active" })} title={c.status === "active" ? "暂停" : "启用"}>
                 {c.status === "active" ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               </Button>
@@ -1688,6 +1873,17 @@ function CouponsPanel() {
         ))}
         {(!coupons || coupons.length === 0) && <div className="text-center text-muted-foreground py-8">暂无优惠券</div>}
       </div>
+
+      {/* Coupon Push Dialog */}
+      {couponPushDialog && (
+        <CallbackPushDialog
+          open={couponPushDialog.open}
+          onOpenChange={(v: boolean) => { if (!v) setCouponPushDialog(null); }}
+          title={`优惠券推送: ${couponPushDialog.couponName}`}
+          pushType="coupon"
+          pushId={couponPushDialog.couponId}
+        />
+      )}
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
@@ -1725,11 +1921,17 @@ function CheckinPanel() {
   const { data: checkinStats } = trpc.marketing.checkinStats.useQuery();
   const updateMut = trpc.marketing.checkinConfigUpdate.useMutation({ onSuccess: () => { refetch(); toast.success("保存成功"); } });
   const [rewards, setRewards] = useState<string>("");
+  const [checkinPushOpen, setCheckinPushOpen] = useState(false);
   // configList is array of { dayNumber, reward }
   const configDisplay = configList ? JSON.stringify(configList.map((c: any) => Number(c.reward))) : "[1,1.5,2,2.5,3,4,5]";
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">签到奖励配置</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">签到奖励配置</h3>
+        <Button size="sm" variant="outline" className="text-blue-500" onClick={() => setCheckinPushOpen(true)}>
+          <Send className="w-3 h-3 mr-1" />推送签到提醒
+        </Button>
+      </div>
       {checkinStats && (
         <MarketingStatsBar items={[
           { label: "总签到次数", value: checkinStats.totalCheckins },
@@ -1758,6 +1960,13 @@ function CheckinPanel() {
         <p className="text-sm text-muted-foreground">当前配置：每{configList?.length || 7}天一个周期</p>
         <p className="text-sm text-muted-foreground">每日奖励: {configDisplay}</p>
       </div>
+
+      <CallbackPushDialog
+        open={checkinPushOpen}
+        onOpenChange={setCheckinPushOpen}
+        title="签到提醒推送"
+        pushType="checkin"
+      />
     </div>
   );
 }
@@ -1841,6 +2050,7 @@ function InviteRewardPanel() {
 // ==================== TIME-LIMITED EVENTS PANEL ====================
 function TimeLimitedEventsPanel() {
   const [showCreate, setShowCreate] = useState(false);
+  const [eventPushDialog, setEventPushDialog] = useState<{ open: boolean; eventId: number; eventName: string } | null>(null);
   const [form, setForm] = useState({ name: "", type: "double_points" as string, description: "", startAt: "", endAt: "", config: "{}" });
   const { data: events, refetch } = trpc.marketing.eventList.useQuery();
   const { data: eventStats } = trpc.marketing.eventStats.useQuery();
@@ -1890,6 +2100,9 @@ function TimeLimitedEventsPanel() {
                 {ev.description && <div className="text-xs text-muted-foreground mt-0.5">{ev.description}</div>}
               </div>
               <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" className="text-blue-500" onClick={() => setEventPushDialog({ open: true, eventId: ev.id, eventName: ev.name })} title="推送到TG">
+                  <Send className="w-4 h-4" />
+                </Button>
                 {ev.status !== "cancelled" && ev.status !== "ended" && (
                   <Button variant="ghost" size="sm" onClick={() => toggleStatusMut.mutate({ id: ev.id, status: ev.status === "active" ? "cancelled" : "active" })} title={ev.status === "active" ? "取消活动" : "启用活动"}>
                     {ev.status === "active" ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -1902,6 +2115,17 @@ function TimeLimitedEventsPanel() {
         })}
         {(!events || events.length === 0) && <div className="text-center text-muted-foreground py-8">暂无限时活动</div>}
       </div>
+
+      {/* Event Push Dialog */}
+      {eventPushDialog && (
+        <CallbackPushDialog
+          open={eventPushDialog.open}
+          onOpenChange={(v: boolean) => { if (!v) setEventPushDialog(null); }}
+          title={`活动推送: ${eventPushDialog.eventName}`}
+          pushType="event"
+          pushId={eventPushDialog.eventId}
+        />
+      )}
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
@@ -2177,7 +2401,7 @@ function RedPacketPanel() {
                     <Button size="sm" variant="outline" onClick={() => setShowDetail(pkt.id)}>
                       <Eye className="w-3 h-3 mr-1" />详情
                     </Button>
-                    <Button size="sm" variant="outline" className="text-blue-500" onClick={() => { setPushDialog({ open: true, packetId: pkt.id, packetTitle: pkt.title, content: `🧧 ${pkt.title}\n总额 ${pkt.totalAmount} USDT，共 ${pkt.totalCount} 份\n点击下方按鈕抗红包！`, imageUrl: pkt.imageUrl || undefined, buttons: [{ text: '🧧 抗红包', url: `/red-packet/${pkt.id}`, type: 'web_app', row: 0 }] }); }}>
+                    <Button size="sm" variant="outline" className="text-blue-500" onClick={() => { setPushDialog({ open: true, packetId: pkt.id, packetTitle: pkt.title, content: `🧧 ${pkt.title}\n总额 ${pkt.totalAmount} USDT，共 ${pkt.totalCount} 份\n点击下方按钮抢红包！`, imageUrl: pkt.imageUrl || undefined, buttons: (pkt.buttons as any[] || []) }); }}>
                       <Send className="w-3 h-3 mr-1" />推送
                     </Button>
                     {pkt.status === "active" && (
@@ -2316,15 +2540,15 @@ function RedPacketPanel() {
         buttons={rpQuickBroadcast.buttons}
       />
 
-      {/* Push Dialog - unified TG push */}
+      {/* Push Dialog - dedicated red packet push (callback_data) */}
       {pushDialog && (
-        <TgPushDialog
+        <RedPacketPushDialog
           open={pushDialog.open}
           onOpenChange={(v) => { if (!v) setPushDialog(null); }}
-          title={`红包推送: ${pushDialog.packetTitle}`}
+          packetId={pushDialog.packetId}
+          packetTitle={pushDialog.packetTitle}
           content={pushDialog.content}
           imageUrl={pushDialog.imageUrl}
-          buttons={pushDialog.buttons}
         />
       )}
     </div>
@@ -2399,6 +2623,165 @@ function RedPacketDetailDialog({ id, onClose }: { id: number; onClose: () => voi
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>关闭</Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ==================== RED PACKET PUSH DIALOG (callback_data) ====================
+/** Dedicated red packet push dialog that uses redPacketPush route with callback_data buttons */
+function RedPacketPushDialog({ open, onOpenChange, packetId, packetTitle, content, imageUrl }: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  packetId: number;
+  packetTitle: string;
+  content: string;
+  imageUrl?: string;
+}) {
+  const [mode, setMode] = useState<"groups" | "broadcast">("groups");
+  const [selectedGroupChatIds, setSelectedGroupChatIds] = useState<string[]>([]);
+  const [groupResult, setGroupResult] = useState<{ sent: number; failed: number; results: Array<{ chatId: string; success: boolean; error?: string }> } | null>(null);
+  const [msgText, setMsgText] = useState(content);
+  const { data: botGroupsData } = trpc.marketing.getBotAdminGroups.useQuery(undefined, { enabled: open && mode === "groups" });
+
+  const allGroups = useMemo(() => {
+    const map = new Map<string, { id?: number; chatId: string; name: string; type: string; enabled?: boolean }>();
+    (botGroupsData?.tgGroups || []).forEach(g => map.set(g.chatId, { chatId: g.chatId, name: g.name, type: g.type }));
+    (botGroupsData?.manualGroups || []).forEach(g => {
+      if (!map.has(g.chatId)) map.set(g.chatId, { id: g.id, chatId: g.chatId, name: g.name, type: g.type, enabled: g.enabled });
+      else { const existing = map.get(g.chatId)!; map.set(g.chatId, { ...existing, id: g.id, name: g.name, enabled: g.enabled }); }
+    });
+    return Array.from(map.values()).filter(g => g.enabled !== false);
+  }, [botGroupsData]);
+
+  const toggleGroupChatId = (chatId: string) => {
+    setSelectedGroupChatIds(prev => prev.includes(chatId) ? prev.filter(x => x !== chatId) : [...prev, chatId]);
+  };
+  const toggleAll = () => {
+    if (selectedGroupChatIds.length === allGroups.length) setSelectedGroupChatIds([]);
+    else setSelectedGroupChatIds(allGroups.map(g => g.chatId));
+  };
+
+  const pushMut = trpc.marketing.redPacketPush.useMutation({
+    onSuccess: (res) => {
+      if (mode === "groups" && res.results) {
+        setGroupResult({ sent: res.sent || 0, failed: res.failed || 0, results: res.results });
+        toast.success(`已发送到 ${res.sent} 个群组${res.failed ? `，${res.failed} 个失败` : ''}`);
+      } else {
+        toast.success("红包推送任务已创建，正在后台发送...");
+        onOpenChange(false);
+      }
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleSend = () => {
+    if (mode === "groups") {
+      if (selectedGroupChatIds.length === 0) { toast.error("请至少选择一个群组"); return; }
+      pushMut.mutate({ id: packetId, mode: "group", groupChatIds: selectedGroupChatIds, message: msgText || undefined });
+    } else {
+      pushMut.mutate({ id: packetId, mode: "broadcast", message: msgText || undefined });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v: boolean) => { if (!v) { setGroupResult(null); setSelectedGroupChatIds([]); } onOpenChange(v); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>🧧 红包推送: {packetTitle}</DialogTitle></DialogHeader>
+        {groupResult ? (
+          <div className="space-y-3">
+            <div className="flex gap-4 text-center">
+              <div className="flex-1 bg-green-500/10 rounded-lg p-3">
+                <div className="text-2xl font-bold text-green-500">{groupResult.sent}</div>
+                <div className="text-xs text-muted-foreground">发送成功</div>
+              </div>
+              {groupResult.failed > 0 && (
+                <div className="flex-1 bg-destructive/10 rounded-lg p-3">
+                  <div className="text-2xl font-bold text-destructive">{groupResult.failed}</div>
+                  <div className="text-xs text-muted-foreground">发送失败</div>
+                </div>
+              )}
+            </div>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {groupResult.results.map((r, i) => (
+                <div key={i} className={`flex items-center gap-2 text-xs p-2 rounded ${r.success ? 'bg-green-500/5' : 'bg-destructive/5'}`}>
+                  <span className={r.success ? 'text-green-500' : 'text-destructive'}>{r.success ? '✓' : '✗'}</span>
+                  <span className="font-medium">{r.chatId}</span>
+                  {r.error && <span className="text-destructive ml-auto truncate max-w-32">{r.error}</span>}
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setGroupResult(null)}>继续发送</Button>
+              <Button onClick={() => { setGroupResult(null); onOpenChange(false); }}>关闭</Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Mode selector */}
+            <div className="flex gap-2">
+              <Button size="sm" variant={mode === "groups" ? "default" : "outline"} onClick={() => setMode("groups")} className="flex-1">
+                <Send className="w-3 h-3 mr-1" />发送到群组/频道
+              </Button>
+              <Button size="sm" variant={mode === "broadcast" ? "default" : "outline"} onClick={() => setMode("broadcast")} className="flex-1">
+                <Users className="w-3 h-3 mr-1" />群发给Bot用户
+              </Button>
+            </div>
+
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-xs text-blue-400">
+              ℹ️ 群组推送使用 callback_data 按钮，用户可在群内直接点击“抢红包”领取，无需跳转网页。
+            </div>
+
+            {/* Message preview */}
+            <div>
+              <Label>推送文案（可编辑）</Label>
+              <Textarea value={msgText} onChange={e => setMsgText(e.target.value)} rows={3} />
+            </div>
+
+            {imageUrl && (
+              <div className="text-xs text-muted-foreground">🖼️ 将附带封面图发送</div>
+            )}
+
+            {/* Group selection */}
+            {mode === "groups" && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>选择群组/频道</Label>
+                  {allGroups.length > 0 && (
+                    <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={toggleAll}>
+                      {selectedGroupChatIds.length === allGroups.length ? '取消全选' : '全选'}
+                    </Button>
+                  )}
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-1 border border-border rounded-lg p-2">
+                  {allGroups.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-3">暂无可用群组，请先在“TG群组管理”中添加</p>
+                  ) : allGroups.map(g => (
+                    <label key={g.chatId} className="flex items-center gap-2 p-1.5 rounded hover:bg-secondary/50 cursor-pointer">
+                      <input type="checkbox" checked={selectedGroupChatIds.includes(g.chatId)} onChange={() => toggleGroupChatId(g.chatId)} className="rounded" />
+                      <span className="text-sm flex-1 truncate">{g.name}</span>
+                      <span className="text-xs text-muted-foreground">{g.type}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">已选 {selectedGroupChatIds.length} / {allGroups.length} 个群组</p>
+              </div>
+            )}
+
+            {mode === "broadcast" && (
+              <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">
+                将向所有 Bot 用户发送红包消息（私聊用 url 按钮，点击跳转 Mini App 领取）
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+              <Button onClick={handleSend} disabled={pushMut.isPending}>
+                <Send className="w-4 h-4 mr-1" />{pushMut.isPending ? "发送中..." : "确认发送"}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

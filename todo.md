@@ -1061,9 +1061,22 @@
 
 ## 红包群组内直接领取改造 + 活动管理功能
 
-- [ ] 红包推送按钮改为callback_data，群组/频道内直接领取无需跳转
-- [ ] Webhook处理callback_query实现红包领取逻辑
-- [ ] 领取后editMessageText更新消息显示排行榜
-- [ ] answerCallbackQuery弹出领取结果
-- [ ] 红包推送传递图片(imageUrl)修复
-- [ ] 所有营销活动补齐暂停/启用和删除功能
+- [x] 红包推送按钮改为callback_data，群组/频道内直接领取无需跳转
+- [x] Webhook处理callback_query实现红包领取逻辑
+- [x] 领取后editMessageText更新消息显示排行榜
+- [x] answerCallbackQuery弹出领取结果
+- [x] 红包推送传递图片(imageUrl)修复
+- [x] 所有营销活动补齐暂停/启用和删除功能
+- [x] 优惠券推送改为callback_data，TG内直接领取（弹窗显示兑换码）
+- [x] 限时活动推送改为callback_data，TG内直接参与（弹窗确认）
+- [x] 裂变活动推送改为callback_data，TG内直接获取邀请链接
+- [x] 签到推送改为callback_data，TG内直接签到（弹窗显示奖励）
+- [x] 确保所有营销活动暂停/启用和删除功能完整
+
+## 2026-06-18 红包推送Bug修复 + 营销TG内完成改造
+- [x] BUG: 红包推送到群组使用了通用sendToGroups（web_app按钮），导致跳转网页登录 → 改为调用专用redPacketPush路由（callback_data）
+- [x] BUG: 红包推送时用户配置的额外按钮（pkt.buttons）未合并到推送消息中
+- [x] 后端redPacketPush支持多群组批量发送（groupChatIds数组）
+- [x] 后端telegram.ts增加coupon/checkin/fission callback_query处理
+- [x] 优惠券/限时活动/裂变/签到各增加专用TG推送路由（callback_data方式）
+- [x] 前端所有营销模块推送统一改为调用专用push路由

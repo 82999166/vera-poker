@@ -3988,11 +3988,12 @@ ${faqContext}
       const { getEventStats } = await import("./marketing");
       return getEventStats();
     }),
-    // Red packet push to TG
+    // Red packet push to TG (supports multiple groups)
     redPacketPush: adminProcedure.input(z.object({
       id: z.number(),
-      mode: z.enum(["broadcast", "group"]), // broadcast = send to all bot users; group = send to a group/channel
-      groupChatId: z.string().optional(), // required when mode=group
+      mode: z.enum(["broadcast", "group"]), // broadcast = send to all bot users; group = send to groups/channels
+      groupChatIds: z.array(z.string()).optional(), // required when mode=group (supports multiple)
+      groupChatId: z.string().optional(), // backward compat single group
       message: z.string().optional(), // custom message text, defaults to packet title+description
     })).mutation(async ({ input }) => {
       const { getRedPacket } = await import("./marketing");
@@ -4011,46 +4012,80 @@ ${faqContext}
         (packet.expiresAt ? `⏰ 截止：${new Date(packet.expiresAt).toLocaleString("zh-CN")}\n` : "") +
         `\n点击下方按钮立即领取！`;
 
+      // Build extra button rows from packet.buttons
+      const extraButtonRows: any[][] = [];
+      if (packet.buttons && (packet.buttons as any[]).length > 0) {
+        const rowMap = new Map<number, any[]>();
+        for (const btn of (packet.buttons as any[])) {
+          const row = btn.row ?? 1;
+          if (!rowMap.has(row)) rowMap.set(row, []);
+          if (btn.type === "web_app" && miniAppUrl) {
+            const fullUrl = btn.url.startsWith("/") ? miniAppUrl + btn.url : btn.url;
+            rowMap.get(row)!.push({ text: btn.text, web_app: { url: fullUrl } });
+          } else {
+            rowMap.get(row)!.push({ text: btn.text, url: btn.url.startsWith("http") ? btn.url : (miniAppUrl + btn.url) });
+          }
+        }
+        for (const [, btns] of [...rowMap.entries()].sort((a, b) => a[0] - b[0])) {
+          extraButtonRows.push(btns);
+        }
+      }
+
       // For group/channel sends: use callback_data so users can claim directly in TG without leaving
       const groupReplyMarkup = {
         inline_keyboard: [
           [{ text: "🧧 抢红包", callback_data: `claim_rp_${packet.id}` }],
-          ...(packet.buttons && (packet.buttons as any[]).length > 0
-            ? [(packet.buttons as any[]).map((btn: any) => ({ text: btn.text, url: btn.url }))]
-            : []),
+          ...extraButtonRows,
         ],
       };
       // For broadcast (private chat): use url button
       const broadcastReplyMarkup = {
         inline_keyboard: [
           [{ text: "🧧 领取红包", url: packetUrl }],
-          ...(packet.buttons && (packet.buttons as any[]).length > 0
-            ? [(packet.buttons as any[]).map((btn: any) => ({ text: btn.text, url: btn.url }))]
-            : []),
+          ...extraButtonRows,
         ],
       };
 
       if (input.mode === "group") {
-        // Send to a specific group/channel chat_id
-        const chatId = input.groupChatId;
-        if (!chatId) throw new TRPCError({ code: "BAD_REQUEST", message: "请提供群组/频道 Chat ID" });
+        // Collect all target chatIds
+        const chatIds: string[] = [];
+        if (input.groupChatIds && input.groupChatIds.length > 0) {
+          chatIds.push(...input.groupChatIds);
+        } else if (input.groupChatId) {
+          chatIds.push(input.groupChatId);
+        }
+        if (chatIds.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "请选择至少一个群组" });
+
+        // Resolve image URL once
+        let resolvedImageUrl: string | null = null;
         if (packet.imageUrl) {
           const { storageGetSignedUrl } = await import("./storage");
           let photoUrl = packet.imageUrl;
           if (photoUrl.startsWith("/manus-storage/")) {
             try { photoUrl = await storageGetSignedUrl(photoUrl.replace("/manus-storage/", "")); } catch {}
           }
-          const photoBody = { chat_id: chatId, photo: photoUrl, caption: msgText, parse_mode: "HTML", reply_markup: groupReplyMarkup };
-          const res = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(photoBody) });
-          const data = await res.json() as any;
-          if (!res.ok) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: data.description || "发送失败" });
-          return { success: true, messageId: data.result?.message_id };
+          resolvedImageUrl = photoUrl;
         }
-        const body: Record<string, unknown> = { chat_id: chatId, text: msgText, parse_mode: "HTML", reply_markup: groupReplyMarkup };
-        const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        const data = await res.json() as any;
-        if (!res.ok) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: data.description || "发送失败" });
-        return { success: true, messageId: data.result?.message_id };
+
+        // Send to all groups
+        let sent = 0, failed = 0;
+        const results: Array<{ chatId: string; success: boolean; error?: string }> = [];
+        for (const chatId of chatIds) {
+          try {
+            let res: Response;
+            if (resolvedImageUrl) {
+              const photoBody = { chat_id: chatId, photo: resolvedImageUrl, caption: msgText, parse_mode: "HTML", reply_markup: groupReplyMarkup };
+              res = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(photoBody) });
+            } else {
+              const body = { chat_id: chatId, text: msgText, parse_mode: "HTML", reply_markup: groupReplyMarkup };
+              res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            }
+            const data = await res.json() as any;
+            if (res.ok) { sent++; results.push({ chatId, success: true }); }
+            else { failed++; results.push({ chatId, success: false, error: data.description }); }
+          } catch (e: any) { failed++; results.push({ chatId, success: false, error: e.message }); }
+        }
+        return { success: true, sent, failed, results };
       } else {
         // Broadcast to all bot users - create a broadcast task
         const { createBroadcastTask } = await import("./marketing");
@@ -4220,6 +4255,233 @@ ${faqContext}
         buttons: input.buttons,
       });
     }),
+    // ===== Coupon Push (callback_data) =====
+    couponPush: adminProcedure.input(z.object({
+      couponId: z.number(),
+      mode: z.enum(["group", "broadcast"]),
+      groupChatIds: z.array(z.string()).optional(),
+      message: z.string().optional(),
+    })).mutation(async ({ input }) => {
+      const { listCoupons } = await import("./marketing");
+      const allCoupons = await listCoupons(500);
+      const coupon = allCoupons.find(c => c.id === input.couponId);
+      if (!coupon) throw new TRPCError({ code: "NOT_FOUND", message: "优惠券不存在" });
+
+      const botToken = await db.getConfigValue("tg_bot_token");
+      if (!botToken) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bot Token 未配置" });
+
+      const msgText = input.message ||
+        `🎁 <b>优惠券：${coupon.name}</b>\n` +
+        `💰 金额：${coupon.amount} USDT\n` +
+        (coupon.maxUses > 0 ? `📦 限量：${coupon.maxUses} 份（已领 ${coupon.usedCount}）\n` : "") +
+        (coupon.expiresAt ? `⏰ 截止：${new Date(coupon.expiresAt).toLocaleString("zh-CN")}\n` : "") +
+        `\n点击下方按钮立即领取！`;
+
+      const groupReplyMarkup = {
+        inline_keyboard: [[{ text: "🎁 领取优惠券", callback_data: `redeem_coupon_${coupon.code}` }]],
+      };
+
+      if (input.mode === "group") {
+        const chatIds = input.groupChatIds || [];
+        if (chatIds.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "请选择至少一个群组" });
+        let sent = 0, failed = 0;
+        const results: Array<{ chatId: string; success: boolean; error?: string }> = [];
+        for (const chatId of chatIds) {
+          try {
+            const body = { chat_id: chatId, text: msgText, parse_mode: "HTML", reply_markup: groupReplyMarkup };
+            const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            const data = await res.json() as any;
+            if (res.ok) { sent++; results.push({ chatId, success: true }); }
+            else { failed++; results.push({ chatId, success: false, error: data.description }); }
+          } catch (e: any) { failed++; results.push({ chatId, success: false, error: e.message }); }
+        }
+        return { success: true, sent, failed, results };
+      } else {
+        const { createBroadcastTask, executeBroadcast } = await import("./marketing");
+        const miniAppUrl = (await db.getConfigValue("tg_webapp_url")) || "";
+        const taskId = await createBroadcastTask({
+          title: `[优惠券推送] ${coupon.name}`,
+          content: msgText,
+          imageUrl: null,
+          buttons: [{ text: "🎁 领取优惠券", url: `${miniAppUrl}/coupon/${coupon.code}`, type: "web_app", row: 0 }],
+          targetType: "all",
+          targetUserIds: null,
+          scheduledAt: null,
+          createdBy: 0,
+        });
+        executeBroadcast(taskId).catch(console.error);
+        return { success: true, taskId };
+      }
+    }),
+
+    // ===== Checkin Push (callback_data) =====
+    checkinPush: adminProcedure.input(z.object({
+      mode: z.enum(["group", "broadcast"]),
+      groupChatIds: z.array(z.string()).optional(),
+      message: z.string().optional(),
+    })).mutation(async ({ input }) => {
+      const botToken = await db.getConfigValue("tg_bot_token");
+      if (!botToken) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bot Token 未配置" });
+
+      const msgText = input.message ||
+        `✅ <b>每日签到</b>\n\n` +
+        `💰 连续签到7天，奖励递增！\n` +
+        `点击下方按钮立即签到领取奖励！`;
+
+      const replyMarkup = {
+        inline_keyboard: [[{ text: "✅ 立即签到", callback_data: "checkin" }]],
+      };
+
+      if (input.mode === "group") {
+        const chatIds = input.groupChatIds || [];
+        if (chatIds.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "请选择至少一个群组" });
+        let sent = 0, failed = 0;
+        const results: Array<{ chatId: string; success: boolean; error?: string }> = [];
+        for (const chatId of chatIds) {
+          try {
+            const body = { chat_id: chatId, text: msgText, parse_mode: "HTML", reply_markup: replyMarkup };
+            const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            const data = await res.json() as any;
+            if (res.ok) { sent++; results.push({ chatId, success: true }); }
+            else { failed++; results.push({ chatId, success: false, error: data.description }); }
+          } catch (e: any) { failed++; results.push({ chatId, success: false, error: e.message }); }
+        }
+        return { success: true, sent, failed, results };
+      } else {
+        const { createBroadcastTask, executeBroadcast } = await import("./marketing");
+        const miniAppUrl = (await db.getConfigValue("tg_webapp_url")) || "";
+        const taskId = await createBroadcastTask({
+          title: `[签到推送] 每日签到提醒`,
+          content: msgText,
+          imageUrl: null,
+          buttons: [{ text: "✅ 立即签到", url: `${miniAppUrl}/checkin`, type: "web_app", row: 0 }],
+          targetType: "all",
+          targetUserIds: null,
+          scheduledAt: null,
+          createdBy: 0,
+        });
+        executeBroadcast(taskId).catch(console.error);
+        return { success: true, taskId };
+      }
+    }),
+
+    // ===== Event Push (callback_data) =====
+    eventPush: adminProcedure.input(z.object({
+      eventId: z.number(),
+      mode: z.enum(["group", "broadcast"]),
+      groupChatIds: z.array(z.string()).optional(),
+      message: z.string().optional(),
+    })).mutation(async ({ input }) => {
+      const botToken = await db.getConfigValue("tg_bot_token");
+      if (!botToken) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bot Token 未配置" });
+      const { listTimeLimitedEvents } = await import("./marketing");
+      const allEvents = await listTimeLimitedEvents();
+      const event = allEvents.find(e => e.id === input.eventId);
+      if (!event) throw new TRPCError({ code: "NOT_FOUND", message: "活动不存在" });
+
+      const rewardDesc = event.config && (event.config as any).bonusPercent ? `加赠 ${(event.config as any).bonusPercent}%` : (event.config && (event.config as any).freeChips ? `免费筹码 ${(event.config as any).freeChips}` : "参与即享优惠");
+      const msgText = input.message ||
+        `🎉 <b>${event.name}</b>\n` +
+        (event.description ? `${event.description}\n` : "") +
+        `\n💰 奖励：${rewardDesc}\n` +
+        (event.startTime ? `⏰ 开始：${new Date(event.startTime).toLocaleString("zh-CN")}\n` : "") +
+        (event.endTime ? `⏰ 结束：${new Date(event.endTime).toLocaleString("zh-CN")}\n` : "") +
+        `\n点击下方按钮参与活动！`;
+
+      const replyMarkup = {
+        inline_keyboard: [[{ text: "🎉 参与活动", callback_data: `event_${event.id}` }]],
+      };
+
+      if (input.mode === "group") {
+        const chatIds = input.groupChatIds || [];
+        if (chatIds.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "请选择至少一个群组" });
+        let sent = 0, failed = 0;
+        const results: Array<{ chatId: string; success: boolean; error?: string }> = [];
+        for (const chatId of chatIds) {
+          try {
+            const body = { chat_id: chatId, text: msgText, parse_mode: "HTML", reply_markup: replyMarkup };
+            const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            const data = await res.json() as any;
+            if (res.ok) { sent++; results.push({ chatId, success: true }); }
+            else { failed++; results.push({ chatId, success: false, error: data.description }); }
+          } catch (e: any) { failed++; results.push({ chatId, success: false, error: e.message }); }
+        }
+        return { success: true, sent, failed, results };
+      } else {
+        const { createBroadcastTask, executeBroadcast } = await import("./marketing");
+        const miniAppUrl = (await db.getConfigValue("tg_webapp_url")) || "";
+        const taskId = await createBroadcastTask({
+          title: `[活动推送] ${event.name}`,
+          content: msgText,
+          imageUrl: null,
+          buttons: [{ text: "🎉 参与活动", url: `${miniAppUrl}/event/${event.id}`, type: "web_app", row: 0 }],
+          targetType: "all",
+          targetUserIds: null,
+          scheduledAt: null,
+          createdBy: 0,
+        });
+        executeBroadcast(taskId).catch(console.error);
+        return { success: true, taskId };
+      }
+    }),
+
+    // ===== Fission Push (callback_data) =====
+    fissionPush: adminProcedure.input(z.object({
+      campaignId: z.number(),
+      mode: z.enum(["group", "broadcast"]),
+      groupChatIds: z.array(z.string()).optional(),
+      message: z.string().optional(),
+    })).mutation(async ({ input }) => {
+      const botToken = await db.getConfigValue("tg_bot_token");
+      if (!botToken) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bot Token 未配置" });
+      const { getFissionCampaign } = await import("./marketing");
+      const campaign = await getFissionCampaign(input.campaignId);
+      if (!campaign) throw new TRPCError({ code: "NOT_FOUND", message: "裂变活动不存在" });
+
+      const msgText = input.message ||
+        `🚀 <b>${campaign.name}</b>\n` +
+        (campaign.description ? `${campaign.description}\n` : "") +
+        (Number(campaign.inviterReward) > 0 ? `\n✨ 每邀请1人奖励 ${campaign.inviterReward} USDT\n` : "") +
+        (Number(campaign.inviteeReward) > 0 ? `🎁 新用户奖励 ${campaign.inviteeReward} USDT\n` : "") +
+        `\n点击下方按钮获取你的专属邀请链接！`;
+
+      const replyMarkup = {
+        inline_keyboard: [[{ text: "🚀 获取邀请链接", callback_data: `fission_${campaign.linkCode}` }]],
+      };
+
+      if (input.mode === "group") {
+        const chatIds = input.groupChatIds || [];
+        if (chatIds.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "请选择至少一个群组" });
+        let sent = 0, failed = 0;
+        const results: Array<{ chatId: string; success: boolean; error?: string }> = [];
+        for (const chatId of chatIds) {
+          try {
+            const body = { chat_id: chatId, text: msgText, parse_mode: "HTML", reply_markup: replyMarkup };
+            const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            const data = await res.json() as any;
+            if (res.ok) { sent++; results.push({ chatId, success: true }); }
+            else { failed++; results.push({ chatId, success: false, error: data.description }); }
+          } catch (e: any) { failed++; results.push({ chatId, success: false, error: e.message }); }
+        }
+        return { success: true, sent, failed, results };
+      } else {
+        const { createBroadcastTask, executeBroadcast } = await import("./marketing");
+        const miniAppUrl = (await db.getConfigValue("tg_webapp_url")) || "";
+        const taskId = await createBroadcastTask({
+          title: `[裂变推送] ${campaign.name}`,
+          content: msgText,
+          imageUrl: null,
+          buttons: [{ text: "🚀 获取邀请链接", url: `${miniAppUrl}/fission/${campaign.linkCode}`, type: "web_app", row: 0 }],
+          targetType: "all",
+          targetUserIds: null,
+          scheduledAt: null,
+          createdBy: 0,
+        });
+        executeBroadcast(taskId).catch(console.error);
+        return { success: true, taskId };
+      }
+    }),
+
     // Send directly to chatIds (for groups discovered via TG webhook but not yet in manual list)
     sendToGroupsByChatId: adminProcedure.input(z.object({
       chatIds: z.array(z.string()).min(1),

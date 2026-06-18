@@ -240,6 +240,140 @@ export function registerTelegramRoutes(app: Express) {
         const cbFrom = callbackQuery.from;
         const cbMessage = callbackQuery.message;
         if (cbData && cbFrom && cbMessage) {
+          // ===== Coupon redeem: callback_data = "redeem_coupon_{code}" =====
+          if (cbData.startsWith("redeem_coupon_")) {
+            const couponCode = cbData.replace("redeem_coupon_", "");
+            try {
+              const user = await db.getUserByTgId(String(cbFrom.id));
+              if (!user) {
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "请先启动 Bot 并注册账号后再领取！", show_alert: true }),
+                });
+              } else {
+                const { redeemCoupon } = await import("../marketing");
+                const result = await redeemCoupon(user.id, couponCode);
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    callback_query_id: callbackQuery.id,
+                    text: result.success ? `🎉 兑换成功！获得 ${result.amount} USDT，已到账余额。` : (result.message || "兑换失败"),
+                    show_alert: true,
+                  }),
+                });
+              }
+            } catch (e: any) {
+              console.error("[Telegram] Coupon redeem error:", e);
+              await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "系统错误，请稍后重试", show_alert: true }),
+              });
+            }
+            res.json({ ok: true });
+            return;
+          }
+
+          // ===== Checkin: callback_data = "checkin" =====
+          if (cbData === "checkin") {
+            try {
+              const user = await db.getUserByTgId(String(cbFrom.id));
+              if (!user) {
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "请先启动 Bot 并注册账号后再签到！", show_alert: true }),
+                });
+              } else {
+                const { performCheckin } = await import("../marketing");
+                const result = await performCheckin(user.id);
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    callback_query_id: callbackQuery.id,
+                    text: result.success ? `✅ 签到成功！第${result.dayNumber}天，获得 ${result.reward} USDT 奖励！` : (result.message || "签到失败"),
+                    show_alert: true,
+                  }),
+                });
+              }
+            } catch (e: any) {
+              console.error("[Telegram] Checkin error:", e);
+              await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "系统错误，请稍后重试", show_alert: true }),
+              });
+            }
+            res.json({ ok: true });
+            return;
+          }
+
+          // ===== Fission: callback_data = "fission_{linkCode}" =====
+          if (cbData.startsWith("fission_")) {
+            const linkCode = cbData.replace("fission_", "");
+            try {
+              const user = await db.getUserByTgId(String(cbFrom.id));
+              const { getFissionCampaignByCode } = await import("../marketing");
+              const campaign = await getFissionCampaignByCode(linkCode);
+              if (!campaign) {
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "活动不存在或已结束", show_alert: true }),
+                });
+              } else {
+                // Generate the user's personal referral link
+                const miniAppUrl = (await db.getConfigValue("tg_webapp_url")) || "";
+                const refLink = user ? `${miniAppUrl}?startapp=fission_${linkCode}_${user.id}` : `${miniAppUrl}?startapp=fission_${linkCode}`;
+                const rewardText = Number(campaign.inviterReward) > 0 ? `✨ 每邀请1人奖励 ${campaign.inviterReward} USDT` : "";
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    callback_query_id: callbackQuery.id,
+                    text: `🚀 ${campaign.name}\n${rewardText}\n\n您的专属链接：\n${refLink}\n\n分享给朋友即可获得奖励！`,
+                    show_alert: true,
+                  }),
+                });
+              }
+            } catch (e: any) {
+              console.error("[Telegram] Fission error:", e);
+              await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "系统错误，请稍后重试", show_alert: true }),
+              });
+            }
+            res.json({ ok: true });
+            return;
+          }
+
+          // ===== Event participate: callback_data = "event_{id}" =====
+          if (cbData.startsWith("event_")) {
+            const eventId = parseInt(cbData.replace("event_", ""), 10);
+            try {
+              const user = await db.getUserByTgId(String(cbFrom.id));
+              if (!user) {
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "请先启动 Bot 并注册账号！", show_alert: true }),
+                });
+              } else {
+                // Just confirm participation - event logic is handled by the game system
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    callback_query_id: callbackQuery.id,
+                    text: `✅ 已确认参与活动！请进入游戏开始体验。`,
+                    show_alert: true,
+                  }),
+                });
+              }
+            } catch (e: any) {
+              console.error("[Telegram] Event error:", e);
+              await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "系统错误，请稍后重试", show_alert: true }),
+              });
+            }
+            res.json({ ok: true });
+            return;
+          }
+
           // Red packet claim: callback_data = "claim_rp_{id}"
           if (cbData.startsWith("claim_rp_")) {
             const rpId = parseInt(cbData.replace("claim_rp_", ""), 10);
