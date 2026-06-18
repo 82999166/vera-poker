@@ -1775,6 +1775,19 @@ function RedPacketPanel() {
   const { data: rpStats } = trpc.marketing.redPacketOverallStats.useQuery();
   const { data: publicConfig2 } = trpc.config.getPublic.useQuery();
   const rpBotUsername = publicConfig2?.tg_bot_username || '';
+  const [pushDialog, setPushDialog] = useState<{ open: boolean; packetId: number; packetTitle: string } | null>(null);
+  const [pushMode, setPushMode] = useState<"broadcast" | "group">("broadcast");
+  const [pushGroupChatId, setPushGroupChatId] = useState("");
+  const pushMut = trpc.marketing.redPacketPush.useMutation({
+    onSuccess: (res) => {
+      if (res.success) {
+        toast.success(pushMode === "group" ? "已发送到群组/频道！" : `已创建群发任务 #${(res as any).taskId}，正在发送中...`);
+        setPushDialog(null);
+        setPushGroupChatId("");
+      }
+    },
+    onError: (e) => toast.error(e.message),
+  });
   const createMut = trpc.marketing.redPacketCreate.useMutation({
     onSuccess: () => { toast.success("红包创建成功"); setShowCreate(false); refetch(); resetForm(); },
     onError: (e) => toast.error(e.message),
@@ -1900,6 +1913,9 @@ function RedPacketPanel() {
                   <div className="flex gap-1.5 shrink-0">
                     <Button size="sm" variant="outline" onClick={() => setShowDetail(pkt.id)}>
                       <Eye className="w-3 h-3 mr-1" />详情
+                    </Button>
+                    <Button size="sm" variant="outline" className="text-blue-500" onClick={() => { setPushMode("broadcast"); setPushGroupChatId(""); setPushDialog({ open: true, packetId: pkt.id, packetTitle: pkt.title }); }}>
+                      <Send className="w-3 h-3 mr-1" />推送
                     </Button>
                     {pkt.status === "active" && (
                       <Button size="sm" variant="outline" onClick={() => updateStatusMut.mutate({ id: pkt.id, status: "paused" })}>
@@ -2036,6 +2052,76 @@ function RedPacketPanel() {
         defaultContent={rpQuickBroadcast.content}
         defaultButtons={rpQuickBroadcast.buttons}
       />
+
+      {/* Push Dialog */}
+      <Dialog open={!!pushDialog?.open} onOpenChange={(v) => { if (!v) setPushDialog(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>📤 推送红包</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">红包：<b>{pushDialog?.packetTitle}</b></p>
+            <div className="space-y-2">
+              <Label>推送方式</Label>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={pushMode === "broadcast" ? "default" : "outline"}
+                  onClick={() => setPushMode("broadcast")}
+                  className="flex-1"
+                >
+                  <Users className="w-3 h-3 mr-1" />群发给Bot用户
+                </Button>
+                <Button
+                  size="sm"
+                  variant={pushMode === "group" ? "default" : "outline"}
+                  onClick={() => setPushMode("group")}
+                  className="flex-1"
+                >
+                  <Send className="w-3 h-3 mr-1" />发送到群组/频道
+                </Button>
+              </div>
+            </div>
+            {pushMode === "broadcast" && (
+              <div className="bg-secondary/50 rounded-lg p-3 text-sm text-muted-foreground">
+                将向所有已关注 Bot 的用户发送红包消息，包含「🧧 立即领取」按钮。
+              </div>
+            )}
+            {pushMode === "group" && (
+              <div className="space-y-2">
+                <Label>Chat ID <span className="text-destructive">*</span></Label>
+                <Input
+                  value={pushGroupChatId}
+                  onChange={e => setPushGroupChatId(e.target.value)}
+                  placeholder="如 -1001234567890 或 @channelname"
+                />
+                <p className="text-xs text-muted-foreground">
+                  如何获取 Chat ID：将 Bot 加入群组/频道并设为管理员，然后在群组中发任意消息，在管理后台「系统配置」中查看最近的 Webhook 日志可找到 chat_id。
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPushDialog(null)}>取消</Button>
+            <Button
+              onClick={() => {
+                if (!pushDialog) return;
+                if (pushMode === "group" && !pushGroupChatId.trim()) {
+                  toast.error("请输入 Chat ID"); return;
+                }
+                pushMut.mutate({
+                  id: pushDialog.packetId,
+                  mode: pushMode,
+                  groupChatId: pushMode === "group" ? pushGroupChatId.trim() : undefined,
+                });
+              }}
+              disabled={pushMut.isPending}
+            >
+              {pushMut.isPending ? "发送中..." : "确认推送"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

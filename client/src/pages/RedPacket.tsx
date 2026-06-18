@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
+import { getLoginUrl } from "@/const";
 
 export default function RedPacket() {
   const [, params] = useRoute("/red-packet/:id");
@@ -47,7 +48,13 @@ export default function RedPacket() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
         <div className="text-6xl mb-4">🧧</div>
         <h2 className="text-xl font-bold mb-2">请先登录</h2>
-        <p className="text-muted-foreground text-sm">登录后即可领取红包</p>
+        <p className="text-muted-foreground text-sm mb-6">登录后即可领取红包</p>
+        <button
+          onClick={() => { window.location.href = getLoginUrl(); }}
+          className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full text-base transition-colors"
+        >
+          立即登录
+        </button>
       </div>
     );
   }
