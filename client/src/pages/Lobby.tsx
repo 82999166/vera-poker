@@ -423,7 +423,7 @@ export default function Lobby() {
               <div key={`${group.smallBlind}/${group.bigBlind}`} className="glass rounded-xl p-4 card-hover">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[15px] font-bold text-foreground whitespace-nowrap">{getRoomLevelName(group.bigBlind)}</span>
                       {group.fairnessLevel === "high" && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-truth-blue/20 text-truth-blue-bright whitespace-nowrap">{t("lobby.onChain")}</span>
@@ -431,10 +431,6 @@ export default function Lobby() {
                       {group.isLive && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success whitespace-nowrap">{t("lobby.live")}</span>
                       )}
-                    </div>
-                    <div className="flex items-center gap-4 text-[13px] text-foreground font-bold mt-4">
-                      <span className="whitespace-nowrap">{t("lobby.blinds")}: ${formatAmount(group.smallBlind)}/${formatAmount(group.bigBlind)}</span>
-                      <span className="whitespace-nowrap">{t("lobby.buyIn")}: ${formatAmount(group.minBuyIn)}-${formatAmount(group.maxBuyIn)}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -450,6 +446,10 @@ export default function Lobby() {
                       {t("lobby.sit")}
                     </button>
                   </div>
+                </div>
+                <div className="flex items-center gap-4 text-[13px] text-foreground font-bold mt-2">
+                  <span className="whitespace-nowrap">{t("lobby.blinds")}: ${formatAmount(group.smallBlind)}/${formatAmount(group.bigBlind)}</span>
+                  <span className="whitespace-nowrap">{t("lobby.buyIn")}: ${formatAmount(group.minBuyIn)}-${formatAmount(group.maxBuyIn)}</span>
                 </div>
               </div>
             );
