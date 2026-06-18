@@ -9,6 +9,7 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
+import { resolveAvatarUrl } from "./storage";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { parseDeviceInfo } from "./deviceInfo";
 
@@ -287,6 +288,7 @@ export function registerTelegramAuthRoutes(app: Express) {
         }
       }
 
+      const resolvedAvatar = await resolveAvatarUrl(user.avatar);
       res.json({
         success: true,
         refBound,
@@ -294,7 +296,7 @@ export function registerTelegramAuthRoutes(app: Express) {
           id: user.id,
           name: user.name,
           tgUsername: user.tgUsername,
-          avatar: user.avatar,
+          avatar: resolvedAvatar,
           language: user.language || tgUser.language_code || "en",
         },
       });
@@ -361,13 +363,14 @@ export function registerTelegramAuthRoutes(app: Express) {
         sessionVersion: (user as any).sessionVersion ?? 1,
       }, displayName, isNew2);
 
+      const resolvedAvatar2 = await resolveAvatarUrl(user.avatar);
       res.json({
         success: true,
         user: {
           id: user.id,
           name: user.name,
           tgUsername: user.tgUsername,
-          avatar: user.avatar,
+          avatar: resolvedAvatar2,
         },
       });
     } catch (error) {

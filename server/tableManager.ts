@@ -8,6 +8,7 @@ import * as db from "./db";
 import { notifyTurnAction } from "./notifications";
 import { onHandCompleted } from "./tonChain";
 import * as botManager from "./botManager";
+import { resolveAvatarUrl } from "./storage";
 // tournamentEngine is imported dynamically to avoid circular dependency
 // import * as tournamentEngine from "./tournamentEngine";
 import type { GameState, PlayerAction, Card } from "./gameEngine";
@@ -38,7 +39,8 @@ async function getCachedPlayerInfo(userId: number): Promise<{ name: string; avat
     return { name: cached.name, avatar: cached.avatar };
   }
   const user = await db.getUserById(userId);
-  const info = { name: user?.nickname || user?.name || `Player`, avatar: user?.avatar || null };
+  const avatarUrl = await resolveAvatarUrl(user?.avatar);
+  const info = { name: user?.nickname || user?.name || `Player`, avatar: avatarUrl };
   playerInfoCache.set(userId, { ...info, cachedAt: Date.now() });
   return info;
 }

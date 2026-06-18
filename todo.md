@@ -991,3 +991,13 @@
 - [x] 大厅房间卡片：盲注/买入文字移到入座按钮下方，不再被遮挡
 - [x] 生成1000个机器人：网名风格昵称，200真实头像+500TG表情包头像+300首字母头像（总计1508个机器人）
 - [x] 修复用户管理"真实用户"筛选显示"暂无用户"：filter参数传到后端SQL层面过滤，不再前端过滤
+
+## Bug Fix: Bot Avatars Not Showing in Telegram WebView
+- [x] Diagnosis: /manus-storage/ paths use 307 redirect which fails in TG WebView
+- [x] Created resolveAvatarUrl() and resolveAvatarUrls() utilities in server/storage.ts
+- [x] Fixed tableManager.ts getCachedPlayerInfo to resolve avatar URLs to direct CloudFront signed URLs
+- [x] Fixed auth.me endpoint to resolve avatar URL
+- [x] Fixed profile.get endpoint to resolve avatar URL
+- [x] Fixed leaderboard (profit, winRate, handsPlayed) endpoints to resolve avatar URLs
+- [x] Fixed tournament results and leaderboard endpoints to resolve avatar URLs
+- [x] Fixed telegramAuth.ts WebApp and Widget auth responses to resolve avatar URLs

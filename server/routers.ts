@@ -10,6 +10,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "./db";
+import { resolveAvatarUrl, resolveAvatarUrls } from "./storage";
 import { invokeLLM } from "./deepseek";
 import { nanoid } from "nanoid";
 import * as tableManager from "./tableManager";
@@ -50,13 +51,15 @@ export const appRouter = router({
       ctx.res.clearCookie("vera_new_device", { path: "/" });
       return { success: true };
     }),
-    me: publicProcedure.query(opts => {
+    me: publicProcedure.query(async (opts) => {
       const user = opts.ctx.user;
       if (!user) return null;
       // Check if this is a new device login (short-lived cookie set by OAuth callback)
       const cookies = opts.ctx.req.headers.cookie || "";
       const newDeviceMatch = cookies.match(/vera_new_device=1/);
-      return { ...user, newDeviceLogin: !!newDeviceMatch };
+      // Resolve /manus-storage/ avatar to direct CloudFront signed URL
+      const resolvedAvatar = await resolveAvatarUrl(user.avatar);
+      return { ...user, avatar: resolvedAvatar, newDeviceLogin: !!newDeviceMatch };
     }),
     // Admin session check - returns adminUser info if logged in via admin_users table
     adminMe: publicProcedure.query(opts => opts.ctx.adminUser),
@@ -1767,11 +1770,12 @@ ${faqContext}
     get: protectedProcedure.query(async ({ ctx }) => {
       const user = await db.getUserById(ctx.user.id);
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      const resolvedAvatar = await resolveAvatarUrl(user.avatar);
       return {
         id: user.id,
         name: user.name,
         nickname: user.nickname,
-        avatar: user.avatar,
+        avatar: resolvedAvatar,
         email: user.email,
         language: user.language,
         tgId: user.tgId,
@@ -2021,7 +2025,7 @@ ${faqContext}
         .groupBy(handPlayers.userId, users.name, users.nickname, users.tgUsername, users.avatar)
         .orderBy(desc(sql`SUM(CAST(${handPlayers.winAmount} AS DECIMAL(18,2)) - CAST(${handPlayers.betAmount} AS DECIMAL(18,2)))`))
         .limit(input.limit);
-      return result;
+      return resolveAvatarUrls(result);
     }),
     winRate: publicProcedure.input(z.object({ limit: z.number().default(20), minHands: z.number().default(10) })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
@@ -2042,7 +2046,7 @@ ${faqContext}
         .having(sql`count(*) >= ${input.minHands}`)
         .orderBy(desc(sql`SUM(CASE WHEN ${handPlayers.isWinner} = 1 THEN 1 ELSE 0 END) * 100.0 / count(*)`))
         .limit(input.limit);
-      return result;
+      return resolveAvatarUrls(result);
     }),
     handsPlayed: publicProcedure.input(z.object({ limit: z.number().default(20) })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
@@ -2061,7 +2065,7 @@ ${faqContext}
         .groupBy(handPlayers.userId, users.name, users.nickname, users.tgUsername, users.avatar)
         .orderBy(desc(sql`count(*)`))
         .limit(input.limit);
-      return result;
+      return resolveAvatarUrls(result);
     }),
   }),
 
@@ -3063,7 +3067,14 @@ ${faqContext}
     }),
     // Public: get results
     results: publicProcedure.input(z.object({ tournamentId: z.number() })).query(async ({ input }) => {
-      return db.getTournamentResults(input.tournamentId);
+      const results = await db.getTournamentResults(input.tournamentId);
+      // Resolve /manus-storage/ avatar paths to signed URLs
+      return Promise.all(results.map(async (r: any) => {
+        if (r.user?.avatar) {
+          r.user.avatar = await resolveAvatarUrl(r.user.avatar);
+        }
+        return r;
+      }));
     }),
     // Protected: get live tournament state (blind level, chip leaders, my table, etc.)
     liveState: protectedProcedure.input(z.object({ tournamentId: z.number() })).query(async ({ ctx, input }) => {
@@ -3111,7 +3122,10 @@ ${faqContext}
         db.getTournamentChampions(20),
         db.getTournamentPrizeLeaderboard(20),
       ]);
-      return { champions, prizeLeaders };
+      // Resolve /manus-storage/ avatar paths to signed URLs
+      const resolvedChampions = await resolveAvatarUrls(champions as any[]);
+      const resolvedPrizeLeaders = await resolveAvatarUrls(prizeLeaders as any[]);
+      return { champions: resolvedChampions, prizeLeaders: resolvedPrizeLeaders };
     }),
   }),
   // Admin Tournaments Management

@@ -98,3 +98,34 @@ export async function storageGetSignedUrl(relKey: string): Promise<string> {
   const { url } = (await resp.json()) as { url: string };
   return url;
 }
+
+/**
+ * Resolve avatar URL: converts /manus-storage/ paths to direct CloudFront signed URLs.
+ * This prevents 307 redirect issues in Telegram WebView and other restricted browsers.
+ * For non-/manus-storage/ URLs (e.g. ui-avatars.com, external URLs), returns as-is.
+ * Returns null if input is null/empty.
+ */
+export async function resolveAvatarUrl(avatar: string | null | undefined): Promise<string | null> {
+  if (!avatar) return null;
+  if (!avatar.startsWith('/manus-storage/')) return avatar;
+  try {
+    const key = avatar.replace('/manus-storage/', '');
+    return await storageGetSignedUrl(key);
+  } catch (e) {
+    // If signing fails, return original path as fallback (will use 307 redirect)
+    console.warn(`[Avatar] Failed to resolve signed URL:`, (e as Error).message);
+    return avatar;
+  }
+}
+
+/**
+ * Batch resolve avatar URLs for an array of objects with an 'avatar' field.
+ * Efficiently resolves all /manus-storage/ paths in parallel.
+ */
+export async function resolveAvatarUrls<T extends { avatar?: string | null }>(items: T[]): Promise<T[]> {
+  return Promise.all(items.map(async (item) => {
+    if (!item.avatar || !item.avatar.startsWith('/manus-storage/')) return item;
+    const resolved = await resolveAvatarUrl(item.avatar);
+    return { ...item, avatar: resolved };
+  }));
+}
