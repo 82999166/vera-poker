@@ -776,7 +776,7 @@ function scheduleShowdownSettle(roomId: number) {
   const existing = showdownTimers.get(roomId);
   if (existing) clearTimeout(existing);
 
-  const SHOWDOWN_DELAY_MS = 4000; // 4 seconds for card reveal animation
+  const SHOWDOWN_DELAY_MS = 2500; // 2.5 seconds for card reveal animation
   const timer = setTimeout(async () => {
     showdownTimers.delete(roomId);
     const table = activeTables.get(roomId);
@@ -1242,17 +1242,17 @@ async function settleHand(roomId: number) {
         // Only 1 player left at this table - tournament engine handles table merging
         // For now, just wait; the balance checker in tournamentEngine will handle it
       }
-    }, 5000);
+    }, 3500);
   } else {
     // REGULAR TABLE: Use ready system (players must click "ready" for next hand)
     // After settlement, delay showing the "ready" button so settlement UI displays first
-    // Timeline: showdown reveal (4s) + winner banner (3.5s) = ~7.5s total
-    // We delay 7s before enabling ready state so players can see the full result
+    // Timeline: showdown reveal (2.5s) + winner banner (3s) = ~5.5s total
+    // We delay 4s before enabling ready state so players can see the full result
     table.waitingForReady = false;
     table.readyPlayers = new Set();
     table.settlementStartedAt = Date.now();
     
-    // Delay enabling ready state by 7 seconds (showdown animation + winner banner)
+    // Delay enabling ready state by 4 seconds (showdown animation + winner banner)
     setTimeout(() => {
       const currentTable = activeTables.get(roomId);
       if (currentTable && currentTable.settlementStartedAt === table.settlementStartedAt) {
@@ -1261,7 +1261,7 @@ async function settleHand(roomId: number) {
         // Bot system: auto-ready all bots after a short delay
         botManager.autoReadyBots(roomId);
       }
-    }, 7000);
+    }, 4000);
   }
 }
 

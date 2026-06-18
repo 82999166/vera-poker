@@ -205,7 +205,7 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const centerSuitPx = Math.floor(cardPx * 0.40); // center suit
 
   return (
-    <div className={`w-14 h-[76px] rounded-lg overflow-hidden ${highlight ? 'shadow-[0_0_12px_rgba(234,179,8,0.8),0_0_24px_rgba(234,179,8,0.4)] animate-winner-card-glow' : 'shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)]'} ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${flip && flipped ? "animate-flip" : ""} ${className}`} style={sizeStyle}>
+    <div className={`w-14 h-[76px] rounded-lg overflow-hidden ${highlight ? 'shadow-[0_0_16px_rgba(234,179,8,1),0_0_32px_rgba(234,179,8,0.7),0_0_48px_rgba(234,179,8,0.4)] animate-winner-card-glow' : 'shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)]'} ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${flip && flipped ? "animate-flip" : ""} ${className}`} style={sizeStyle}>
       <div className={`w-full h-full bg-white rounded-lg relative ${highlight ? 'border-2 border-gold' : 'border-[1.5px] border-gray-200'}`}>
         {/* Top-left corner: rank above suit, tightly packed */}
         <div className="absolute top-[2px] left-[2px] flex flex-col items-center leading-[1]">
@@ -713,7 +713,7 @@ export default function Table() {
         }
       }
       if (winnerTimeoutRef.current) clearTimeout(winnerTimeoutRef.current);
-      winnerTimeoutRef.current = setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); winnerTimeoutRef.current = null; }, 5000);
+      winnerTimeoutRef.current = setTimeout(() => { setShowWinner(null); setShowSettlement(null); setWinnerPlayerIds([]); winnerTimeoutRef.current = null; }, 3000);
     }
     
     prevPhaseRef.current = currentPhase;
@@ -1118,7 +1118,7 @@ export default function Table() {
         const timer = setTimeout(() => {
           setRevealedOpponentIds(prev => new Set([...prev, pid]));
           if (!muted) playSound("cardFlip");
-        }, idx * 600 + 300);
+        }, idx * 400 + 200);
         revealTimersRef.current.push(timer);
       });
     } else if (!isShowdown && prevShowdownPhaseRef.current) {
