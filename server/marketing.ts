@@ -165,17 +165,16 @@ export async function executeBroadcast(taskId: number): Promise<void> {
           for (const btn of task.buttons as Array<{ text: string; url: string; type?: string; row?: number }>) {
             const row = btn.row ?? 0;
             if (!rowMap.has(row)) rowMap.set(row, []);
-            // Support different button types: url (default), web_app
-            if (btn.type === "web_app") {
-              // Resolve relative URLs to full mini app URL
-              let webAppUrl = btn.url;
-              if (webAppUrl.startsWith("/") && miniAppUrl) {
-                webAppUrl = miniAppUrl + webAppUrl;
-              }
-              rowMap.get(row)!.push({ text: btn.text, web_app: { url: webAppUrl } });
-            } else {
-              rowMap.get(row)!.push({ text: btn.text, url: btn.url });
+            // NOTE: web_app buttons CANNOT be sent via Bot private chat (DM).
+            // TG API restriction: web_app inline buttons only work in group/channel messages.
+            // For broadcast (private chat), always convert web_app buttons to regular url buttons.
+            let btnUrl = btn.url;
+            if (btnUrl.startsWith("/") && miniAppUrl) {
+              btnUrl = miniAppUrl + btnUrl;
+            } else if (!btnUrl.startsWith("http") && miniAppUrl) {
+              btnUrl = miniAppUrl + (btnUrl.startsWith("/") ? "" : "/") + btnUrl;
             }
+            rowMap.get(row)!.push({ text: btn.text, url: btnUrl });
           }
           const sortedRows = [...rowMap.entries()].sort((a, b) => a[0] - b[0]);
           body.reply_markup = {
@@ -1614,4 +1613,40 @@ export async function sendMessageToGroups(groupIds: number[], message: {
     }
   }
   return { sent, failed, results };
+}
+
+/** Upsert a TG group discovered via webhook events (my_chat_member or group messages).
+ * If a group with the same chatId already exists, update its name/type/isActive.
+ * If not, create a new entry with enabled=true (if isActive) or enabled=false (if kicked).
+ */
+export async function upsertTgGroupFromWebhook(data: {
+  chatId: string;
+  name: string;
+  type: string;
+  isActive: boolean;
+}) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return;
+  const { eq } = await import("drizzle-orm");
+  const existing = await dbInstance.select().from(tgGroups).where(eq(tgGroups.chatId, data.chatId));
+  if (existing.length > 0) {
+    // Update existing group
+    await dbInstance.update(tgGroups)
+      .set({
+        name: data.name,
+        type: data.type as any,
+        enabled: data.isActive,
+        updatedAt: new Date(),
+      })
+      .where(eq(tgGroups.chatId, data.chatId));
+  } else if (data.isActive) {
+    // Only create new entry if Bot is active in the group
+    await dbInstance.insert(tgGroups).values({
+      chatId: data.chatId,
+      name: data.name,
+      type: data.type as any,
+      enabled: true,
+      description: `Auto-discovered via webhook`,
+    });
+  }
 }

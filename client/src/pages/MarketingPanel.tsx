@@ -214,6 +214,13 @@ function TgPushDialog({ open, onOpenChange, title, content: defaultContent, imag
     },
     onError: (e) => toast.error(e.message),
   });
+  const directGroupsMut = trpc.marketing.sendToGroupsByChatId.useMutation({
+    onSuccess: (res) => {
+      setGroupResult({ sent: res.sent, failed: res.failed, results: res.results.map(r => ({ name: r.chatId, chatId: r.chatId, success: r.success, error: r.error })) });
+      toast.success(`已发送到 ${res.sent} 个群组${res.failed > 0 ? `，${res.failed} 个失败` : ''}`);
+    },
+    onError: (e) => toast.error(e.message),
+  });
   const broadcastMut = trpc.marketing.createBroadcast.useMutation({
     onSuccess: () => { toast.success("群发任务已创建，正在后台发送..."); onOpenChange(false); },
     onError: (e) => toast.error(e.message),
@@ -255,16 +262,20 @@ function TgPushDialog({ open, onOpenChange, title, content: defaultContent, imag
     if (!content.trim()) { toast.error("请输入消息内容"); return; }
     if (mode === "groups") {
       if (selectedGroupChatIds.length === 0) { toast.error("请至少选择一个群组"); return; }
-      // Map chatIds to manual group IDs where available, else send directly
+      // Map chatIds to manual group IDs where available
       const manualGroupIds = selectedGroupChatIds
         .map(chatId => allGroups.find(g => g.chatId === chatId)?.id)
         .filter(Boolean) as number[];
+      // Groups without DB IDs (TG-auto-discovered) — send by chatId directly
       const directChatIds = selectedGroupChatIds.filter(chatId => !allGroups.find(g => g.chatId === chatId)?.id);
-      if (manualGroupIds.length > 0) {
+      if (manualGroupIds.length > 0 && directChatIds.length === 0) {
         groupsMut.mutate({ groupIds: manualGroupIds, content, imageUrl, buttons: defaultButtons });
-      } else {
-        // Direct send via chatId for TG-discovered groups not in manual list
-        toast.error("请先在「群组管理」中添加这些群组再发送");
+      } else if (directChatIds.length > 0 && manualGroupIds.length === 0) {
+        directGroupsMut.mutate({ chatIds: directChatIds, content, imageUrl, buttons: defaultButtons });
+      } else if (manualGroupIds.length > 0 && directChatIds.length > 0) {
+        // Mixed: send both
+        groupsMut.mutate({ groupIds: manualGroupIds, content, imageUrl, buttons: defaultButtons });
+        directGroupsMut.mutate({ chatIds: directChatIds, content, imageUrl, buttons: defaultButtons });
       }
     } else {
       if (userSelectMode === "pick") {
@@ -279,7 +290,7 @@ function TgPushDialog({ open, onOpenChange, title, content: defaultContent, imag
     }
   };
 
-  const isPending = groupsMut.isPending || broadcastMut.isPending || broadcastToUsersMut.isPending;
+  const isPending = groupsMut.isPending || directGroupsMut.isPending || broadcastMut.isPending || broadcastToUsersMut.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { setGroupResult(null); setSelectedGroupChatIds([]); setSelectedUserIds([]); } onOpenChange(v); }}>

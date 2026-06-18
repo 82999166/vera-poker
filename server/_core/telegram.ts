@@ -192,6 +192,47 @@ export function registerTelegramRoutes(app: Express) {
 
       // Parse and validate update
       const update = TelegramUpdateSchema.parse(req.body);
+
+      // === Auto-track Bot group membership ===
+      // Handle my_chat_member events: Bot added/removed from group/channel
+      const rawUpdate = req.body as any;
+      const myChatMember = rawUpdate.my_chat_member;
+      if (myChatMember) {
+        const chat = myChatMember.chat;
+        const newStatus = myChatMember.new_chat_member?.status;
+        if (chat && (chat.type === "group" || chat.type === "supergroup" || chat.type === "channel")) {
+          try {
+            const { upsertTgGroupFromWebhook } = await import("../marketing");
+            const isActive = newStatus === "member" || newStatus === "administrator";
+            await upsertTgGroupFromWebhook({
+              chatId: String(chat.id),
+              name: chat.title || chat.username || String(chat.id),
+              type: chat.type,
+              isActive,
+            });
+            console.log(`[Telegram] Bot ${isActive ? 'joined' : 'left'} ${chat.type}: ${chat.title || chat.id}`);
+          } catch (e) {
+            console.warn("[Telegram] Failed to track group membership:", e);
+          }
+        }
+        res.json({ ok: true });
+        return;
+      }
+
+      // Auto-discover groups from any message the Bot receives in a group/channel
+      const msgChat = rawUpdate.message?.chat || rawUpdate.channel_post?.chat;
+      if (msgChat && (msgChat.type === "group" || msgChat.type === "supergroup" || msgChat.type === "channel")) {
+        try {
+          const { upsertTgGroupFromWebhook } = await import("../marketing");
+          await upsertTgGroupFromWebhook({
+            chatId: String(msgChat.id),
+            name: msgChat.title || msgChat.username || String(msgChat.id),
+            type: msgChat.type,
+            isActive: true,
+          });
+        } catch (e) { /* Non-critical */ }
+      }
+
       const message = update.message;
 
       if (!message || !message.text) {

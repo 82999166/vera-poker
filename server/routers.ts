@@ -4210,6 +4210,56 @@ ${faqContext}
         buttons: input.buttons,
       });
     }),
+    // Send directly to chatIds (for groups discovered via TG webhook but not yet in manual list)
+    sendToGroupsByChatId: adminProcedure.input(z.object({
+      chatIds: z.array(z.string()).min(1),
+      content: z.string().min(1),
+      imageUrl: z.string().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), type: z.string().optional(), row: z.number().optional() })).optional(),
+    })).mutation(async ({ input }) => {
+      const botToken = await db.getConfigValue("tg_bot_token");
+      if (!botToken) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bot Token 未配置" });
+      const miniAppUrl = (await db.getConfigValue("tg_mini_app_url")) || "";
+      const { storageGetSignedUrl } = await import("./storage");
+      let resolvedImageUrl: string | null = null;
+      if (input.imageUrl) {
+        if (input.imageUrl.startsWith("/manus-storage/")) {
+          try { resolvedImageUrl = await storageGetSignedUrl(input.imageUrl.replace("/manus-storage/", "")); } catch {}
+        } else { resolvedImageUrl = input.imageUrl; }
+      }
+      let replyMarkup: Record<string, unknown> | undefined;
+      if (input.buttons && input.buttons.length > 0) {
+        const rowMap = new Map<number, Array<Record<string, unknown>>>();
+        for (const btn of input.buttons) {
+          const row = btn.row ?? 0;
+          if (!rowMap.has(row)) rowMap.set(row, []);
+          let btnUrl = btn.url;
+          if (btn.type === "web_app") {
+            if (btnUrl.startsWith("/") && miniAppUrl) btnUrl = miniAppUrl + btnUrl;
+            rowMap.get(row)!.push({ text: btn.text, web_app: { url: btnUrl } });
+          } else {
+            rowMap.get(row)!.push({ text: btn.text, url: btnUrl });
+          }
+        }
+        replyMarkup = { inline_keyboard: [...rowMap.entries()].sort((a, b) => a[0] - b[0]).map(([, btns]) => btns) };
+      }
+      let sent = 0, failed = 0;
+      const results: Array<{ chatId: string; success: boolean; error?: string }> = [];
+      for (const chatId of input.chatIds) {
+        try {
+          const body: Record<string, unknown> = { chat_id: chatId, parse_mode: "HTML", ...(replyMarkup ? { reply_markup: replyMarkup } : {}) };
+          let apiMethod = "sendMessage";
+          if (resolvedImageUrl) {
+            apiMethod = "sendPhoto"; body.photo = resolvedImageUrl; body.caption = input.content;
+          } else { body.text = input.content; }
+          const res = await fetch(`https://api.telegram.org/bot${botToken}/${apiMethod}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          const data = await res.json() as any;
+          if (res.ok) { sent++; results.push({ chatId, success: true }); }
+          else { failed++; results.push({ chatId, success: false, error: data.description }); }
+        } catch (e: any) { failed++; results.push({ chatId, success: false, error: e.message }); }
+      }
+      return { sent, failed, results };
+    }),
   }),
 });
 export type AppRouter = typeof appRouter;
