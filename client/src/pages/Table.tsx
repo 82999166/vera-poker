@@ -205,8 +205,8 @@ function CardView({ card, faceDown = false, className = "", delay = 0, animate =
   const centerSuitPx = Math.floor(cardPx * 0.40); // center suit
 
   return (
-    <div className={`w-14 h-[76px] rounded-lg overflow-hidden ${highlight ? 'shadow-[0_0_16px_rgba(234,179,8,1),0_0_32px_rgba(234,179,8,0.7),0_0_48px_rgba(234,179,8,0.4)] animate-winner-card-glow' : 'shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)]'} ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${flip && flipped ? "animate-flip" : ""} ${className}`} style={sizeStyle}>
-      <div className={`w-full h-full bg-white rounded-lg relative ${highlight ? 'border-2 border-gold' : 'border-[1.5px] border-gray-200'}`}>
+    <div className={`w-14 h-[76px] rounded-lg overflow-hidden ${highlight ? 'shadow-[0_0_3px_2px_rgba(255,200,0,1),0_0_8px_3px_rgba(255,200,0,0.85)] animate-winner-card-glow' : 'shadow-[0_6px_16px_rgba(0,0,0,0.6),0_3px_6px_rgba(0,0,0,0.4)]'} ${animate && !visible ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${flip && flipped ? "animate-flip" : ""} ${className}`} style={sizeStyle}>
+      <div className={`w-full h-full bg-white rounded-lg relative ${highlight ? 'border-[3px] border-[#FFD700]' : 'border-[1.5px] border-gray-200'}`}>
         {/* Top-left corner: rank above suit, tightly packed */}
         <div className="absolute top-[2px] left-[2px] flex flex-col items-center leading-[1]">
           <span style={{ fontSize: cornerRankPx }} className={`font-black leading-none ${rankColor}`}>{displayRank}</span>

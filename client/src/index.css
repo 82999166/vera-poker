@@ -228,11 +228,11 @@
 
 /* Winning hand card highlight glow */
 @keyframes winner-card-glow {
-  0%, 100% { box-shadow: 0 0 12px rgba(234, 179, 8, 0.9), 0 0 24px rgba(234, 179, 8, 0.5), 0 0 40px rgba(234, 179, 8, 0.3); transform: scale(1.02); }
-  50% { box-shadow: 0 0 24px rgba(255, 215, 0, 1), 0 0 48px rgba(255, 215, 0, 0.8), 0 0 64px rgba(234, 179, 8, 0.5); transform: scale(1.06); }
+  0%, 100% { box-shadow: 0 0 4px 2px rgba(255, 200, 0, 1), 0 0 10px 4px rgba(255, 200, 0, 0.8); transform: scale(1.03); }
+  50% { box-shadow: 0 0 6px 3px rgba(255, 220, 0, 1), 0 0 14px 6px rgba(255, 200, 0, 0.9); transform: scale(1.07); }
 }
 .animate-winner-card-glow {
-  animation: winner-card-glow 1s ease-in-out infinite;
+  animation: winner-card-glow 0.8s ease-in-out infinite;
 }
 
 /* Chips flying to winner */
