@@ -3961,6 +3961,31 @@ ${faqContext}
       await deleteRedPacket(input.id);
     }),
 
+    // ==================== 营销资金统计 APIs ====================
+    couponStats: adminProcedure.query(async () => {
+      const { getCouponStats } = await import("./marketing");
+      return getCouponStats();
+    }),
+    checkinStats: adminProcedure.query(async () => {
+      const { getCheckinStats } = await import("./marketing");
+      return getCheckinStats();
+    }),
+    firstDepositStats: adminProcedure.query(async () => {
+      const { getFirstDepositStats } = await import("./marketing");
+      return getFirstDepositStats();
+    }),
+    redPacketOverallStats: adminProcedure.query(async () => {
+      const { getRedPacketStats } = await import("./marketing");
+      return getRedPacketStats();
+    }),
+    fissionOverallStats: adminProcedure.query(async () => {
+      const { getFissionOverallStats } = await import("./marketing");
+      return getFissionOverallStats();
+    }),
+    eventStats: adminProcedure.query(async () => {
+      const { getEventStats } = await import("./marketing");
+      return getEventStats();
+    }),
     // User-facing red packet APIs
     redPacketActive: publicProcedure.query(async () => {
       const { listActiveRedPackets } = await import("./marketing");

@@ -9,7 +9,8 @@ import { formatBalance } from "@/lib/utils";
 import {
   Plus, Trash2, Send, X, Play, Pause, Copy, Check, Gift,
   Megaphone, MessageSquare, Share2, RefreshCw, Eye, Users, Search,
-  Upload, FileText, Globe, Filter, Image as ImageIcon, Edit
+  Upload, FileText, Globe, Filter, Image as ImageIcon, Edit,
+  Link2, BarChart3, DollarSign, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type MarketingTab = "broadcast" | "autoReply" | "fission" | "botUsers" | "templates" | "welcome" | "coupons" | "checkin" | "invite" | "events" | "notifications" | "redPacket";
 
@@ -129,6 +131,42 @@ function ButtonEditor({ buttons, onChange }: { buttons: Array<{ text: string; ur
       {buttons.length === 0 && (
         <p className="text-xs text-muted-foreground">未添加按钮。点击"添加按钮"可添加 inline keyboard 按钮（链接=打开URL，小程序=打开 Mini App）。</p>
       )}
+    </div>
+  );
+}
+
+// ==================== ACTIVITY LINK BAR ====================
+function ActivityLinkBar({ label, link, onCopy }: { label: string; link: string; onCopy?: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast.success(`${label}已复制`);
+    onCopy?.();
+  };
+  return (
+    <div className="flex items-center gap-2 bg-secondary/30 rounded-lg px-3 py-2 text-xs">
+      <Link2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+      <span className="text-muted-foreground shrink-0">{label}:</span>
+      <code className="flex-1 truncate text-foreground font-mono">{link}</code>
+      <Button size="sm" variant="ghost" className="h-6 px-2" onClick={handleCopy}>
+        {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+      </Button>
+    </div>
+  );
+}
+
+// ==================== MARKETING STATS BAR ====================
+function MarketingStatsBar({ items }: { items: Array<{ label: string; value: string | number; highlight?: boolean }> }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {items.map((item, i) => (
+        <div key={i} className="bg-secondary/40 rounded-lg p-2.5 text-center">
+          <div className={`text-lg font-bold ${item.highlight ? 'text-green-500' : ''}`}>{item.value}</div>
+          <div className="text-xs text-muted-foreground">{item.label}</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -433,6 +471,9 @@ function AutoReplyPanel() {
 // ==================== FISSION PANEL ====================
 function FissionPanel() {
   const { data: campaigns, isLoading, refetch } = trpc.marketing.listFissions.useQuery();
+  const { data: overallStats } = trpc.marketing.fissionOverallStats.useQuery();
+  const { data: publicConfig } = trpc.config.getPublic.useQuery();
+  const botUsername = publicConfig?.tg_bot_username || '';
   const createMutation = trpc.marketing.createFission.useMutation({
     onSuccess: () => { toast.success("裂变活动已创建"); setShowCreate(false); refetch(); resetForm(); },
     onError: (e) => toast.error(e.message),
@@ -464,6 +505,12 @@ function FissionPanel() {
     setTimeout(() => setCopiedId(null), 2000);
     toast.success("裂变链接已复制");
   };
+  const copyTgLink = (code: string) => {
+    if (!botUsername) { toast.error("请先配置 Bot Username"); return; }
+    const url = `https://t.me/${botUsername}/app?startapp=fission_${code}`;
+    navigator.clipboard.writeText(url);
+    toast.success("TG 活动链接已复制");
+  };
 
   return (
     <div className="space-y-4">
@@ -477,7 +524,15 @@ function FissionPanel() {
           <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" />新建活动</Button>
         </div>
       </div>
-
+      {/* Overall Stats */}
+      {overallStats && (
+        <MarketingStatsBar items={[
+          { label: "总活动数", value: overallStats.totalCampaigns },
+          { label: "总点击", value: overallStats.totalClicks },
+          { label: "总注册", value: overallStats.totalRegisters },
+          { label: "总发放奖励", value: `${formatBalance(parseFloat(overallStats.totalRewardPaid))}`, highlight: true },
+        ]} />
+      )}
       {isLoading ? (
         <div className="text-center py-8 text-muted-foreground">加载中...</div>
       ) : !campaigns?.length ? (
@@ -490,7 +545,7 @@ function FissionPanel() {
           {campaigns.map((c) => {
             const convRate = c.clickCount > 0 ? Math.round((c.registerCount / c.clickCount) * 100) : 0;
             return (
-              <div key={c.id} className="border border-border rounded-lg p-4 bg-card">
+              <div key={c.id} className="border border-border rounded-lg p-4 bg-card space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -536,6 +591,11 @@ function FissionPanel() {
                       <Trash2 className="w-3 h-3" />
                     </Button>
                   </div>
+                </div>
+                {/* Activity Links */}
+                <div className="space-y-1 pt-2 border-t border-border/50">
+                  <ActivityLinkBar label="网页链接" link={`${window.location.origin}/api/ref/${c.linkCode}`} />
+                  {botUsername && <ActivityLinkBar label="TG 链接" link={`https://t.me/${botUsername}/app?startapp=fission_${c.linkCode}`} />}
                 </div>
               </div>
             );
@@ -1232,15 +1292,23 @@ function CouponsPanel() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ code: "", type: "fixed" as "fixed" | "percent", amount: "", minDeposit: "0", maxUses: "100", perUserLimit: "1", expiresAt: "" });
   const { data: coupons, refetch } = trpc.marketing.couponList.useQuery();
+  const { data: couponStats } = trpc.marketing.couponStats.useQuery();
   const createMut = trpc.marketing.couponCreate.useMutation({ onSuccess: () => { refetch(); setShowCreate(false); toast.success("创建成功"); } });
   const deleteMut = trpc.marketing.couponDelete.useMutation({ onSuccess: () => { refetch(); toast.success("已删除"); } });
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">优惠券/红包管理</h3>
         <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" />创建优惠券</Button>
       </div>
+      {couponStats && (
+        <MarketingStatsBar items={[
+          { label: "总使用次数", value: couponStats.totalClaims },
+          { label: "总发放金额", value: `${formatBalance(parseFloat(couponStats.totalAmount))}`, highlight: true },
+          { label: "近期领取", value: couponStats.recentClaims?.length || 0 },
+          { label: "优惠券总数", value: coupons?.length || 0 },
+        ]} />
+      )}
 
       <div className="grid gap-3">
         {coupons?.map((c: any) => (
@@ -1294,15 +1362,22 @@ function CouponsPanel() {
 // ==================== CHECKIN PANEL ====================
 function CheckinPanel() {
   const { data: configList, refetch } = trpc.marketing.checkinConfig.useQuery();
+  const { data: checkinStats } = trpc.marketing.checkinStats.useQuery();
   const updateMut = trpc.marketing.checkinConfigUpdate.useMutation({ onSuccess: () => { refetch(); toast.success("保存成功"); } });
   const [rewards, setRewards] = useState<string>("");
-
   // configList is array of { dayNumber, reward }
   const configDisplay = configList ? JSON.stringify(configList.map((c: any) => Number(c.reward))) : "[1,1.5,2,2.5,3,4,5]";
-
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">签到奖励配置</h3>
+      {checkinStats && (
+        <MarketingStatsBar items={[
+          { label: "总签到次数", value: checkinStats.totalCheckins },
+          { label: "总发放金额", value: `${formatBalance(parseFloat(checkinStats.totalReward))}`, highlight: true },
+          { label: "今日签到", value: checkinStats.todayCheckins },
+          { label: "近期记录", value: checkinStats.recentCheckins?.length || 0 },
+        ]} />
+      )}
       <div className="bg-card border border-border rounded-lg p-4 space-y-3">
         <div>
           <Label>每日奖励金额 (JSON数组，第1-7天)</Label>
@@ -1337,6 +1412,7 @@ function InviteRewardPanel() {
   const [maxRewards, setMaxRewards] = useState("");
 
   const { data: fdConfig, refetch: fdRefetch } = trpc.marketing.firstDepositConfig.useQuery();
+  const { data: fdStats } = trpc.marketing.firstDepositStats.useQuery();
   const fdUpdateMut = trpc.marketing.firstDepositConfigUpdate.useMutation({ onSuccess: () => { fdRefetch(); toast.success("首充配置已保存"); } });
   const [bonusPercent, setBonusPercent] = useState("");
   const [maxBonus, setMaxBonus] = useState("");
@@ -1375,7 +1451,15 @@ function InviteRewardPanel() {
       {/* First Deposit Config */}
       <div>
         <h3 className="text-lg font-semibold mb-3">首充优惠配置</h3>
-        <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+        {fdStats && (
+          <MarketingStatsBar items={[
+            { label: "总领取次数", value: fdStats.totalClaims },
+            { label: "总发放奖励", value: `${formatBalance(parseFloat(fdStats.totalBonus))}`, highlight: true },
+            { label: "总充值金额", value: `${formatBalance(parseFloat(fdStats.totalDeposits))}` },
+            { label: "近期领取", value: fdStats.recentClaims?.length || 0 },
+          ]} />
+        )}
+        <div className="bg-card border border-border rounded-lg p-4 space-y-3 mt-3">
           <div className="grid grid-cols-2 gap-3">
             <div><Label>加赠比例 (%)</Label><Input type="number" value={bonusPercent || String(fdConfig?.bonusPercent || 50)} onChange={e => setBonusPercent(e.target.value)} /></div>
             <div><Label>最高加赠金额</Label><Input value={maxBonus || String(fdConfig?.maxBonus || "100.00")} onChange={e => setMaxBonus(e.target.value)} /></div>
@@ -1399,9 +1483,9 @@ function TimeLimitedEventsPanel() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ name: "", type: "double_points" as string, description: "", startAt: "", endAt: "", config: "{}" });
   const { data: events, refetch } = trpc.marketing.eventList.useQuery();
+  const { data: eventStats } = trpc.marketing.eventStats.useQuery();
   const createMut = trpc.marketing.eventCreate.useMutation({ onSuccess: () => { refetch(); setShowCreate(false); toast.success("创建成功"); } });
   const deleteMut = trpc.marketing.eventDelete.useMutation({ onSuccess: () => { refetch(); toast.success("已删除"); } });
-
   const eventTypeLabels: Record<string, string> = {
     double_points: "双倍积分",
     free_commission: "免佣金",
@@ -1414,9 +1498,16 @@ function TimeLimitedEventsPanel() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">限时活动管理</h3>
-        <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" />创建活动</Button>
+                <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" />创建活动</Button>
       </div>
-
+      {eventStats && (
+        <MarketingStatsBar items={[
+          { label: "总活动数", value: eventStats.totalEvents },
+          { label: "进行中", value: eventStats.activeEvents },
+          { label: "已结束", value: eventStats.endedEvents },
+          { label: "未开始", value: eventStats.upcomingEvents },
+        ]} />
+      )}
       <div className="grid gap-3">
         {events?.map((ev: any) => {
           const now = Date.now();
@@ -1588,6 +1679,9 @@ function NotificationsPanel() {
 // ==================== RED PACKET PANEL ====================
 function RedPacketPanel() {
   const { data: packets, isLoading, refetch } = trpc.marketing.redPacketList.useQuery();
+  const { data: rpStats } = trpc.marketing.redPacketOverallStats.useQuery();
+  const { data: publicConfig2 } = trpc.config.getPublic.useQuery();
+  const rpBotUsername = publicConfig2?.tg_bot_username || '';
   const createMut = trpc.marketing.redPacketCreate.useMutation({
     onSuccess: () => { toast.success("红包创建成功"); setShowCreate(false); refetch(); resetForm(); },
     onError: (e) => toast.error(e.message),
@@ -1660,7 +1754,15 @@ function RedPacketPanel() {
           <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" />创建红包</Button>
         </div>
       </div>
-
+      {/* Overall Stats */}
+      {rpStats && (
+        <MarketingStatsBar items={[
+          { label: "总红包数", value: rpStats.totalPackets },
+          { label: "总发放金额", value: `${formatBalance(parseFloat(rpStats.totalClaimed))}`, highlight: true },
+          { label: "总领取人次", value: rpStats.totalClaims },
+          { label: "总额度", value: `${formatBalance(parseFloat(rpStats.totalAmount))}` },
+        ]} />
+      )}
       {isLoading ? (
         <div className="text-center py-8 text-muted-foreground">加载中...</div>
       ) : !packets?.length ? (
@@ -1720,6 +1822,11 @@ function RedPacketPanel() {
                       </Button>
                     )}
                   </div>
+                </div>
+                {/* Activity Links */}
+                <div className="space-y-1 pt-2 border-t border-border/50">
+                  <ActivityLinkBar label="Mini App 链接" link={`${window.location.origin}/red-packet/${pkt.id}`} />
+                  {rpBotUsername && <ActivityLinkBar label="TG 链接" link={`https://t.me/${rpBotUsername}/app?startapp=hongbao_${pkt.id}`} />}
                 </div>
               </div>
             );

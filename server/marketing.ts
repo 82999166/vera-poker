@@ -1323,3 +1323,153 @@ export async function listActiveRedPackets() {
     .where(eq(redPackets.status, "active"))
     .orderBy(desc(redPackets.createdAt));
 }
+
+
+// ==================== 营销活动资金统计 ====================
+
+/** Coupon financial stats */
+export async function getCouponStats() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return { totalClaims: 0, totalAmount: "0.00", recentClaims: [] };
+  const [stats] = await dbInstance.select({
+    totalClaims: sql<number>`COUNT(*)`,
+    totalAmount: sql<string>`COALESCE(SUM(${couponClaims.amount}), 0)`,
+  }).from(couponClaims);
+  const recentClaims = await dbInstance.select({
+    id: couponClaims.id,
+    couponId: couponClaims.couponId,
+    userId: couponClaims.userId,
+    amount: couponClaims.amount,
+    claimedAt: couponClaims.claimedAt,
+    nickname: users.nickname,
+    tgUsername: users.tgUsername,
+    couponCode: coupons.code,
+    couponName: coupons.name,
+  }).from(couponClaims)
+    .leftJoin(users, eq(couponClaims.userId, users.id))
+    .leftJoin(coupons, eq(couponClaims.couponId, coupons.id))
+    .orderBy(desc(couponClaims.claimedAt))
+    .limit(50);
+  return { totalClaims: stats?.totalClaims || 0, totalAmount: stats?.totalAmount || "0.00", recentClaims };
+}
+
+/** Checkin financial stats */
+export async function getCheckinStats() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return { totalCheckins: 0, totalReward: "0.00", todayCheckins: 0, recentCheckins: [] };
+  const [stats] = await dbInstance.select({
+    totalCheckins: sql<number>`COUNT(*)`,
+    totalReward: sql<string>`COALESCE(SUM(${userCheckins.reward}), 0)`,
+  }).from(userCheckins);
+  const today = new Date().toISOString().slice(0, 10);
+  const [todayStats] = await dbInstance.select({
+    count: sql<number>`COUNT(*)`,
+  }).from(userCheckins).where(eq(userCheckins.checkinDate, today));
+  const recentCheckins = await dbInstance.select({
+    id: userCheckins.id,
+    userId: userCheckins.userId,
+    checkinDate: userCheckins.checkinDate,
+    dayNumber: userCheckins.dayNumber,
+    reward: userCheckins.reward,
+    createdAt: userCheckins.createdAt,
+    nickname: users.nickname,
+    tgUsername: users.tgUsername,
+  }).from(userCheckins)
+    .leftJoin(users, eq(userCheckins.userId, users.id))
+    .orderBy(desc(userCheckins.createdAt))
+    .limit(50);
+  return {
+    totalCheckins: stats?.totalCheckins || 0,
+    totalReward: stats?.totalReward || "0.00",
+    todayCheckins: todayStats?.count || 0,
+    recentCheckins,
+  };
+}
+
+/** First deposit bonus stats */
+export async function getFirstDepositStats() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return { totalClaims: 0, totalBonus: "0.00", totalDeposits: "0.00", recentClaims: [] };
+  const [stats] = await dbInstance.select({
+    totalClaims: sql<number>`COUNT(*)`,
+    totalBonus: sql<string>`COALESCE(SUM(${firstDepositClaims.bonusAmount}), 0)`,
+    totalDeposits: sql<string>`COALESCE(SUM(${firstDepositClaims.depositAmount}), 0)`,
+  }).from(firstDepositClaims);
+  const recentClaims = await dbInstance.select({
+    id: firstDepositClaims.id,
+    userId: firstDepositClaims.userId,
+    depositAmount: firstDepositClaims.depositAmount,
+    bonusAmount: firstDepositClaims.bonusAmount,
+    createdAt: firstDepositClaims.createdAt,
+    nickname: users.nickname,
+    tgUsername: users.tgUsername,
+  }).from(firstDepositClaims)
+    .leftJoin(users, eq(firstDepositClaims.userId, users.id))
+    .orderBy(desc(firstDepositClaims.createdAt))
+    .limit(50);
+  return {
+    totalClaims: stats?.totalClaims || 0,
+    totalBonus: stats?.totalBonus || "0.00",
+    totalDeposits: stats?.totalDeposits || "0.00",
+    recentClaims,
+  };
+}
+
+/** Red packet overall stats (all packets combined) */
+export async function getRedPacketStats() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return { totalPackets: 0, totalAmount: "0.00", totalClaimed: "0.00", totalClaims: 0 };
+  const [stats] = await dbInstance.select({
+    totalPackets: sql<number>`COUNT(*)`,
+    totalAmount: sql<string>`COALESCE(SUM(${redPackets.totalAmount}), 0)`,
+    totalClaimed: sql<string>`COALESCE(SUM(${redPackets.claimedAmount}), 0)`,
+  }).from(redPackets);
+  const [claimStats] = await dbInstance.select({
+    totalClaims: sql<number>`COUNT(*)`,
+  }).from(redPacketClaims);
+  return {
+    totalPackets: stats?.totalPackets || 0,
+    totalAmount: stats?.totalAmount || "0.00",
+    totalClaimed: stats?.totalClaimed || "0.00",
+    totalClaims: claimStats?.totalClaims || 0,
+  };
+}
+
+/** Fission overall stats (all campaigns combined) */
+export async function getFissionOverallStats() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return { totalCampaigns: 0, totalClicks: 0, totalRegisters: 0, totalRewardPaid: "0.00" };
+  const [stats] = await dbInstance.select({
+    totalCampaigns: sql<number>`COUNT(*)`,
+    totalClicks: sql<number>`COALESCE(SUM(${fissionCampaigns.clickCount}), 0)`,
+    totalRegisters: sql<number>`COALESCE(SUM(${fissionCampaigns.registerCount}), 0)`,
+    totalRewardPaid: sql<string>`COALESCE(SUM(${fissionCampaigns.totalRewardPaid}), 0)`,
+  }).from(fissionCampaigns);
+  return {
+    totalCampaigns: stats?.totalCampaigns || 0,
+    totalClicks: stats?.totalClicks || 0,
+    totalRegisters: stats?.totalRegisters || 0,
+    totalRewardPaid: stats?.totalRewardPaid || "0.00",
+  };
+}
+
+export async function getEventStats() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return { totalEvents: 0, activeEvents: 0, endedEvents: 0, upcomingEvents: 0 };
+  const allEvents = await dbInstance.select().from(timeLimitedEvents);
+  const now = Date.now();
+  let activeEvents = 0, endedEvents = 0, upcomingEvents = 0;
+  for (const ev of allEvents) {
+    const started = new Date(ev.startTime).getTime() <= now;
+    const ended = new Date(ev.endTime).getTime() <= now;
+    if (ended) endedEvents++;
+    else if (started) activeEvents++;
+    else upcomingEvents++;
+  }
+  return {
+    totalEvents: allEvents.length,
+    activeEvents,
+    endedEvents,
+    upcomingEvents,
+  };
+}
