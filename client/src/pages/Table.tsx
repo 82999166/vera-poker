@@ -1566,32 +1566,7 @@ export default function Table() {
         {/* Game content overlay */}
         <div className="absolute inset-0">
 
-            {/* ===== Deck Shoe (card shoe) - top right of table ===== */}
-            <div className={`absolute top-[8%] right-[8%] z-5 pointer-events-none ${(dealingMyCards || animateCards) ? 'animate-deck-pulse' : ''}`}>
-              {/* 3D stacked deck visual */}
-              <div className="relative w-[30px] h-[42px]">
-                {/* Bottom cards (stack depth effect) */}
-                <div className="absolute top-[4px] left-[2px] w-[28px] h-[38px] rounded-[3px]" style={{ background: 'linear-gradient(to bottom right, #8b1a1a, #5c0e0e)', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
-                <div className="absolute top-[2px] left-[1px] w-[28px] h-[38px] rounded-[3px]" style={{ background: 'linear-gradient(to bottom right, #a82020, #6b1111)', border: '1px solid rgba(255,255,255,0.25)', boxShadow: '0 2px 6px rgba(0,0,0,0.4)' }} />
-                {/* Top card */}
-                <div className="absolute top-0 left-0 w-[28px] h-[38px] rounded-[3px]" style={{ background: 'linear-gradient(to bottom right, #d63031, #b71c1c)', border: '1.5px solid rgba(255,255,255,0.7)', boxShadow: '0 3px 8px rgba(0,0,0,0.5)' }}>
-                  {/* Inner border pattern */}
-                  <div className="absolute inset-[2px] border border-white/40 rounded-[2px]" />
-                  {/* Diagonal pattern */}
-                  <div className="absolute inset-[4px] rounded-[1px] overflow-hidden" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.12) 4px, rgba(255,255,255,0.12) 5px)' }} />
-                  {/* Center VP logo */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-[14px] h-[14px] rounded-full bg-white/25 border border-white/40 flex items-center justify-center">
-                      <span className="text-[5px] font-black text-white">VP</span>
-                    </div>
-                  </div>
-                </div>
-                {/* Glow effect when dealing */}
-                {(dealingMyCards || animateCards) && (
-                  <div className="absolute -inset-2 rounded-lg bg-gold/20 blur-md animate-pulse" />
-                )}
-              </div>
-            </div>
+
 
             {/* Pot display - above community cards */}
             <div className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-20">
