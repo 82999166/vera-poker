@@ -1536,9 +1536,9 @@ export default function Table() {
         </div>
       )}
 
-      {/* Winner Announcement Overlay */}
+      {/* Winner Announcement Overlay - positioned in center without blocking player card areas */}
       {showWinner && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+        <div className="absolute z-30 flex items-center justify-center pointer-events-none" style={{ top: '20%', left: '15%', right: '15%', bottom: '35%' }}>
           {/* Confetti particles */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             {Array.from({ length: 20 }).map((_, i) => (
@@ -1559,7 +1559,7 @@ export default function Table() {
             ))}
           </div>
           {/* Winner banner */}
-          <div className="animate-banner bg-black/80 backdrop-blur-md rounded-2xl px-6 py-5 text-center max-w-[320px] border-2 border-gold/50 shadow-[0_0_30px_rgba(234,179,8,0.3)]">
+          <div className="animate-banner bg-black/80 backdrop-blur-md rounded-2xl px-4 py-3 text-center max-w-[260px] border-2 border-gold/50 shadow-[0_0_30px_rgba(234,179,8,0.3)]">
             {/* Winners list sorted by hand rank (best hand first) */}
             {(() => {
               const HAND_RANK_SORT: Record<string, number> = {
@@ -1857,7 +1857,7 @@ export default function Table() {
             return (
               <div
                 key={player.id}
-                className={`absolute transition-all duration-300 z-10 ${isLoser ? "animate-loser" : ""}`}
+                className={`absolute transition-all duration-300 ${(displayPhase === "showdown" || displayPhase === "completed") ? "z-[35]" : "z-10"} ${isLoser ? "animate-loser" : ""}`}
                 style={{ top: pos.top, left: pos.left, transform: pos.transform }}
               >
                 <div className={`flex flex-col items-center gap-0.5 ${isCurrentTurn ? "scale-110" : ""} ${isWinner ? "animate-winner-glow" : ""} transition-transform duration-200`}>

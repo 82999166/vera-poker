@@ -976,3 +976,6 @@
 - [x] 员工登录后页面一直转圈加载很慢（原因：adminProcedure拒绝非admin角色，改为staffProcedure）
 - [x] 财务管理面板看不到数据（原因：wallet.allTransactions使用adminProcedure，改为staffProcedure）
 - [x] IP地理位置查询增加3s超时防止用户列表加载过慢
+
+## 2026-06-18 Bug: 结算界面遮挡配牌动画
+- [x] 结算弹窗遮挡手牌动画：将overlay从全屏覆盖改为中央区域(top:20%~bottom:35%)，玩家座位z-index在showdown时提升到z-[35]，弹窗宽度缩小到260px
