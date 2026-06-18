@@ -141,8 +141,9 @@ export async function executeBroadcast(taskId: number): Promise<void> {
     }
   }
 
-  // Pre-resolve web_app button URLs: relative paths need the mini app base URL
-  const miniAppUrl = await db.getConfigValue("tg_mini_app_url") || "";
+  // tg_webapp_url: HTTPS base URL for web_app buttons (e.g. https://game.verapoker.com)
+  // Falls back to tg_mini_app_url for backward compatibility
+  const miniAppUrl = (await db.getConfigValue("tg_webapp_url")) || (await db.getConfigValue("tg_mini_app_url")) || "";
 
   let sentCount = 0;
   let failCount = 0;
@@ -1542,7 +1543,8 @@ export async function sendMessageToGroups(groupIds: number[], message: {
   const groups = await dbInstance.select().from(tgGroups).where(inArray(tgGroups.id, groupIds));
   const botToken = await db.getConfigValue("tg_bot_token");
   if (!botToken) throw new Error("Bot Token 未配置");
-  const miniAppUrl = (await db.getConfigValue("tg_mini_app_url")) || "";
+  // tg_webapp_url: HTTPS base URL for web_app buttons (e.g. https://game.verapoker.com)
+  const miniAppUrl = (await db.getConfigValue("tg_webapp_url")) || (await db.getConfigValue("tg_mini_app_url")) || "";
 
   // Pre-resolve image URL
   let resolvedImageUrl: string | null = null;

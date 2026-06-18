@@ -4005,6 +4005,7 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
   const [tgClientSecret, setTgClientSecret] = useState("");
   const [csTgUsername, setCsTgUsername] = useState("");
   const [tgMiniAppUrl, setTgMiniAppUrl] = useState("");
+  const [tgWebAppUrl, setTgWebAppUrl] = useState("");
   const [adminTgChatId, setAdminTgChatId] = useState("");
   // DeepSeek AI 配置（全局AI服务）
   const [deepseekApiKey, setDeepseekApiKey] = useState("");
@@ -4031,6 +4032,7 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
       setTgClientSecret(configMap.get("tg_client_secret") ?? "");
       setCsTgUsername(configMap.get("cs_tg_username") ?? "");
       setTgMiniAppUrl(configMap.get("tg_mini_app_url") ?? "");
+      setTgWebAppUrl(configMap.get("tg_webapp_url") ?? "");
       setAdminTgChatId(configMap.get("admin_tg_chat_id") ?? "");
       // DeepSeek AI 全局配置
       setDeepseekApiKey(configMap.get("deepseek_api_key") ?? "");
@@ -4224,14 +4226,30 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
             <p className="text-[10px] text-muted-foreground mt-1">{at("tg.miniAppUrlHint")}</p>
           </div>
           <div>
+            <label className="text-xs text-muted-foreground mb-1 block">WebApp 按钮 URL（tg_webapp_url）⭐</label>
+            <p className="text-[10px] text-muted-foreground mb-1">发到群组的消息中 web_app 按钮的 URL 前缀，必须是 HTTPS 网页地址（如 https://game.verapoker.com）</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tgWebAppUrl}
+                onChange={(e) => setTgWebAppUrl(e.target.value)}
+                placeholder="https://game.verapoker.com"
+                className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+              />
+              <button onClick={() => saveSystemSetting("tg_webapp_url", tgWebAppUrl || window.location.origin)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
+                <Save className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          <div>
             <label className="text-xs text-muted-foreground mb-1 block">Bot 跳转 URL（tg_mini_app_url）</label>
-            <p className="text-[10px] text-muted-foreground mb-1">Bot /start 按钮跳转地址，通常与上方 Mini App URL 相同</p>
+            <p className="text-[10px] text-muted-foreground mb-1">Bot /start 按钮跳转地址，格式如 https://t.me/BotName/app</p>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={tgMiniAppUrl}
                 onChange={(e) => setTgMiniAppUrl(e.target.value)}
-                placeholder={window.location.origin}
+                placeholder="https://t.me/VeraPokerbot/app"
                 className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
               />
               <button onClick={() => saveSystemSetting("tg_mini_app_url", tgMiniAppUrl || window.location.origin)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">

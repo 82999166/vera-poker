@@ -4001,7 +4001,7 @@ ${faqContext}
 
       const botToken = await db.getConfigValue("tg_bot_token");
       if (!botToken) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bot Token 未配置" });
-      const miniAppUrl = (await db.getConfigValue("tg_mini_app_url")) || "";
+      const miniAppUrl = (await db.getConfigValue("tg_webapp_url")) || (await db.getConfigValue("tg_mini_app_url")) || "";
       const packetUrl = `${miniAppUrl}/red-packet/${packet.id}`;
 
       const msgText = input.message ||
@@ -4219,7 +4219,7 @@ ${faqContext}
     })).mutation(async ({ input }) => {
       const botToken = await db.getConfigValue("tg_bot_token");
       if (!botToken) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bot Token 未配置" });
-      const miniAppUrl = (await db.getConfigValue("tg_mini_app_url")) || "";
+      const miniAppUrl = (await db.getConfigValue("tg_webapp_url")) || (await db.getConfigValue("tg_mini_app_url")) || "";
       const { storageGetSignedUrl } = await import("./storage");
       let resolvedImageUrl: string | null = null;
       if (input.imageUrl) {
