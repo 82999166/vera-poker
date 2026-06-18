@@ -233,6 +233,124 @@ export function registerTelegramRoutes(app: Express) {
         } catch (e) { /* Non-critical */ }
       }
 
+      // === Handle callback_query (inline button clicks, e.g. red packet claims) ===
+      const callbackQuery = rawUpdate.callback_query;
+      if (callbackQuery) {
+        const cbData = callbackQuery.data as string | undefined;
+        const cbFrom = callbackQuery.from;
+        const cbMessage = callbackQuery.message;
+        if (cbData && cbFrom && cbMessage) {
+          // Red packet claim: callback_data = "claim_rp_{id}"
+          if (cbData.startsWith("claim_rp_")) {
+            const rpId = parseInt(cbData.replace("claim_rp_", ""), 10);
+            if (!isNaN(rpId)) {
+              try {
+                // Find user by tgId
+                const user = await db.getUserByTgId(String(cbFrom.id));
+                if (!user) {
+                  await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      callback_query_id: callbackQuery.id,
+                      text: "\u8bf7\u5148\u542f\u52a8 Bot \u5e76\u6ce8\u518c\u8d26\u53f7\u540e\u518d\u9886\u53d6\u7ea2\u5305\uff01",
+                      show_alert: true,
+                    }),
+                  });
+                } else {
+                  const { claimRedPacket, getRedPacket, getRedPacketClaims } = await import("../marketing");
+                  const result = await claimRedPacket(user.id, rpId);
+                  if (result.success) {
+                    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        callback_query_id: callbackQuery.id,
+                        text: `\ud83c\udf89 \u606d\u559c\u9886\u53d6 ${result.amount} USDT\uff01\u5df2\u5230\u8d26\u4f59\u989d\u3002`,
+                        show_alert: true,
+                      }),
+                    });
+                    // Update the message to show claim leaderboard
+                    try {
+                      const packet = await getRedPacket(rpId);
+                      if (packet) {
+                        const claims = await getRedPacketClaims(rpId);
+                        let updatedText = `\ud83e\udde7 <b>${packet.title}</b>\n`;
+                        if (packet.description) updatedText += `${packet.description}\n`;
+                        updatedText += `\n\ud83d\udcb0 ${packet.claimedAmount}/${packet.totalAmount} USDT  \u5df2\u9886 ${packet.claimedCount}/${packet.totalCount} \u4efd\n`;
+                        if (claims.length > 0) {
+                          updatedText += `\n<b>\ud83c\udfc6 \u9886\u53d6\u8bb0\u5f55\uff1a</b>\n`;
+                          for (const c of claims.slice(0, 15)) {
+                            updatedText += `  ${c.nickname || c.tgUsername || '\u533f\u540d'} - ${c.amount} USDT\n`;
+                          }
+                          if (claims.length > 15) updatedText += `  ...\u8fd8\u6709 ${claims.length - 15} \u4eba\n`;
+                        }
+                        if (packet.claimedCount >= packet.totalCount) {
+                          updatedText += `\n\u2705 \u7ea2\u5305\u5df2\u9886\u5b8c\uff01`;
+                        } else {
+                          updatedText += `\n\u70b9\u51fb\u4e0b\u65b9\u6309\u94ae\u9886\u53d6\uff01`;
+                        }
+                        const inlineKeyboard: any[][] = [];
+                        if (packet.claimedCount < packet.totalCount) {
+                          inlineKeyboard.push([{ text: "\ud83e\udde7 \u62a2\u7ea2\u5305", callback_data: `claim_rp_${rpId}` }]);
+                        }
+                        const editBody: Record<string, unknown> = {
+                          chat_id: cbMessage.chat.id,
+                          message_id: cbMessage.message_id,
+                          parse_mode: "HTML",
+                        };
+                        if (cbMessage.photo) {
+                          editBody.caption = updatedText;
+                          if (inlineKeyboard.length > 0) editBody.reply_markup = { inline_keyboard: inlineKeyboard };
+                          await fetch(`https://api.telegram.org/bot${botToken}/editMessageCaption`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(editBody),
+                          });
+                        } else {
+                          editBody.text = updatedText;
+                          if (inlineKeyboard.length > 0) editBody.reply_markup = { inline_keyboard: inlineKeyboard };
+                          await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(editBody),
+                          });
+                        }
+                      }
+                    } catch (editErr) {
+                      console.warn("[Telegram] Failed to edit message after claim:", editErr);
+                    }
+                  } else {
+                    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        callback_query_id: callbackQuery.id,
+                        text: result.error || "\u9886\u53d6\u5931\u8d25",
+                        show_alert: true,
+                      }),
+                    });
+                  }
+                }
+              } catch (claimErr) {
+                console.error("[Telegram] Red packet claim error:", claimErr);
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    callback_query_id: callbackQuery.id,
+                    text: "\u7cfb\u7edf\u9519\u8bef\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5",
+                    show_alert: true,
+                  }),
+                });
+              }
+            }
+          }
+        }
+        res.json({ ok: true });
+        return;
+      }
+
       const message = update.message;
 
       if (!message || !message.text) {

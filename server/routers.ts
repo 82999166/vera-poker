@@ -4011,11 +4011,21 @@ ${faqContext}
         (packet.expiresAt ? `⏰ 截止：${new Date(packet.expiresAt).toLocaleString("zh-CN")}\n` : "") +
         `\n点击下方按钮立即领取！`;
 
-      const replyMarkup = {
+      // For group/channel sends: use callback_data so users can claim directly in TG without leaving
+      const groupReplyMarkup = {
         inline_keyboard: [
-          [{ text: "🧧 立即领取", web_app: { url: packetUrl } }],
+          [{ text: "🧧 抢红包", callback_data: `claim_rp_${packet.id}` }],
           ...(packet.buttons && (packet.buttons as any[]).length > 0
-            ? [[(packet.buttons as any[])[0]].map((btn: any) => btn.type === "web_app" ? { text: btn.text, web_app: { url: btn.url } } : { text: btn.text, url: btn.url })]
+            ? [(packet.buttons as any[]).map((btn: any) => ({ text: btn.text, url: btn.url }))]
+            : []),
+        ],
+      };
+      // For broadcast (private chat): use url button
+      const broadcastReplyMarkup = {
+        inline_keyboard: [
+          [{ text: "🧧 领取红包", url: packetUrl }],
+          ...(packet.buttons && (packet.buttons as any[]).length > 0
+            ? [(packet.buttons as any[]).map((btn: any) => ({ text: btn.text, url: btn.url }))]
             : []),
         ],
       };
@@ -4024,19 +4034,19 @@ ${faqContext}
         // Send to a specific group/channel chat_id
         const chatId = input.groupChatId;
         if (!chatId) throw new TRPCError({ code: "BAD_REQUEST", message: "请提供群组/频道 Chat ID" });
-        const body: Record<string, unknown> = { chat_id: chatId, text: msgText, parse_mode: "HTML", reply_markup: replyMarkup };
         if (packet.imageUrl) {
           const { storageGetSignedUrl } = await import("./storage");
           let photoUrl = packet.imageUrl;
           if (photoUrl.startsWith("/manus-storage/")) {
             try { photoUrl = await storageGetSignedUrl(photoUrl.replace("/manus-storage/", "")); } catch {}
           }
-          const photoBody = { chat_id: chatId, photo: photoUrl, caption: msgText, parse_mode: "HTML", reply_markup: replyMarkup };
+          const photoBody = { chat_id: chatId, photo: photoUrl, caption: msgText, parse_mode: "HTML", reply_markup: groupReplyMarkup };
           const res = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(photoBody) });
           const data = await res.json() as any;
           if (!res.ok) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: data.description || "发送失败" });
           return { success: true, messageId: data.result?.message_id };
         }
+        const body: Record<string, unknown> = { chat_id: chatId, text: msgText, parse_mode: "HTML", reply_markup: groupReplyMarkup };
         const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const data = await res.json() as any;
         if (!res.ok) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: data.description || "发送失败" });
@@ -4048,7 +4058,7 @@ ${faqContext}
           title: `[红包推送] ${packet.title}`,
           content: msgText,
           imageUrl: packet.imageUrl || null,
-          buttons: [{ text: "🧧 立即领取", url: packetUrl, type: "web_app", row: 0 }, ...(packet.buttons as any[] || [])],
+          buttons: [{ text: "🧧 领取红包", url: packetUrl, type: "url", row: 0 }, ...(packet.buttons as any[] || [])],
           targetType: "all",
           targetUserIds: null,
           scheduledAt: null,

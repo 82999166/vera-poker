@@ -1649,6 +1649,7 @@ function CouponsPanel() {
   const { data: couponStats } = trpc.marketing.couponStats.useQuery();
   const createMut = trpc.marketing.couponCreate.useMutation({ onSuccess: () => { refetch(); setShowCreate(false); toast.success("创建成功"); } });
   const deleteMut = trpc.marketing.couponDelete.useMutation({ onSuccess: () => { refetch(); toast.success("已删除"); } });
+  const toggleStatusMut = trpc.marketing.couponUpdate.useMutation({ onSuccess: () => { refetch(); toast.success("状态已更新"); } });
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -1677,7 +1678,12 @@ function CouponsPanel() {
                 已使用 {c.usedCount}/{c.maxUses} | 单人限{c.perUserLimit}次 | {c.expiresAt ? `过期: ${new Date(c.expiresAt).toLocaleDateString()}` : "永不过期"}
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => deleteMut.mutate({ id: c.id })}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => toggleStatusMut.mutate({ id: c.id, status: c.status === "active" ? "paused" : "active" })} title={c.status === "active" ? "暂停" : "启用"}>
+                {c.status === "active" ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => { if (confirm("确认删除该优惠券？")) deleteMut.mutate({ id: c.id }); }}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+            </div>
           </div>
         ))}
         {(!coupons || coupons.length === 0) && <div className="text-center text-muted-foreground py-8">暂无优惠券</div>}
@@ -1840,6 +1846,7 @@ function TimeLimitedEventsPanel() {
   const { data: eventStats } = trpc.marketing.eventStats.useQuery();
   const createMut = trpc.marketing.eventCreate.useMutation({ onSuccess: () => { refetch(); setShowCreate(false); toast.success("创建成功"); } });
   const deleteMut = trpc.marketing.eventDelete.useMutation({ onSuccess: () => { refetch(); toast.success("已删除"); } });
+  const toggleStatusMut = trpc.marketing.eventUpdate.useMutation({ onSuccess: () => { refetch(); toast.success("状态已更新"); } });
   const eventTypeLabels: Record<string, string> = {
     double_points: "双倍积分",
     free_commission: "免佣金",
@@ -1882,7 +1889,14 @@ function TimeLimitedEventsPanel() {
                 </div>
                 {ev.description && <div className="text-xs text-muted-foreground mt-0.5">{ev.description}</div>}
               </div>
-              <Button variant="ghost" size="sm" onClick={() => deleteMut.mutate({ id: ev.id })}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+              <div className="flex items-center gap-1">
+                {ev.status !== "cancelled" && ev.status !== "ended" && (
+                  <Button variant="ghost" size="sm" onClick={() => toggleStatusMut.mutate({ id: ev.id, status: ev.status === "active" ? "cancelled" : "active" })} title={ev.status === "active" ? "取消活动" : "启用活动"}>
+                    {ev.status === "active" ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => { if (confirm("确认删除该活动？")) deleteMut.mutate({ id: ev.id }); }}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+              </div>
             </div>
           );
         })}
@@ -2036,7 +2050,7 @@ function RedPacketPanel() {
   const { data: rpStats } = trpc.marketing.redPacketOverallStats.useQuery();
   const { data: publicConfig2 } = trpc.config.getPublic.useQuery();
   const rpBotUsername = publicConfig2?.tg_bot_username || '';
-  const [pushDialog, setPushDialog] = useState<{ open: boolean; packetId: number; packetTitle: string; content: string; buttons: Array<{ text: string; url: string; type?: string; row?: number }> } | null>(null);
+  const [pushDialog, setPushDialog] = useState<{ open: boolean; packetId: number; packetTitle: string; content: string; imageUrl?: string; buttons: Array<{ text: string; url: string; type?: string; row?: number }> } | null>(null);
   const createMut = trpc.marketing.redPacketCreate.useMutation({
     onSuccess: () => { toast.success("红包创建成功"); setShowCreate(false); refetch(); resetForm(); },
     onError: (e) => toast.error(e.message),
@@ -2163,7 +2177,7 @@ function RedPacketPanel() {
                     <Button size="sm" variant="outline" onClick={() => setShowDetail(pkt.id)}>
                       <Eye className="w-3 h-3 mr-1" />详情
                     </Button>
-                    <Button size="sm" variant="outline" className="text-blue-500" onClick={() => { setPushDialog({ open: true, packetId: pkt.id, packetTitle: pkt.title, content: `🧧 ${pkt.title}\n总额 ${pkt.totalAmount} USDT，共 ${pkt.totalCount} 份\n点击下方按鈕抗红包！`, buttons: [{ text: '🧧 抗红包', url: `/red-packet/${pkt.id}`, type: 'web_app', row: 0 }] }); }}>
+                    <Button size="sm" variant="outline" className="text-blue-500" onClick={() => { setPushDialog({ open: true, packetId: pkt.id, packetTitle: pkt.title, content: `🧧 ${pkt.title}\n总额 ${pkt.totalAmount} USDT，共 ${pkt.totalCount} 份\n点击下方按鈕抗红包！`, imageUrl: pkt.imageUrl || undefined, buttons: [{ text: '🧧 抗红包', url: `/red-packet/${pkt.id}`, type: 'web_app', row: 0 }] }); }}>
                       <Send className="w-3 h-3 mr-1" />推送
                     </Button>
                     {pkt.status === "active" && (
@@ -2309,6 +2323,7 @@ function RedPacketPanel() {
           onOpenChange={(v) => { if (!v) setPushDialog(null); }}
           title={`红包推送: ${pushDialog.packetTitle}`}
           content={pushDialog.content}
+          imageUrl={pushDialog.imageUrl}
           buttons={pushDialog.buttons}
         />
       )}

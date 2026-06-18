@@ -1058,3 +1058,12 @@
 - [x] 修复创建红包报错 "Cannot read properties of null (reading .id.)" - 使用adminUser?.adminId fallback
 - [x] 红包创建表单增加按钮和链接配置（ButtonEditor已集成）
 - [x] 各营销活动链接增加"发送给TG用户"快捷操作
+
+## 红包群组内直接领取改造 + 活动管理功能
+
+- [ ] 红包推送按钮改为callback_data，群组/频道内直接领取无需跳转
+- [ ] Webhook处理callback_query实现红包领取逻辑
+- [ ] 领取后editMessageText更新消息显示排行榜
+- [ ] answerCallbackQuery弹出领取结果
+- [ ] 红包推送传递图片(imageUrl)修复
+- [ ] 所有营销活动补齐暂停/启用和删除功能
