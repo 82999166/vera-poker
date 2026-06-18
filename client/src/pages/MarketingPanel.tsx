@@ -2540,6 +2540,7 @@ function RedPacketPanel() {
           packetTitle={pushDialog.packetTitle}
           content={pushDialog.content}
           imageUrl={pushDialog.imageUrl}
+          packetButtons={(pushDialog as any).buttons || []}
         />
       )}
     </div>
@@ -2621,13 +2622,14 @@ function RedPacketDetailDialog({ id, onClose }: { id: number; onClose: () => voi
 
 // ==================== RED PACKET PUSH DIALOG (callback_data) ====================
 /** Dedicated red packet push dialog that uses redPacketPush route with callback_data buttons */
-function RedPacketPushDialog({ open, onOpenChange, packetId, packetTitle, content, imageUrl }: {
+function RedPacketPushDialog({ open, onOpenChange, packetId, packetTitle, content, imageUrl, packetButtons }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   packetId: number;
   packetTitle: string;
   content: string;
   imageUrl?: string;
+  packetButtons?: Array<{ text: string; url?: string; callback_data?: string; type?: string; row?: number }>;
 }) {
   const [mode, setMode] = useState<"groups" | "broadcast">("groups");
   const [selectedGroupChatIds, setSelectedGroupChatIds] = useState<string[]>([]);
@@ -2690,7 +2692,10 @@ function RedPacketPushDialog({ open, onOpenChange, packetId, packetTitle, conten
         userIds: selectedUserIds,
         content: msgText,
         imageUrl: imageUrl || undefined,
-        buttons: [{ text: "🧧 抢红包", callback_data: `claim_rp_${packetId}`, type: "callback", row: 0 }],
+        buttons: [
+          { text: "🧧 抢红包", callback_data: `claim_rp_${packetId}`, type: "callback", row: 0 },
+          ...(packetButtons || []).map((b, i) => ({ ...b, row: (b.row ?? i) + 1 })),
+        ],
       });
     } else {
       // filter mode: all/active/deposited via redPacketPush broadcast
