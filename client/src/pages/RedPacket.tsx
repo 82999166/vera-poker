@@ -132,6 +132,20 @@ export default function RedPacket() {
         </div>
       </div>
 
+      {/* Action Buttons */}
+      {packet.buttons && (packet.buttons as Array<{ text: string; url: string; type?: string; row?: number }>).length > 0 && (
+        <div className="px-4 mt-4">
+          <div className="flex flex-wrap gap-2 justify-center">
+            {(packet.buttons as Array<{ text: string; url: string; type?: string; row?: number }>).map((btn, i) => (
+              <a key={i} href={btn.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
+                {btn.text}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Leaderboard */}
       <div className="px-4 mt-6 pb-8">
         <h3 className="text-sm font-medium text-muted-foreground mb-3">

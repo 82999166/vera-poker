@@ -3938,9 +3938,11 @@ ${faqContext}
       }).optional(),
       imageUrl: z.string().optional(),
       expiresAt: z.date().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), type: z.string().optional(), row: z.number().optional() })).optional(),
     })).mutation(async ({ input, ctx }) => {
       const { createRedPacket } = await import("./marketing");
-      const id = await createRedPacket({ ...input, expiresAt: input.expiresAt || null, createdBy: ctx.user!.id });
+      const createdBy = ctx.adminUser?.adminId ?? ctx.user?.id ?? 0;
+      const id = await createRedPacket({ ...input, expiresAt: input.expiresAt || null, createdBy });
       return { id };
     }),
     redPacketDetail: adminProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {

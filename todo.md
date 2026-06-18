@@ -1051,3 +1051,10 @@
 - [x] 限时活动: 统计栏（总活动数/进行中/已结束/未开始）
 - [x] 抢红包: 红包链接显示和复制（TG深度链接 + webapp链接）+ 总体统计栏
 - [x] 后端: 各模块资金明细查询API补全（couponStats/checkinStats/firstDepositStats/redPacketOverallStats/fissionOverallStats/eventStats）
+
+## Bug Fix: 群发失败 + 红包创建报错 + 红包按钮链接
+
+- [ ] 修复Bot群发全部失败问题（7/7失败）
+- [ ] 修复创建红包报错 "Cannot read properties of null (reading 'id')"
+- [ ] 红包创建表单增加按钮和链接配置
+- [x] 各营销活动链接增加"发送给TG用户"快捷操作

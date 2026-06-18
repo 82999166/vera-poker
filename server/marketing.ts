@@ -17,6 +17,7 @@ import {
 } from "../drizzle/schema";
 import * as db from "./db";
 import { nanoid } from "nanoid";
+import { storageGetSignedUrl } from "./storage";
 
 // ==================== 广播任务 ====================
 
@@ -123,6 +124,25 @@ export async function executeBroadcast(taskId: number): Promise<void> {
     startedAt: new Date(),
   });
 
+  // Pre-resolve image URL: /manus-storage/ paths need signed URLs for TG API access
+  let resolvedImageUrl: string | null = null;
+  if (task.imageUrl) {
+    if (task.imageUrl.startsWith("/manus-storage/")) {
+      try {
+        const key = task.imageUrl.replace("/manus-storage/", "");
+        resolvedImageUrl = await storageGetSignedUrl(key);
+      } catch (e) {
+        console.warn("[Broadcast] Failed to resolve image URL:", e);
+        resolvedImageUrl = null;
+      }
+    } else {
+      resolvedImageUrl = task.imageUrl;
+    }
+  }
+
+  // Pre-resolve web_app button URLs: relative paths need the mini app base URL
+  const miniAppUrl = await db.getConfigValue("tg_mini_app_url") || "";
+
   let sentCount = 0;
   let failCount = 0;
   const BATCH_SIZE = 25; // stay under 30/s TG limit
@@ -146,7 +166,12 @@ export async function executeBroadcast(taskId: number): Promise<void> {
             if (!rowMap.has(row)) rowMap.set(row, []);
             // Support different button types: url (default), web_app
             if (btn.type === "web_app") {
-              rowMap.get(row)!.push({ text: btn.text, web_app: { url: btn.url } });
+              // Resolve relative URLs to full mini app URL
+              let webAppUrl = btn.url;
+              if (webAppUrl.startsWith("/") && miniAppUrl) {
+                webAppUrl = miniAppUrl + webAppUrl;
+              }
+              rowMap.get(row)!.push({ text: btn.text, web_app: { url: webAppUrl } });
             } else {
               rowMap.get(row)!.push({ text: btn.text, url: btn.url });
             }
@@ -163,10 +188,11 @@ export async function executeBroadcast(taskId: number): Promise<void> {
         }
         // Send photo+caption or plain text
         let apiMethod = "sendMessage";
-        if (task.imageUrl) {
+        if (resolvedImageUrl) {
           apiMethod = "sendPhoto";
-          body.photo = task.imageUrl;
+          body.photo = resolvedImageUrl;
           body.caption = task.content;
+          // TG sendPhoto uses parse_mode for caption formatting (same param name as sendMessage)
           delete body.text;
         }
         const res = await fetch(`https://api.telegram.org/bot${botToken}/${apiMethod}`, {
@@ -1088,6 +1114,7 @@ export async function createRedPacket(data: {
   imageUrl?: string;
   expiresAt?: Date | null;
   createdBy: number;
+  buttons?: Array<{ text: string; url: string; type?: string; row?: number }>;
 }): Promise<number> {
   const dbInstance = await getDb();
   if (!dbInstance) throw new Error("DB unavailable");
@@ -1099,6 +1126,7 @@ export async function createRedPacket(data: {
     type: data.type,
     condition: data.condition || null,
     imageUrl: data.imageUrl || null,
+    buttons: data.buttons || null,
     expiresAt: data.expiresAt || null,
     createdBy: data.createdBy,
     status: "active",

@@ -1,0 +1,1 @@
+ALTER TABLE `red_packets` ADD `buttons` json;

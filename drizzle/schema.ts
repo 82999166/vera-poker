@@ -838,6 +838,7 @@ export const redPackets = mysqlTable("red_packets", {
     newUserOnly?: boolean; // 仅新用户可领
   }>(),
   imageUrl: text("imageUrl"), // 红包封面图
+  buttons: json("buttons").$type<Array<{ text: string; url: string; type?: string; row?: number }>>(), // 红包页面按钮
   status: mysqlEnum("status", ["active", "paused", "completed", "expired"]).default("active").notNull(),
   expiresAt: timestamp("expiresAt"), // 过期时间 (null=永不过期)
   createdBy: int("createdBy").notNull(),

@@ -197,6 +197,13 @@
       "when": 1781774110196,
       "tag": "0027_flat_mantis",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "5",
+      "when": 1781778233617,
+      "tag": "0028_fantastic_golden_guardian",
+      "breakpoints": true
     }
   ]
 }

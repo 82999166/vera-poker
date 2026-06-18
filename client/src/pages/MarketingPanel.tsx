@@ -136,7 +136,7 @@ function ButtonEditor({ buttons, onChange }: { buttons: Array<{ text: string; ur
 }
 
 // ==================== ACTIVITY LINK BAR ====================
-function ActivityLinkBar({ label, link, onCopy }: { label: string; link: string; onCopy?: () => void }) {
+function ActivityLinkBar({ label, link, onCopy, onSendToTG }: { label: string; link: string; onCopy?: () => void; onSendToTG?: () => void }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
     navigator.clipboard.writeText(link);
@@ -153,7 +153,73 @@ function ActivityLinkBar({ label, link, onCopy }: { label: string; link: string;
       <Button size="sm" variant="ghost" className="h-6 px-2" onClick={handleCopy}>
         {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
       </Button>
+      {onSendToTG && (
+        <Button size="sm" variant="ghost" className="h-6 px-2 text-blue-400 hover:text-blue-300" onClick={onSendToTG} title="发送给TG用户">
+          <Send className="w-3 h-3" />
+        </Button>
+      )}
     </div>
+  );
+}
+
+// ==================== QUICK BROADCAST DIALOG ====================
+/** Quick dialog to send a marketing link to all TG users via broadcast */
+function QuickBroadcastDialog({ open, onOpenChange, defaultContent, defaultButtons }: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  defaultContent: string;
+  defaultButtons?: Array<{ text: string; url: string; type?: string; row?: number }>;
+}) {
+  const [content, setContent] = useState(defaultContent);
+  const [target, setTarget] = useState<"all" | "active" | "deposited">("all");
+  const createMut = trpc.marketing.createBroadcast.useMutation({
+    onSuccess: () => { toast.success("群发任务已创建并开始发送"); onOpenChange(false); },
+    onError: (e) => toast.error(e.message),
+  });
+  const handleSend = () => {
+    if (!content.trim()) { toast.error("请输入消息内容"); return; }
+    createMut.mutate({
+      title: `快速群发-${new Date().toLocaleString()}`,
+      content,
+      targetType: target,
+      buttons: defaultButtons || [],
+    });
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>发送给 TG 用户</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>目标用户</Label>
+            <Select value={target} onValueChange={v => setTarget(v as any)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部用户</SelectItem>
+                <SelectItem value="active">活跃用户（30天内）</SelectItem>
+                <SelectItem value="deposited">已充值用户</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>消息内容（支持 HTML）</Label>
+            <Textarea value={content} onChange={e => setContent(e.target.value)} rows={4} />
+          </div>
+          {defaultButtons && defaultButtons.length > 0 && (
+            <div className="text-xs text-muted-foreground bg-secondary/30 rounded p-2">
+              <span className="font-medium">按钮：</span>
+              {defaultButtons.map((b, i) => <Badge key={i} variant="outline" className="ml-1">{b.text}</Badge>)}
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+          <Button onClick={handleSend} disabled={createMut.isPending}>
+            <Send className="w-4 h-4 mr-1" />{createMut.isPending ? "发送中..." : "立即发送"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -490,6 +556,7 @@ function FissionPanel() {
   const [showCreate, setShowCreate] = useState(false);
   const [showDetail, setShowDetail] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [quickBroadcast, setQuickBroadcast] = useState<{ open: boolean; content: string; buttons: Array<{ text: string; url: string; type?: string; row?: number }> }>({ open: false, content: "", buttons: [] });
   const [form, setForm] = useState({
     name: "", description: "", rewardType: "balance" as "balance" | "none",
     inviterReward: "0.00", inviteeReward: "0.00",
@@ -595,7 +662,9 @@ function FissionPanel() {
                 {/* Activity Links */}
                 <div className="space-y-1 pt-2 border-t border-border/50">
                   <ActivityLinkBar label="网页链接" link={`${window.location.origin}/api/ref/${c.linkCode}`} />
-                  {botUsername && <ActivityLinkBar label="TG 链接" link={`https://t.me/${botUsername}/app?startapp=fission_${c.linkCode}`} />}
+                  {botUsername && <ActivityLinkBar label="TG 链接" link={`https://t.me/${botUsername}/app?startapp=fission_${c.linkCode}`}
+                    onSendToTG={() => setQuickBroadcast({ open: true, content: `🎁 ${c.name}\n${c.description || '点击下方按钮参与活动'}`, buttons: [{ text: '🎁 参与活动', url: `/api/ref/${c.linkCode}`, type: 'web_app', row: 0 }] })}
+                  />}
                 </div>
               </div>
             );
@@ -669,6 +738,13 @@ function FissionPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Quick Broadcast Dialog */}
+      <QuickBroadcastDialog
+        open={quickBroadcast.open}
+        onOpenChange={(v) => setQuickBroadcast(prev => ({ ...prev, open: v }))}
+        defaultContent={quickBroadcast.content}
+        defaultButtons={quickBroadcast.buttons}
+      />
     </div>
   );
 }
@@ -1697,6 +1773,7 @@ function RedPacketPanel() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [showDetail, setShowDetail] = useState<number | null>(null);
+  const [rpQuickBroadcast, setRpQuickBroadcast] = useState<{ open: boolean; content: string; buttons: Array<{ text: string; url: string; type?: string; row?: number }> }>({ open: false, content: "", buttons: [] });
   const [form, setForm] = useState({
     title: "", description: "", totalAmount: "", totalCount: 10,
     type: "random" as "random" | "fixed",
@@ -1704,12 +1781,14 @@ function RedPacketPanel() {
     condEnabled: false,
     condMinDeposit: "", condMinGames: "", condRecentDays: "", condRecentHands: "",
     condNewUserOnly: false,
+    buttons: [] as Array<{ text: string; url: string; type?: string; row?: number }>,
   });
   const resetForm = () => setForm({
     title: "", description: "", totalAmount: "", totalCount: 10,
     type: "random", imageUrl: "", expiresAt: "",
     condEnabled: false, condMinDeposit: "", condMinGames: "",
     condRecentDays: "", condRecentHands: "", condNewUserOnly: false,
+    buttons: [],
   });
 
   const handleCreate = () => {
@@ -1732,6 +1811,7 @@ function RedPacketPanel() {
       imageUrl: form.imageUrl || undefined,
       expiresAt: form.expiresAt ? new Date(form.expiresAt) : undefined,
       condition,
+      buttons: form.buttons.length > 0 ? form.buttons : undefined,
     });
   };
 
@@ -1826,7 +1906,9 @@ function RedPacketPanel() {
                 {/* Activity Links */}
                 <div className="space-y-1 pt-2 border-t border-border/50">
                   <ActivityLinkBar label="Mini App 链接" link={`${window.location.origin}/red-packet/${pkt.id}`} />
-                  {rpBotUsername && <ActivityLinkBar label="TG 链接" link={`https://t.me/${rpBotUsername}/app?startapp=hongbao_${pkt.id}`} />}
+                  {rpBotUsername && <ActivityLinkBar label="TG 链接" link={`https://t.me/${rpBotUsername}/app?startapp=hongbao_${pkt.id}`}
+                    onSendToTG={() => setRpQuickBroadcast({ open: true, content: `🧧 ${pkt.title}\n总额 ${pkt.totalAmount} USDT，共 ${pkt.totalCount} 份\n点击下方按钮抢红包！`, buttons: [{ text: '🧧 抢红包', url: `/red-packet/${pkt.id}`, type: 'web_app', row: 0 }] })}
+                  />}
                 </div>
               </div>
             );
@@ -1876,6 +1958,13 @@ function RedPacketPanel() {
             <ImageUploader value={form.imageUrl} onChange={url => setForm(f => ({ ...f, imageUrl: url }))} />
             <p className="text-xs text-muted-foreground">封面图建议尺寸：800×400px，将显示在红包页面顶部</p>
 
+            {/* Buttons/Links */}
+            <div className="border-t border-border pt-3">
+              <Label className="text-sm font-medium">按钮列表（可选，显示在红包页面底部）</Label>
+              <p className="text-xs text-muted-foreground mb-2">添加按钮可引导用户跳转到频道、游戏等页面</p>
+              <ButtonEditor buttons={form.buttons} onChange={buttons => setForm(f => ({ ...f, buttons }))} />
+            </div>
+
             {/* Conditions */}
             <div className="border-t border-border pt-3">
               <div className="flex items-center gap-2 mb-2">
@@ -1923,6 +2012,13 @@ function RedPacketPanel() {
 
       {/* Detail Dialog */}
       {showDetail && <RedPacketDetailDialog id={showDetail} onClose={() => setShowDetail(null)} />}
+      {/* Quick Broadcast Dialog */}
+      <QuickBroadcastDialog
+        open={rpQuickBroadcast.open}
+        onOpenChange={(v) => setRpQuickBroadcast(prev => ({ ...prev, open: v }))}
+        defaultContent={rpQuickBroadcast.content}
+        defaultButtons={rpQuickBroadcast.buttons}
+      />
     </div>
   );
 }
