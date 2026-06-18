@@ -1054,7 +1054,7 @@
 
 ## Bug Fix: 群发失败 + 红包创建报错 + 红包按钮链接
 
-- [ ] 修复Bot群发全部失败问题（7/7失败）
-- [ ] 修复创建红包报错 "Cannot read properties of null (reading 'id')"
-- [ ] 红包创建表单增加按钮和链接配置
+- [x] 修复Bot群发全部失败问题（7/7失败）- imageUrl解析为签名URL
+- [x] 修复创建红包报错 "Cannot read properties of null (reading .id.)" - 使用adminUser?.adminId fallback
+- [x] 红包创建表单增加按钮和链接配置（ButtonEditor已集成）
 - [x] 各营销活动链接增加"发送给TG用户"快捷操作
