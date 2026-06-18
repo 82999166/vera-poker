@@ -23,6 +23,7 @@ import StaffLogin from "./pages/StaffLogin";
 import Tutorial from "./pages/Tutorial";
 import ReplayList from "./pages/ReplayList";
 import ReplayPlayer from "./pages/ReplayPlayer";
+import RedPacket from "./pages/RedPacket";
 import { useClickSound } from "./hooks/useClickSound";
 import { trpc } from "./lib/trpc";
 
@@ -151,6 +152,7 @@ function MobileRouter() {
       <Route path="/tutorial" component={Tutorial} />
       <Route path="/replay" component={ReplayList} />
       <Route path="/replay/:id" component={ReplayPlayer} />
+      <Route path="/red-packet/:id" component={RedPacket} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

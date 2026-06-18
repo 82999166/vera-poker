@@ -491,7 +491,7 @@ export const broadcastTasks = mysqlTable("broadcast_tasks", {
   imageUrl: text("imageUrl"), // Optional image attachment
   buttonText: varchar("buttonText", { length: 128 }), // Optional inline button text (legacy single)
   buttonUrl: text("buttonUrl"), // Optional inline button URL (legacy single)
-  buttons: json("buttons").$type<Array<{ text: string; url: string; row?: number }>>(), // Multi-button: [{text, url, row}]
+  buttons: json("buttons").$type<Array<{ text: string; url: string; type?: string; row?: number }>>(), // Multi-button: [{text, url, type?, row}] type: url|web_app
   // Target: "all" = all users with tgId, "active" = users active in last 30 days, "custom" = specific user IDs
   targetType: mysqlEnum("targetType", ["all", "active", "deposited", "custom"]).default("all").notNull(),
   targetUserIds: json("targetUserIds").$type<number[]>(), // Used when targetType = "custom"
@@ -789,7 +789,7 @@ export const scheduledNotifications = mysqlTable("scheduled_notifications", {
   title: varchar("title", { length: 256 }).notNull(),
   content: text("content").notNull(),
   imageUrl: text("imageUrl"),
-  buttons: json("buttons").$type<Array<{ text: string; url: string }>>(),
+  buttons: json("buttons").$type<Array<{ text: string; url: string; type?: string; row?: number }>>(),
   targetType: mysqlEnum("targetType", ["all", "active", "deposited", "custom"]).default("all").notNull(),
   targetUserIds: json("targetUserIds").$type<number[]>(),
   scheduledAt: timestamp("scheduledAt").notNull(),
@@ -816,3 +816,43 @@ export const roomBotConfig = mysqlTable("room_bot_config", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type RoomBotConfig = typeof roomBotConfig.$inferSelect;
+
+// ==================== 抢红包系统 ====================
+export const redPackets = mysqlTable("red_packets", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 256 }).notNull(), // 红包标题
+  description: text("description"), // 红包描述/说明
+  totalAmount: decimal("totalAmount", { precision: 18, scale: 2 }).notNull(), // 总金额 USDT
+  totalCount: int("totalCount").notNull(), // 总份数
+  claimedCount: int("claimedCount").default(0).notNull(), // 已领取份数
+  claimedAmount: decimal("claimedAmount", { precision: 18, scale: 2 }).default("0.00").notNull(), // 已领取金额
+  type: mysqlEnum("type", ["random", "fixed"]).default("random").notNull(), // random=拼手气, fixed=固定金额
+  // 领取条件 (JSON)
+  condition: json("condition").$type<{
+    minDeposit?: number; // 最低充值金额
+    minGamesPlayed?: number; // 最低游戏手数
+    minLevel?: number; // 最低等级
+    recentDays?: number; // 最近N天内的条件
+    recentHands?: number; // 最近N天内手数要求
+    vipOnly?: boolean; // 仅VIP可领
+    newUserOnly?: boolean; // 仅新用户可领
+  }>(),
+  imageUrl: text("imageUrl"), // 红包封面图
+  status: mysqlEnum("status", ["active", "paused", "completed", "expired"]).default("active").notNull(),
+  expiresAt: timestamp("expiresAt"), // 过期时间 (null=永不过期)
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type RedPacket = typeof redPackets.$inferSelect;
+export type InsertRedPacket = typeof redPackets.$inferInsert;
+
+export const redPacketClaims = mysqlTable("red_packet_claims", {
+  id: int("id").autoincrement().primaryKey(),
+  redPacketId: int("redPacketId").notNull(), // 关联红包ID
+  userId: int("userId").notNull(), // 领取用户ID
+  amount: decimal("amount", { precision: 18, scale: 2 }).notNull(), // 领取金额
+  claimedAt: timestamp("claimedAt").defaultNow().notNull(),
+});
+export type RedPacketClaim = typeof redPacketClaims.$inferSelect;
+export type InsertRedPacketClaim = typeof redPacketClaims.$inferInsert;

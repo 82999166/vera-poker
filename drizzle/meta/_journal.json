@@ -190,6 +190,13 @@
       "when": 1781693312461,
       "tag": "0026_burly_xorn",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "5",
+      "when": 1781774110196,
+      "tag": "0027_flat_mantis",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { formatBalance } from "@/lib/utils";
 import {
-  Plus, Trash2, Send, X, Play, Pause, Copy, Check,
+  Plus, Trash2, Send, X, Play, Pause, Copy, Check, Gift,
   Megaphone, MessageSquare, Share2, RefreshCw, Eye, Users, Search,
   Upload, FileText, Globe, Filter, Image as ImageIcon, Edit
 } from "lucide-react";
@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
-type MarketingTab = "broadcast" | "autoReply" | "fission" | "botUsers" | "templates" | "welcome" | "coupons" | "checkin" | "invite" | "events" | "notifications";
+type MarketingTab = "broadcast" | "autoReply" | "fission" | "botUsers" | "templates" | "welcome" | "coupons" | "checkin" | "invite" | "events" | "notifications" | "redPacket";
 
 // ==================== BROADCAST STATUS BADGE ====================
 function BroadcastStatusBadge({ status }: { status: string }) {
@@ -77,10 +77,10 @@ function MessagePreview({ content, imageUrl, buttons }: { content: string; image
 }
 
 // ==================== MULTI-BUTTON EDITOR ====================
-function ButtonEditor({ buttons, onChange }: { buttons: Array<{ text: string; url: string; row?: number }>; onChange: (v: Array<{ text: string; url: string; row?: number }>) => void }) {
+function ButtonEditor({ buttons, onChange }: { buttons: Array<{ text: string; url: string; type?: string; row?: number }>; onChange: (v: Array<{ text: string; url: string; type?: string; row?: number }>) => void }) {
   const addButton = () => {
     const maxRow = buttons.length > 0 ? Math.max(...buttons.map(b => b.row ?? 0)) : 0;
-    onChange([...buttons, { text: "", url: "", row: maxRow }]);
+    onChange([...buttons, { text: "", url: "", type: "url", row: maxRow }]);
   };
   const removeButton = (idx: number) => onChange(buttons.filter((_, i) => i !== idx));
   const updateButton = (idx: number, field: string, value: string | number) => {
@@ -97,13 +97,29 @@ function ButtonEditor({ buttons, onChange }: { buttons: Array<{ text: string; ur
           <Plus className="w-3 h-3 mr-1" />添加按钮
         </Button>
       </div>
+      {buttons.length > 0 && (
+        <div className="flex gap-1.5 items-center text-xs text-muted-foreground px-0.5">
+          <span className="flex-1">按钮文字</span>
+          <span className="w-20">类型</span>
+          <span className="flex-1">链接地址</span>
+          <span className="w-14 text-center">行号</span>
+          <span className="w-8"></span>
+        </div>
+      )}
       {buttons.map((btn, idx) => (
         <div key={idx} className="flex gap-1.5 items-center">
           <Input className="flex-1" placeholder="按钮文字" value={btn.text}
             onChange={e => updateButton(idx, "text", e.target.value)} />
-          <Input className="flex-1" placeholder="按钮链接 https://..." value={btn.url}
+          <Select value={btn.type || "url"} onValueChange={v => updateButton(idx, "type", v)}>
+            <SelectTrigger className="w-20 h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="url">链接</SelectItem>
+              <SelectItem value="web_app">小程序</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input className="flex-1" placeholder={btn.type === "web_app" ? "Mini App URL" : "https://..."} value={btn.url}
             onChange={e => updateButton(idx, "url", e.target.value)} />
-          <Input className="w-16" type="number" placeholder="行" value={btn.row ?? 0}
+          <Input className="w-14" type="number" placeholder="行" value={btn.row ?? 0}
             onChange={e => updateButton(idx, "row", parseInt(e.target.value) || 0)} title="行号（同行号的按钮在同一行）" />
           <Button type="button" size="sm" variant="ghost" className="text-destructive shrink-0" onClick={() => removeButton(idx)}>
             <Trash2 className="w-3 h-3" />
@@ -111,7 +127,7 @@ function ButtonEditor({ buttons, onChange }: { buttons: Array<{ text: string; ur
         </div>
       ))}
       {buttons.length === 0 && (
-        <p className="text-xs text-muted-foreground">未添加按钮。点击"添加按钮"可添加 inline keyboard 按钮。</p>
+        <p className="text-xs text-muted-foreground">未添加按钮。点击"添加按钮"可添加 inline keyboard 按钮（链接=打开URL，小程序=打开 Mini App）。</p>
       )}
     </div>
   );
@@ -1469,7 +1485,7 @@ function TimeLimitedEventsPanel() {
 // ==================== NOTIFICATIONS PANEL ====================
 function NotificationsPanel() {
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ title: "", content: "", targetType: "all" as string, scheduledAt: "" });
+  const [form, setForm] = useState({ title: "", content: "", imageUrl: "", buttons: [] as Array<{ text: string; url: string; type?: string; row?: number }>, targetType: "all" as string, scheduledAt: "" });
   const { data: notifications, refetch } = trpc.marketing.notificationList.useQuery();
   const createMut = trpc.marketing.notificationCreate.useMutation({ onSuccess: () => { refetch(); setShowCreate(false); toast.success("创建成功"); } });
   const cancelMut = trpc.marketing.notificationCancel.useMutation({ onSuccess: () => { refetch(); toast.success("已取消"); } });
@@ -1523,27 +1539,42 @@ function NotificationsPanel() {
       </div>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>创建推送通知</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>标题</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
-            <div><Label>内容</Label><Textarea value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} rows={4} /></div>
-            <div><Label>目标用户</Label>
-              <Select value={form.targetType} onValueChange={v => setForm(f => ({ ...f, targetType: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部用户</SelectItem>
-                  <SelectItem value="active">活跃用户 (7天内)</SelectItem>
-                  <SelectItem value="inactive">流失用户 (30天未登录)</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div><Label>标题</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+              <div><Label>内容（支持 HTML）</Label><Textarea value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} rows={4} /></div>
+              <ImageUploader value={form.imageUrl} onChange={url => setForm(f => ({ ...f, imageUrl: url }))} />
+              <ButtonEditor buttons={form.buttons} onChange={buttons => setForm(f => ({ ...f, buttons }))} />
+              <div><Label>目标用户</Label>
+                <Select value={form.targetType} onValueChange={v => setForm(f => ({ ...f, targetType: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部用户</SelectItem>
+                    <SelectItem value="active">活跃用户 (7天内)</SelectItem>
+                    <SelectItem value="deposited">有充值记录</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>定时发送(可选，留空则立即发送)</Label><Input type="datetime-local" value={form.scheduledAt} onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))} /></div>
             </div>
-            <div><Label>定时发送(可选，留空则立即发送)</Label><Input type="datetime-local" value={form.scheduledAt} onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))} /></div>
+            <div>
+              <MessagePreview content={form.content} imageUrl={form.imageUrl || undefined} buttons={form.buttons} />
+            </div>
           </div>
           <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>取消</Button>
             <Button onClick={() => {
               if (!form.title || !form.content) { toast.error("请填写标题和内容"); return; }
-              createMut.mutate({ title: form.title, content: form.content, targetType: form.targetType as "all" | "active" | "deposited" | "custom", scheduledAt: form.scheduledAt ? new Date(form.scheduledAt) : new Date() });
+              createMut.mutate({
+                title: form.title,
+                content: form.content,
+                imageUrl: form.imageUrl || undefined,
+                buttons: form.buttons.length > 0 ? form.buttons.filter(b => b.text && b.url) : undefined,
+                targetType: form.targetType as "all" | "active" | "deposited" | "custom",
+                scheduledAt: form.scheduledAt ? new Date(form.scheduledAt) : new Date(),
+              });
             }} disabled={createMut.isPending}>
               {createMut.isPending ? "创建中..." : "创建"}
             </Button>
@@ -1554,13 +1585,322 @@ function NotificationsPanel() {
   );
 }
 
+// ==================== RED PACKET PANEL ====================
+function RedPacketPanel() {
+  const { data: packets, isLoading, refetch } = trpc.marketing.redPacketList.useQuery();
+  const createMut = trpc.marketing.redPacketCreate.useMutation({
+    onSuccess: () => { toast.success("红包创建成功"); setShowCreate(false); refetch(); resetForm(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateStatusMut = trpc.marketing.redPacketUpdateStatus.useMutation({
+    onSuccess: () => { toast.success("状态已更新"); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteMut = trpc.marketing.redPacketDelete.useMutation({
+    onSuccess: () => { toast.success("已删除"); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [showDetail, setShowDetail] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    title: "", description: "", totalAmount: "", totalCount: 10,
+    type: "random" as "random" | "fixed",
+    imageUrl: "", expiresAt: "",
+    condEnabled: false,
+    condMinDeposit: "", condMinGames: "", condRecentDays: "", condRecentHands: "",
+    condNewUserOnly: false,
+  });
+  const resetForm = () => setForm({
+    title: "", description: "", totalAmount: "", totalCount: 10,
+    type: "random", imageUrl: "", expiresAt: "",
+    condEnabled: false, condMinDeposit: "", condMinGames: "",
+    condRecentDays: "", condRecentHands: "", condNewUserOnly: false,
+  });
+
+  const handleCreate = () => {
+    if (!form.title || !form.totalAmount || !form.totalCount) {
+      toast.error("请填写红包标题、总金额和份数"); return;
+    }
+    const condition = form.condEnabled ? {
+      minDeposit: form.condMinDeposit ? parseFloat(form.condMinDeposit) : undefined,
+      minGamesPlayed: form.condMinGames ? parseInt(form.condMinGames) : undefined,
+      recentDays: form.condRecentDays ? parseInt(form.condRecentDays) : undefined,
+      recentHands: form.condRecentHands ? parseInt(form.condRecentHands) : undefined,
+      newUserOnly: form.condNewUserOnly || undefined,
+    } : undefined;
+    createMut.mutate({
+      title: form.title,
+      description: form.description || undefined,
+      totalAmount: form.totalAmount,
+      totalCount: form.totalCount,
+      type: form.type,
+      imageUrl: form.imageUrl || undefined,
+      expiresAt: form.expiresAt ? new Date(form.expiresAt) : undefined,
+      condition,
+    });
+  };
+
+  const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+    active: { label: "进行中", variant: "default" },
+    paused: { label: "已暂停", variant: "secondary" },
+    completed: { label: "已领完", variant: "outline" },
+    expired: { label: "已过期", variant: "destructive" },
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">抢红包</h3>
+          <p className="text-sm text-muted-foreground">创建拼手气红包，玩家可在 TG 或 Mini App 中领取，金额直接到账户余额</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-4 h-4" /></Button>
+          <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" />创建红包</Button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-8 text-muted-foreground">加载中...</div>
+      ) : !packets?.length ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Gift className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p>暂无红包活动</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {packets.map((pkt) => {
+            const s = statusLabels[pkt.status] || { label: pkt.status, variant: "secondary" as const };
+            const progress = pkt.totalCount > 0 ? Math.round((pkt.claimedCount / pkt.totalCount) * 100) : 0;
+            return (
+              <div key={pkt.id} className="border border-border rounded-lg p-4 bg-card">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant={s.variant}>{s.label}</Badge>
+                      <span className="font-medium truncate">{pkt.title}</span>
+                      <Badge variant="outline" className="text-xs">{pkt.type === "random" ? "拼手气" : "固定额"}</Badge>
+                    </div>
+                    {pkt.description && <p className="text-sm text-muted-foreground line-clamp-1 mb-1">{pkt.description}</p>}
+                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      <span>总额：<b className="text-foreground">{pkt.totalAmount} USDT</b></span>
+                      <span>份数：{pkt.claimedCount}/{pkt.totalCount}</span>
+                      <span>已领：{pkt.claimedAmount} USDT</span>
+                      {pkt.expiresAt && <span>过期：{new Date(pkt.expiresAt).toLocaleString()}</span>}
+                      <span>创建：{new Date(pkt.createdAt).toLocaleString()}</span>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="mt-2">
+                      <div className="w-full bg-secondary rounded-full h-1.5">
+                        <div className="bg-red-500 h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{progress}% 已领取</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => setShowDetail(pkt.id)}>
+                      <Eye className="w-3 h-3 mr-1" />详情
+                    </Button>
+                    {pkt.status === "active" && (
+                      <Button size="sm" variant="outline" onClick={() => updateStatusMut.mutate({ id: pkt.id, status: "paused" })}>
+                        <Pause className="w-3 h-3" />
+                      </Button>
+                    )}
+                    {pkt.status === "paused" && (
+                      <Button size="sm" variant="outline" onClick={() => updateStatusMut.mutate({ id: pkt.id, status: "active" })}>
+                        <Play className="w-3 h-3" />
+                      </Button>
+                    )}
+                    {["paused", "completed", "expired"].includes(pkt.status) && (
+                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => {
+                        if (confirm("确定删除该红包？")) deleteMut.mutate({ id: pkt.id });
+                      }}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create Red Packet Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>创建抢红包</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>红包标题 *</Label>
+              <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="如：500级别专属红包" />
+            </div>
+            <div>
+              <Label>红包说明</Label>
+              <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="领取要求、活动说明等" rows={2} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>总金额 (USDT) *</Label>
+                <Input type="number" step="0.01" value={form.totalAmount} onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value }))} placeholder="2000" />
+              </div>
+              <div>
+                <Label>总份数 *</Label>
+                <Input type="number" value={form.totalCount} onChange={e => setForm(f => ({ ...f, totalCount: parseInt(e.target.value) || 1 }))} placeholder="30" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>红包类型</Label>
+                <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as any }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="random">拼手气（随机金额）</SelectItem>
+                    <SelectItem value="fixed">固定额（平分）</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>过期时间（可选）</Label>
+                <Input type="datetime-local" value={form.expiresAt} onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))} />
+              </div>
+            </div>
+            <ImageUploader value={form.imageUrl} onChange={url => setForm(f => ({ ...f, imageUrl: url }))} />
+            <p className="text-xs text-muted-foreground">封面图建议尺寸：800×400px，将显示在红包页面顶部</p>
+
+            {/* Conditions */}
+            <div className="border-t border-border pt-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Switch checked={form.condEnabled} onCheckedChange={v => setForm(f => ({ ...f, condEnabled: v }))} />
+                <Label>设置领取条件</Label>
+              </div>
+              {form.condEnabled && (
+                <div className="space-y-2 pl-2 border-l-2 border-primary/30">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">最低充值金额 (USDT)</Label>
+                      <Input type="number" value={form.condMinDeposit} onChange={e => setForm(f => ({ ...f, condMinDeposit: e.target.value }))} placeholder="如 100" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">最低游戏手数</Label>
+                      <Input type="number" value={form.condMinGames} onChange={e => setForm(f => ({ ...f, condMinGames: e.target.value }))} placeholder="如 200" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">最近N天内</Label>
+                      <Input type="number" value={form.condRecentDays} onChange={e => setForm(f => ({ ...f, condRecentDays: e.target.value }))} placeholder="如 2" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">该时段内手数要求</Label>
+                      <Input type="number" value={form.condRecentHands} onChange={e => setForm(f => ({ ...f, condRecentHands: e.target.value }))} placeholder="如 200" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={form.condNewUserOnly} onCheckedChange={v => setForm(f => ({ ...f, condNewUserOnly: v }))} />
+                    <Label className="text-xs">仅新用户可领（注册7天内）</Label>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>取消</Button>
+            <Button onClick={handleCreate} disabled={createMut.isPending}>
+              {createMut.isPending ? "创建中..." : "创建红包"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Dialog */}
+      {showDetail && <RedPacketDetailDialog id={showDetail} onClose={() => setShowDetail(null)} />}
+    </div>
+  );
+}
+
+/** Red Packet Detail Dialog - shows claims leaderboard */
+function RedPacketDetailDialog({ id, onClose }: { id: number; onClose: () => void }) {
+  const { data, isLoading } = trpc.marketing.redPacketDetail.useQuery({ id });
+  if (!data) return null;
+  const { packet, claims } = data;
+
+  return (
+    <Dialog open onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>红包详情: {packet?.title}</DialogTitle>
+        </DialogHeader>
+        {isLoading ? <div className="py-8 text-center text-muted-foreground">加载中...</div> : (
+          <div className="space-y-4">
+            {/* Summary */}
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="bg-secondary/50 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">总金额</p>
+                <p className="text-lg font-bold text-red-500">{packet?.totalAmount} USDT</p>
+              </div>
+              <div className="bg-secondary/50 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">已领/总份</p>
+                <p className="text-lg font-bold">{packet?.claimedCount}/{packet?.totalCount}</p>
+              </div>
+              <div className="bg-secondary/50 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">已领金额</p>
+                <p className="text-lg font-bold">{packet?.claimedAmount} USDT</p>
+              </div>
+            </div>
+
+            {/* Condition info */}
+            {packet?.condition && (
+              <div className="text-xs text-muted-foreground bg-secondary/30 rounded p-2">
+                <span className="font-medium">领取条件：</span>
+                {(packet.condition as any).minDeposit && <span>充值≥{(packet.condition as any).minDeposit} </span>}
+                {(packet.condition as any).minGamesPlayed && <span>手数≥{(packet.condition as any).minGamesPlayed} </span>}
+                {(packet.condition as any).recentDays && (packet.condition as any).recentHands && (
+                  <span>最近{(packet.condition as any).recentDays}天{(packet.condition as any).recentHands}手 </span>
+                )}
+                {(packet.condition as any).newUserOnly && <span>仅新用户 </span>}
+              </div>
+            )}
+
+            {/* Claims leaderboard */}
+            <div>
+              <h4 className="text-sm font-medium mb-2">领取排行榜（按金额降序）</h4>
+              {!claims?.length ? (
+                <p className="text-sm text-muted-foreground text-center py-4">暂无人领取</p>
+              ) : (
+                <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                  {claims.map((claim, idx) => (
+                    <div key={claim.id} className="flex items-center gap-2 text-sm py-1.5 px-2 rounded bg-secondary/30">
+                      <span className={`w-5 text-center font-bold ${
+                        idx === 0 ? "text-yellow-500" : idx === 1 ? "text-gray-400" : idx === 2 ? "text-orange-600" : "text-muted-foreground"
+                      }`}>{idx + 1}</span>
+                      <span className="flex-1 truncate">{claim.nickname || claim.tgUsername || `User#${claim.userId}`}</span>
+                      <span className="font-mono font-medium text-red-500">{claim.amount} USDT</span>
+                      <span className="text-xs text-muted-foreground">{new Date(claim.claimedAt).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>关闭</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ==================== MAIN MARKETING PANEL ====================
 export function MarketingPanel({ at }: { at: (k: string) => string }) {
   const [activeTab, setActiveTab] = useState<MarketingTab>("broadcast");
 
   const tabs: { key: MarketingTab; icon: any; label: string }[] = [
     { key: "broadcast", icon: Megaphone, label: "Bot 群发" },
-    { key: "coupons", icon: Copy, label: "优惠券/红包" },
+    { key: "redPacket", icon: Gift, label: "抢红包" },
+    { key: "coupons", icon: Copy, label: "优惠券" },
     { key: "invite", icon: Share2, label: "邀请奖励" },
     { key: "checkin", icon: Check, label: "签到奖励" },
     { key: "events", icon: Play, label: "限时活动" },
@@ -1593,6 +1933,7 @@ export function MarketingPanel({ at }: { at: (k: string) => string }) {
       {/* Tab Content */}
       <div className="pt-2">
         {activeTab === "broadcast" && <BroadcastPanel />}
+        {activeTab === "redPacket" && <RedPacketPanel />}
         {activeTab === "coupons" && <CouponsPanel />}
         {activeTab === "invite" && <InviteRewardPanel />}
         {activeTab === "checkin" && <CheckinPanel />}

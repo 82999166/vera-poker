@@ -264,14 +264,14 @@ export function registerTelegramRoutes(app: Express) {
               let inlineKeyboard: any[][] = [];
               if (welcomeTemplate.buttons && Array.isArray(welcomeTemplate.buttons) && welcomeTemplate.buttons.length > 0) {
                 const rowMap = new Map<number, any[]>();
-                for (const btn of welcomeTemplate.buttons as Array<{ text: string; url: string; row?: number }>) {
+                for (const btn of welcomeTemplate.buttons as Array<{ text: string; url: string; type?: string; row?: number }>) {
                   const row = btn.row ?? 0;
                   if (!rowMap.has(row)) rowMap.set(row, []);
-                  // Check if URL looks like a web_app URL
-                  if (btn.url.includes("t.me") || btn.url.startsWith("http")) {
-                    rowMap.get(row)!.push({ text: btn.text, url: btn.url });
-                  } else {
+                  // Use explicit type field: web_app opens Mini App, url opens link
+                  if (btn.type === "web_app") {
                     rowMap.get(row)!.push({ text: btn.text, web_app: { url: btn.url } });
+                  } else {
+                    rowMap.get(row)!.push({ text: btn.text, url: btn.url });
                   }
                 }
                 inlineKeyboard = [...rowMap.entries()].sort((a, b) => a[0] - b[0]).map(([, btns]) => btns);

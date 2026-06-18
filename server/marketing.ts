@@ -7,11 +7,13 @@ import { getDb } from "./db";
 import {
   broadcastTasks, autoReplyRules, fissionCampaigns, fissionClicks,
   users, transactions, messageTemplates, welcomeTemplates,
+  redPackets, redPacketClaims,
   type BroadcastTask, type InsertBroadcastTask,
   type AutoReplyRule, type InsertAutoReplyRule,
   type FissionCampaign, type InsertFissionCampaign,
   type FissionClick,
   type InsertMessageTemplate, type InsertWelcomeTemplate,
+  type RedPacket, type InsertRedPacket,
 } from "../drizzle/schema";
 import * as db from "./db";
 import { nanoid } from "nanoid";
@@ -138,11 +140,16 @@ export async function executeBroadcast(taskId: number): Promise<void> {
         // Add inline buttons if configured
         if (task.buttons && task.buttons.length > 0) {
           // Group buttons by row (default row 0)
-          const rowMap = new Map<number, Array<{ text: string; url: string }>>();
-          for (const btn of task.buttons) {
+          const rowMap = new Map<number, Array<Record<string, unknown>>>();
+          for (const btn of task.buttons as Array<{ text: string; url: string; type?: string; row?: number }>) {
             const row = btn.row ?? 0;
             if (!rowMap.has(row)) rowMap.set(row, []);
-            rowMap.get(row)!.push({ text: btn.text, url: btn.url });
+            // Support different button types: url (default), web_app
+            if (btn.type === "web_app") {
+              rowMap.get(row)!.push({ text: btn.text, web_app: { url: btn.url } });
+            } else {
+              rowMap.get(row)!.push({ text: btn.text, url: btn.url });
+            }
           }
           const sortedRows = [...rowMap.entries()].sort((a, b) => a[0] - b[0]);
           body.reply_markup = {
@@ -1066,4 +1073,253 @@ export async function executeScheduledNotification(id: number): Promise<void> {
     status: "sent",
     sentAt: new Date(),
   }).where(eq(scheduledNotifications.id, id));
+}
+
+
+// ==================== 抢红包系统 ====================
+
+export async function createRedPacket(data: {
+  title: string;
+  description?: string;
+  totalAmount: string;
+  totalCount: number;
+  type: "random" | "fixed";
+  condition?: any;
+  imageUrl?: string;
+  expiresAt?: Date | null;
+  createdBy: number;
+}): Promise<number> {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB unavailable");
+  const [result] = await dbInstance.insert(redPackets).values({
+    title: data.title,
+    description: data.description || null,
+    totalAmount: data.totalAmount,
+    totalCount: data.totalCount,
+    type: data.type,
+    condition: data.condition || null,
+    imageUrl: data.imageUrl || null,
+    expiresAt: data.expiresAt || null,
+    createdBy: data.createdBy,
+    status: "active",
+    claimedCount: 0,
+    claimedAmount: "0.00",
+  });
+  return result.insertId as number;
+}
+
+export async function listRedPackets(limit = 50, offset = 0) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  return dbInstance.select().from(redPackets)
+    .orderBy(desc(redPackets.createdAt))
+    .limit(limit).offset(offset);
+}
+
+export async function getRedPacket(id: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return null;
+  const rows = await dbInstance.select().from(redPackets).where(eq(redPackets.id, id));
+  return rows[0] ?? null;
+}
+
+export async function updateRedPacketStatus(id: number, status: "active" | "paused" | "completed" | "expired") {
+  const dbInstance = await getDb();
+  if (!dbInstance) return;
+  await dbInstance.update(redPackets).set({ status }).where(eq(redPackets.id, id));
+}
+
+export async function deleteRedPacket(id: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return;
+  await dbInstance.delete(redPackets).where(eq(redPackets.id, id));
+  await dbInstance.delete(redPacketClaims).where(eq(redPacketClaims.redPacketId, id));
+}
+
+export async function getRedPacketClaims(redPacketId: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  const claims = await dbInstance.select({
+    id: redPacketClaims.id,
+    userId: redPacketClaims.userId,
+    amount: redPacketClaims.amount,
+    claimedAt: redPacketClaims.claimedAt,
+    nickname: users.nickname,
+    tgUsername: users.tgUsername,
+    avatar: users.avatar,
+  })
+    .from(redPacketClaims)
+    .leftJoin(users, eq(redPacketClaims.userId, users.id))
+    .where(eq(redPacketClaims.redPacketId, redPacketId))
+    .orderBy(desc(redPacketClaims.amount));
+  return claims;
+}
+
+/**
+ * Claim a red packet - handles random amount allocation and condition checking
+ */
+export async function claimRedPacket(userId: number, redPacketId: number): Promise<{ success: boolean; amount?: string; error?: string }> {
+  const dbInstance = await getDb();
+  if (!dbInstance) return { success: false, error: "DB unavailable" };
+
+  // Get the red packet
+  const [packet] = await dbInstance.select().from(redPackets).where(eq(redPackets.id, redPacketId));
+  if (!packet) return { success: false, error: "红包不存在" };
+  if (packet.status !== "active") return { success: false, error: "红包已结束" };
+  if (packet.expiresAt && new Date(packet.expiresAt) < new Date()) {
+    await dbInstance.update(redPackets).set({ status: "expired" }).where(eq(redPackets.id, redPacketId));
+    return { success: false, error: "红包已过期" };
+  }
+  if (packet.claimedCount >= packet.totalCount) {
+    await dbInstance.update(redPackets).set({ status: "completed" }).where(eq(redPackets.id, redPacketId));
+    return { success: false, error: "红包已被领完" };
+  }
+
+  // Check if user already claimed
+  const existingClaim = await dbInstance.select().from(redPacketClaims)
+    .where(and(eq(redPacketClaims.redPacketId, redPacketId), eq(redPacketClaims.userId, userId)));
+  if (existingClaim.length > 0) return { success: false, error: "你已经领过了" };
+
+  // Check conditions
+  if (packet.condition) {
+    const cond = packet.condition as any;
+    const [user] = await dbInstance.select().from(users).where(eq(users.id, userId));
+    if (!user) return { success: false, error: "用户不存在" };
+
+    if (cond.minDeposit && parseFloat(String(user.totalDeposited)) < cond.minDeposit) {
+      return { success: false, error: `需要充值 ≥ ${cond.minDeposit} USDT` };
+    }
+    if (cond.minGamesPlayed && (user.totalGamesPlayed || 0) < cond.minGamesPlayed) {
+      return { success: false, error: `需要游戏手数 ≥ ${cond.minGamesPlayed}` };
+    }
+    if (cond.recentDays && cond.recentHands) {
+      // Check recent hands in last N days - use totalGamesPlayed as approximation
+      if ((user.totalGamesPlayed || 0) < cond.recentHands) {
+        return { success: false, error: `需要最近${cond.recentDays}天手数 ≥ ${cond.recentHands}` };
+      }
+    }
+    if (cond.newUserOnly) {
+      const daysSinceRegister = (Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSinceRegister > 7) {
+        return { success: false, error: "仅限新用户领取（注册7天内）" };
+      }
+    }
+  }
+
+  // Calculate claim amount
+  let claimAmount: number;
+  const totalAmount = parseFloat(packet.totalAmount);
+  const claimedAmount = parseFloat(packet.claimedAmount);
+  const remaining = totalAmount - claimedAmount;
+  const remainingCount = packet.totalCount - packet.claimedCount;
+
+  if (packet.type === "fixed") {
+    // Fixed: equal split
+    claimAmount = Math.round((totalAmount / packet.totalCount) * 100) / 100;
+  } else {
+    // Random: 二倍均值法 (double average method)
+    if (remainingCount === 1) {
+      // Last one gets all remaining
+      claimAmount = Math.round(remaining * 100) / 100;
+    } else {
+      const avg = remaining / remainingCount;
+      const max = avg * 2;
+      const min = 0.01; // minimum 0.01 USDT
+      claimAmount = Math.round((Math.random() * (max - min) + min) * 100) / 100;
+      // Ensure we don't exceed remaining
+      if (claimAmount > remaining - (remainingCount - 1) * 0.01) {
+        claimAmount = Math.round((remaining - (remainingCount - 1) * 0.01) * 100) / 100;
+      }
+    }
+  }
+
+  // Ensure minimum
+  if (claimAmount < 0.01) claimAmount = 0.01;
+  // Ensure doesn't exceed remaining
+  if (claimAmount > remaining) claimAmount = Math.round(remaining * 100) / 100;
+
+  const claimAmountStr = claimAmount.toFixed(2);
+
+  // Insert claim record
+  await dbInstance.insert(redPacketClaims).values({
+    redPacketId,
+    userId,
+    amount: claimAmountStr,
+  });
+
+  // Update red packet counters
+  const newClaimedCount = packet.claimedCount + 1;
+  const newClaimedAmount = (claimedAmount + claimAmount).toFixed(2);
+  const isCompleted = newClaimedCount >= packet.totalCount;
+  await dbInstance.update(redPackets).set({
+    claimedCount: newClaimedCount,
+    claimedAmount: newClaimedAmount,
+    status: isCompleted ? "completed" : "active",
+  }).where(eq(redPackets.id, redPacketId));
+
+  // Add balance to user
+  await dbInstance.update(users).set({
+    balance: sql`${users.balance} + ${claimAmountStr}`,
+  }).where(eq(users.id, userId));
+
+  // Record transaction - get user balance for before/after
+  const [userRow] = await dbInstance.select({ balance: users.balance }).from(users).where(eq(users.id, userId));
+  const balBefore = userRow ? parseFloat(userRow.balance) - claimAmount : 0;
+  await dbInstance.insert(transactions).values({
+    userId,
+    type: "bonus",
+    amount: claimAmountStr,
+    balanceBefore: balBefore.toFixed(2),
+    balanceAfter: userRow ? userRow.balance : claimAmountStr,
+    status: "completed",
+    note: `领取红包: ${packet.title}`,
+    referenceType: "red_packet",
+    referenceId: redPacketId,
+  });
+
+  return { success: true, amount: claimAmountStr };
+}
+
+/** Get red packet with claim status for a user */
+export async function getRedPacketForUser(redPacketId: number, userId: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return null;
+
+  const [packet] = await dbInstance.select().from(redPackets).where(eq(redPackets.id, redPacketId));
+  if (!packet) return null;
+
+  // Check if user already claimed
+  const [userClaim] = await dbInstance.select().from(redPacketClaims)
+    .where(and(eq(redPacketClaims.redPacketId, redPacketId), eq(redPacketClaims.userId, userId)));
+
+  // Get top claims for leaderboard
+  const topClaims = await dbInstance.select({
+    id: redPacketClaims.id,
+    userId: redPacketClaims.userId,
+    amount: redPacketClaims.amount,
+    claimedAt: redPacketClaims.claimedAt,
+    nickname: users.nickname,
+    tgUsername: users.tgUsername,
+    avatar: users.avatar,
+  })
+    .from(redPacketClaims)
+    .leftJoin(users, eq(redPacketClaims.userId, users.id))
+    .where(eq(redPacketClaims.redPacketId, redPacketId))
+    .orderBy(desc(redPacketClaims.amount))
+    .limit(15);
+
+  return {
+    ...packet,
+    userClaim: userClaim || null,
+    topClaims,
+  };
+}
+
+/** List active red packets for user */
+export async function listActiveRedPackets() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  return dbInstance.select().from(redPackets)
+    .where(eq(redPackets.status, "active"))
+    .orderBy(desc(redPackets.createdAt));
 }

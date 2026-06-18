@@ -3491,7 +3491,7 @@ ${faqContext}
       imageUrl: z.string().optional(),
       buttonText: z.string().optional(),
       buttonUrl: z.string().optional(),
-      buttons: z.array(z.object({ text: z.string(), url: z.string(), row: z.number().optional() })).optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), type: z.string().optional(), row: z.number().optional() })).optional(),
       targetType: z.enum(["all", "active", "deposited", "custom"]),
       targetUserIds: z.array(z.number()).optional(),
       targetFilter: z.object({
@@ -3668,7 +3668,7 @@ ${faqContext}
       name: z.string().min(1),
       content: z.string().min(1),
       imageUrl: z.string().optional(),
-      buttons: z.array(z.object({ text: z.string(), url: z.string(), row: z.number().optional() })).optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), type: z.string().optional(), row: z.number().optional() })).optional(),
       category: z.string().default("general"),
     })).mutation(async ({ input, ctx }) => {
       const { createMessageTemplate } = await import("./marketing");
@@ -3680,7 +3680,7 @@ ${faqContext}
       name: z.string().min(1).optional(),
       content: z.string().min(1).optional(),
       imageUrl: z.string().nullable().optional(),
-      buttons: z.array(z.object({ text: z.string(), url: z.string(), row: z.number().optional() })).nullable().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), type: z.string().optional(), row: z.number().optional() })).nullable().optional(),
       category: z.string().optional(),
     })).mutation(async ({ input }) => {
       const { updateMessageTemplate } = await import("./marketing");
@@ -3703,7 +3703,7 @@ ${faqContext}
       language: z.string().min(1),
       content: z.string().min(1),
       imageUrl: z.string().optional(),
-      buttons: z.array(z.object({ text: z.string(), url: z.string(), row: z.number().optional() })).optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), type: z.string().optional(), row: z.number().optional() })).optional(),
       isActive: z.boolean().default(true),
     })).mutation(async ({ input, ctx }) => {
       const { createWelcomeTemplate } = await import("./marketing");
@@ -3715,7 +3715,7 @@ ${faqContext}
       language: z.string().optional(),
       content: z.string().optional(),
       imageUrl: z.string().nullable().optional(),
-      buttons: z.array(z.object({ text: z.string(), url: z.string(), row: z.number().optional() })).nullable().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), type: z.string().optional(), row: z.number().optional() })).nullable().optional(),
       isActive: z.boolean().optional(),
     })).mutation(async ({ input }) => {
       const { updateWelcomeTemplate } = await import("./marketing");
@@ -3898,7 +3898,7 @@ ${faqContext}
       title: z.string().min(1),
       content: z.string().min(1),
       imageUrl: z.string().optional(),
-      buttons: z.array(z.object({ text: z.string(), url: z.string() })).optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), type: z.string().optional(), row: z.number().optional() })).optional(),
       targetType: z.enum(["all", "active", "deposited", "custom"]).default("all"),
       targetUserIds: z.array(z.number()).optional(),
       scheduledAt: z.date(),
@@ -3914,6 +3914,65 @@ ${faqContext}
     notificationExecute: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       const { executeScheduledNotification } = await import("./marketing");
       await executeScheduledNotification(input.id);
+    }),
+
+    // ==================== 抢红包系统 ====================
+    redPacketList: adminProcedure.query(async () => {
+      const { listRedPackets } = await import("./marketing");
+      return listRedPackets();
+    }),
+    redPacketCreate: adminProcedure.input(z.object({
+      title: z.string().min(1),
+      description: z.string().optional(),
+      totalAmount: z.string(),
+      totalCount: z.number().min(1),
+      type: z.enum(["random", "fixed"]).default("random"),
+      condition: z.object({
+        minDeposit: z.number().optional(),
+        minGamesPlayed: z.number().optional(),
+        minLevel: z.number().optional(),
+        recentDays: z.number().optional(),
+        recentHands: z.number().optional(),
+        vipOnly: z.boolean().optional(),
+        newUserOnly: z.boolean().optional(),
+      }).optional(),
+      imageUrl: z.string().optional(),
+      expiresAt: z.date().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const { createRedPacket } = await import("./marketing");
+      const id = await createRedPacket({ ...input, expiresAt: input.expiresAt || null, createdBy: ctx.user!.id });
+      return { id };
+    }),
+    redPacketDetail: adminProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
+      const { getRedPacket, getRedPacketClaims } = await import("./marketing");
+      const packet = await getRedPacket(input.id);
+      const claims = await getRedPacketClaims(input.id);
+      return { packet, claims };
+    }),
+    redPacketUpdateStatus: adminProcedure.input(z.object({
+      id: z.number(),
+      status: z.enum(["active", "paused", "completed", "expired"]),
+    })).mutation(async ({ input }) => {
+      const { updateRedPacketStatus } = await import("./marketing");
+      await updateRedPacketStatus(input.id, input.status);
+    }),
+    redPacketDelete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { deleteRedPacket } = await import("./marketing");
+      await deleteRedPacket(input.id);
+    }),
+
+    // User-facing red packet APIs
+    redPacketActive: publicProcedure.query(async () => {
+      const { listActiveRedPackets } = await import("./marketing");
+      return listActiveRedPackets();
+    }),
+    redPacketForUser: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input, ctx }) => {
+      const { getRedPacketForUser } = await import("./marketing");
+      return getRedPacketForUser(input.id, ctx.user.id);
+    }),
+    redPacketClaim: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+      const { claimRedPacket } = await import("./marketing");
+      return claimRedPacket(ctx.user.id, input.id);
     }),
   }),
 });

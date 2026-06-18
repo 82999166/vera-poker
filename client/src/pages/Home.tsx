@@ -142,6 +142,13 @@ export default function Home() {
         return;
       }
 
+      // Red packet deep link: hongbao_123
+      if (startParam && startParam.startsWith("hongbao_")) {
+        const rpId = startParam.replace("hongbao_", "");
+        navigate(`/red-packet/${rpId}`);
+        return;
+      }
+
       const pendingRefCode = localStorage.getItem(PENDING_REF_KEY);
       if (pendingRefCode) {
         console.log("[DeepLink] Processing pending ref code:", pendingRefCode);
