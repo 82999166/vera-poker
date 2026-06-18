@@ -7,13 +7,14 @@ import { getDb } from "./db";
 import {
   broadcastTasks, autoReplyRules, fissionCampaigns, fissionClicks,
   users, transactions, messageTemplates, welcomeTemplates,
-  redPackets, redPacketClaims,
+  redPackets, redPacketClaims, tgGroups,
   type BroadcastTask, type InsertBroadcastTask,
   type AutoReplyRule, type InsertAutoReplyRule,
   type FissionCampaign, type InsertFissionCampaign,
   type FissionClick,
   type InsertMessageTemplate, type InsertWelcomeTemplate,
   type RedPacket, type InsertRedPacket,
+  type InsertTgGroup,
 } from "../drizzle/schema";
 import * as db from "./db";
 import { nanoid } from "nanoid";
@@ -1500,4 +1501,117 @@ export async function getEventStats() {
     endedEvents,
     upcomingEvents,
   };
+}
+
+// ==================== TG 群组/频道管理 ====================
+
+export async function listTgGroups() {
+  const dbInstance = await getDb();
+  if (!dbInstance) return [];
+  return dbInstance.select().from(tgGroups).orderBy(tgGroups.createdAt);
+}
+
+export async function createTgGroup(data: Omit<InsertTgGroup, "id" | "createdAt" | "updatedAt">) {
+  const dbInstance = await getDb();
+  if (!dbInstance) throw new Error("DB not available");
+  const [result] = await dbInstance.insert(tgGroups).values(data);
+  return (result as any).insertId as number;
+}
+
+export async function updateTgGroup(id: number, data: Partial<Pick<InsertTgGroup, "name" | "chatId" | "type" | "description" | "enabled">>) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return;
+  const { eq } = await import("drizzle-orm");
+  await dbInstance.update(tgGroups).set(data).where(eq(tgGroups.id, id));
+}
+
+export async function deleteTgGroup(id: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return;
+  const { eq } = await import("drizzle-orm");
+  await dbInstance.delete(tgGroups).where(eq(tgGroups.id, id));
+}
+
+export async function sendMessageToGroups(groupIds: number[], message: {
+  content: string;
+  imageUrl?: string | null;
+  buttons?: Array<{ text: string; url: string; type?: string; row?: number }>;
+}) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return { sent: 0, failed: 0, results: [] as Array<{ name: string; chatId: string; success: boolean; error?: string }> };
+  const { inArray } = await import("drizzle-orm");
+  const groups = await dbInstance.select().from(tgGroups).where(inArray(tgGroups.id, groupIds));
+  const botToken = await db.getConfigValue("tg_bot_token");
+  if (!botToken) throw new Error("Bot Token 未配置");
+  const miniAppUrl = (await db.getConfigValue("tg_mini_app_url")) || "";
+
+  // Pre-resolve image URL
+  let resolvedImageUrl: string | null = null;
+  if (message.imageUrl) {
+    if (message.imageUrl.startsWith("/manus-storage/")) {
+      try {
+        const key = message.imageUrl.replace("/manus-storage/", "");
+        resolvedImageUrl = await storageGetSignedUrl(key);
+      } catch { resolvedImageUrl = null; }
+    } else {
+      resolvedImageUrl = message.imageUrl;
+    }
+  }
+
+  // Build inline keyboard
+  let replyMarkup: Record<string, unknown> | undefined;
+  if (message.buttons && message.buttons.length > 0) {
+    const rowMap = new Map<number, Array<Record<string, unknown>>>();
+    for (const btn of message.buttons) {
+      const row = btn.row ?? 0;
+      if (!rowMap.has(row)) rowMap.set(row, []);
+      let webAppUrl = btn.url;
+      if (btn.type === "web_app") {
+        if (webAppUrl.startsWith("/") && miniAppUrl) webAppUrl = miniAppUrl + webAppUrl;
+        rowMap.get(row)!.push({ text: btn.text, web_app: { url: webAppUrl } });
+      } else {
+        rowMap.get(row)!.push({ text: btn.text, url: btn.url });
+      }
+    }
+    const sortedRows = [...rowMap.entries()].sort((a, b) => a[0] - b[0]);
+    replyMarkup = { inline_keyboard: sortedRows.map(([, btns]) => btns) };
+  }
+
+  let sent = 0, failed = 0;
+  const results: Array<{ name: string; chatId: string; success: boolean; error?: string }> = [];
+  for (const group of groups) {
+    if (!group.enabled) continue;
+    try {
+      const body: Record<string, unknown> = {
+        chat_id: group.chatId,
+        parse_mode: "HTML",
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+      };
+      let apiMethod = "sendMessage";
+      if (resolvedImageUrl) {
+        apiMethod = "sendPhoto";
+        body.photo = resolvedImageUrl;
+        body.caption = message.content;
+      } else {
+        body.text = message.content;
+      }
+      const res = await fetch(`https://api.telegram.org/bot${botToken}/${apiMethod}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json() as any;
+      if (res.ok) {
+        sent++;
+        results.push({ name: group.name, chatId: group.chatId, success: true });
+      } else {
+        failed++;
+        results.push({ name: group.name, chatId: group.chatId, success: false, error: data.description });
+      }
+    } catch (e: any) {
+      failed++;
+      results.push({ name: group.name, chatId: group.chatId, success: false, error: e.message });
+    }
+  }
+  return { sent, failed, results };
 }

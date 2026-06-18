@@ -857,3 +857,17 @@ export const redPacketClaims = mysqlTable("red_packet_claims", {
 });
 export type RedPacketClaim = typeof redPacketClaims.$inferSelect;
 export type InsertRedPacketClaim = typeof redPacketClaims.$inferInsert;
+
+// ==================== TG 群组/频道管理 ====================
+export const tgGroups = mysqlTable("tg_groups", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 256 }).notNull(), // 群组/频道名称（管理员自定义）
+  chatId: varchar("chatId", { length: 128 }).notNull(), // TG Chat ID，如 -1001234567890 或 @channelname
+  type: mysqlEnum("type", ["group", "channel", "supergroup"]).default("group").notNull(),
+  description: text("description"), // 备注
+  enabled: boolean("enabled").notNull().default(true), // 是否启用
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type TgGroup = typeof tgGroups.$inferSelect;
+export type InsertTgGroup = typeof tgGroups.$inferInsert;

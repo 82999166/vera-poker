@@ -204,6 +204,13 @@
       "when": 1781778233617,
       "tag": "0028_fantastic_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "5",
+      "when": 1781781426623,
+      "tag": "0029_dry_swarm",
+      "breakpoints": true
     }
   ]
 }

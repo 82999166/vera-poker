@@ -4075,6 +4075,53 @@ ${faqContext}
       const { claimRedPacket } = await import("./marketing");
       return claimRedPacket(ctx.user.id, input.id);
     }),
+
+    // ==================== TG 群组/频道管理 ====================
+    tgGroupList: adminProcedure.query(async () => {
+      const { listTgGroups } = await import("./marketing");
+      return listTgGroups();
+    }),
+    tgGroupCreate: adminProcedure.input(z.object({
+      name: z.string().min(1),
+      chatId: z.string().min(1),
+      type: z.enum(["group", "channel", "supergroup"]).default("group"),
+      description: z.string().optional(),
+      enabled: z.boolean().default(true),
+    })).mutation(async ({ input }) => {
+      const { createTgGroup } = await import("./marketing");
+      const id = await createTgGroup(input);
+      return { id };
+    }),
+    tgGroupUpdate: adminProcedure.input(z.object({
+      id: z.number(),
+      name: z.string().optional(),
+      chatId: z.string().optional(),
+      type: z.enum(["group", "channel", "supergroup"]).optional(),
+      description: z.string().optional(),
+      enabled: z.boolean().optional(),
+    })).mutation(async ({ input }) => {
+      const { updateTgGroup } = await import("./marketing");
+      const { id, ...data } = input;
+      await updateTgGroup(id, data);
+    }),
+    tgGroupDelete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const { deleteTgGroup } = await import("./marketing");
+      await deleteTgGroup(input.id);
+    }),
+    // Send a message to multiple TG groups (used by all marketing modules)
+    sendToGroups: adminProcedure.input(z.object({
+      groupIds: z.array(z.number()).min(1),
+      content: z.string().min(1),
+      imageUrl: z.string().optional(),
+      buttons: z.array(z.object({ text: z.string(), url: z.string(), type: z.string().optional(), row: z.number().optional() })).optional(),
+    })).mutation(async ({ input }) => {
+      const { sendMessageToGroups } = await import("./marketing");
+      return sendMessageToGroups(input.groupIds, {
+        content: input.content,
+        imageUrl: input.imageUrl,
+        buttons: input.buttons,
+      });
+    }),
   }),
 });
 export type AppRouter = typeof appRouter;
