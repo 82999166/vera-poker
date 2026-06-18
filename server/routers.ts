@@ -2324,6 +2324,28 @@ ${faqContext}
       await dbInstance.update(adminUsers).set({ isActive: input.isActive }).where(eq(adminUsers.id, input.id));
       return { success: true };
     }),
+    staffUpdatePermissions: adminProcedure.input(z.object({
+      id: z.number(),
+      permissions: z.array(z.string()),
+    })).mutation(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { adminUsers } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      await dbInstance.update(adminUsers).set({ permissions: input.permissions }).where(eq(adminUsers.id, input.id));
+      return { success: true };
+    }),
+    staffUpdateRole: adminProcedure.input(z.object({
+      id: z.number(),
+      role: z.enum(["super_admin", "admin", "cs", "finance", "tech"]),
+    })).mutation(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { adminUsers } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      await dbInstance.update(adminUsers).set({ role: input.role }).where(eq(adminUsers.id, input.id));
+      return { success: true };
+    }),
     staffDelete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
       // Prevent deleting the current admin session user
       if (ctx.adminUser && ctx.adminUser.adminId === input.id) {

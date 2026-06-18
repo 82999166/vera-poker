@@ -964,3 +964,10 @@
 - [x] 管理后台用户列表增加“语种”列显示
 - [x] Bot系统通知消息根据用户 language 字段发送对应语言（notifications.ts 全部使用 getUserLang）
 - [x] Bot 命令回复（/help /balance /rooms 未识别命令）改为多语言（10种语言）
+
+## 2026-06-18 权限管理 + 语音播报修复
+- [x] 修复管理后台语音播报不工作（单独轮询pending交易，不受tab过滤影响）
+- [x] 后端：staffUpdatePermissions / staffUpdateRole API 端点
+- [x] 前端：StaffPanel 权限管理UI（16模块复选框、角色选择器、全选/清空）
+- [x] 前端：侧边栏/标签导航根据 adminUser.permissions 动态过滤（super_admin 全部可见，其他角色按权限数组显示）
+- [x] 前端：权限为空时回退到角色默认权限（cs/finance/tech 各有默认可见标签）

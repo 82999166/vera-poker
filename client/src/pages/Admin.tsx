@@ -1488,15 +1488,30 @@ export default function Admin() {
     }
   };
 
-  // Role-based tab permissions
-  const roleTabMap: Record<string, AdminTab[]> = {
-    super_admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs", "marketing", "bots"],
-    admin: ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs", "marketing", "bots"],
+  // Permission-based tab visibility
+  // super_admin always sees everything; others use their permissions array
+  // Fallback to role-based defaults if permissions array is empty
+  const allTabKeys: AdminTab[] = ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs", "marketing", "bots"];
+  const roleDefaultTabs: Record<string, AdminTab[]> = {
+    super_admin: allTabKeys,
+    admin: allTabKeys,
     cs: ["stats", "users", "rooms", "faq", "csRecords"],
     finance: ["stats", "finance", "agents"],
     tech: ["stats", "config", "rooms", "risk", "settings", "banners"],
   };
-  const allowedTabs = roleTabMap[effectiveRole] || ["stats"];
+  const getAllowedTabs = (): AdminTab[] => {
+    // super_admin always has full access
+    if (effectiveRole === "super_admin") return allTabKeys;
+    // If adminUser has explicit permissions set, use them
+    if (adminUser && adminUser.permissions && adminUser.permissions.length > 0) {
+      // Always include "stats" as a base tab
+      const perms = new Set<AdminTab>(["stats", ...adminUser.permissions as AdminTab[]]);
+      return allTabKeys.filter(t => perms.has(t));
+    }
+    // Fallback to role-based defaults
+    return roleDefaultTabs[effectiveRole] || ["stats"];
+  };
+  const allowedTabs = getAllowedTabs();
 
   const allTabs: { key: AdminTab; icon: any; label: string }[] = [
     { key: "stats", icon: BarChart3, label: at("tab.stats") },
@@ -2984,7 +2999,8 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
   const [voiceEnabled, setVoiceEnabled] = useState(() => {
     try { return localStorage.getItem("finance_voice_enabled") === "true"; } catch { return false; }
   });
-  const lastTxCountRef = useRef<number>(0);
+  const lastPendingIdsRef = useRef<Set<number>>(new Set());
+  const voiceInitializedRef = useRef(false);
   const utils = trpc.useUtils();
   const { data: txData, isLoading } = trpc.wallet.allTransactions.useQuery(
     { page: 1, limit: 50, type: financeTab === "deposits" ? "deposit" : financeTab === "withdrawals" ? "withdraw" : undefined },
@@ -2992,27 +3008,45 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
   );
   const { data: stats } = trpc.admin.stats.useQuery(undefined, { refetchInterval: 15000 });
 
+  // Separate pending query for voice announcement - always polls regardless of active tab
+  const { data: pendingData } = trpc.wallet.allTransactions.useQuery(
+    { page: 1, limit: 20, type: undefined },
+    { refetchInterval: voiceEnabled ? 8000 : false } // Only poll when voice is enabled
+  );
+
   // Voice announcement when new pending transaction arrives
   useEffect(() => {
-    const allTxList = (txData as any)?.transactions ?? [];
+    if (!voiceEnabled) return;
+    const allTxList = (pendingData as any)?.transactions ?? [];
     const pendingList = allTxList.filter((tx: any) => tx.status === "pending");
-    const currentCount = pendingList.length;
-    if (lastTxCountRef.current > 0 && currentCount > lastTxCountRef.current && voiceEnabled) {
-      // New pending transaction detected - play voice
-      const newTx = pendingList[0]; // Most recent
-      const typeText = newTx?.type === "deposit" ? "新充值" : "新提现";
-      const amount = newTx?.amount ? `${parseFloat(newTx.amount).toFixed(2)}美元` : "";
-      const text = `${typeText}订单，金额${amount}，请及时处理`;
-      try {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "zh-CN";
-        utterance.rate = 1.1;
-        utterance.volume = 1;
-        window.speechSynthesis.speak(utterance);
-      } catch {}
+    const currentIds = new Set<number>(pendingList.map((tx: any) => Number(tx.id)));
+    
+    // Skip the first load (initialization)
+    if (!voiceInitializedRef.current) {
+      voiceInitializedRef.current = true;
+      lastPendingIdsRef.current = currentIds;
+      return;
     }
-    lastTxCountRef.current = currentCount;
-  }, [txData, voiceEnabled]);
+    
+    // Find truly new transactions (IDs not seen before)
+    const newTxs = pendingList.filter((tx: any) => !lastPendingIdsRef.current.has(Number(tx.id)));
+    if (newTxs.length > 0) {
+      // Announce each new transaction
+      for (const newTx of newTxs) {
+        const typeText = newTx?.type === "deposit" ? "新充值" : "新提现";
+        const amount = newTx?.amount ? `${parseFloat(newTx.amount).toFixed(2)}美元` : "";
+        const text = `${typeText}订单，金额${amount}，请及时处理`;
+        try {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = "zh-CN";
+          utterance.rate = 1.1;
+          utterance.volume = 1;
+          window.speechSynthesis.speak(utterance);
+        } catch {}
+      }
+    }
+    lastPendingIdsRef.current = currentIds;
+  }, [pendingData, voiceEnabled]);
 
   const toggleVoice = () => {
     const next = !voiceEnabled;
@@ -4449,25 +4483,76 @@ function StaffPanel({ at }: { at: (k: string) => string }) {
     onSuccess: () => { toast.success(at("staff.pwdReset")); setResetId(null); setResetPwd(""); },
     onError: (e) => toast.error(e.message),
   });
+  const updatePermsMutation = trpc.admin.staffUpdatePermissions.useMutation({
+    onSuccess: () => { toast.success("权限已更新"); refetch(); setEditingId(null); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateRoleMutation = trpc.admin.staffUpdateRole.useMutation({
+    onSuccess: () => { toast.success("角色已更新"); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
 
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<"cs" | "finance" | "tech">("cs");
   const [resetId, setResetId] = useState<number | null>(null);
   const [resetPwd, setResetPwd] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingPerms, setEditingPerms] = useState<string[]>([]);
+
+  // All available permission modules
+  const allPermissions = [
+    { key: "stats", label: "数据统计", icon: "📊" },
+    { key: "users", label: "用户管理", icon: "👥" },
+    { key: "rooms", label: "房间管理", icon: "🎮" },
+    { key: "finance", label: "财务管理", icon: "💰" },
+    { key: "agents", label: "代理管理", icon: "🤝" },
+    { key: "risk", label: "风控管理", icon: "🛡️" },
+    { key: "faq", label: "FAQ管理", icon: "❓" },
+    { key: "config", label: "系统配置", icon: "⚙️" },
+    { key: "settings", label: "高级设置", icon: "🔧" },
+    { key: "banners", label: "Banner管理", icon: "🖼️" },
+    { key: "tournaments", label: "锦标赛", icon: "🏆" },
+    { key: "csRecords", label: "客服记录", icon: "💬" },
+    { key: "logs", label: "操作日志", icon: "📝" },
+    { key: "marketing", label: "营销管理", icon: "📢" },
+    { key: "bots", label: "AI机器人", icon: "🤖" },
+    { key: "staff", label: "员工管理", icon: "👷" },
+  ];
 
   const roleLabels: Record<string, string> = {
+    super_admin: "超级管理员",
+    admin: "管理员",
     cs: at("staff.roleCsLabel"),
     finance: at("staff.roleFinanceLabel"),
     tech: at("staff.roleTechLabel"),
-    admin: "Admin",
   };
+
+  const roleColors: Record<string, string> = {
+    super_admin: "text-red-400 bg-red-400/10",
+    admin: "text-orange-400 bg-orange-400/10",
+    cs: "text-blue-400 bg-blue-400/10",
+    finance: "text-emerald-400 bg-emerald-400/10",
+    tech: "text-purple-400 bg-purple-400/10",
+  };
+
+  const startEditPerms = (s: any) => {
+    setEditingId(s.id);
+    setEditingPerms(s.permissions || []);
+  };
+
+  const togglePerm = (key: string) => {
+    setEditingPerms(prev => prev.includes(key) ? prev.filter(p => p !== key) : [...prev, key]);
+  };
+
+  const selectAllPerms = () => setEditingPerms(allPermissions.map(p => p.key));
+  const clearAllPerms = () => setEditingPerms([]);
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
 
   return (
     <div className="space-y-6">
-            <h2 className="text-lg font-bold">{at("staff.title")}</h2>
+      <h2 className="text-lg font-bold">{at("staff.title")}</h2>
       {/* Migration Banner */}
       {unmigratedData && unmigratedData.count > 0 && (
         <div className="glass rounded-xl p-4 border border-yellow-500/30 bg-yellow-500/5">
@@ -4486,6 +4571,7 @@ function StaffPanel({ at }: { at: (k: string) => string }) {
           </div>
         </div>
       )}
+
       {/* Create Staff Form */}
       <div className="glass rounded-xl p-4">
         <h3 className="text-sm font-semibold text-gold mb-3">{at("staff.create")}</h3>
@@ -4533,62 +4619,133 @@ function StaffPanel({ at }: { at: (k: string) => string }) {
         </div>
       </div>
 
-      {/* Staff List */}
+      {/* Staff List with Permissions */}
       <div className="glass rounded-xl p-4">
         <h3 className="text-sm font-semibold text-gold mb-3">{at("staff.list")}</h3>
         {(!staffList || staffList.length === 0) ? (
           <p className="text-sm text-muted-foreground text-center py-8">{at("staff.noStaff")}</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {staffList.map((s: any) => (
-              <div key={s.id} className="flex items-center justify-between bg-background/50 rounded-lg px-4 py-3 border border-border/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center">
-                    <Shield className="w-4 h-4 text-gold" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{s.staffUsername || s.name}</p>
-                    <p className="text-xs text-muted-foreground">{roleLabels[s.role] || s.role}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {resetId === s.id ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="password"
-                        className="w-28 bg-background border border-border rounded px-2 py-1 text-xs"
-                        value={resetPwd}
-                        onChange={(e) => setResetPwd(e.target.value)}
-                        placeholder="新密码"
-                      />
-                      <button
-                        onClick={() => resetPwdMutation.mutate({ id: s.id, newPassword: resetPwd })}
-                        disabled={!resetPwd || resetPwdMutation.isPending}
-                        className="px-2 py-1 bg-gold/20 text-gold rounded text-xs hover:bg-gold/30 disabled:opacity-50"
-                      >
-                        确认
-                      </button>
-                      <button onClick={() => { setResetId(null); setResetPwd(""); }} className="px-2 py-1 text-muted-foreground rounded text-xs hover:bg-secondary">
-                        <X className="w-3 h-3" />
-                      </button>
+              <div key={s.id} className="bg-background/50 rounded-lg border border-border/50 overflow-hidden">
+                {/* Staff Header Row */}
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center">
+                      <Shield className="w-4 h-4 text-gold" />
                     </div>
-                  ) : (
-                    <>
+                    <div>
+                      <p className="text-sm font-medium">{s.staffUsername || s.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${roleColors[s.role] || "text-muted-foreground bg-secondary"}`}>
+                          {roleLabels[s.role] || s.role}
+                        </span>
+                        {s.permissions && s.permissions.length > 0 && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {s.permissions.length}个模块权限
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Role Selector */}
+                    <select
+                      className="bg-background border border-border rounded px-2 py-1 text-xs"
+                      value={s.role}
+                      onChange={(e) => updateRoleMutation.mutate({ id: s.id, role: e.target.value as any })}
+                    >
+                      <option value="super_admin">超级管理员</option>
+                      <option value="admin">管理员</option>
+                      <option value="cs">{at("staff.roleCsLabel")}</option>
+                      <option value="finance">{at("staff.roleFinanceLabel")}</option>
+                      <option value="tech">{at("staff.roleTechLabel")}</option>
+                    </select>
+                    {/* Edit Permissions */}
+                    <button
+                      onClick={() => editingId === s.id ? setEditingId(null) : startEditPerms(s)}
+                      className={`px-2 py-1 text-xs rounded transition-colors ${
+                        editingId === s.id ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      {editingId === s.id ? "收起" : "权限"}
+                    </button>
+                    {resetId === s.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="password"
+                          className="w-24 bg-background border border-border rounded px-2 py-1 text-xs"
+                          value={resetPwd}
+                          onChange={(e) => setResetPwd(e.target.value)}
+                          placeholder="新密码"
+                        />
+                        <button
+                          onClick={() => resetPwdMutation.mutate({ id: s.id, newPassword: resetPwd })}
+                          disabled={!resetPwd || resetPwdMutation.isPending}
+                          className="px-2 py-1 bg-gold/20 text-gold rounded text-xs hover:bg-gold/30 disabled:opacity-50"
+                        >确认</button>
+                        <button onClick={() => { setResetId(null); setResetPwd(""); }} className="px-1 py-1 text-muted-foreground rounded text-xs hover:bg-secondary">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         onClick={() => setResetId(s.id)}
                         className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors"
                       >
                         {at("staff.resetPwd")}
                       </button>
-                      <button
-                        onClick={() => { if (confirm(at("staff.confirmDelete"))) deleteMutation.mutate({ id: s.id }); }}
-                        className="px-2 py-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  )}
+                    )}
+                    <button
+                      onClick={() => { if (confirm(at("staff.confirmDelete"))) deleteMutation.mutate({ id: s.id }); }}
+                      className="px-2 py-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Permissions Editor (expandable) */}
+                {editingId === s.id && (
+                  <div className="px-4 pb-4 pt-2 border-t border-border/50">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-semibold text-muted-foreground">模块权限配置</p>
+                      <div className="flex gap-2">
+                        <button onClick={selectAllPerms} className="text-[10px] px-2 py-0.5 rounded bg-gold/10 text-gold hover:bg-gold/20">全选</button>
+                        <button onClick={clearAllPerms} className="text-[10px] px-2 py-0.5 rounded bg-secondary text-muted-foreground hover:bg-secondary/80">清空</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {allPermissions.map(p => (
+                        <label
+                          key={p.key}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer border transition-colors ${
+                            editingPerms.includes(p.key)
+                              ? "border-gold/50 bg-gold/5 text-foreground"
+                              : "border-border/50 bg-background/30 text-muted-foreground hover:border-border"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={editingPerms.includes(p.key)}
+                            onChange={() => togglePerm(p.key)}
+                            className="w-3.5 h-3.5 rounded accent-gold"
+                          />
+                          <span className="text-xs">{p.icon} {p.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="flex justify-end mt-3">
+                      <button
+                        onClick={() => updatePermsMutation.mutate({ id: s.id, permissions: editingPerms })}
+                        disabled={updatePermsMutation.isPending}
+                        className="px-4 py-1.5 bg-gold text-background rounded-lg text-xs font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
+                      >
+                        {updatePermsMutation.isPending ? <RefreshCw className="w-3 h-3 animate-spin" /> : "保存权限"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
