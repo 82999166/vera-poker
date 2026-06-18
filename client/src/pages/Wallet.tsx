@@ -41,6 +41,7 @@ export default function Wallet() {
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
   const { data: publicConfig } = trpc.config.getPublic.useQuery();
   const withdrawFee = parseFloat((publicConfig as any)?.withdrawal_fee || "1");
+  const minWithdraw = parseFloat((publicConfig as any)?.min_withdraw || "20");
   const { data: bonusData } = trpc.wallet.bonusProgress.useQuery(undefined, { enabled: !!user });
   const { data: txData } = trpc.wallet.transactions.useQuery(
     { page: 1, limit: 50, category: "finance" },
@@ -91,8 +92,18 @@ export default function Wallet() {
 
   const handleWithdraw = () => {
     if (!amount || !address) return toast.error(t("wallet.fillAll"));
-    if (isNaN(Number(amount)) || Number(amount) < 20) {
-      return toast.error(t("wallet.minWithdraw"));
+    const withdrawAmount = Number(amount);
+    if (isNaN(withdrawAmount) || withdrawAmount < minWithdraw) {
+      return toast.error(`Min: ${minWithdraw} USDT`);
+    }
+    // Check if user has enough withdrawable balance (amount + fee)
+    const totalBalance = parseFloat(walletData?.balance ?? "0");
+    const frozenBalance = parseFloat(walletData?.frozenBalance ?? "0");
+    const bonusBalance = parseFloat(walletData?.bonusBalance ?? "0");
+    const isBonusLocked = bonusBalance > 0 && !walletData?.bonusUnlocked;
+    const withdrawableBalance = Math.max(0, totalBalance - frozenBalance - (isBonusLocked ? bonusBalance : 0));
+    if (withdrawAmount + withdrawFee > withdrawableBalance) {
+      return toast.error(`${t("error.insufficientBalance")} ($${(withdrawAmount + withdrawFee).toFixed(2)})`);
     }
     withdrawMutation.mutate({ amount, chain, walletAddress: address });
   };
@@ -307,8 +318,30 @@ export default function Wallet() {
           </div>
         )}
 
-        {activeTab === "withdraw" && (
+        {activeTab === "withdraw" && (() => {
+          const totalBalance = parseFloat(walletData?.balance ?? "0");
+          const frozenBalance = parseFloat(walletData?.frozenBalance ?? "0");
+          const bonusBalance = parseFloat(walletData?.bonusBalance ?? "0");
+          const isBonusLocked = bonusBalance > 0 && !walletData?.bonusUnlocked;
+          const withdrawableBalance = Math.max(0, totalBalance - frozenBalance - (isBonusLocked ? bonusBalance : 0));
+          const maxWithdrawable = Math.max(0, withdrawableBalance - withdrawFee);
+          return (
           <div className="space-y-4">
+            {/* Withdrawable Balance Display */}
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">{t("wallet.withdrawableBalance")}</span>
+                <span className="text-lg font-bold text-emerald-400">${withdrawableBalance.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-[10px] text-muted-foreground">{t("wallet.maxWithdrawable")}</span>
+                <span className="text-xs text-emerald-400/80">${maxWithdrawable.toFixed(2)}</span>
+              </div>
+              {isBonusLocked && (
+                <p className="text-[10px] text-amber-400 mt-1">⚠️ {t("wallet.bonusLockedHint")}</p>
+              )}
+            </div>
+
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.chain")}</label>
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -329,21 +362,31 @@ export default function Wallet() {
 
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.amount")} (USDT)</label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold"
-              />
+              <div className="relative">
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold"
+                />
+                <button
+                  onClick={() => setAmount(maxWithdrawable > 0 ? maxWithdrawable.toFixed(2) : "0")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] px-2 py-0.5 rounded bg-gold/20 text-gold font-medium"
+                >
+                  {t("wallet.withdrawAll")}
+                </button>
+              </div>
               {/* Withdrawal fee + minimum hint */}
               <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2.5 space-y-1">
-                <p className="text-sm font-bold text-gold">
-                  {t("wallet.minWithdrawHint")}
+                <p className="text-xs text-gold">
+                  Min: {minWithdraw} USDT · {t("wallet.feePerTx")}: {withdrawFee} USDT
                 </p>
-                <p className="text-xs text-gold/80">
-                  手续费: {withdrawFee} USDT/笔{amount && !isNaN(Number(amount)) ? ` | 实际到账: ${Math.max(0, Number(amount)).toFixed(2)} USDT | 总扣除: ${(Number(amount) + withdrawFee).toFixed(2)} USDT` : ""}
-                </p>
+                {amount && !isNaN(Number(amount)) && Number(amount) > 0 && (
+                  <p className="text-xs text-gold/80">
+                    {t("wallet.actualReceive")}: {Math.max(0, Number(amount)).toFixed(2)} USDT | {t("wallet.totalDeduct")}: {(Number(amount) + withdrawFee).toFixed(2)} USDT
+                  </p>
+                )}
               </div>
             </div>
 
@@ -370,7 +413,8 @@ export default function Wallet() {
               {withdrawMutation.isPending ? t("common.loading") : t("wallet.confirm")}
             </button>
           </div>
-        )}
+          );
+        })()}
 
         {activeTab === "history" && (
           <div className="space-y-2">

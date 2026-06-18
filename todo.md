@@ -1009,3 +1009,15 @@
 
 - [x] Root cause: admin.stats query used status='completed' but actual deposit records use status='confirmed'
 - [x] Fix: Changed all 4 deposit/withdrawal queries to use `status IN ('confirmed', 'completed')`
+
+## Improvement: 提现功能UI优化
+
+- [x] 显示可提现余额（总余额 - 冻结 - 未解锁奖金）
+- [x] 显示最大可提金额（可提余额 - 手续费）
+- [x] 手续费每笔1 USDT明确显示
+- [x] 前端增加余额不足预检查，避免无效请求
+- [x] 最低提现金额从config动态读取（不再硬编码20）
+- [x] 输入金额后实时显示实际到账和总扣除金额
+- [x] 奖金未解锁时显示提示信息
+- [x] "全部提现"按钮一键填入最大可提金额
+- [x] 12种语言i18n翻译全部添加
