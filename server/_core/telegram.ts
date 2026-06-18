@@ -428,6 +428,27 @@ export function registerTelegramRoutes(app: Express) {
                         if (packet.claimedCount < packet.totalCount) {
                           inlineKeyboard.push([{ text: "\ud83e\udde7 \u62a2\u7ea2\u5305", callback_data: `claim_rp_${rpId}` }]);
                         }
+                        // Preserve extra buttons (e.g. 开始游戏) from packet.buttons
+                        if (packet.buttons && (packet.buttons as any[]).length > 0) {
+                          const miniAppUrl = (await db.getConfigValue("tg_webapp_url")) || (await db.getConfigValue("tg_mini_app_url")) || "";
+                          const rowMap = new Map<number, any[]>();
+                          for (const btn of packet.buttons as Array<{ text: string; url?: string; callback_data?: string; type?: string; row?: number }>) {
+                            const row = (btn.row ?? 0) + 1; // offset by 1 so claim button stays on row 0
+                            if (!rowMap.has(row)) rowMap.set(row, []);
+                            if (btn.type === "callback" && btn.callback_data) {
+                              rowMap.get(row)!.push({ text: btn.text, callback_data: btn.callback_data });
+                            } else if (btn.type === "web_app" && miniAppUrl) {
+                              const fullUrl = btn.url?.startsWith("/") ? miniAppUrl + btn.url : (btn.url || miniAppUrl);
+                              rowMap.get(row)!.push({ text: btn.text, web_app: { url: fullUrl } });
+                            } else if (btn.url) {
+                              const fullUrl = btn.url.startsWith("http") ? btn.url : (miniAppUrl + btn.url);
+                              rowMap.get(row)!.push({ text: btn.text, url: fullUrl });
+                            }
+                          }
+                          for (const [, btns] of [...rowMap.entries()].sort((a, b) => a[0] - b[0])) {
+                            inlineKeyboard.push(btns);
+                          }
+                        }
                         const editBody: Record<string, unknown> = {
                           chat_id: cbMessage.chat.id,
                           message_id: cbMessage.message_id,
