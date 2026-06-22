@@ -211,6 +211,13 @@
       "when": 1781781426623,
       "tag": "0029_dry_swarm",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "5",
+      "when": 1782140374726,
+      "tag": "0030_tough_black_panther",
+      "breakpoints": true
     }
   ]
 }

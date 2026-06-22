@@ -250,6 +250,7 @@ export default function Wallet() {
               </div>
             </div>
 
+            {/* 充值地址显示 - 支持 HD 模式和传统模式 */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.depositAddress")}</label>
               {addrLoading ? (
@@ -257,14 +258,27 @@ export default function Wallet() {
                   {t("common.loading")}...
                 </div>
               ) : depositAddress ? (
-                <div className="glass rounded-lg p-3 flex items-center justify-between">
-                  <span className="text-xs text-foreground font-mono truncate flex-1">{depositAddress}</span>
-                  <button
-                    onClick={() => { navigator.clipboard.writeText(depositAddress); toast.success(t("agent.copied")); }}
-                    className="text-gold ml-2"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
+                <div className="space-y-3">
+                  {/* QR Code */}
+                  <div className="flex justify-center">
+                    <div className="bg-white p-3 rounded-xl">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(depositAddress)}`}
+                        alt="QR Code"
+                        className="w-[180px] h-[180px]"
+                      />
+                    </div>
+                  </div>
+                  {/* Address with copy */}
+                  <div className="glass rounded-lg p-3 flex items-center justify-between">
+                    <span className="text-xs text-foreground font-mono truncate flex-1">{depositAddress}</span>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(depositAddress); toast.success(t("agent.copied")); }}
+                      className="text-gold ml-2"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="glass rounded-lg p-3 flex items-center gap-2 text-xs text-yellow-400">
@@ -272,49 +286,76 @@ export default function Wallet() {
                   <span>{t("wallet.chainNotConfigured")}</span>
                 </div>
               )}
-              <p className="text-[10px] text-muted-foreground mt-1">
-                {t("wallet.networkTip")}: {CHAINS.find(c => c.key === chain)?.network ?? chain}
+            </div>
+
+            {/* HD 模式：显示自动到账提示 */}
+            {addrData?.mode === "hd" && depositAddress && (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-medium text-emerald-400">{t("wallet.autoDetectMode")}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{t("wallet.autoDetectHint")}</p>
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-muted-foreground">{t("wallet.minDeposit")}</span>
+                  <span className="text-foreground font-medium">10 USDT</span>
+                </div>
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-muted-foreground">{t("wallet.confirmations")}</span>
+                  <span className="text-foreground font-medium">1 {t("wallet.blockConfirm")}</span>
+                </div>
+              </div>
+            )}
+
+            {/* 传统模式：显示金额输入 + 提交按钮 */}
+            {addrData?.mode !== "hd" && depositAddress && (
+              <>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.amount")} (USDT)</label>
+                  <input
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold"
+                  />
+                  <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2.5">
+                    {amount && !isNaN(Number(amount)) && Number(amount) > 0 ? (
+                      <>
+                        <p className="text-[11px] text-gold/80 mb-1">{t("wallet.suggestedAmount")}</p>
+                        <p className="text-base font-black text-gold tracking-wide">
+                          {(Number(amount) - 1).toFixed(0)}.{amountSuffix} USDT
+                        </p>
+                        <p className="text-[10px] text-gold/70 mt-1 font-semibold">{t("wallet.uniqueSuffixTip")}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-bold text-gold">{t("wallet.enterAmountFirst")}</p>
+                        <p className="text-[11px] text-gold/70 mt-0.5 font-semibold">
+                          {t("wallet.minDepositHint")}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleDeposit}
+                  disabled={depositMutation.isPending || !depositAddress}
+                  className="w-full py-3 rounded-xl text-background font-bold text-sm glow-gold disabled:opacity-50 active:scale-[0.97] transition-transform"
+                  style={{ background: 'linear-gradient(to right, #eab308, #a78b00)' }}
+                >
+                  {depositMutation.isPending ? t("common.loading") : t("wallet.confirm")}
+                </button>
+              </>
+            )}
+
+            {/* 注意事项 */}
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+              <p className="text-[11px] text-amber-400 font-medium">
+                {t("wallet.depositWarning")}
               </p>
             </div>
-
-            <div>
-              <label className="text-xs text-muted-foreground mb-2 block">{t("wallet.amount")} (USDT)</label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full glass rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-gold"
-              />
-              {/* Always show the unique suffix tip below the input */}
-              <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2.5">
-                {amount && !isNaN(Number(amount)) && Number(amount) > 0 ? (
-                  <>
-                    <p className="text-[11px] text-gold/80 mb-1">{t("wallet.suggestedAmount")}</p>
-                    <p className="text-base font-black text-gold tracking-wide">
-                      {(Number(amount) - 1).toFixed(0)}.{amountSuffix} USDT
-                    </p>
-                    <p className="text-[10px] text-gold/70 mt-1 font-semibold">{t("wallet.uniqueSuffixTip")}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm font-bold text-gold">{t("wallet.enterAmountFirst")}</p>
-                    <p className="text-[11px] text-gold/70 mt-0.5 font-semibold">
-                      {t("wallet.minDepositHint")}
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={handleDeposit}
-              disabled={depositMutation.isPending || !depositAddress}
-              className="w-full py-3 rounded-xl text-background font-bold text-sm glow-gold disabled:opacity-50 active:scale-[0.97] transition-transform"
-              style={{ background: 'linear-gradient(to right, #eab308, #a78b00)' }}
-            >
-              {depositMutation.isPending ? t("common.loading") : t("wallet.confirm")}
-            </button>
           </div>
         )}
 

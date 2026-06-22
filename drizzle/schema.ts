@@ -871,3 +871,66 @@ export const tgGroups = mysqlTable("tg_groups", {
 });
 export type TgGroup = typeof tgGroups.$inferSelect;
 export type InsertTgGroup = typeof tgGroups.$inferInsert;
+
+// ==================== HD 钱包充值地址表 ====================
+export const depositAddresses = mysqlTable("deposit_addresses", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(), // 关联用户
+  chain: varchar("chain", { length: 32 }).notNull(), // TRC20, ERC20, BEP20, TON, Polygon
+  address: varchar("address", { length: 256 }).notNull(), // 派生出的充值地址
+  derivationIndex: int("derivationIndex").notNull(), // HD 派生路径索引 m/44'/195'/0'/0/{index}
+  privateKeyEnc: text("privateKeyEnc"), // 加密存储的私钥（AES-256-GCM，用于归集时签名）
+  totalDeposited: decimal("totalDeposited", { precision: 18, scale: 2 }).default("0").notNull(), // 累计充值金额
+  lastScannedAt: timestamp("lastScannedAt"), // 最后一次扫描时间
+  status: mysqlEnum("status", ["active", "disabled", "archived"]).default("active").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type DepositAddress = typeof depositAddresses.$inferSelect;
+export type InsertDepositAddress = typeof depositAddresses.$inferInsert;
+
+// ==================== 链上充值交易记录表 ====================
+export const chainDeposits = mysqlTable("chain_deposits", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(), // 关联用户
+  depositAddressId: int("depositAddressId").notNull(), // 关联 deposit_addresses.id
+  chain: varchar("chain", { length: 32 }).notNull(), // TRC20
+  txHash: varchar("txHash", { length: 256 }).notNull(), // 链上交易哈希（唯一索引）
+  fromAddress: varchar("fromAddress", { length: 256 }), // 来源地址
+  toAddress: varchar("toAddress", { length: 256 }).notNull(), // 充值地址
+  amount: decimal("amount", { precision: 18, scale: 6 }).notNull(), // 链上金额（精度6位）
+  creditedAmount: decimal("creditedAmount", { precision: 18, scale: 2 }), // 实际到账金额（扣除手续费后）
+  confirmations: int("confirmations").default(0).notNull(), // 确认数
+  status: mysqlEnum("status", ["detected", "confirmed", "credited", "failed", "ignored"]).default("detected").notNull(),
+  // detected: 检测到链上交易
+  // confirmed: 区块确认数达标
+  // credited: 已到账（用户余额已增加）
+  // failed: 交易失败
+  // ignored: 手动忽略（如测试交易）
+  blockNumber: bigint("blockNumber", { mode: "number" }), // 区块高度
+  blockTimestamp: timestamp("blockTimestamp"), // 区块时间
+  creditedAt: timestamp("creditedAt"), // 到账时间
+  transactionId: int("transactionId"), // 关联 transactions.id（到账后写入）
+  note: text("note"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ChainDeposit = typeof chainDeposits.$inferSelect;
+export type InsertChainDeposit = typeof chainDeposits.$inferInsert;
+
+// ==================== 归集记录表 ====================
+export const consolidations = mysqlTable("consolidations", {
+  id: int("id").autoincrement().primaryKey(),
+  fromAddress: varchar("fromAddress", { length: 256 }).notNull(), // 子地址
+  toAddress: varchar("toAddress", { length: 256 }).notNull(), // 主钱包
+  chain: varchar("chain", { length: 32 }).notNull(),
+  amount: decimal("amount", { precision: 18, scale: 6 }).notNull(), // 归集金额
+  txHash: varchar("txHash", { length: 256 }), // 归集交易哈希
+  gasFee: decimal("gasFee", { precision: 18, scale: 6 }), // 手续费
+  status: mysqlEnum("status", ["pending", "submitted", "confirmed", "failed"]).default("pending").notNull(),
+  error: text("error"), // 失败原因
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Consolidation = typeof consolidations.$inferSelect;
+export type InsertConsolidation = typeof consolidations.$inferInsert;

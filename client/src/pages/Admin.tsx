@@ -1761,6 +1761,14 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
     auto_confirm_min_confirmations: "最少确认数",
     ton_onchain_wallet_address: "TON 上链钱包地址（用于写入区块链）",
     ton_onchain_wallet_mnemonic: "TON 上链钱包助记词（24个单词，空格分隔）",
+    deposit_mode: "充值模式 (legacy/hd)",
+    hd_wallet_mnemonic: "HD钱包助记词 (12个单词)",
+    hd_auto_detect_enabled: "HD自动检测开关 (true/false)",
+    hd_min_deposit_amount: "HD最低充值金额 (USDT)",
+    hd_min_confirmations: "HD最少确认数",
+    hd_consolidation_enabled: "HD归集开关 (true/false)",
+    hd_consolidation_threshold: "HD归集阈值 (USDT)",
+    hd_main_wallet_address: "HD主钱包地址 (归集目标)",
   };
 
   const configGroups: Record<string, string[]> = {
@@ -1773,6 +1781,7 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
     [at("config.blockchainApi")]: ["trongrid_api_key", "etherscan_api_key", "bscscan_api_key", "polygonscan_api_key", "auto_confirm_enabled", "auto_confirm_min_confirmations"],
     [at("config.tonOnchain")]: ["ton_onchain_wallet_address", "ton_onchain_wallet_mnemonic"],
     ["Telegram Bot"]: ["tg_bot_token", "tg_bot_username", "tg_webhook_url", "tg_webhook_secret"],
+    ["HD钱包充值"]: ["deposit_mode", "hd_wallet_mnemonic", "hd_auto_detect_enabled", "hd_min_deposit_amount", "hd_min_confirmations", "hd_consolidation_enabled", "hd_consolidation_threshold", "hd_main_wallet_address"],
   };
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;

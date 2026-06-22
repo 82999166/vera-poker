@@ -1121,3 +1121,20 @@
 - [x] 后端：adminBot.botStatusList 接口（返回所有机器人启用状态）
 - [x] botManager.getBotUserIds 过滤 frozen/banned 机器人（停用的机器人不参与调度）
 - [x] 前端：BotDetailTableMerged 增加搜索框、启用/停用筛选、全选复选框、批量操作栏、单行开关按钮
+
+## HD 钱包自动充值系统
+- [x] 数据库：deposit_addresses 表（用户专属充值地址、派生路径、状态）
+- [x] 数据库：chain_deposits 表（链上交易记录、确认状态、到账状态）
+- [x] 数据库：consolidations 表（归集记录）
+- [x] 后端：HD 地址派生服务（bip39+hdkey+tronweb，从助记词为每个用户派生唯一地址）
+- [x] 后端：TronGrid 链上监听服务（轮询 TRC20 转账事件，检测充值到账）
+- [x] 后端：自动到账逻辑（1次确认后自动增加用户余额+写入 transaction 记录）
+- [x] 后端：资金归集服务（子地址余额超阈值时自动归集到主钱包）
+- [x] 后端：管理后台归集配置（归集阈值、手动触发归集、归集记录查看）
+- [x] 前端：充值页面改造（显示用户专属 TRON 地址+二维码+复制按钮，双模式 UI）
+- [x] 定时任务：Heartbeat 轮询链上交易（/api/scheduled/hdWalletScan）
+- [x] 定时任务：归集调度（/api/scheduled/hdWalletConsolidate）
+- [x] 管理后台：HD 钱包配置（助记词/TronGrid API Key/归集阈值/主钱包地址在系统设置中配置）
+- [x] 安全：重复交易防护（txHash 唯一索引，防止重复到账）
+- [x] i18n：充值页面 HD 模式文案翻译（12种语言）
+- [x] 管理后台：充值模式切换（deposit_mode: legacy/hd）

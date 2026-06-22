@@ -184,6 +184,37 @@ async function startServer() {
     }
   });
 
+  // Scheduled task: HD wallet chain scan (detect new deposits)
+  app.post("/api/scheduled/hdWalletScan", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user.isCron) return res.status(403).json({ error: "cron-only" });
+      const { scanAllDepositAddresses, confirmPendingDeposits } = await import("../hdWallet");
+      const [scanResult, confirmResult] = await Promise.all([
+        scanAllDepositAddresses(),
+        confirmPendingDeposits(),
+      ]);
+      res.json({ ok: true, scan: scanResult, confirm: confirmResult });
+    } catch (err: any) {
+      console.error("[Cron] hdWalletScan error:", err);
+      res.status(500).json({ error: process.env.NODE_ENV === "production" ? "Internal error" : err.message });
+    }
+  });
+
+  // Scheduled task: HD wallet consolidation (move funds to main wallet)
+  app.post("/api/scheduled/hdWalletConsolidate", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user.isCron) return res.status(403).json({ error: "cron-only" });
+      const { consolidateFunds } = await import("../hdWallet");
+      const result = await consolidateFunds();
+      res.json({ ok: true, ...result });
+    } catch (err: any) {
+      console.error("[Cron] hdWalletConsolidate error:", err);
+      res.status(500).json({ error: process.env.NODE_ENV === "production" ? "Internal error" : err.message });
+    }
+  });
+
   // Scheduled task: tournament reminders (3h, 1h, 10min before start)
   app.post("/api/scheduled/tournamentReminders", async (req, res) => {
     try {

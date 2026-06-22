@@ -15,6 +15,8 @@ import { invokeLLM } from "./deepseek";
 import { nanoid } from "nanoid";
 import * as tableManager from "./tableManager";
 import * as botManager from "./botManager";
+import { depositAddresses, chainDeposits, consolidations } from "../drizzle/schema";
+import { eq, and, sql } from "drizzle-orm";
 
 // Staff guard - supports both admin_users session and legacy game user roles
 const staffProcedure = publicProcedure.use(({ ctx, next }) => {
@@ -732,8 +734,24 @@ export const appRouter = router({
     depositAddress: protectedProcedure.input(z.object({
       chain: z.enum(["TRC20", "ERC20", "BEP20", "TON", "Polygon"]),
     })).query(async ({ ctx, input }) => {
+      // 检查充值模式配置："hd" = HD钱包模式，"legacy" = 传统模式
+      const depositMode = await db.getConfigValue("deposit_mode", "legacy");
+      
+      if (depositMode === "hd" && input.chain === "TRC20") {
+        try {
+          const { getOrCreateDepositAddress } = await import("./hdWallet");
+          const { address } = await getOrCreateDepositAddress(ctx.user.id, "TRC20");
+          return { address, chain: input.chain, mode: "hd" as const };
+        } catch (err: any) {
+          // HD 钱包未配置或出错，回退到传统模式
+          console.warn("[HDWallet] Fallback to legacy mode:", err.message);
+          const address = await db.generateDepositAddress(ctx.user.id, input.chain);
+          return { address, chain: input.chain, mode: "legacy" as const };
+        }
+      }
+      // 传统模式：返回平台统一充值地址
       const address = await db.generateDepositAddress(ctx.user.id, input.chain);
-      return { address, chain: input.chain };
+      return { address, chain: input.chain, mode: "legacy" as const };
     }),
     deposit: protectedProcedure.input(z.object({
       amount: z.string(),
@@ -4694,6 +4712,105 @@ ${faqContext}
         } catch (e: any) { failed++; results.push({ chatId, success: false, error: e.message }); }
       }
       return { sent, failed, results };
+    }),
+  }),
+  // ==================== HD 钱包管理 ====================
+  adminHdWallet: router({
+    // 获取 HD 钱包统计信息
+    stats: adminProcedure.query(async () => {
+      const { getHDWalletStats } = await import("./hdWallet");
+      return getHDWalletStats();
+    }),
+    // 验证助记词并返回主钱包地址
+    validateMnemonic: adminProcedure.input(z.object({
+      mnemonic: z.string(),
+    })).mutation(async ({ input }) => {
+      const { validateMnemonic, getMasterAddress } = await import("./hdWallet");
+      const isValid = await validateMnemonic(input.mnemonic);
+      if (!isValid) return { valid: false, address: "" };
+      const address = await getMasterAddress(input.mnemonic);
+      return { valid: true, address };
+    }),
+    // 手动触发链上扫描
+    triggerScan: adminProcedure.mutation(async () => {
+      const { scanAllDepositAddresses, confirmPendingDeposits } = await import("./hdWallet");
+      const [scanResult, confirmResult] = await Promise.all([
+        scanAllDepositAddresses(),
+        confirmPendingDeposits(),
+      ]);
+      return { scan: scanResult, confirm: confirmResult };
+    }),
+    // 手动触发资金归集
+    triggerConsolidation: adminProcedure.mutation(async () => {
+      const { consolidateFunds } = await import("./hdWallet");
+      return consolidateFunds();
+    }),
+    // 获取充值地址列表
+    addresses: adminProcedure.input(z.object({
+      page: z.number().default(1),
+      pageSize: z.number().default(50),
+    })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { items: [], total: 0 };
+      const offset = (input.page - 1) * input.pageSize;
+      const [items, countResult] = await Promise.all([
+        dbInstance.select({
+          id: depositAddresses.id,
+          userId: depositAddresses.userId,
+          chain: depositAddresses.chain,
+          address: depositAddresses.address,
+          status: depositAddresses.status,
+          totalDeposited: depositAddresses.totalDeposited,
+          lastScannedAt: depositAddresses.lastScannedAt,
+          createdAt: depositAddresses.createdAt,
+        }).from(depositAddresses)
+          .orderBy(sql`createdAt DESC`)
+          .limit(input.pageSize)
+          .offset(offset),
+        dbInstance.execute(sql`SELECT COUNT(*) as cnt FROM deposit_addresses`),
+      ]);
+      return { items, total: (countResult as any)[0]?.[0]?.cnt || 0 };
+    }),
+    // 获取链上充值记录
+    deposits: adminProcedure.input(z.object({
+      page: z.number().default(1),
+      pageSize: z.number().default(50),
+      status: z.enum(["detected", "confirmed", "credited", "failed"]).optional(),
+    })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { items: [], total: 0 };
+      const offset = (input.page - 1) * input.pageSize;
+      const conditions = input.status ? and(eq(chainDeposits.status, input.status)) : undefined;
+      const [items, countResult] = await Promise.all([
+        dbInstance.select().from(chainDeposits)
+          .where(conditions)
+          .orderBy(sql`createdAt DESC`)
+          .limit(input.pageSize)
+          .offset(offset),
+        dbInstance.execute(
+          input.status 
+            ? sql`SELECT COUNT(*) as cnt FROM chain_deposits WHERE status = ${input.status}`
+            : sql`SELECT COUNT(*) as cnt FROM chain_deposits`
+        ),
+      ]);
+      return { items, total: (countResult as any)[0]?.[0]?.cnt || 0 };
+    }),
+    // 获取归集记录
+    consolidations: adminProcedure.input(z.object({
+      page: z.number().default(1),
+      pageSize: z.number().default(50),
+    })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { items: [], total: 0 };
+      const offset = (input.page - 1) * input.pageSize;
+      const [items, countResult] = await Promise.all([
+        dbInstance.select().from(consolidations)
+          .orderBy(sql`createdAt DESC`)
+          .limit(input.pageSize)
+          .offset(offset),
+        dbInstance.execute(sql`SELECT COUNT(*) as cnt FROM consolidations`),
+      ]);
+      return { items, total: (countResult as any)[0]?.[0]?.cnt || 0 };
     }),
   }),
 });
