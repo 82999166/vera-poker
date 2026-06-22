@@ -2764,7 +2764,7 @@ ${faqContext}
     }),
     // Reset daily loss counter
     resetDailyLoss: adminProcedure.mutation(async () => {
-      botManager.addBotWin(botManager.getDailyBotLoss()); // reset to 0
+      botManager.resetDailyLossCounter(); // 直接重置为0
       return { success: true };
     }),
     // Export bot list as JSON

@@ -97,47 +97,63 @@ let dailyBotTotalWin = 0;  // bot当日总赢得
  * 返回值 > 0 表示bot应该打得更紧（提高equity阈值，减少亏损）
  * 返回值 < 0 表示bot应该打得更松（降低equity阈值，让玩家赢一些）
  * 返回值 = 0 表示不调整
+ * 
+ * v2 优化：
+ * - 修复了dailyLossTotal被钳制到0导致盈利分支永远不触发的bug
+ * - 增强了targetEdge的控制力度，使用连续函数而非随意阈值
+ * - 每手结算后的调整更平滑，避免突然变紧/变松
  */
 function getProfitControlAdjustment(config: BotConfig, opponentId?: number): number {
   if (!config.profitControlEnabled) return 0;
 
   let adjustment = 0;
 
-  // === 基于当日盈亏比例调整 ===
-  // lossRatio: bot亏损占dailyLossLimit的比例 (0~1+)
-  const lossRatio = dailyLossTotal / Math.max(config.dailyLossLimit, 1);
-  
-  if (lossRatio >= 0.8) {
-    // 亏损已达80%上限：强力收紧，bot只打强牌
-    adjustment += 0.15;
-  } else if (lossRatio >= 0.5) {
-    // 亏损50-80%：中度收紧
-    adjustment += 0.08;
-  } else if (lossRatio >= 0.3) {
-    // 亏损30-50%：轻微收紧
-    adjustment += 0.04;
-  } else if (lossRatio <= -0.3) {
-    // bot当日盈利较多（dailyLossTotal为负）：放松让玩家赢
-    adjustment -= 0.05;
+  // === 基于当日亏损上限调整（硬性保护） ===
+  // dailyLossTotal > 0 表示bot当日亏损，< 0 表示bot当日盈利
+  if (config.dailyLossLimit > 0) {
+    const lossRatio = dailyLossTotal / config.dailyLossLimit;
+    
+    if (lossRatio >= 1.0) {
+      // 已达亏损上限：极度收紧，几乎只打坚果牌
+      adjustment += 0.30;
+    } else if (lossRatio >= 0.8) {
+      // 亏损已达80%上限：强力收紧
+      adjustment += 0.20;
+    } else if (lossRatio >= 0.5) {
+      // 亏损50-80%：中度收紧（线性插值）
+      adjustment += 0.08 + (lossRatio - 0.5) * 0.40; // 0.08 ~ 0.20
+    } else if (lossRatio >= 0.2) {
+      // 亏损20-50%：轻微收紧
+      adjustment += (lossRatio - 0.2) * 0.27; // 0 ~ 0.08
+    } else if (lossRatio <= -0.5) {
+      // bot当日盈利超过亏损上限的50%：明显放松让玩家赢
+      adjustment -= 0.12;
+    } else if (lossRatio <= -0.3) {
+      // bot当日盈利超过亏损上限的30%：放松
+      adjustment -= 0.08;
+    } else if (lossRatio <= -0.1) {
+      // bot小幅盈利：轻微放松
+      adjustment -= 0.04;
+    }
   }
 
-  // === 基于目标庄家优势调整 ===
-  // 如果bot当日打了足够多手，检查实际边际率vs目标
+  // === 基于目标庄家优势调整（精细控制） ===
+  // 目标：让bot的实际边际率趋近targetEdge
+  // 例如targetEdge=10，表示bot目标赢10%的利润
   if (dailyBotTotalBet > 0) {
     const actualEdge = (dailyBotTotalWin - dailyBotTotalBet) / dailyBotTotalBet * 100;
-    const targetEdge = config.targetEdge; // 目标: bot赢5%
+    const targetEdge = config.targetEdge;
     const edgeDiff = actualEdge - targetEdge; // 正=bot赢太多，负=bot亏太多
     
-    if (edgeDiff < -10) {
-      // bot亏得比目标多很多：收紧
-      adjustment += 0.10;
-    } else if (edgeDiff < -5) {
-      adjustment += 0.05;
-    } else if (edgeDiff > 10) {
-      // bot赢得比目标多很多：放松
-      adjustment -= 0.06;
-    } else if (edgeDiff > 5) {
-      adjustment -= 0.03;
+    // 使用连续函数而非硬阈值，调整更平滑
+    // edgeDiff每偏离1%，调整约0.012
+    if (edgeDiff < 0) {
+      // bot亏得比目标多：收紧（每偏离1%收紧0.015）
+      const deficit = Math.abs(edgeDiff);
+      adjustment += Math.min(deficit * 0.015, 0.20); // 最多收紧0.20
+    } else if (edgeDiff > 0) {
+      // bot赢得比目标多：放松（每偏离1%放松0.012）
+      adjustment -= Math.min(edgeDiff * 0.012, 0.15); // 最多放松0.15
     }
   }
 
@@ -145,13 +161,14 @@ function getProfitControlAdjustment(config: BotConfig, opponentId?: number): num
   if (config.maxWinStreak > 0 && opponentId) {
     const streak = playerWinStreaks.get(opponentId) || 0;
     if (streak >= config.maxWinStreak) {
-      // 玩家连赢超过阈值：收紧
-      adjustment += 0.08 + Math.min(streak - config.maxWinStreak, 5) * 0.02;
+      // 玩家连赢超过阈值：逐步收紧
+      const overStreak = streak - config.maxWinStreak;
+      adjustment += 0.06 + Math.min(overStreak, 8) * 0.025; // 0.06 ~ 0.26
     }
   }
 
-  // 封顶调整值，避免过度影响游戏体验
-  return Math.max(-0.10, Math.min(0.25, adjustment));
+  // 封顶调整值：收紧最多0.35，放松最多0.18
+  return Math.max(-0.18, Math.min(0.35, adjustment));
 }
 
 /**
@@ -216,7 +233,7 @@ export async function getBotConfig(): Promise<BotConfig> {
     enabled: enabled === "true",
     maxPerTable: parseInt(maxPerTable) || DEFAULT_CONFIG.maxPerTable,
     minPerTable: parseInt(minPerTable) || DEFAULT_CONFIG.minPerTable,
-    dailyLossLimit: parseFloat(dailyLossLimit) || DEFAULT_CONFIG.dailyLossLimit,
+    dailyLossLimit: dailyLossLimit !== "" && !isNaN(parseFloat(dailyLossLimit)) ? parseFloat(dailyLossLimit) : DEFAULT_CONFIG.dailyLossLimit,
     foldRate: parseInt(foldRate) || DEFAULT_CONFIG.foldRate,
     minActionDelay: parseInt(minDelay) || DEFAULT_CONFIG.minActionDelay,
     maxActionDelay: parseInt(maxDelay) || DEFAULT_CONFIG.maxActionDelay,
@@ -228,7 +245,7 @@ export async function getBotConfig(): Promise<BotConfig> {
     rotationHands: parseInt(rotationHands) || 0,
     displayOnlineBoost: parseInt(displayOnlineBoost) || 0,
     profitControlEnabled: profitControlEnabled === "true",
-    targetEdge: parseFloat(targetEdge) || DEFAULT_CONFIG.targetEdge,
+    targetEdge: targetEdge !== "" && !isNaN(parseFloat(targetEdge)) ? parseFloat(targetEdge) : DEFAULT_CONFIG.targetEdge,
     maxWinStreak: parseInt(maxWinStreak) || 0,
   };
   configCachedAt = now;
@@ -328,11 +345,19 @@ export function addBotLoss(amount: number) {
   dailyLossTotal += amount;
 }
 
-// Bot赢钱时减少亏损记录
+// Bot赢钱时减少亏损记录（允许负值表示当日盈利）
 export function addBotWin(amount: number) {
   resetDailyLossIfNeeded();
   dailyLossTotal -= amount;
-  if (dailyLossTotal < 0) dailyLossTotal = 0;
+  // 不再钳制到0，允许负值表示bot当日盈利，这样盈亏控制才能在bot赢太多时放松
+}
+
+// 直接重置每日亏损计数器为0
+export function resetDailyLossCounter() {
+  dailyLossTotal = 0;
+  dailyBotTotalBet = 0;
+  dailyBotTotalWin = 0;
+  playerWinStreaks.clear();
 }
 
 // ==================== Bot入座逻辑 ====================
@@ -1014,13 +1039,26 @@ function decideBotAction(
   if (isLatePosition) equity += 0.03; // 后位加成
   if (isEarlyPosition) equity -= 0.02; // 前位惩罚
 
-  // === 个性化随机偏差（让每个bot风格不同） ===
+  // === 个性化风格（让每个bot风格不同，更像真人） ===
   // 基于playerId生成稳定的偏差（同一个bot风格一致）
   const personalityBias = ((player.id * 7919) % 100) / 1000 - 0.05; // -0.05 ~ +0.05
   equity += personalityBias;
+  
+  // 随机波动（模拟真人的不稳定性，每手都有小幅随机偏差）
+  const handNoise = (Math.random() - 0.5) * 0.06; // -0.03 ~ +0.03
+  equity += handNoise;
 
   // === 底池赔率计算 ===
   const potOdds = toCall > 0 ? toCall / (pot + toCall) : 0;
+
+  // === 模拟真人“情绪”影响（tilt效应） ===
+  // 如果bot刚输了大底池，有小概率会打得更激进（模拟上头）
+  // 这个效应通过dailyLossTotal间接体现：亏损多时收紧已经处理
+  // 但添加少量随机激进行为让bot更像真人
+  if (dailyLossTotal > 0 && Math.random() < 0.05) {
+    // 5%概率“上头”：临时放松一下（反向调整）
+    equity += 0.05;
+  }
 
   // === 弃牌率配置调整 ===
   // foldRate 67 = 默认（不调整），> 67 = 更容易弃牌（equity阈值上调），< 67 = 更激进（equity阈值下调）
@@ -1052,7 +1090,8 @@ function decideBotAction(
 }
 
 /**
- * Preflop决策
+ * Preflop决策 - v2 更像真人
+ * 特点：变化的加注尺寸、偶尔的偷鸡加注、位置意识更强
  */
 function decidePreflopAction(
   equity: number,
@@ -1067,14 +1106,28 @@ function decidePreflopAction(
 
   // 可以check（大盲位置无人加注）
   if (canCheck) {
-    // 强牌加注 (equity >= 0.75)
-    if (equity >= 0.75 && Math.random() < 0.55) {
-      const raiseSize = bigBlind * (2.5 + Math.random() * 1.5); // 2.5-4x BB
-      return makeRaise(raiseSize, minRaise, player);
+    // 强牌加注 (equity >= 0.72)
+    if (equity >= 0.72) {
+      // 60%概率加注，40%慢打（设套）
+      if (Math.random() < 0.60) {
+        // 变化的加注尺寸（2.2-4.5x BB）
+        const raiseSize = bigBlind * (2.2 + Math.random() * 2.3);
+        return makeRaise(raiseSize, minRaise, player);
+      }
+      return { action: "check" }; // 慢打
     }
-    // 中等牌偶尔加注
-    if (equity >= 0.60 && Math.random() < 0.20) {
-      const raiseSize = bigBlind * (2 + Math.random()); // 2-3x BB
+    // 中等牌偶尔加注（后位更积极）
+    if (equity >= 0.55) {
+      const raiseProb = isLatePosition ? 0.30 : 0.12;
+      if (Math.random() < raiseProb) {
+        const raiseSize = bigBlind * (2 + Math.random() * 1.5); // 2-3.5x BB
+        return makeRaise(raiseSize, minRaise, player);
+      }
+      return { action: "check" };
+    }
+    // 弱牌后位偶尔偷鸡加注（模拟真人的位置偷盗）
+    if (isLatePosition && Math.random() < 0.06) {
+      const raiseSize = bigBlind * (2 + Math.random());
       return makeRaise(raiseSize, minRaise, player);
     }
     return { action: "check" };
@@ -1083,46 +1136,59 @@ function decidePreflopAction(
   // 面对加注
   const bbMultiple = toCall / bigBlind;
 
-  // 强牌 (equity >= 0.75): 跟注或反加
-  if (equity >= 0.75) {
-    // 30%概率反加（更保守）
-    if (Math.random() < 0.30 && bbMultiple < 12) {
-      const raiseSize = toCall * (2.0 + Math.random() * 0.5); // 2-2.5x 当前注
+  // 强牌 (equity >= 0.72): 跟注或反加
+  if (equity >= 0.72) {
+    // 35%概率反加（真人会更积极）
+    if (Math.random() < 0.35 && bbMultiple < 15) {
+      // 变化的反加尺寸（2.2-3x 当前注）
+      const raiseMulti = 2.2 + Math.random() * 0.8;
+      const raiseSize = toCall * raiseMulti;
       return makeRaise(raiseSize + player.currentBet, minRaise, player);
     }
     return { action: "call" };
   }
 
-  // 中等牌 (equity 0.55-0.75)
-  if (equity >= 0.55) {
+  // 中等牌 (equity 0.52-0.72)
+  if (equity >= 0.52) {
     // 小注跟注（< 3BB）
     if (bbMultiple <= 3) return { action: "call" };
     // 中注看位置（< 6BB 后位跟）
     if (bbMultiple <= 6 && isLatePosition) return { action: "call" };
+    // 后位偶尔反加（模拟真人的位置反击）
+    if (isLatePosition && bbMultiple <= 4 && Math.random() < 0.12) {
+      const raiseSize = toCall * (2.5 + Math.random() * 0.5);
+      return makeRaise(raiseSize + player.currentBet, minRaise, player);
+    }
     // 大注大概率弃牌
-    if (Math.random() < 0.6) return { action: "fold" };
+    if (bbMultiple > 6 && Math.random() < 0.65) return { action: "fold" };
     return { action: "call" };
   }
 
-  // 较弱牌 (equity 0.42-0.55)
-  if (equity >= 0.42) {
+  // 较弱牌 (equity 0.40-0.52)
+  if (equity >= 0.40) {
     // 小注且后位可以跟
-    if (bbMultiple <= 2 && isLatePosition) return { action: "call" };
+    if (bbMultiple <= 2.5 && isLatePosition) return { action: "call" };
     // 极小注偶尔跟
-    if (bbMultiple <= 1.5 && Math.random() < 0.3) return { action: "call" };
+    if (bbMultiple <= 1.5 && Math.random() < 0.25) return { action: "call" };
     return { action: "fold" };
   }
 
-  // 弱牌 (equity < 0.42)
-  // 极小注偶尔跟（偷鸡，概率降低）
-  if (bbMultiple <= 1.5 && isLatePosition && Math.random() < 0.08) {
+  // 弱牌 (equity < 0.40)
+  // 后位极小注偶尔跟（模拟真人好奇心）
+  if (bbMultiple <= 1.5 && isLatePosition && Math.random() < 0.10) {
     return { action: "call" };
+  }
+  // 极少概率偷鸡加注（后位对小注）
+  if (bbMultiple <= 2 && isLatePosition && Math.random() < 0.04) {
+    const raiseSize = toCall * (2.5 + Math.random());
+    return makeRaise(raiseSize + player.currentBet, minRaise, player);
   }
   return { action: "fold" };
 }
 
 /**
- * Postflop决策（基于equity vs pot odds）
+ * Postflop决策 - v2 更像真人
+ * 特点：变化的下注尺寸、更多慢打和bluff、基于街面纹理的决策
  */
 function decidePostflopAction(
   equity: number,
@@ -1136,31 +1202,45 @@ function decidePostflopAction(
   gs: GameState
 ): { action: PlayerAction; amount?: number } {
 
+  // 街面阶段影响决策（真人在不同街面策略不同）
+  const street = gs.communityCards.length; // 3=flop, 4=turn, 5=river
+  const isRiver = street === 5;
+  const isTurn = street === 4;
+
   // === 可以check的情况 ===
   if (canCheck) {
-    // 强牌（equity >= 0.75）：下注获取价值
-    if (equity >= 0.75) {
-      // 50%概率下注，50%慢打（设套）
-      if (Math.random() < 0.50) {
-        const betSize = pot * (0.35 + Math.random() * 0.25); // 35-60% pot
+    // 强牌（equity >= 0.72）：下注获取价值或慢打
+    if (equity >= 0.72) {
+      // river更应该下注获取价值，flop可以慢打
+      const betProb = isRiver ? 0.70 : (isTurn ? 0.55 : 0.45);
+      if (Math.random() < betProb) {
+        // 变化的下注尺寸（真人不会总是下同样的比例）
+        const sizeFactor = 0.30 + Math.random() * 0.40; // 30-70% pot
+        const betSize = pot * sizeFactor;
         return makeRaise(betSize + player.currentBet, minRaise, player);
       }
       return { action: "check" }; // 慢打
     }
 
-    // 中等牌 (equity 0.50-0.75): 偶尔下注
-    if (equity >= 0.50) {
-      if (Math.random() < 0.18) {
-        const betSize = pot * (0.25 + Math.random() * 0.2); // 25-45% pot
+    // 中等牌 (equity 0.48-0.72): 偶尔下注
+    if (equity >= 0.48) {
+      // 后街下注概率更高（真人在turn/river会更积极地保护手牌）
+      const betProb = isRiver ? 0.25 : (isTurn ? 0.22 : 0.15);
+      if (Math.random() < betProb) {
+        const sizeFactor = 0.25 + Math.random() * 0.25; // 25-50% pot
+        const betSize = pot * sizeFactor;
         return makeRaise(betSize + player.currentBet, minRaise, player);
       }
       return { action: "check" };
     }
 
-    // 弱牌：check（极少bluff）
-    if (Math.random() < 0.03) {
-      // 3%概率bluff（大幅降低）
-      const betSize = pot * (0.25 + Math.random() * 0.15);
+    // 弱牌：偶尔bluff（真人会在可怕的牌面偷鸡）
+    // bluff概率根据街面变化：river更容易bluff（因为对手不能再看牌）
+    const bluffProb = isRiver ? 0.08 : (isTurn ? 0.05 : 0.03);
+    if (Math.random() < bluffProb) {
+      // bluff用较大的尺寸（真人偷鸡会下大注）
+      const sizeFactor = 0.45 + Math.random() * 0.30; // 45-75% pot
+      const betSize = pot * sizeFactor;
       return makeRaise(betSize + player.currentBet, minRaise, player);
     }
     return { action: "check" };
@@ -1170,49 +1250,73 @@ function decidePostflopAction(
 
   // 核心决策：equity > potOdds 则跟注有正EV
   const hasPositiveEV = equity > potOdds;
+  // 跟注占底池比例（真人会考虑这个）
+  const callToPotRatio = toCall / Math.max(pot, 1);
 
-  // 强牌 (equity >= 0.72): 跟注或加注
-  if (equity >= 0.72) {
-    // 20%概率加注（更保守）
-    if (Math.random() < 0.20) {
-      const raiseSize = toCall * 2.0 + pot * 0.2;
+  // 强牌 (equity >= 0.70): 跟注或加注
+  if (equity >= 0.70) {
+    // 加注概率根据街面变化（river加注更多）
+    const raiseProb = isRiver ? 0.30 : (isTurn ? 0.22 : 0.18);
+    if (Math.random() < raiseProb) {
+      // 变化的加注尺寸
+      const raiseMulti = 2.0 + Math.random() * 1.0; // 2-3x
+      const raiseSize = toCall * raiseMulti + pot * (0.1 + Math.random() * 0.15);
       return makeRaise(raiseSize + player.currentBet, minRaise, player);
     }
     return { action: "call" };
   }
 
-  // 中等牌 (equity 0.45-0.72)
-  if (equity >= 0.45) {
-    if (hasPositiveEV && toCall <= pot * 0.5) {
-      // 正EV且跟注金额不超过半池才跟
+  // 中等牌 (equity 0.42-0.70)
+  if (equity >= 0.42) {
+    if (hasPositiveEV && callToPotRatio <= 0.5) {
+      // 正EV且跟注不超过半池：跟注
       return { action: "call" };
     }
-    if (hasPositiveEV && toCall <= pot * 0.8 && Math.random() < 0.5) {
-      // 正EV但跟注较大，50%概率跟
-      return { action: "call" };
+    if (hasPositiveEV && callToPotRatio <= 0.8) {
+      // 正EV但跟注较大：根据街面和equity决定
+      const callProb = equity > 0.55 ? 0.60 : 0.35;
+      if (Math.random() < callProb) return { action: "call" };
+      return { action: "fold" };
     }
     // 负微EV但跟注金额小，偶尔跟（隐含赔率）
-    if (toCall <= bigBlind * 2 && Math.random() < 0.20) {
+    if (callToPotRatio <= 0.25 && Math.random() < 0.30) {
       return { action: "call" };
     }
-    // 其他情况弃牌
+    // 偶尔bluff加注（真人会在中等牌力时反打）
+    if (callToPotRatio <= 0.4 && Math.random() < 0.06) {
+      const raiseSize = toCall * (2.2 + Math.random() * 0.8);
+      return makeRaise(raiseSize + player.currentBet, minRaise, player);
+    }
     return { action: "fold" };
   }
 
-  // 听牌手 (equity 0.28-0.45)
-  if (equity >= 0.28) {
-    if (hasPositiveEV && toCall <= pot * 0.35) {
-      // 底池赔率足够且跟注小，跟注看牌
+  // 听牌手 (equity 0.25-0.42)
+  if (equity >= 0.25) {
+    if (hasPositiveEV && callToPotRatio <= 0.30) {
+      // 底池赔率足够且跟注小：跟注看牌
       return { action: "call" };
     }
-    // 赔率不够或跟注大，弃牌
+    // 偶尔半赌性跟注（真人有时会“感觉”跟一下）
+    if (callToPotRatio <= 0.20 && Math.random() < 0.12) {
+      return { action: "call" };
+    }
+    // 极少概率bluff加注（半偷鸡，真人会偶尔这么做）
+    if (!isRiver && callToPotRatio <= 0.35 && Math.random() < 0.03) {
+      const raiseSize = toCall * 2.5 + pot * 0.3;
+      return makeRaise(raiseSize + player.currentBet, minRaise, player);
+    }
     return { action: "fold" };
   }
 
-  // 空气牌 (equity < 0.28)
-  // 几乎不跟注
-  if (toCall <= bigBlind * 1 && Math.random() < 0.02) {
-    return { action: "call" }; // 极少偷鸡跟注
+  // 空气牌 (equity < 0.25)
+  // 极少跟注，但偶尔bluff（真人会在绝望时偷鸡）
+  if (callToPotRatio <= 0.15 && Math.random() < 0.04) {
+    return { action: "call" }; // 极少的好奇心跟注
+  }
+  // river上的绝望偷鸡（真人会在最后一张牌尝试偷鸡）
+  if (isRiver && Math.random() < 0.04) {
+    const bluffSize = pot * (0.55 + Math.random() * 0.35); // 55-90% pot
+    return makeRaise(bluffSize + player.currentBet, minRaise, player);
   }
   return { action: "fold" };
 }
@@ -1474,6 +1578,14 @@ export async function getBotStats() {
   // 获取每个bot的详细统计
   const botDetails = await getBotDetailedStats();
   
+  // 计算当前实际边际率
+  const actualEdge = dailyBotTotalBet > 0 
+    ? ((dailyBotTotalWin - dailyBotTotalBet) / dailyBotTotalBet * 100).toFixed(2)
+    : "0.00";
+  
+  // 计算当前盈亏控制调整值
+  const currentAdjustment = getProfitControlAdjustment(config);
+  
   return {
     enabled: config.enabled,
     dailyLoss: dailyLossTotal,
@@ -1482,6 +1594,15 @@ export async function getBotStats() {
     botsPerRoom: Object.fromEntries(getBotsPerRoom()),
     config,
     botDetails,
+    // v2 新增：盈亏控制详情
+    profitControl: {
+      dailyBotTotalBet,
+      dailyBotTotalWin,
+      actualEdge: parseFloat(actualEdge),
+      targetEdge: config.targetEdge,
+      currentAdjustment: parseFloat(currentAdjustment.toFixed(4)),
+      adjustmentDirection: currentAdjustment > 0 ? "收紧（bot打得更保守）" : currentAdjustment < 0 ? "放松（让玩家赢）" : "无调整",
+    },
   };
 }
 

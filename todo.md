@@ -1080,3 +1080,18 @@
 - [x] 后端telegram.ts增加coupon/checkin/fission callback_query处理
 - [x] 优惠券/限时活动/裂变/签到各增加专用TG推送路由（callback_data方式）
 - [x] 前端所有营销模块推送统一改为调用专用push路由
+
+## Bot AI v2: 输赢控制优化 + 更像真人
+- [x] Bug Fix: addBotWin钳制dailyLossTotal到0导致盈利分支永远不触发
+- [x] Bug Fix: targetEdge/dailyLossLimit设为0时||运算回退到默认值
+- [x] Bug Fix: resetDailyLoss路由在负值时行为异常
+- [x] 盈亏控制v2: 使用连续函数替代硬阈值，调整更平滑
+- [x] 盈亏控制v2: 亏损上限分级（20%/50%/80%/100%），盈利时放松
+- [x] 盈亏控制v2: targetEdge精细控制，每偏离1%自动调整
+- [x] 决策引擎v2: Preflop增加慢打/偷鸡/位置反击
+- [x] 决策引擎v2: Postflop根据街面阶段调整策略（flop/turn/river不同）
+- [x] 决策引擎v2: 增加bluff（偷鸡）和slowplay（慢打）行为
+- [x] 决策引擎v2: 变化的下注尺寸（不再固定比例）
+- [x] 决策引擎v2: 每手随机波动模拟真人不稳定性
+- [x] 决策引擎v2: 5%概率"上头"模拟tilt效应
+- [x] Admin: getBotStats新增profitControl详情（实际边际率/当前调整值/方向）
