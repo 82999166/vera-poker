@@ -835,6 +835,20 @@ export function registerTelegramRoutes(app: Express) {
         }),
       });
       console.log("[Telegram] Bot commands registered: /start, /game, /me");
+      // Set menu button to web_app (VPoker button) - commands still accessible via / input
+      const miniAppUrl = await db.getConfigValue("tg_mini_app_url") || "https://game.verapoker.com/";
+      await fetch(`https://api.telegram.org/bot${botToken}/setChatMenuButton`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          menu_button: {
+            type: "web_app",
+            text: "VPoker",
+            web_app: { url: miniAppUrl }
+          }
+        }),
+      });
+      console.log("[Telegram] Menu button set to web_app (VPoker)");
     } catch (e) {
       console.warn("[Telegram] Failed to set bot commands:", e);
     }
