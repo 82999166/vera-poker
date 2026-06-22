@@ -2822,9 +2822,9 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
   // Classify stake level by big blind
   const getStakeLevel = (bigBlind: string) => {
     const bb = parseFloat(bigBlind);
-    if (bb <= 0.10) return "beginner";
-    if (bb <= 1.00) return "intermediate";
-    if (bb <= 10.00) return "advanced";
+    if (bb <= 2) return "beginner";
+    if (bb <= 10) return "intermediate";
+    if (bb <= 50) return "advanced";
     return "vip";
   };
 
