@@ -1112,3 +1112,12 @@
 - [x] 比赛场邀请链接：后端 adminTournaments.sendInvite 接口（支持群组/广播模式）
 - [x] 比赛场邀请链接：Telegram Bot callback_query 处理 tourney_reg_ 一键报名
 - [x] 比赛场邀请链接：管理后台推送邀请弹窗（图片上传+文案编辑+群组选择+模式切换）
+
+## 场名称统一 + 机器人启停控制
+- [x] 统一前后端场名称：Admin.tsx 快速预设从「低级桌/中级桌/高级桌」改为「初级场/中级场/高级场」
+- [x] 统一 i18n.ts zh-CN/zh-TW 大厅筛选标签加「场」后缀（初级场/中级场/高级场/VIP场）
+- [x] 统一 i18n.ts zh-CN roomLevel.vip 从「豪华场」改为「VIP场」
+- [x] 后端：adminBot.toggleBots 接口（单个/批量启用停用，使用 riskLevel=frozen 实现）
+- [x] 后端：adminBot.botStatusList 接口（返回所有机器人启用状态）
+- [x] botManager.getBotUserIds 过滤 frozen/banned 机器人（停用的机器人不参与调度）
+- [x] 前端：BotDetailTableMerged 增加搜索框、启用/停用筛选、全选复选框、批量操作栏、单行开关按钮

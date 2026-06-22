@@ -2887,6 +2887,40 @@ ${faqContext}
           : "0.0",
       }));
     }),
+    // Toggle individual or batch bots enabled/disabled
+    toggleBots: adminProcedure.input(z.object({
+      botIds: z.array(z.number()).min(1),
+      enabled: z.boolean(), // true = enable (normal), false = disable (frozen)
+    })).mutation(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { success: false, count: 0 };
+      const { users } = await import("../drizzle/schema");
+      const { inArray } = await import("drizzle-orm");
+      await dbInstance.update(users)
+        .set({ riskLevel: input.enabled ? "normal" : "frozen" })
+        .where(inArray(users.id, input.botIds));
+      // Invalidate bot cache so scheduler picks up changes immediately
+      botManager.invalidateConfigCache();
+      return { success: true, count: input.botIds.length };
+    }),
+    // Get bot enabled/disabled status list
+    botStatusList: staffProcedure.query(async () => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return [];
+      const { users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const bots = await dbInstance.select({
+        id: users.id,
+        name: users.name,
+        nickname: users.nickname,
+        riskLevel: users.riskLevel,
+      }).from(users).where(eq(users.isBot, true));
+      return bots.map(b => ({
+        id: b.id,
+        name: b.nickname || b.name || `Bot#${b.id}`,
+        enabled: b.riskLevel === "normal",
+      }));
+    }),
   }),
   // Admin CS Records
   adminCs: router({

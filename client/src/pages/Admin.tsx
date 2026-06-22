@@ -137,10 +137,10 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "rooms.high": "高级",
     "rooms.unlimited": "无限制",
     "rooms.presets": "快速预设",
-    "rooms.presetLow": "低级桌",
-    "rooms.presetMid": "中级桌",
-    "rooms.presetHigh": "高级桌",
-    "rooms.presetVip": "VIP桌",
+    "rooms.presetLow": "初级场",
+    "rooms.presetMid": "中级场",
+    "rooms.presetHigh": "高级场",
+    "rooms.presetVip": "VIP场",
     "rooms.save": "保存",
     "rooms.cancel": "取消",
     "rooms.inviteCode": "邀请码",
@@ -595,10 +595,10 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "rooms.high": "高級",
     "rooms.unlimited": "無限制",
     "rooms.presets": "快速預設",
-    "rooms.presetLow": "低級桌",
-    "rooms.presetMid": "中級桌",
-    "rooms.presetHigh": "高級桌",
-    "rooms.presetVip": "VIP桌",
+    "rooms.presetLow": "初級場",
+    "rooms.presetMid": "中級場",
+    "rooms.presetHigh": "高級場",
+    "rooms.presetVip": "VIP場",
     "rooms.save": "儲存",
     "rooms.cancel": "取消",
     "rooms.inviteCode": "邀請碼",
@@ -1019,10 +1019,10 @@ const adminI18n: Record<AdminLang, Record<string, string>> = {
     "rooms.high": "High",
     "rooms.unlimited": "Unlimited",
     "rooms.presets": "Quick Presets",
-    "rooms.presetLow": "Low Stakes",
-    "rooms.presetMid": "Mid Stakes",
-    "rooms.presetHigh": "High Stakes",
-    "rooms.presetVip": "VIP Table",
+    "rooms.presetLow": "Beginner",
+    "rooms.presetMid": "Intermediate",
+    "rooms.presetHigh": "Advanced",
+    "rooms.presetVip": "VIP",
     "rooms.save": "Save",
     "rooms.cancel": "Cancel",
     "rooms.inviteCode": "Invite Code",
@@ -7273,13 +7273,24 @@ function RoomBotConfigPanel() {
 // Merged Bot Detail Table with Behavior Metrics
 function BotDetailTableMerged({ botDetails, formState }: { botDetails: any[]; formState: any }) {
   const { data: metrics } = trpc.adminBot.behaviorMetrics.useQuery(undefined, { refetchInterval: 30000 });
-  
+  const { data: statusList, refetch: refetchStatus } = trpc.adminBot.botStatusList.useQuery(undefined, { refetchInterval: 15000 });
+  const toggleBots = trpc.adminBot.toggleBots.useMutation({ onSuccess: () => { refetchStatus(); toast.success("操作成功"); } });
+
+  // Selection state for batch operations
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [filterEnabled, setFilterEnabled] = useState<"all" | "enabled" | "disabled">("all");
+  const [searchName, setSearchName] = useState("");
+
+  // Build status map
+  const statusMap = new Map<number, boolean>();
+  if (statusList) {
+    for (const s of statusList) statusMap.set(s.id, s.enabled);
+  }
+
   // Build metrics map by bot id
   const metricsMap = new Map<number, any>();
   if (metrics) {
-    for (const m of metrics) {
-      metricsMap.set(m.id, m);
-    }
+    for (const m of metrics) metricsMap.set(m.id, m);
   }
 
   // Derive style label
@@ -7296,15 +7307,96 @@ function BotDetailTableMerged({ botDetails, formState }: { botDetails: any[]; fo
     return style;
   }
 
+  // Filtered bot list
+  const filteredBots = botDetails.filter((bot: any) => {
+    const enabled = statusMap.has(bot.id) ? statusMap.get(bot.id) : true;
+    if (filterEnabled === "enabled" && !enabled) return false;
+    if (filterEnabled === "disabled" && enabled) return false;
+    if (searchName && !((bot.nickname || bot.name || "").toLowerCase().includes(searchName.toLowerCase()))) return false;
+    return true;
+  });
+
+  const allSelected = filteredBots.length > 0 && filteredBots.every((b: any) => selectedIds.has(b.id));
+  const someSelected = selectedIds.size > 0;
+
+  function toggleSelect(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredBots.map((b: any) => b.id)));
+    }
+  }
+
+  const enabledCount = statusList ? statusList.filter(s => s.enabled).length : 0;
+  const disabledCount = statusList ? statusList.filter(s => !s.enabled).length : 0;
+
   return (
-    <div className="glass rounded-xl p-5">
-      <h3 className="text-sm font-semibold text-foreground mb-3">机器人数据统计（含行为指标）</h3>
+    <div className="glass rounded-xl p-5 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h3 className="text-sm font-semibold text-foreground">机器人数据统计（含行为指标）</h3>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-emerald-400">启用 {enabledCount}</span>
+          <span className="text-muted-foreground">/</span>
+          <span className="text-red-400">停用 {disabledCount}</span>
+        </div>
+      </div>
+
+      {/* Filter & Search Bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          placeholder="搜索机器人名称..."
+          value={searchName}
+          onChange={e => setSearchName(e.target.value)}
+          className="px-3 py-1.5 rounded-lg bg-secondary/50 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-gold/50 w-48"
+        />
+        {(["all", "enabled", "disabled"] as const).map(f => (
+          <button key={f} onClick={() => setFilterEnabled(f)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              filterEnabled === f ? "bg-gold/20 text-gold" : "bg-secondary/50 text-muted-foreground hover:text-foreground"
+            }`}>
+            {f === "all" ? "全部" : f === "enabled" ? "已启用" : "已停用"}
+          </button>
+        ))}
+      </div>
+
+      {/* Batch Action Bar */}
+      {someSelected && (
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gold/10 border border-gold/20">
+          <span className="text-xs text-gold font-medium">已选 {selectedIds.size} 个</span>
+          <button
+            onClick={() => toggleBots.mutate({ botIds: Array.from(selectedIds), enabled: true })}
+            disabled={toggleBots.isPending}
+            className="px-3 py-1 rounded text-xs bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
+          >批量启用</button>
+          <button
+            onClick={() => toggleBots.mutate({ botIds: Array.from(selectedIds), enabled: false })}
+            disabled={toggleBots.isPending}
+            className="px-3 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+          >批量停用</button>
+          <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1 rounded text-xs bg-secondary text-muted-foreground hover:text-foreground transition-colors">取消选择</button>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border">
+              <th className="py-2 px-2">
+                <input type="checkbox" checked={allSelected} onChange={toggleSelectAll}
+                  className="w-3.5 h-3.5 rounded border-border accent-gold cursor-pointer" />
+              </th>
               <th className="text-left py-2 px-2 text-muted-foreground font-medium">名称</th>
               <th className="text-center py-2 px-2 text-muted-foreground font-medium">状态</th>
+              <th className="text-center py-2 px-2 text-muted-foreground font-medium">启停</th>
               <th className="text-right py-2 px-2 text-muted-foreground font-medium">余额</th>
               <th className="text-right py-2 px-2 text-muted-foreground font-medium">总手数</th>
               <th className="text-right py-2 px-2 text-muted-foreground font-medium">胜率</th>
@@ -7317,20 +7409,26 @@ function BotDetailTableMerged({ botDetails, formState }: { botDetails: any[]; fo
             </tr>
           </thead>
           <tbody>
-            {botDetails.map((bot: any) => {
+            {filteredBots.map((bot: any) => {
               const m = metricsMap.get(bot.id);
               const vpip = m ? parseFloat(m.vpip) : 0;
               const pfr = m ? parseFloat(m.pfr) : 0;
               const aggression = m ? m.aggressionFactor : "0.0";
               const style = m ? getStyleLabel(vpip, pfr) : "-";
+              const isEnabled = statusMap.has(bot.id) ? statusMap.get(bot.id)! : true;
+              const isSelected = selectedIds.has(bot.id);
               return (
-                <tr key={bot.id} className="border-b border-border/50 hover:bg-secondary/30">
+                <tr key={bot.id} className={`border-b border-border/50 hover:bg-secondary/30 ${!isEnabled ? "opacity-50" : ""}`}>
+                  <td className="py-2 px-2">
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(bot.id)}
+                      className="w-3.5 h-3.5 rounded border-border accent-gold cursor-pointer" />
+                  </td>
                   <td className="py-2 px-2">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-gold/20 flex items-center justify-center">
                         <span className="text-[10px] text-gold font-bold">B</span>
                       </div>
-                      <span className="font-medium text-foreground">{bot.name}</span>
+                      <span className={`font-medium ${isEnabled ? "text-foreground" : "text-muted-foreground line-through"}`}>{bot.name}</span>
                     </div>
                   </td>
                   <td className="text-center py-2 px-2">
@@ -7338,6 +7436,20 @@ function BotDetailTableMerged({ botDetails, formState }: { botDetails: any[]; fo
                       <span className={`w-1.5 h-1.5 rounded-full ${bot.isOnline ? "bg-emerald-400" : "bg-muted-foreground"}`} />
                       {bot.isOnline ? `房间${bot.currentRoom}` : "空闲"}
                     </span>
+                  </td>
+                  <td className="text-center py-2 px-2">
+                    <button
+                      onClick={() => toggleBots.mutate({ botIds: [bot.id], enabled: !isEnabled })}
+                      disabled={toggleBots.isPending}
+                      className={`relative w-9 h-5 rounded-full transition-colors ${
+                        isEnabled ? "bg-emerald-500" : "bg-secondary"
+                      }`}
+                      title={isEnabled ? "点击停用" : "点击启用"}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                        isEnabled ? "translate-x-4" : ""
+                      }`} />
+                    </button>
                   </td>
                   <td className={`text-right py-2 px-2 font-mono ${bot.balance < (formState.balanceAlertThreshold ?? 500) ? "text-red-400 font-bold" : "text-foreground"}`}>
                     ${bot.balance.toFixed(0)}
@@ -7365,7 +7477,7 @@ function BotDetailTableMerged({ botDetails, formState }: { botDetails: any[]; fo
             })}
           </tbody>
         </table>
-        {botDetails.length === 0 && (
+        {filteredBots.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-4">暂无统计数据</p>
         )}
       </div>

@@ -302,8 +302,10 @@ export async function getBotUserIds(): Promise<number[]> {
   const dbInstance = await db.getDb();
   if (!dbInstance) return [];
   const { users } = await import("../drizzle/schema");
-  const { eq } = await import("drizzle-orm");
-  const bots = await dbInstance.select({ id: users.id }).from(users).where(eq(users.isBot, true));
+  const { eq, and, ne } = await import("drizzle-orm");
+  // Exclude frozen/banned bots (disabled by admin via toggleBots)
+  const bots = await dbInstance.select({ id: users.id }).from(users)
+    .where(and(eq(users.isBot, true), ne(users.riskLevel, "frozen"), ne(users.riskLevel, "banned")));
   cachedBotUserIds = bots.map(b => b.id);
   botUsersCachedAt = now;
   return cachedBotUserIds;
