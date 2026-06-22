@@ -374,6 +374,98 @@ export function registerTelegramRoutes(app: Express) {
             return;
           }
 
+          // ===== Tournament direct register: callback_data = "tourney_reg_{id}" =====
+          if (cbData.startsWith("tourney_reg_")) {
+            const tournamentId = parseInt(cbData.replace("tourney_reg_", ""), 10);
+            try {
+              const user = await db.getUserByTgId(String(cbFrom.id));
+              if (!user) {
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "请先启动 Bot 并注册账号后再报名！", show_alert: true }),
+                });
+              } else {
+                // Attempt registration via the same logic as the tRPC endpoint
+                const tournament = await db.getTournamentById(tournamentId);
+                if (!tournament) {
+                  await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "比赛不存在", show_alert: true }),
+                  });
+                } else if (tournament.status !== "registration") {
+                  await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "报名已截止或比赛已开始", show_alert: true }),
+                  });
+                } else {
+                  // Check if already registered
+                  const existing = await db.getRegistration(tournamentId, user.id);
+                  if (existing && existing.status !== "refunded") {
+                    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                      method: "POST", headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "✅ 您已报名此比赛，无需重复报名", show_alert: true }),
+                    });
+                  } else {
+                    // Check max players
+                    const count = await db.getRegistrationCount(tournamentId);
+                    if (count >= tournament.maxPlayers) {
+                      await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "报名已满，无法参加", show_alert: true }),
+                      });
+                    } else {
+                      // Check balance
+                      const entryFee = parseFloat(tournament.entryFee);
+                      if (parseFloat(user.balance) < entryFee) {
+                        await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                          method: "POST", headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ callback_query_id: callbackQuery.id, text: `余额不足！报名费 ${tournament.entryFee} USDT，当前余额 ${user.balance} USDT。请先充值。`, show_alert: true }),
+                        });
+                      } else {
+                        // Deduct balance and register
+                        const balanceBefore = user.balance;
+                        const deductResult = await db.deductUserBalanceAtomic(user.id, entryFee);
+                        if (deductResult === null) {
+                          await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "余额不足，请先充值", show_alert: true }),
+                          });
+                        } else {
+                          const balanceAfter = (parseFloat(balanceBefore) - entryFee).toFixed(2);
+                          await db.createTransaction({
+                            userId: user.id,
+                            type: "tournament_entry",
+                            amount: entryFee.toFixed(2),
+                            balanceBefore,
+                            balanceAfter,
+                            status: "confirmed",
+                            referenceType: "tournament",
+                            referenceId: tournamentId,
+                            note: `报名比赛(TG): ${tournament.name}`,
+                          });
+                          await db.registerForTournament(tournamentId, user.id, tournament.startingChips);
+                          await db.updateTournament(tournamentId, { registeredCount: count + 1 });
+                          await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ callback_query_id: callbackQuery.id, text: `🎉 报名成功！\n比赛：${tournament.name}\n报名费：${tournament.entryFee} USDT\n剩余余额：${balanceAfter} USDT\n\n请在开赛时间进入游戏！`, show_alert: true }),
+                          });
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (e: any) {
+              console.error("[Telegram] Tournament register error:", e);
+              await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "系统错误，请稍后重试", show_alert: true }),
+              });
+            }
+            res.json({ ok: true });
+            return;
+          }
+
           // Red packet claim: callback_data = "claim_rp_{id}"
           if (cbData.startsWith("claim_rp_")) {
             const rpId = parseInt(cbData.replace("claim_rp_", ""), 10);

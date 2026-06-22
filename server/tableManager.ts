@@ -493,8 +493,8 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
  */
 export async function leaveTable(roomId: number, userId: number): Promise<{ success: boolean; remainingChips: number; message?: string }> {
   // Tournament tables: players cannot leave mid-tournament
-  const { isTournamentTable: isTourney } = require("./tournamentEngine");
-  if (isTourney(roomId)) {
+  const tournamentMod = getTournamentMod() || await import("./tournamentEngine");
+  if (tournamentMod.isTournamentTable(roomId)) {
     return { success: false, remainingChips: 0, message: "Cannot leave during a tournament" };
   }
 

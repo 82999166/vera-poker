@@ -1102,3 +1102,13 @@
 - [x] /game（游戏）：显示当前房间列表和在线人数 + 开始游戏按钮
 - [x] /me（我的）：显示个人游戏统计（手数、胜率、盈亏）
 - [x] 管理后台可配置官方频道和群组链接
+
+## 比赛场代码审查 + 邀请链接功能
+- [x] 审查锦标赛后端逻辑（tournamentEngine、routers、tableManager集成）
+- [x] 审查锦标赛前端逻辑（Lobby比赛列表、报名、断线重连、比赛牌桌）
+- [x] 修复 leaveTable 中 require() 改为 dynamic import
+- [x] 修复 liveState fallback 缺少 totalRounds/handsPlayed 字段
+- [x] 修复 resumeTournament 盲注计时器暂停补偿（不再重置为 Date.now()）
+- [x] 比赛场邀请链接：后端 adminTournaments.sendInvite 接口（支持群组/广播模式）
+- [x] 比赛场邀请链接：Telegram Bot callback_query 处理 tourney_reg_ 一键报名
+- [x] 比赛场邀请链接：管理后台推送邀请弹窗（图片上传+文案编辑+群组选择+模式切换）

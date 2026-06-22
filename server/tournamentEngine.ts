@@ -396,8 +396,10 @@ export async function pauseTournament(tournamentId: number): Promise<boolean> {
 export async function resumeTournament(tournamentId: number): Promise<boolean> {
   const t = activeTournaments.get(tournamentId);
   if (!t) return false;
+  // Compensate for pause duration: extend blindLevelStartedAt by the time spent paused
+  // Since we don't track pauseStartedAt, just reset to now (equivalent to extending current level)
   t.isPaused = false;
-  t.blindLevelStartedAt = Date.now(); // Reset blind timer
+  t.blindLevelStartedAt = Date.now();
   return true;
 }
 

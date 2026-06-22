@@ -3134,6 +3134,8 @@ ${faqContext}
           myEliminated: false,
           startedAt: 0,
           averageStack: 0,
+          totalRounds: null as number | null,
+          handsPlayed: 0,
         };
       }
       return state;
@@ -3391,6 +3393,102 @@ ${faqContext}
     liveState: staffProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       const { getTournamentState } = await import("./tournamentEngine");
       return getTournamentState(input.id);
+    }),
+    // ==================== Tournament Invite Push (比赛邀请推送) ====================
+    sendInvite: adminProcedure.input(z.object({
+      tournamentId: z.number(),
+      message: z.string().optional(), // Custom message text (HTML)
+      imageUrl: z.string().optional(), // Optional poster image
+      mode: z.enum(["group", "broadcast"]).default("broadcast"),
+      groupChatIds: z.array(z.string()).optional(),
+    })).mutation(async ({ input }) => {
+      const tournament = await db.getTournamentById(input.tournamentId);
+      if (!tournament) throw new TRPCError({ code: "NOT_FOUND", message: "比赛不存在" });
+      if (tournament.status !== "registration" && tournament.status !== "draft") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "只有报名中或草稿状态的比赛可以推送邀请" });
+      }
+
+      const botToken = await db.getConfigValue("tg_bot_token");
+      if (!botToken) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bot Token 未配置" });
+      const miniAppUrl = (await db.getConfigValue("tg_webapp_url")) || (await db.getConfigValue("tg_mini_app_url")) || "";
+
+      // Build invite text
+      const startTimeStr = tournament.startTime ? new Date(tournament.startTime).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "待定";
+      const prizeInfo = tournament.prizeDistribution
+        ? (tournament.prizeDistribution as Array<{rank: number; percentage: number}>).map(p => `第${p.rank}名 ${p.percentage}%`).join(" | ")
+        : "";
+      const defaultMsg =
+        `🏆 <b>${tournament.name}</b>\n\n` +
+        `💰 报名费：<b>${tournament.entryFee} USDT</b>\n` +
+        `🎯 初始筹码：${tournament.startingChips.toLocaleString()}\n` +
+        `👥 人数：${tournament.minPlayers}-${tournament.maxPlayers}人\n` +
+        `⏰ 开赛时间：${startTimeStr}\n` +
+        (prizeInfo ? `🏅 奖金分配：${prizeInfo}\n` : "") +
+        `\n📊 已报名：${tournament.registeredCount || 0}/${tournament.maxPlayers}\n` +
+        `\n👇 点击下方按钮直接报名参赛！`;
+
+      const msgText = input.message || defaultMsg;
+
+      // Inline keyboard: direct register button (callback) + open game button (web_app)
+      const inlineKeyboard = [
+        [{ text: "✅ 一键报名", callback_data: `tourney_reg_${tournament.id}` }],
+        [{ text: "🎮 进入游戏", web_app: { url: miniAppUrl || "https://game.verapoker.com" } }],
+      ];
+
+      // Resolve image URL
+      let resolvedImageUrl: string | null = null;
+      if (input.imageUrl) {
+        const { storageGetSignedUrl } = await import("./storage");
+        let photoUrl = input.imageUrl;
+        if (photoUrl.startsWith("/manus-storage/")) {
+          try { photoUrl = await storageGetSignedUrl(photoUrl.replace("/manus-storage/", "")); } catch {}
+        }
+        resolvedImageUrl = photoUrl;
+      }
+
+      if (input.mode === "group") {
+        const chatIds: string[] = input.groupChatIds || [];
+        if (chatIds.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "请选择至少一个群组" });
+
+        let sent = 0, failed = 0;
+        for (const chatId of chatIds) {
+          try {
+            let res: Response;
+            if (resolvedImageUrl) {
+              res = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: chatId, photo: resolvedImageUrl, caption: msgText, parse_mode: "HTML", reply_markup: { inline_keyboard: inlineKeyboard } }),
+              });
+            } else {
+              res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: chatId, text: msgText, parse_mode: "HTML", reply_markup: { inline_keyboard: inlineKeyboard } }),
+              });
+            }
+            if (res.ok) sent++; else failed++;
+          } catch { failed++; }
+        }
+        return { success: true, sent, failed };
+      } else {
+        // Broadcast to all bot followers
+        const { createBroadcastTask, executeBroadcast } = await import("./marketing");
+        const taskId = await createBroadcastTask({
+          title: `[比赛邀请] ${tournament.name}`,
+          content: msgText,
+          imageUrl: input.imageUrl || null,
+          buttons: [
+            { text: "✅ 一键报名", callback_data: `tourney_reg_${tournament.id}`, type: "callback", row: 0 },
+            { text: "🎮 进入游戏", type: "web_app", url: miniAppUrl || "/", row: 1 },
+          ],
+          targetType: "all",
+          targetUserIds: null,
+          scheduledAt: null,
+          createdBy: 0,
+        });
+        // Execute in background
+        executeBroadcast(taskId).catch(console.error);
+        return { success: true, taskId };
+      }
     }),
   }),
   // Admin Banners Management

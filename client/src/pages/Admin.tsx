@@ -5387,6 +5387,22 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
   const [showDistributeModal, setShowDistributeModal] = useState(false);
   const [distributeTargetId, setDistributeTargetId] = useState<number | null>(null);
   const [distributeResults, setDistributeResults] = useState<Array<{ userId: number; rank: number; prizeAmount: string; finalChips: number; nickname: string }>>([]);
+  // Tournament Invite Push state
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [inviteTargetId, setInviteTargetId] = useState<number | null>(null);
+  const [inviteMode, setInviteMode] = useState<"group" | "broadcast">("broadcast");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [inviteImageUrl, setInviteImageUrl] = useState("");
+  const [inviteImageUploading, setInviteImageUploading] = useState(false);
+  const [inviteSelectedGroups, setInviteSelectedGroups] = useState<string[]>([]);
+  const { data: inviteGroupsData } = trpc.marketing.getBotAdminGroups.useQuery(undefined, { enabled: showInviteDialog && inviteMode === "group" });
+  const sendInviteMutation = trpc.adminTournaments.sendInvite.useMutation({
+    onSuccess: (res) => {
+      toast.success(res.taskId ? `推送任务已创建，后台发送中...` : `推送成功！发送 ${res.sent} 个，失败 ${res.failed || 0} 个`);
+      setShowInviteDialog(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
   const [showDetailId, setShowDetailId] = useState<number | null>(null);
   const detailQuery = trpc.adminTournaments.detail.useQuery(
     { id: showDetailId! },
@@ -5741,6 +5757,10 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
                   <button onClick={() => { if (confirm("确定手动开始比赛？")) startMutation.mutate({ id: t.id }); }}
                     className="text-xs px-2 py-1 border border-emerald-500 text-emerald-400 rounded hover:bg-emerald-500/10">🚀 开始比赛</button>
                 )}
+                {(t.status === "draft" || t.status === "registration") && (
+                  <button onClick={() => { setInviteTargetId(t.id); setInviteMessage(""); setInviteImageUrl(""); setInviteSelectedGroups([]); setShowInviteDialog(true); }}
+                    className="text-xs px-2 py-1 border border-cyan-500 text-cyan-400 rounded hover:bg-cyan-500/10">📢 推送邀请</button>
+                )}
                 {(t.status === "registration" || t.status === "running") && (
                   <button onClick={() => { if (confirm(`取消比赛将退还所有报名费，确定取消？`)) cancelMutation.mutate({ id: t.id }); }}
                     className="text-xs px-2 py-1 border border-orange-500 text-orange-400 rounded hover:bg-orange-500/10">取消比赛</button>
@@ -5857,6 +5877,130 @@ function TournamentsPanel({ at }: { at: (k: string) => string }) {
             </div>
             <div className="p-4 border-t border-border">
               <button onClick={() => setShowDetailId(null)} className="w-full py-2 border border-border text-muted-foreground rounded-lg text-sm hover:bg-muted/30">关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tournament Invite Push Dialog */}
+      {showInviteDialog && inviteTargetId && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-bold text-foreground">📢 比赛邀请推送</h3>
+              <button onClick={() => setShowInviteDialog(false)} className="text-muted-foreground hover:text-foreground text-lg">✕</button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 space-y-4">
+              {/* Mode selector */}
+              <div className="flex gap-2">
+                <button onClick={() => setInviteMode("broadcast")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${inviteMode === 'broadcast' ? 'bg-cyan-500/20 border border-cyan-500 text-cyan-400' : 'border border-border text-muted-foreground hover:bg-muted/30'}`}>
+                  📡 群发给Bot用户
+                </button>
+                <button onClick={() => setInviteMode("group")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${inviteMode === 'group' ? 'bg-cyan-500/20 border border-cyan-500 text-cyan-400' : 'border border-border text-muted-foreground hover:bg-muted/30'}`}>
+                  👥 发送到群组
+                </button>
+              </div>
+
+              {/* Group selection */}
+              {inviteMode === "group" && (
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground">选择群组/频道</label>
+                  {(() => {
+                    const allGroups = [...(inviteGroupsData?.tgGroups || []), ...(inviteGroupsData?.manualGroups || []).filter(g => g.enabled !== false)];
+                    if (allGroups.length === 0) return <p className="text-xs text-muted-foreground">未发现群组，请将Bot加入群组或在「群组管理」中添加</p>;
+                    return (
+                      <div className="space-y-1 max-h-36 overflow-y-auto border border-border rounded-lg p-2">
+                        {allGroups.map((g: any) => (
+                          <div key={g.chatId}
+                            className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${inviteSelectedGroups.includes(g.chatId) ? 'bg-cyan-500/10 border border-cyan-500/30' : 'hover:bg-muted/30'}`}
+                            onClick={() => setInviteSelectedGroups(prev => prev.includes(g.chatId) ? prev.filter(x => x !== g.chatId) : [...prev, g.chatId])}
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${inviteSelectedGroups.includes(g.chatId) ? 'bg-cyan-500 border-cyan-500' : 'border-border'}`}>
+                              {inviteSelectedGroups.includes(g.chatId) && <span className="text-white text-[10px]">✓</span>}
+                            </div>
+                            <span className="text-sm">{g.name}</span>
+                            <span className="text-[10px] text-muted-foreground ml-auto">{g.type}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Image upload */}
+              <div>
+                <label className="text-xs text-muted-foreground">海报图片（可选，建议 800×450px）</label>
+                <div className="mt-1 flex items-center gap-2">
+                  {inviteImageUrl && (
+                    <div className="relative w-20 h-12 rounded overflow-hidden border border-border">
+                      <img src={inviteImageUrl} alt="poster" className="w-full h-full object-cover" />
+                      <button onClick={() => setInviteImageUrl("")} className="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded-bl">✕</button>
+                    </div>
+                  )}
+                  <label className="cursor-pointer px-3 py-1.5 border border-border rounded text-xs text-muted-foreground hover:bg-muted/30">
+                    {inviteImageUploading ? "上传中..." : "上传图片"}
+                    <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) { toast.error("图片不能超过 5MB"); return; }
+                      setInviteImageUploading(true);
+                      try {
+                        const reader = new FileReader();
+                        reader.onload = async () => {
+                          const base64 = (reader.result as string).split(',')[1];
+                          const res = await fetch('/api/upload/marketing', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ fileName: file.name, fileData: base64, contentType: file.type }),
+                          });
+                          const data = await res.json();
+                          if (data.url) setInviteImageUrl(data.url);
+                          else toast.error("上传失败");
+                          setInviteImageUploading(false);
+                        };
+                        reader.readAsDataURL(file);
+                      } catch { toast.error("上传失败"); setInviteImageUploading(false); }
+                    }} />
+                  </label>
+                </div>
+              </div>
+
+              {/* Custom message */}
+              <div>
+                <label className="text-xs text-muted-foreground">自定义文案（留空使用默认模板，支持 HTML）</label>
+                <textarea
+                  value={inviteMessage}
+                  onChange={e => setInviteMessage(e.target.value)}
+                  rows={5}
+                  className="w-full mt-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+                  placeholder="留空将自动生成包含比赛名称、报名费、开赛时间等信息的默认文案"
+                />
+              </div>
+
+              <div className="bg-muted/30 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
+                <p>💡 提示：</p>
+                <p>• 推送将包含「✅ 一键报名」按钮，用户点击后直接在 Telegram 中完成报名</p>
+                <p>• 同时包含「🎮 进入游戏」按钮打开 Mini App</p>
+                <p>• 如上传海报图片，将以图片+文字形式发送</p>
+              </div>
+            </div>
+            <div className="p-4 border-t border-border flex gap-3">
+              <button onClick={() => setShowInviteDialog(false)} className="flex-1 py-2 border border-border text-muted-foreground rounded-lg text-sm hover:bg-muted/30">取消</button>
+              <button
+                disabled={sendInviteMutation.isPending || (inviteMode === "group" && inviteSelectedGroups.length === 0)}
+                onClick={() => {
+                  sendInviteMutation.mutate({
+                    tournamentId: inviteTargetId,
+                    message: inviteMessage || undefined,
+                    imageUrl: inviteImageUrl || undefined,
+                    mode: inviteMode,
+                    groupChatIds: inviteMode === "group" ? inviteSelectedGroups : undefined,
+                  });
+                }}
+                className="flex-1 py-2 bg-cyan-500/20 border border-cyan-500 text-cyan-400 rounded-lg text-sm font-bold hover:bg-cyan-500/30 disabled:opacity-50">
+                {sendInviteMutation.isPending ? "发送中..." : "📢 确认推送"}
+              </button>
             </div>
           </div>
         </div>
