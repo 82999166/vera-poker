@@ -1815,3 +1815,23 @@ export async function deleteRoomBotConfig(roomId: number) {
   const { roomBotConfig } = await import("../drizzle/schema");
   await db.delete(roomBotConfig).where(eq(roomBotConfig.roomId, roomId));
 }
+
+// ==================== Bot 菜单 - 用户游戏统计 ====================
+export async function getUserGameStats(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [stats] = await db.select({
+    totalHands: sql<number>`COUNT(*)`,
+    totalWins: sql<number>`SUM(CASE WHEN ${handPlayers.isWinner} = 1 THEN 1 ELSE 0 END)`,
+    totalBet: sql<string>`COALESCE(SUM(${handPlayers.betAmount}), '0')`,
+    totalWin: sql<string>`COALESCE(SUM(${handPlayers.winAmount}), '0')`,
+    maxWin: sql<string>`COALESCE(MAX(${handPlayers.winAmount}), '0')`,
+  }).from(handPlayers).where(eq(handPlayers.userId, userId));
+  return {
+    totalHands: Number(stats?.totalHands || 0),
+    totalWins: Number(stats?.totalWins || 0),
+    winRate: stats?.totalHands ? (Number(stats.totalWins || 0) / Number(stats.totalHands) * 100).toFixed(1) : "0.0",
+    totalProfit: (parseFloat(stats?.totalWin || "0") - parseFloat(stats?.totalBet || "0")).toFixed(2),
+    maxWin: parseFloat(stats?.maxWin || "0").toFixed(2),
+  };
+}

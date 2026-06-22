@@ -4006,6 +4006,8 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
   const [csTgUsername, setCsTgUsername] = useState("");
   const [tgMiniAppUrl, setTgMiniAppUrl] = useState("");
   const [tgWebAppUrl, setTgWebAppUrl] = useState("");
+  const [tgChannelUrl, setTgChannelUrl] = useState("");
+  const [tgGroupUrl, setTgGroupUrl] = useState("");
   const [adminTgChatId, setAdminTgChatId] = useState("");
   // DeepSeek AI 配置（全局AI服务）
   const [deepseekApiKey, setDeepseekApiKey] = useState("");
@@ -4033,6 +4035,8 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
       setCsTgUsername(configMap.get("cs_tg_username") ?? "");
       setTgMiniAppUrl(configMap.get("tg_mini_app_url") ?? "");
       setTgWebAppUrl(configMap.get("tg_webapp_url") ?? "");
+      setTgChannelUrl(configMap.get("tg_channel_url") ?? "");
+      setTgGroupUrl(configMap.get("tg_group_url") ?? "");
       setAdminTgChatId(configMap.get("admin_tg_chat_id") ?? "");
       // DeepSeek AI 全局配置
       setDeepseekApiKey(configMap.get("deepseek_api_key") ?? "");
@@ -4269,6 +4273,38 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Webhook 注册状态（含 callback_query）</label>
             <WebhookStatusPanel />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">官方频道 URL（tg_channel_url）</label>
+            <p className="text-[10px] text-muted-foreground mb-1">Bot 菜单中"官方频道"按钮跳转地址</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tgChannelUrl}
+                onChange={(e) => setTgChannelUrl(e.target.value)}
+                placeholder="https://t.me/VPChannel"
+                className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+              />
+              <button onClick={() => saveSystemSetting("tg_channel_url", tgChannelUrl)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
+                <Save className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">官方群组 URL（tg_group_url）</label>
+            <p className="text-[10px] text-muted-foreground mb-1">Bot 菜单中"官方群组"按钮跳转地址</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tgGroupUrl}
+                onChange={(e) => setTgGroupUrl(e.target.value)}
+                placeholder="https://t.me/VPGroup"
+                className="flex-1 glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
+              />
+              <button onClick={() => saveSystemSetting("tg_group_url", tgGroupUrl)} className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20">
+                <Save className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

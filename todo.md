@@ -1095,3 +1095,10 @@
 - [x] 决策引擎v2: 每手随机波动模拟真人不稳定性
 - [x] 决策引擎v2: 5%概率"上头"模拟tilt效应
 - [x] Admin: getBotStats新增profitControl详情（实际边际率/当前调整值/方向）
+
+## Feature: Telegram Bot 菜单系统
+- [x] 设置 Bot Commands（首页/游戏/我的）通过 setMyCommands API
+- [x] /start（首页）：显示用户昵称+ID+余额 + 按钮（开始游戏、官方频道、官方群组）
+- [x] /game（游戏）：显示当前房间列表和在线人数 + 开始游戏按钮
+- [x] /me（我的）：显示个人游戏统计（手数、胜率、盈亏）
+- [x] 管理后台可配置官方频道和群组链接

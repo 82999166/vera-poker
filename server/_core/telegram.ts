@@ -627,9 +627,32 @@ export function registerTelegramRoutes(app: Express) {
             console.warn("[Telegram] Welcome template lookup failed, falling back to hardcoded:", e);
           }
 
-          // Fallback to hardcoded welcome text
-          replyText = botTexts.welcome;
+          // Fallback to hardcoded welcome text with user info + menu buttons
+          const tgId = String(message.from!.id);
+          const existingUser = await db.getUserByTgId(tgId);
+          if (existingUser) {
+            // Show user info like KKPoker style
+            const nickname = existingUser.nickname || existingUser.name || "Player";
+            const balance = parseFloat(existingUser.balance || "0").toFixed(2);
+            replyText = `欢迎回来 Vera Poker！\n\n` +
+              `昵称：${nickname}\n` +
+              `ID：${existingUser.id}\n` +
+              `💰 资产：${balance} USDT`;
+          } else {
+            replyText = botTexts.welcome;
+          }
+          // Build menu buttons: 开始游戏 + 官方频道 + 官方群组
+          const channelUrl = await db.getConfigValue("tg_channel_url", "");
+          const groupUrl = await db.getConfigValue("tg_group_url", "");
+          const startKeyboard: any[][] = [];
           if (miniAppUrl) {
+            startKeyboard.push([{ text: "🎮 开始游戏", web_app: { url: miniAppUrl } }]);
+          }
+          const linkRow: any[] = [];
+          if (channelUrl) linkRow.push({ text: "📢 官方频道", url: channelUrl });
+          if (groupUrl) linkRow.push({ text: "👥 官方群组", url: groupUrl });
+          if (linkRow.length > 0) startKeyboard.push(linkRow);
+          if (miniAppUrl || startKeyboard.length > 0) {
             const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;
             await fetch(telegramApiUrl2, {
               method: "POST",
@@ -637,11 +660,7 @@ export function registerTelegramRoutes(app: Express) {
               body: JSON.stringify({
                 chat_id: message.chat.id,
                 text: replyText,
-                reply_markup: {
-                  inline_keyboard: [[
-                    { text: botTexts.button, web_app: { url: miniAppUrl } }
-                  ]]
-                }
+                reply_markup: startKeyboard.length > 0 ? { inline_keyboard: startKeyboard } : undefined,
               }),
             });
             res.json({ ok: true });
@@ -651,13 +670,96 @@ export function registerTelegramRoutes(app: Express) {
       } else if (text.startsWith("/help")) {
         const cmdTexts = getBotCommandText(userLang);
         replyText = cmdTexts.help;
-      } else if (text.startsWith("/balance")) {
-        const cmdTexts = getBotCommandText(userLang);
-        replyText = cmdTexts.balance;
-      } else if (text.startsWith("/rooms")) {
-        const cmdTexts = getBotCommandText(userLang);
-        const rooms = await db.getPublicRooms();
-        replyText = cmdTexts.rooms.replace("{count}", String(rooms.length));
+      } else if (text.startsWith("/balance") || text === "/me" || text === "/my") {
+        // /me: Show user profile + game stats
+        const tgId = String(message.from!.id);
+        const user = await db.getUserByTgId(tgId);
+        if (!user) {
+          replyText = "请先启动 Bot 并注册账号！\n\n点击下方按钮开始：";
+          const miniAppUrl = await db.getConfigValue("tg_mini_app_url", "");
+          if (miniAppUrl) {
+            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: message.chat.id,
+                text: replyText,
+                reply_markup: { inline_keyboard: [[{ text: "🎮 开始游戏", web_app: { url: miniAppUrl } }]] }
+              }),
+            });
+            res.json({ ok: true });
+            return;
+          }
+        } else {
+          const stats = await db.getUserGameStats(user.id);
+          const nickname = user.nickname || user.name || "Player";
+          const balance = parseFloat(user.balance || "0").toFixed(2);
+          const profitVal = parseFloat(stats?.totalProfit || "0");
+          const profitSign = profitVal >= 0 ? "+" : "";
+          replyText = `👤 我的信息\n\n` +
+            `昵称：${nickname}\n` +
+            `ID：${user.id}\n` +
+            `💰 资产：${balance} USDT\n\n` +
+            `📊 游戏统计\n` +
+            `━━━━━━━━━━\n` +
+            `🎰 总手数：${stats?.totalHands || 0}\n` +
+            `🏆 胜率：${stats?.winRate || "0.0"}%\n` +
+            `💵 总盈亏：${profitSign}${stats?.totalProfit || "0.00"} USDT\n` +
+            `📈 最大单手赢：${stats?.maxWin || "0.00"} USDT`;
+          // Build buttons
+          const miniAppUrl = await db.getConfigValue("tg_mini_app_url", "");
+          const channelUrl = await db.getConfigValue("tg_channel_url", "");
+          const groupUrl = await db.getConfigValue("tg_group_url", "");
+          const inlineKeyboard: any[][] = [];
+          if (miniAppUrl) {
+            inlineKeyboard.push([{ text: "🎮 开始游戏", web_app: { url: miniAppUrl } }]);
+          }
+          const row2: any[] = [];
+          if (channelUrl) row2.push({ text: "📢 官方频道", url: channelUrl });
+          if (groupUrl) row2.push({ text: "👥 官方群组", url: groupUrl });
+          if (row2.length > 0) inlineKeyboard.push(row2);
+          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: message.chat.id,
+              text: replyText,
+              reply_markup: inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined,
+            }),
+          });
+          res.json({ ok: true });
+          return;
+        }
+      } else if (text.startsWith("/rooms") || text === "/game") {
+        // /game: Show active rooms with player counts
+        const publicRooms = await db.getPublicRooms();
+        const miniAppUrl = await db.getConfigValue("tg_mini_app_url", "");
+        if (publicRooms.length === 0) {
+          replyText = "🎲 当前没有开放的房间\n\n请稍后再试！";
+        } else {
+          replyText = `🎲 当前开放房间（${publicRooms.length} 个）\n━━━━━━━━━━\n\n`;
+          for (const room of publicRooms.slice(0, 8)) {
+            const statusIcon = room.status === "playing" ? "🟢" : "⚪";
+            replyText += `${statusIcon} ${room.name}\n`;
+            replyText += `   盲注 ${room.smallBlind}/${room.bigBlind} | 买入 ${room.minBuyIn}-${room.maxBuyIn}\n`;
+            replyText += `   在线 ${room.currentPlayers}/${room.maxPlayers} 人\n\n`;
+          }
+        }
+        const inlineKeyboard: any[][] = [];
+        if (miniAppUrl) {
+          inlineKeyboard.push([{ text: "🎮 立即加入", web_app: { url: miniAppUrl } }]);
+        }
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: message.chat.id,
+            text: replyText,
+            reply_markup: inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined,
+          }),
+        });
+        res.json({ ok: true });
+        return;
       } else {
         // Check auto-reply rules first (keyword matching)
         const { matchAutoReply } = await import("../marketing");
@@ -715,4 +817,26 @@ export function registerTelegramRoutes(app: Express) {
   app.get("/api/telegram/health", (req: Request, res: Response) => {
     res.json({ ok: true, service: "telegram-webhook" });
   });
+
+  // Set bot commands (menu button) on startup
+  (async () => {
+    try {
+      const botToken = await db.getConfigValue("tg_bot_token");
+      if (!botToken) return;
+      await fetch(`https://api.telegram.org/bot${botToken}/setMyCommands`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commands: [
+            { command: "start", description: "🏠 首页 - 显示个人信息" },
+            { command: "game", description: "🎮 游戏 - 查看当前房间" },
+            { command: "me", description: "👤 我的 - 查看统计数据" },
+          ]
+        }),
+      });
+      console.log("[Telegram] Bot commands registered: /start, /game, /me");
+    } catch (e) {
+      console.warn("[Telegram] Failed to set bot commands:", e);
+    }
+  })();
 }
