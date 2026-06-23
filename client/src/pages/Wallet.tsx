@@ -1,5 +1,5 @@
 /** 钱包页面 - 充值、提现、交易记录 */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { t } from "@/lib/i18n";
@@ -39,6 +39,17 @@ export default function Wallet() {
   const [amountSuffix] = useState(() => String(Math.floor(Math.random() * 99) + 1).padStart(2, "0"));
 
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
+  
+  // Auto-fill saved withdraw address from user profile
+  useEffect(() => {
+    if (walletData?.withdrawAddress && !address) {
+      setAddress(walletData.withdrawAddress);
+    }
+    if (walletData?.withdrawChain) {
+      setChain(walletData.withdrawChain as ChainType);
+    }
+  }, [walletData?.withdrawAddress, walletData?.withdrawChain]);
+
   const { data: publicConfig } = trpc.config.getPublic.useQuery();
   const withdrawFee = parseFloat((publicConfig as any)?.withdrawal_fee || "1");
   const minWithdraw = parseFloat((publicConfig as any)?.min_withdraw || "20");
@@ -63,11 +74,13 @@ export default function Wallet() {
     onError: (err) => toast.error(err.message),
   });
 
+  const utils = trpc.useUtils();
   const withdrawMutation = trpc.wallet.withdraw.useMutation({
     onSuccess: () => {
       toast.success(t("wallet.withdrawSuccess"));
       setAmount("");
-      setAddress("");
+      // Don't clear address - keep it saved for next time
+      utils.wallet.balance.invalidate();
     },
     onError: (err) => {
       if (err.message?.includes("Bonus not unlocked")) {

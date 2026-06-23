@@ -726,6 +726,8 @@ export const appRouter = router({
         frozenBalance: user?.frozenBalance ?? "0.00",
         bonusBalance: user?.bonusBalance ?? "0.00",
         bonusUnlocked: user?.bonusUnlocked ?? false,
+        withdrawAddress: user?.withdrawAddress ?? "",
+        withdrawChain: user?.withdrawChain ?? "",
       };
     }),
     bonusProgress: protectedProcedure.query(async ({ ctx }) => {
@@ -899,6 +901,9 @@ export const appRouter = router({
         const releasedFrozen = Math.max(0, parseFloat(newFrozen) - withdrawAmount).toFixed(2);
         await dbInstance.update(usersTable).set({ frozenBalance: releasedFrozen }).where(eq(usersTable.id, ctx.user.id));
       }
+
+      // Save wallet address to user profile for next time auto-fill
+      await dbInstance.update(usersTable).set({ withdrawAddress: input.walletAddress, withdrawChain: input.chain }).where(eq(usersTable.id, ctx.user.id));
 
       // Notify admin about new withdrawal request
       const { notifyAdmins: notifyAdminsWithdraw } = await import("./notifications");

@@ -55,6 +55,9 @@ export const users = mysqlTable("users", {
   lastLocationAt: timestamp("lastLocationAt"), // 最近位置上报时间
   // Bot flag
   isBot: boolean("isBot").default(false).notNull(),
+  // Saved withdraw info
+  withdrawAddress: varchar("withdrawAddress", { length: 256 }),
+  withdrawChain: varchar("withdrawChain", { length: 32 }),
   // Stats
   totalGamesPlayed: int("totalGamesPlayed").default(0).notNull(),
   totalRakeGenerated: decimal("totalRakeGenerated", { precision: 18, scale: 2 }).default("0.00").notNull(),
