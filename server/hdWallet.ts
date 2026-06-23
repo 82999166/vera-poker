@@ -88,15 +88,18 @@ export async function deriveAddress(mnemonic: string, index: number): Promise<{ 
 
 /**
  * 获取下一个可用的派生索引
+ * 注意：从 1 开始，跳过 index=0（index=0 通常是助记词对应的主钱包地址）
  */
 async function getNextDerivationIndex(): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
   const result = await db.execute(
-    sql`SELECT COALESCE(MAX(derivationIndex), -1) + 1 as nextIndex FROM deposit_addresses WHERE chain = 'TRC20'`
+    sql`SELECT COALESCE(MAX(derivationIndex), 0) + 1 as nextIndex FROM deposit_addresses WHERE chain = 'TRC20'`
   );
-  return (result as any)[0]?.[0]?.nextIndex ?? 0;
+  const nextIndex = (result as any)[0]?.[0]?.nextIndex ?? 1;
+  // 确保最小从 1 开始（跳过 index=0，它是主钱包地址）
+  return Math.max(nextIndex, 1);
 }
 
 /**
@@ -130,11 +133,28 @@ export async function getOrCreateDepositAddress(userId: number, chain: string = 
     throw new Error("HD wallet mnemonic not configured. Please set 'hd_wallet_mnemonic' in system configs.");
   }
   
-  // 获取下一个派生索引
-  const derivationIndex = await getNextDerivationIndex();
+  // 获取下一个派生索引（从1开始，跳过0号主钱包地址）
+  let derivationIndex = await getNextDerivationIndex();
   
-  // 派生新地址
-  const { address, privateKey } = await deriveAddress(mnemonic, derivationIndex);
+  // 获取主钱包地址（归集目标），确保不会把主钱包地址分配给用户
+  const mainWalletAddress = await getConfigValue("hd_main_wallet_address", "");
+  
+  // 派生新地址，如果与主钱包地址相同则跳过
+  let address: string;
+  let privateKey: string;
+  let attempts = 0;
+  do {
+    const derived = await deriveAddress(mnemonic, derivationIndex);
+    address = derived.address;
+    privateKey = derived.privateKey;
+    if (mainWalletAddress && address.toLowerCase() === mainWalletAddress.toLowerCase()) {
+      console.log(`[HDWallet] Skipping index ${derivationIndex} (matches main wallet address)`);
+      derivationIndex++;
+      attempts++;
+    } else {
+      break;
+    }
+  } while (attempts < 5);
   
   // 加密私钥后存储
   const privateKeyEnc = encryptPrivateKey(privateKey);
