@@ -47,12 +47,12 @@ export default function Wallet() {
     { page: 1, limit: 50, category: "finance" },
     { enabled: !!user && activeTab === "history" }
   );
-  const { data: gameFlowData } = trpc.wallet.transactions.useQuery(
-    { page: 1, limit: 50, category: "game" },
+  const { data: gameFlowData } = trpc.wallet.gameHistory.useQuery(
+    { page: 1, limit: 50 },
     { enabled: !!user && activeTab === "gameflow" }
   );
   const transactions = (txData as any)?.transactions ?? [];
-  const gameTransactions = (gameFlowData as any)?.transactions ?? [];
+  const gameRecords = (gameFlowData as any)?.games ?? [];
 
   const depositMutation = trpc.wallet.deposit.useMutation({
     onSuccess: () => {
@@ -139,13 +139,9 @@ export default function Wallet() {
     tournament_prize: t("wallet.tournamentPrize"),
   };
 
-  // Game flow summary
-  const totalBuyIn = gameTransactions
-    .filter((tx: any) => tx.type === "buy_in" || tx.type === "rebuy")
-    .reduce((sum: number, tx: any) => sum + parseFloat(tx.amount), 0);
-  const totalReturn = gameTransactions
-    .filter((tx: any) => tx.type === "leave_table")
-    .reduce((sum: number, tx: any) => sum + parseFloat(tx.amount), 0);
+  // Game flow summary from per-hand records
+  const totalBuyIn = gameRecords.reduce((sum: number, g: any) => sum + parseFloat(g.betAmount || "0"), 0);
+  const totalReturn = gameRecords.reduce((sum: number, g: any) => sum + parseFloat(g.winAmount || "0"), 0);
   const netGamePnl = totalReturn - totalBuyIn;
 
   return (
@@ -502,7 +498,7 @@ export default function Wallet() {
         {activeTab === "gameflow" && (
           <div className="space-y-3">
             {/* Summary stats */}
-            {gameTransactions.length > 0 && (
+            {gameRecords.length > 0 && (
               <div className="grid grid-cols-3 gap-2">
                 <div className="glass rounded-lg p-3 text-center">
                   <p className="text-[10px] text-muted-foreground mb-1">{t("wallet.totalBuyIn")}</p>
@@ -521,26 +517,25 @@ export default function Wallet() {
               </div>
             )}
 
-            {/* Transaction list */}
-            {(gameTransactions.length === 0) ? (
+            {/* Per-hand game records */}
+            {(gameRecords.length === 0) ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Gamepad2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">{t("wallet.noGameFlow")}</p>
               </div>
             ) : (
-              gameTransactions.map((tx: any, i: number) => {
-                const isReturn = tx.type === "leave_table";
-                const isBuyIn = tx.type === "buy_in";
-                const isRebuy = tx.type === "rebuy";
-                const iconColor = isReturn ? "text-success" : isBuyIn ? "text-red-400" : "text-orange-400";
-                const bgColor = isReturn ? "bg-success/20" : isBuyIn ? "bg-red-400/20" : "bg-orange-400/20";
-                const amountColor = isReturn ? "text-success" : isBuyIn ? "text-red-400" : "text-orange-400";
-                const sign = isReturn ? "+" : "-";
+              gameRecords.map((game: any, i: number) => {
+                const pnl = parseFloat(game.pnl || "0");
+                const isWin = pnl > 0;
+                const isLoss = pnl < 0;
+                const iconColor = isWin ? "text-success" : isLoss ? "text-red-400" : "text-muted-foreground";
+                const bgColor = isWin ? "bg-success/20" : isLoss ? "bg-red-400/20" : "bg-white/5";
+                const amountColor = isWin ? "text-success" : isLoss ? "text-red-400" : "text-muted-foreground";
                 return (
                   <div key={i} className="glass rounded-lg p-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bgColor}`}>
-                        {isReturn ? (
+                        {isWin ? (
                           <ArrowDownToLine className={`w-4 h-4 ${iconColor}`} />
                         ) : (
                           <Gamepad2 className={`w-4 h-4 ${iconColor}`} />
@@ -548,19 +543,19 @@ export default function Wallet() {
                       </div>
                       <div>
                         <p className="text-sm font-medium">
-                          {isBuyIn ? t("wallet.buyIn") : isRebuy ? t("wallet.rebuy") : t("wallet.leaveTable")}
+                          {game.roomName}
                         </p>
                         <p className="text-[10px] text-muted-foreground">
-                          {new Date(tx.createdAt).toLocaleString()}
+                          {game.completedAt ? new Date(game.completedAt).toLocaleString() : "--"}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className={`text-sm font-semibold ${amountColor}`}>
-                        {sign}${formatBalance(tx.amount)}
+                        {pnl >= 0 ? "+" : ""}${formatBalance(pnl.toFixed(2))}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
-                        {t("wallet.balance")}: ${formatBalance(tx.balanceAfter)}
+                        {t("wallet.betAmount")}: ${formatBalance(game.betAmount)}
                       </p>
                     </div>
                   </div>

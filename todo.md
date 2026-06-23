@@ -1151,4 +1151,5 @@
 - [x] 修复今日抽水统计为0：经查证 SQL 逻辑正确，数据库已有今日数据（截图时可能是日期切换前）
 - [x] 修复今日局数统计为0：同上，已确认数据库有今日45局已完成
 - [x] 配置面板：充值模式(deposit_mode)改为下拉选择(legacy/hd)
-- [x] 配置面板：所有 true/false 开关字段改为下拉选择(auto_confirm_enabled/hd_auto_detect_enabled/hd_consolidation_enabled)
+- [x] 配置面板：所有 true/false 开关字段改为下拉选择(auto_confirm_enabl## Bug Fix: 钱包游戏流水
+- [x] 前端钱包“游戏流水”改为显示每一局的输赢流水（从 hand_players 表查询，显示房间名/时间/下注/盈亏）�赢流水（而非buy_in/leave_table交易记录）

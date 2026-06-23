@@ -912,6 +912,10 @@ export const appRouter = router({
     transactions: protectedProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), category: z.enum(['finance', 'game']).optional() })).query(async ({ ctx, input }) => {
       return db.getUserTransactions(ctx.user.id, input.page, input.limit, input.category);
     }),
+    // Per-hand game flow (win/loss per hand)
+    gameHistory: protectedProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(50) })).query(async ({ ctx, input }) => {
+      return db.getUserGameHistory(ctx.user.id, input.page, input.limit);
+    }),
     // Admin
     allTransactions: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), type: z.string().optional() })).query(async ({ input }) => {
       return db.getAllTransactions(input.page, input.limit, input.type);
