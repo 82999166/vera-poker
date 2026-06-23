@@ -743,11 +743,16 @@ export const appRouter = router({
           const { address } = await getOrCreateDepositAddress(ctx.user.id, "TRC20");
           return { address, chain: input.chain, mode: "hd" as const };
         } catch (err: any) {
-          // HD 钱包未配置或出错，回退到传统模式
+          // HD 钱包未配置或出错，回退到传统模式但告知前端
           console.warn("[HDWallet] Fallback to legacy mode:", err.message);
           const address = await db.generateDepositAddress(ctx.user.id, input.chain);
-          return { address, chain: input.chain, mode: "legacy" as const };
+          return { address, chain: input.chain, mode: "legacy" as const, hdFallback: true, hdError: err.message };
         }
+      }
+      // HD模式不支持的链（非 TRC20），仍然返回传统模式但标记配置为hd
+      if (depositMode === "hd" && input.chain !== "TRC20") {
+        const address = await db.generateDepositAddress(ctx.user.id, input.chain);
+        return { address, chain: input.chain, mode: "legacy" as const, hdFallback: true, hdError: "HD mode only supports TRC20" };
       }
       // 传统模式：返回平台统一充值地址
       const address = await db.generateDepositAddress(ctx.user.id, input.chain);

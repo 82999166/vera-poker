@@ -284,6 +284,16 @@ export default function Wallet() {
               )}
             </div>
 
+            {/* HD 模式回退警告：管理后台配置了HD但未正确配置助记词 */}
+            {(addrData as any)?.hdFallback && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="text-[11px] text-amber-400">HD模式未就绪，已回退传统模式。请在管理后台配置助记词。</span>
+                </div>
+              </div>
+            )}
+
             {/* HD 模式：显示自动到账提示 */}
             {addrData?.mode === "hd" && depositAddress && (
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 space-y-2">

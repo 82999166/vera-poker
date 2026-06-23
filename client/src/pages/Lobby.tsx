@@ -63,13 +63,13 @@ export default function Lobby() {
   const cashRooms = (rooms ?? []).filter(r => r.type !== "private" && r.status !== "closed");
   const privateRooms = (rooms ?? []).filter(r => r.type === "private" && r.status !== "closed");
 
-  // 根据盲注级别返回多语言房间名称
+  // 根据盲注级别返回多语言房间名称（简洁格式）
   const getRoomLevelName = (bigBlind: string) => {
     const bb = parseFloat(bigBlind);
-    if (bb <= 2) return `${t("lobby.roomLevel.beginner")} ${bigBlind}`;
-    if (bb <= 10) return `${t("lobby.roomLevel.intermediate")} ${bigBlind}`;
-    if (bb <= 50) return `${t("lobby.roomLevel.advanced")} ${bigBlind}`;
-    return `${t("lobby.roomLevel.vip")} ${bigBlind}`;
+    if (bb <= 2) return `${t("lobby.roomLevel.beginner")}`;
+    if (bb <= 10) return `${t("lobby.roomLevel.intermediate")}`;
+    if (bb <= 50) return `${t("lobby.roomLevel.advanced")}`;
+    return `${t("lobby.roomLevel.vip")}`;
   };
 
   // Group cash rooms by blinds into stake groups
@@ -424,7 +424,7 @@ export default function Lobby() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[15px] font-bold text-foreground whitespace-nowrap">{getRoomLevelName(group.bigBlind)}</span>
+                      <span className="text-[15px] font-bold text-foreground whitespace-nowrap">{getRoomLevelName(group.bigBlind)} {formatAmount(group.bigBlind)}</span>
                       {group.fairnessLevel === "high" && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-truth-blue/20 text-truth-blue-bright whitespace-nowrap">{t("lobby.onChain")}</span>
                       )}
