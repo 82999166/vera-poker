@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import {
   Settings, Users, DollarSign, Shield, BarChart3, Save, RefreshCw,
   Plus, Trash2, ArrowLeft, UserCheck, Pause, Play, X, MessageSquare,
-  Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn, Pencil, Trophy, Megaphone, Bot
+  Globe, LogOut, PanelLeft, Layers, Copy, Check, Eye, EyeOff, LogIn, Pencil, Trophy, Megaphone, Bot, Wallet
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatBalance, formatAmount } from "@/lib/utils";
@@ -1442,7 +1442,7 @@ function InlineStaffLogin({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // ==================== ADMIN TABS ====================
-type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs" | "csRecords" | "banners" | "tournaments" | "marketing" | "bots";
+type AdminTab = "config" | "users" | "rooms" | "finance" | "risk" | "agents" | "faq" | "settings" | "stats" | "staff" | "logs" | "csRecords" | "banners" | "tournaments" | "marketing" | "bots" | "hdwallet";
 
 // ==================== MAIN ADMIN COMPONENT ====================
 export default function Admin() {
@@ -1491,7 +1491,7 @@ export default function Admin() {
   // Permission-based tab visibility
   // super_admin always sees everything; others use their permissions array
   // Fallback to role-based defaults if permissions array is empty
-  const allTabKeys: AdminTab[] = ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs", "marketing", "bots"];
+  const allTabKeys: AdminTab[] = ["stats", "users", "rooms", "staff", "agents", "finance", "risk", "faq", "config", "settings", "banners", "tournaments", "csRecords", "logs", "marketing", "bots", "hdwallet"];
   const roleDefaultTabs: Record<string, AdminTab[]> = {
     super_admin: allTabKeys,
     admin: allTabKeys,
@@ -1530,6 +1530,7 @@ export default function Admin() {
     { key: "logs", icon: Eye, label: at("tab.logs") },
     { key: "marketing", icon: Megaphone, label: at("tab.marketing") },
     { key: "bots", icon: Bot, label: "AI机器人" },
+    { key: "hdwallet", icon: Wallet, label: "HD钱包" },
   ];
   const tabs = allTabs.filter(t => allowedTabs.includes(t.key));
 
@@ -1701,6 +1702,7 @@ function PanelContent({ tab, at, onNavigate }: { tab: AdminTab; at: (key: string
     case "tournaments": return <TournamentsPanel at={at} />;
     case "marketing": return <MarketingPanel at={at} />;
     case "bots": return <BotManagementPanel at={at} />;
+    case "hdwallet": return <HDWalletPanel at={at} />;
     default: return null;
   }
 }
@@ -7495,6 +7497,337 @@ function BotDetailTableMerged({ botDetails, formState }: { botDetails: any[]; fo
         <p>• <span className="text-foreground">PFR</span>（翻前加注率）：翻前加注的比例，真人一般15-25%</p>
         <p>• <span className="text-foreground">激进度</span>：加注/All-in占总操作的比例</p>
       </div>
+    </div>
+  );
+}
+
+
+// ==================== HD WALLET PANEL ====================
+function HDWalletPanel({ at }: { at: (k: string) => string }) {
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = trpc.adminHdWallet.stats.useQuery(undefined, { staleTime: 10_000 });
+  const [depositsPage, setDepositsPage] = useState(1);
+  const [consolidationsPage, setConsolidationsPage] = useState(1);
+  const [addressesPage, setAddressesPage] = useState(1);
+  const [depositFilter, setDepositFilter] = useState<"all" | "detected" | "confirmed" | "credited" | "failed">("all");
+  const [viewTab, setViewTab] = useState<"deposits" | "consolidations" | "addresses">("deposits");
+
+  const { data: depositsData, isLoading: depositsLoading } = trpc.adminHdWallet.deposits.useQuery({
+    page: depositsPage,
+    pageSize: 20,
+    status: depositFilter === "all" ? undefined : depositFilter as any,
+  }, { staleTime: 10_000 });
+
+  const { data: consolidationsData, isLoading: consolidationsLoading } = trpc.adminHdWallet.consolidations.useQuery({
+    page: consolidationsPage,
+    pageSize: 20,
+  }, { staleTime: 10_000 });
+
+  const { data: addressesData, isLoading: addressesLoading } = trpc.adminHdWallet.addresses.useQuery({
+    page: addressesPage,
+    pageSize: 20,
+  }, { staleTime: 10_000 });
+
+  const triggerScanMutation = trpc.adminHdWallet.triggerScan.useMutation({
+    onSuccess: (result) => {
+      toast.success(`扫描完成: 检测 ${result.scan.detected} 笔, 到账 ${result.scan.credited} 笔`);
+      refetchStats();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const triggerConsolidationMutation = trpc.adminHdWallet.triggerConsolidation.useMutation({
+    onSuccess: (result) => {
+      toast.success(`归集完成: ${result.consolidated} 个地址, 共 $${result.totalAmount.toFixed(2)}`);
+      refetchStats();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const statusColors: Record<string, string> = {
+    detected: "bg-yellow-500/20 text-yellow-400",
+    confirmed: "bg-blue-500/20 text-blue-400",
+    credited: "bg-green-500/20 text-green-400",
+    failed: "bg-red-500/20 text-red-400",
+    submitted: "bg-yellow-500/20 text-yellow-400",
+    active: "bg-green-500/20 text-green-400",
+  };
+
+  const statusLabels: Record<string, string> = {
+    detected: "已检测",
+    confirmed: "已确认",
+    credited: "已到账",
+    failed: "失败",
+    submitted: "已提交",
+    active: "活跃",
+  };
+
+  if (statsLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold flex items-center gap-2"><Wallet className="w-5 h-5 text-gold" /> HD 钱包监控</h2>
+        <div className="flex gap-2">
+          <button
+            onClick={() => triggerScanMutation.mutate()}
+            disabled={triggerScanMutation.isPending}
+            className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+          >
+            {triggerScanMutation.isPending ? "扫描中..." : "手动扫描"}
+          </button>
+          <button
+            onClick={() => triggerConsolidationMutation.mutate()}
+            disabled={triggerConsolidationMutation.isPending}
+            className="px-3 py-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+          >
+            {triggerConsolidationMutation.isPending ? "归集中..." : "手动归集"}
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="glass rounded-xl p-4">
+          <div className="text-xs text-muted-foreground mb-1">已分配地址</div>
+          <div className="text-2xl font-bold text-foreground">{stats?.totalAddresses ?? 0}</div>
+        </div>
+        <div className="glass rounded-xl p-4">
+          <div className="text-xs text-muted-foreground mb-1">待确认充值</div>
+          <div className="text-2xl font-bold text-yellow-400">{stats?.pendingDeposits ?? 0}</div>
+        </div>
+        <div className="glass rounded-xl p-4">
+          <div className="text-xs text-muted-foreground mb-1">已到账总额</div>
+          <div className="text-2xl font-bold text-green-400">${formatAmount(stats?.totalCredited ?? 0)}</div>
+        </div>
+        <div className="glass rounded-xl p-4">
+          <div className="text-xs text-muted-foreground mb-1">已归集总额</div>
+          <div className="text-2xl font-bold text-purple-400">${formatAmount(stats?.totalConsolidated ?? 0)}</div>
+        </div>
+      </div>
+
+      {/* Tab Switcher */}
+      <div className="flex gap-1 bg-secondary/30 p-1 rounded-lg w-fit">
+        {(["deposits", "consolidations", "addresses"] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setViewTab(tab)}
+            className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              viewTab === tab ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab === "deposits" ? "充值记录" : tab === "consolidations" ? "归集记录" : "地址列表"}
+          </button>
+        ))}
+      </div>
+
+      {/* Deposits Tab */}
+      {viewTab === "deposits" && (
+        <div className="glass rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">链上充值记录</h3>
+            <div className="flex gap-1">
+              {(["all", "detected", "confirmed", "credited", "failed"] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => { setDepositFilter(f); setDepositsPage(1); }}
+                  className={`px-2 py-1 text-[10px] rounded ${
+                    depositFilter === f ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {f === "all" ? "全部" : statusLabels[f] || f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {depositsLoading ? (
+            <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-gold" /></div>
+          ) : (depositsData?.items?.length ?? 0) === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">暂无充值记录</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="text-left py-2 px-2">用户ID</th>
+                    <th className="text-left py-2 px-2">金额</th>
+                    <th className="text-left py-2 px-2">状态</th>
+                    <th className="text-left py-2 px-2">TxHash</th>
+                    <th className="text-left py-2 px-2">来源地址</th>
+                    <th className="text-left py-2 px-2">时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(depositsData?.items as any[])?.map((d: any) => (
+                    <tr key={d.id} className="border-b border-border/50 hover:bg-secondary/20">
+                      <td className="py-2 px-2 font-mono">#{d.userId}</td>
+                      <td className="py-2 px-2 font-semibold text-green-400">${parseFloat(d.amount).toFixed(2)}</td>
+                      <td className="py-2 px-2">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${statusColors[d.status] || "bg-gray-500/20 text-gray-400"}`}>
+                          {statusLabels[d.status] || d.status}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 font-mono text-[10px] max-w-[120px] truncate" title={d.txHash}>{d.txHash?.slice(0, 12)}...</td>
+                      <td className="py-2 px-2 font-mono text-[10px] max-w-[100px] truncate" title={d.fromAddress}>{d.fromAddress?.slice(0, 10)}...</td>
+                      <td className="py-2 px-2 text-muted-foreground">{d.createdAt ? new Date(d.createdAt).toLocaleString() : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {(depositsData?.total ?? 0) > 20 && (
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-xs text-muted-foreground">共 {depositsData?.total} 条</span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setDepositsPage(p => Math.max(1, p - 1))}
+                  disabled={depositsPage <= 1}
+                  className="px-2 py-1 text-xs bg-secondary rounded disabled:opacity-30"
+                >上一页</button>
+                <span className="px-2 py-1 text-xs text-muted-foreground">{depositsPage}</span>
+                <button
+                  onClick={() => setDepositsPage(p => p + 1)}
+                  disabled={depositsPage * 20 >= (depositsData?.total ?? 0)}
+                  className="px-2 py-1 text-xs bg-secondary rounded disabled:opacity-30"
+                >下一页</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Consolidations Tab */}
+      {viewTab === "consolidations" && (
+        <div className="glass rounded-xl p-4 space-y-3">
+          <h3 className="text-sm font-semibold">归集记录</h3>
+
+          {consolidationsLoading ? (
+            <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-gold" /></div>
+          ) : (consolidationsData?.items?.length ?? 0) === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">暂无归集记录</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="text-left py-2 px-2">来源地址</th>
+                    <th className="text-left py-2 px-2">目标地址</th>
+                    <th className="text-left py-2 px-2">金额</th>
+                    <th className="text-left py-2 px-2">状态</th>
+                    <th className="text-left py-2 px-2">TxHash</th>
+                    <th className="text-left py-2 px-2">时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(consolidationsData?.items as any[])?.map((c: any) => (
+                    <tr key={c.id} className="border-b border-border/50 hover:bg-secondary/20">
+                      <td className="py-2 px-2 font-mono text-[10px] max-w-[100px] truncate" title={c.fromAddress}>{c.fromAddress?.slice(0, 10)}...</td>
+                      <td className="py-2 px-2 font-mono text-[10px] max-w-[100px] truncate" title={c.toAddress}>{c.toAddress?.slice(0, 10)}...</td>
+                      <td className="py-2 px-2 font-semibold text-purple-400">${parseFloat(c.amount).toFixed(2)}</td>
+                      <td className="py-2 px-2">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${statusColors[c.status] || "bg-gray-500/20 text-gray-400"}`}>
+                          {statusLabels[c.status] || c.status}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 font-mono text-[10px] max-w-[120px] truncate" title={c.txHash}>{c.txHash?.slice(0, 12)}...</td>
+                      <td className="py-2 px-2 text-muted-foreground">{c.createdAt ? new Date(c.createdAt).toLocaleString() : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {(consolidationsData?.total ?? 0) > 20 && (
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-xs text-muted-foreground">共 {consolidationsData?.total} 条</span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setConsolidationsPage(p => Math.max(1, p - 1))}
+                  disabled={consolidationsPage <= 1}
+                  className="px-2 py-1 text-xs bg-secondary rounded disabled:opacity-30"
+                >上一页</button>
+                <span className="px-2 py-1 text-xs text-muted-foreground">{consolidationsPage}</span>
+                <button
+                  onClick={() => setConsolidationsPage(p => p + 1)}
+                  disabled={consolidationsPage * 20 >= (consolidationsData?.total ?? 0)}
+                  className="px-2 py-1 text-xs bg-secondary rounded disabled:opacity-30"
+                >下一页</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Addresses Tab */}
+      {viewTab === "addresses" && (
+        <div className="glass rounded-xl p-4 space-y-3">
+          <h3 className="text-sm font-semibold">充值地址列表</h3>
+
+          {addressesLoading ? (
+            <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-gold" /></div>
+          ) : (addressesData?.items?.length ?? 0) === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">暂无充值地址</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="text-left py-2 px-2">用户ID</th>
+                    <th className="text-left py-2 px-2">地址</th>
+                    <th className="text-left py-2 px-2">链</th>
+                    <th className="text-left py-2 px-2">累计充值</th>
+                    <th className="text-left py-2 px-2">状态</th>
+                    <th className="text-left py-2 px-2">最后扫描</th>
+                    <th className="text-left py-2 px-2">创建时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(addressesData?.items as any[])?.map((a: any) => (
+                    <tr key={a.id} className="border-b border-border/50 hover:bg-secondary/20">
+                      <td className="py-2 px-2 font-mono">#{a.userId}</td>
+                      <td className="py-2 px-2 font-mono text-[10px] max-w-[140px] truncate" title={a.address}>{a.address}</td>
+                      <td className="py-2 px-2">{a.chain}</td>
+                      <td className="py-2 px-2 font-semibold text-green-400">${parseFloat(a.totalDeposited || "0").toFixed(2)}</td>
+                      <td className="py-2 px-2">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${statusColors[a.status] || "bg-gray-500/20 text-gray-400"}`}>
+                          {statusLabels[a.status] || a.status}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 text-muted-foreground text-[10px]">{a.lastScannedAt ? new Date(a.lastScannedAt).toLocaleString() : "未扫描"}</td>
+                      <td className="py-2 px-2 text-muted-foreground text-[10px]">{a.createdAt ? new Date(a.createdAt).toLocaleString() : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {(addressesData?.total ?? 0) > 20 && (
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-xs text-muted-foreground">共 {addressesData?.total} 条</span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setAddressesPage(p => Math.max(1, p - 1))}
+                  disabled={addressesPage <= 1}
+                  className="px-2 py-1 text-xs bg-secondary rounded disabled:opacity-30"
+                >上一页</button>
+                <span className="px-2 py-1 text-xs text-muted-foreground">{addressesPage}</span>
+                <button
+                  onClick={() => setAddressesPage(p => p + 1)}
+                  disabled={addressesPage * 20 >= (addressesData?.total ?? 0)}
+                  className="px-2 py-1 text-xs bg-secondary rounded disabled:opacity-30"
+                >下一页</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
