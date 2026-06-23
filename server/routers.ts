@@ -857,7 +857,7 @@ export const appRouter = router({
       const { eq, sql: sqlTag } = await import("drizzle-orm");
       // Atomic conditional update: deduct totalDeduction (amount + fee), freeze only the withdraw amount
       const result = await dbInstance.execute(
-        sqlTag`UPDATE users SET balance = ROUND(balance - ${totalDeduction}, 2), frozen_balance = ROUND(COALESCE(frozen_balance, 0) + ${withdrawAmount}, 2) WHERE id = ${ctx.user.id} AND balance >= ${totalDeduction}`
+        sqlTag`UPDATE users SET balance = ROUND(balance - ${totalDeduction}, 2), frozenBalance = ROUND(COALESCE(frozenBalance, 0) + ${withdrawAmount}, 2) WHERE id = ${ctx.user.id} AND balance >= ${totalDeduction}`
       );
       const affectedRows = (result as any)[0]?.affectedRows ?? 0;
       if (affectedRows === 0) {

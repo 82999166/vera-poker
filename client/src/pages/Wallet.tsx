@@ -172,7 +172,16 @@ export default function Wallet() {
         <div className="gradient-border rounded-xl p-5 text-center">
           <p className="text-xs text-muted-foreground mb-1">{t("wallet.balance")}</p>
           <p className="text-3xl font-bold text-gold glow-text-gold">${formatBalance(walletData?.balance)}</p>
-          <p className="text-xs text-muted-foreground mt-1">{t("wallet.frozen")}: ${formatBalance(walletData?.frozenBalance)}</p>
+          <div className="flex justify-center gap-6 mt-2">
+            <div>
+              <p className="text-xs text-muted-foreground">{t("wallet.withdrawableBalance")}</p>
+              <p className="text-sm font-semibold text-green-400">${formatBalance(String(Math.max(0, parseFloat(walletData?.balance ?? "0") - parseFloat(walletData?.frozenBalance ?? "0")).toFixed(2)))}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{t("wallet.frozen")}</p>
+              <p className="text-sm font-semibold text-yellow-400">${formatBalance(walletData?.frozenBalance)}</p>
+            </div>
+          </div>
         </div>
       </div>
 
