@@ -1759,16 +1759,16 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
     etherscan_api_key: "Etherscan API Key",
     bscscan_api_key: "BscScan API Key",
     polygonscan_api_key: "PolygonScan API Key",
-    auto_confirm_enabled: "自动确认充值 (true/false)",
+    auto_confirm_enabled: "自动确认充值",
     auto_confirm_min_confirmations: "最少确认数",
     ton_onchain_wallet_address: "TON 上链钱包地址（用于写入区块链）",
     ton_onchain_wallet_mnemonic: "TON 上链钱包助记词（24个单词，空格分隔）",
-    deposit_mode: "充值模式 (legacy/hd)",
+    deposit_mode: "充值模式",
     hd_wallet_mnemonic: "HD钱包助记词 (12个单词)",
-    hd_auto_detect_enabled: "HD自动检测开关 (true/false)",
+    hd_auto_detect_enabled: "HD自动检测开关",
     hd_min_deposit_amount: "HD最低充值金额 (USDT)",
     hd_min_confirmations: "HD最少确认数",
-    hd_consolidation_enabled: "HD归集开关 (true/false)",
+    hd_consolidation_enabled: "HD归集开关",
     hd_consolidation_threshold: "HD归集阈值 (USDT)",
     hd_main_wallet_address: "HD主钱包地址 (归集目标)",
   };
@@ -1788,6 +1788,14 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
 
+  // Define dropdown options for specific config keys
+  const dropdownOptions: Record<string, { value: string; label: string }[]> = {
+    deposit_mode: [{ value: "legacy", label: "传统模式 (legacy)" }, { value: "hd", label: "HD钱包模式 (hd)" }],
+    auto_confirm_enabled: [{ value: "true", label: "开启" }, { value: "false", label: "关闭" }],
+    hd_auto_detect_enabled: [{ value: "true", label: "开启" }, { value: "false", label: "关闭" }],
+    hd_consolidation_enabled: [{ value: "true", label: "开启" }, { value: "false", label: "关闭" }],
+  };
+
   const configMap = new Map((configs as any[])?.map((c: any) => [c.key, c]) ?? []);
 
   return (
@@ -1803,17 +1811,31 @@ function ConfigPanel({ at }: { at: (k: string) => string }) {
               const currentValue = editValues[key] ?? config?.value ?? "";
               const isSensitive = key.includes("mnemonic") || key.includes("private_key") || key.includes("secret") || key.includes("token");
               const isVisible = showSensitiveFields[key] ?? false;
+              const hasDropdown = key in dropdownOptions;
               return (
                 <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
                   <label className="text-xs text-muted-foreground sm:w-48 shrink-0">{configLabels[key] || config?.label || key}</label>
                   <div className="flex items-center gap-2 flex-1">
-                    <input
-                      type={isSensitive && !isVisible ? "password" : "text"}
-                      value={currentValue}
-                      onChange={(e) => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
-                      className="flex-1 glass rounded-lg px-3 py-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-gold"
-                    />
-                    {isSensitive && (
+                    {hasDropdown ? (
+                      <select
+                        value={currentValue}
+                        onChange={(e) => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
+                        className="flex-1 glass rounded-lg px-3 py-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-gold bg-transparent"
+                      >
+                        <option value="" className="bg-card text-foreground">请选择...</option>
+                        {dropdownOptions[key].map(opt => (
+                          <option key={opt.value} value={opt.value} className="bg-card text-foreground">{opt.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={isSensitive && !isVisible ? "password" : "text"}
+                        value={currentValue}
+                        onChange={(e) => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
+                        className="flex-1 glass rounded-lg px-3 py-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-gold"
+                      />
+                    )}
+                    {isSensitive && !hasDropdown && (
                       <button
                         onClick={() => setShowSensitiveFields(prev => ({ ...prev, [key]: !isVisible }))}
                         className="p-1.5 rounded-lg bg-white/5 text-muted-foreground hover:text-foreground transition-colors"

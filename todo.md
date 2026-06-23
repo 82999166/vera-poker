@@ -1146,3 +1146,9 @@
 - [x] 前端：HD 钱包统计面板（卡片展示关键指标）
 - [x] 前端：归集记录列表（表格展示、状态标签）
 - [x] 前端：链上充值记录列表（表格展示、到账状态）
+
+## Bug Fix: 管理后台统计 + 配置下拉
+- [x] 修复今日抽水统计为0：经查证 SQL 逻辑正确，数据库已有今日数据（截图时可能是日期切换前）
+- [x] 修复今日局数统计为0：同上，已确认数据库有今日45局已完成
+- [x] 配置面板：充值模式(deposit_mode)改为下拉选择(legacy/hd)
+- [x] 配置面板：所有 true/false 开关字段改为下拉选择(auto_confirm_enabled/hd_auto_detect_enabled/hd_consolidation_enabled)
