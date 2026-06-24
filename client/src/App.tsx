@@ -161,8 +161,21 @@ function MobileRouter() {
 
 function MobileContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-full min-h-screen bg-deep-space flex justify-center overflow-x-hidden">
-      <div className="w-full max-w-[430px] h-full min-h-screen relative shadow-2xl overflow-y-auto overflow-x-hidden">
+    <div className="h-full min-h-screen bg-[#080810] flex justify-center overflow-x-hidden relative">
+      {/* Decorative desktop background - only visible on wider screens */}
+      <div className="hidden md:block fixed inset-0 pointer-events-none overflow-hidden">
+        {/* Subtle radial glow behind phone frame */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[800px] rounded-full bg-gold/[0.02] blur-[100px]" />
+        {/* Decorative poker suits floating on sides */}
+        <div className="absolute top-[15%] left-[8%] text-white/[0.03] text-7xl select-none">♠</div>
+        <div className="absolute top-[35%] right-[10%] text-white/[0.03] text-6xl select-none">♥</div>
+        <div className="absolute bottom-[25%] left-[12%] text-white/[0.03] text-5xl select-none">♦</div>
+        <div className="absolute bottom-[15%] right-[8%] text-white/[0.03] text-7xl select-none">♣</div>
+        <div className="absolute top-[60%] left-[5%] text-white/[0.02] text-4xl select-none rotate-12">♠</div>
+        <div className="absolute top-[10%] right-[15%] text-white/[0.02] text-5xl select-none -rotate-12">♦</div>
+      </div>
+      {/* Phone frame container */}
+      <div className="w-full max-w-[430px] h-full min-h-screen relative overflow-y-auto overflow-x-hidden md:shadow-[0_0_60px_rgba(212,160,23,0.08)] md:border-x md:border-white/[0.04]">
         {children}
       </div>
     </div>

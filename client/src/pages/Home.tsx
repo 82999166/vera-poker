@@ -180,17 +180,63 @@ export default function Home() {
     }
   }, [authenticateWithWidget, refresh]);
 
-  // Show loading state during TG auto-login
+  // Show animated splash screen during TG auto-login
   if (isTgApp && (isAuthenticating || (tgLoginSuccess && loading))) {
     return (
-      <div className="min-h-screen bg-background particle-bg flex flex-col items-center justify-center">
-        <div className="w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl glow-gold mb-6" style={{ background: 'linear-gradient(to bottom right, #eab308, #a78b00, #2563eb)' }}>
-          <span className="text-4xl font-black text-background">VP</span>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center relative overflow-hidden">
+        {/* Background ambient effects */}
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-gold/[0.03] blur-[80px]" />
+          <div className="absolute bottom-1/3 right-1/4 w-48 h-48 rounded-full bg-truth-blue/[0.04] blur-[60px]" />
         </div>
-        <Loader2 className="w-8 h-8 text-gold animate-spin mb-4" />
-        <p className="text-sm text-muted-foreground">
-          {t("common.loading")}...
-        </p>
+
+        {/* Floating card decorations */}
+        <div className="absolute top-[12%] left-[10%] text-2xl opacity-[0.06] animate-splash-card" style={{ '--card-rotate': '-15deg' } as React.CSSProperties}>
+          ♠
+        </div>
+        <div className="absolute top-[20%] right-[12%] text-xl opacity-[0.05] animate-splash-card" style={{ '--card-rotate': '10deg', animationDelay: '0.5s' } as React.CSSProperties}>
+          ♥
+        </div>
+        <div className="absolute bottom-[22%] left-[15%] text-lg opacity-[0.04] animate-splash-card" style={{ '--card-rotate': '8deg', animationDelay: '1s' } as React.CSSProperties}>
+          ♦
+        </div>
+        <div className="absolute bottom-[30%] right-[10%] text-2xl opacity-[0.05] animate-splash-card" style={{ '--card-rotate': '-12deg', animationDelay: '1.5s' } as React.CSSProperties}>
+          ♣
+        </div>
+
+        {/* Main content */}
+        <div className="relative z-10 flex flex-col items-center">
+          {/* Logo with glow animation */}
+          <div className="animate-splash-logo rounded-2xl">
+            <div className="w-28 h-28 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #eab308 0%, #a78b00 50%, #2563eb 100%)' }}>
+              <span className="text-5xl font-black text-background tracking-tight">VP</span>
+            </div>
+          </div>
+
+          {/* Brand name with slide-up animation */}
+          <h1 className="mt-6 text-3xl font-black animate-splash-title">
+            <span className="text-gold">Vera</span>{" "}
+            <span className="text-foreground">Poker</span>
+          </h1>
+
+          {/* Tagline with delayed fade-in */}
+          <p className="mt-2 text-sm text-muted-foreground italic animate-splash-tagline">
+            "Where Truth Deals."
+          </p>
+
+          {/* Progress bar */}
+          <div className="mt-10 w-48 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-gold/80 to-truth-blue/80 animate-splash-progress" />
+          </div>
+
+          {/* Loading dots + text */}
+          <div className="mt-4 flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">{t("common.loading")}</span>
+            <span className="text-xs text-muted-foreground animate-splash-dot-1">.</span>
+            <span className="text-xs text-muted-foreground animate-splash-dot-2">.</span>
+            <span className="text-xs text-muted-foreground animate-splash-dot-3">.</span>
+          </div>
+        </div>
       </div>
     );
   }
