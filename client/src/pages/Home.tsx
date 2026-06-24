@@ -25,16 +25,22 @@ export default function Home() {
   const [tgLoginAttempted, setTgLoginAttempted] = useState(false);
   const [tgLoginSuccess, setTgLoginSuccess] = useState(false);
 
-  // Splash screen: show for ALL users on first load (minimum 4s)
+  // Splash screen: show for ALL users on first load (minimum 5.5s)
   const [showSplash, setShowSplash] = useState(true);
+  const [splashFading, setSplashFading] = useState(false);
   const splashTimerRef = useRef(false);
   useEffect(() => {
     if (splashTimerRef.current) return;
     splashTimerRef.current = true;
-    const timer = setTimeout(() => {
+    // Start fade-out at 5s
+    const fadeTimer = setTimeout(() => {
+      setSplashFading(true);
+    }, 5000);
+    // Fully hide at 5.5s (after 500ms fade)
+    const hideTimer = setTimeout(() => {
       setShowSplash(false);
-    }, 4000);
-    return () => clearTimeout(timer);
+    }, 5500);
+    return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
   }, []);
 
   // Password login state
@@ -197,7 +203,9 @@ export default function Home() {
   const shouldShowSplash = showSplash || (isTgApp && (isAuthenticating || (tgLoginSuccess && loading)));
   if (shouldShowSplash) {
     return (
-      <div className="absolute inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden" style={{ background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d1a 50%, #050510 100%)' }}>
+      <div className={`absolute inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden transition-opacity duration-500 ${splashFading ? 'opacity-0' : 'opacity-100'}`} style={{ background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d1a 50%, #050510 100%)' }}>
+        {/* Card dealing sound effect */}
+        <audio autoPlay src="/manus-storage/card-deal-sound_bfa59586.mp3" style={{ display: 'none' }} />
         {/* Poker table felt glow in background */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[180px] rounded-[50%] animate-splash-table" style={{ background: 'radial-gradient(ellipse, rgba(34,139,34,0.12) 0%, transparent 70%)', border: '1px solid rgba(34,139,34,0.08)' }} />
 

@@ -432,33 +432,21 @@ export default function Table() {
 
   // Full-screen layout: use 100% of available viewport, accounting for TG WebApp chrome
   const [containerStyle, setContainerStyle] = useState<React.CSSProperties>({
-    position: 'fixed', top: 0, left: 0,
-    width: '100vw', height: '100dvh',
-    maxWidth: '100vw', overflow: 'hidden',
+    position: 'relative',
+    width: '100%', height: '100dvh',
+    maxWidth: '430px', overflow: 'hidden',
+    margin: '0 auto',
   });
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
-    // Desktop TG or wide screen: limit width to mobile aspect ratio and center
     const calcStyle = (h: number): React.CSSProperties => {
-      const w = window.innerWidth;
-      const isWideScreen = w > h * 0.75; // wider than 4:3 portrait ratio
-      if (isWideScreen) {
-        // Limit to 9:16 aspect ratio (phone-like), centered
-        const maxW = Math.min(h * 0.56, w, 500); // 9/16 ≈ 0.56, cap at 500px
-        return {
-          position: 'fixed', top: 0, left: '50%',
-          width: `${maxW}px`,
-          height: `${h}px`,
-          transform: 'translateX(-50%)',
-          overflow: 'hidden',
-        };
-      }
       return {
-        position: 'fixed', top: 0, left: 0,
-        width: '100vw',
+        position: 'relative',
+        width: '100%',
         height: `${h}px`,
-        maxWidth: '100vw',
+        maxWidth: '430px',
         overflow: 'hidden',
+        margin: '0 auto',
       };
     };
     if (tg) {

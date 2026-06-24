@@ -440,11 +440,12 @@ html, body, #root {
   100% { transform: rotateY(360deg); }
 }
 
-/* Deal cards spreading animation */
+/* Deal cards spreading animation - cards spread then align neatly */
 @keyframes splash-deal {
-  0% { transform: translateX(0) translateY(0) rotate(0deg) scale(0.5); opacity: 0; }
-  30% { opacity: 1; scale: 0.8; }
-  100% { transform: translateX(var(--deal-x, 0)) translateY(var(--deal-y, 0)) rotate(var(--deal-rotate, 0deg)) scale(1); opacity: 1; }
+  0% { transform: translateX(0) translateY(40px) rotate(0deg) scale(0.3); opacity: 0; }
+  25% { opacity: 1; transform: translateX(var(--deal-x, 0)) translateY(var(--deal-y, 0)) rotate(var(--deal-rotate, 0deg)) scale(1); }
+  70% { transform: translateX(var(--deal-x, 0)) translateY(var(--deal-y, 0)) rotate(var(--deal-rotate, 0deg)) scale(1); opacity: 1; }
+  100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); opacity: 1; }
 }
 
 /* Table glow ring */
@@ -521,7 +522,7 @@ html, body, #root {
 }
 
 .animate-splash-deal {
-  animation: splash-deal 0.6s cubic-bezier(0.23, 1, 0.32, 1) var(--deal-delay, 0.2s) forwards;
+  animation: splash-deal 4s cubic-bezier(0.23, 1, 0.32, 1) var(--deal-delay, 0.2s) forwards;
   opacity: 0;
 }
 
@@ -530,7 +531,7 @@ html, body, #root {
 }
 
 .animate-splash-progress {
-  animation: splash-progress 3.5s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
+  animation: splash-progress 5s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
   width: 0%;
 }
 
