@@ -378,72 +378,169 @@ html, body, #root {
   scrollbar-width: none;
 }
 
-/* ========== Splash Screen Animations ========== */
-@keyframes splash-logo-appear {
-  0% { transform: scale(0.6); opacity: 0; filter: blur(8px); }
-  60% { transform: scale(1.05); opacity: 1; filter: blur(0); }
-  100% { transform: scale(1); opacity: 1; filter: blur(0); }
+/* ===== Texas Hold'em Splash Screen Animations ===== */
+
+/* Logo entrance - scale up with bounce */
+@keyframes splash-logo-enter {
+  0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+  60% { transform: scale(1.1) rotate(10deg); opacity: 1; }
+  80% { transform: scale(0.95) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 
+/* Logo glow pulse */
 @keyframes splash-logo-glow {
-  0%, 100% { box-shadow: 0 0 30px rgba(212, 160, 23, 0.3), 0 0 60px rgba(212, 160, 23, 0.1); }
-  50% { box-shadow: 0 0 50px rgba(212, 160, 23, 0.5), 0 0 100px rgba(212, 160, 23, 0.2); }
+  0%, 100% { box-shadow: 0 0 20px rgba(212, 160, 23, 0.4), 0 0 40px rgba(212, 160, 23, 0.1), inset 0 0 20px rgba(212, 160, 23, 0.05); }
+  50% { box-shadow: 0 0 40px rgba(212, 160, 23, 0.6), 0 0 80px rgba(212, 160, 23, 0.2), inset 0 0 30px rgba(212, 160, 23, 0.1); }
 }
 
+/* Title slide up */
 @keyframes splash-title-slide {
-  0% { transform: translateY(20px); opacity: 0; }
+  0% { transform: translateY(30px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
 }
 
+/* Tagline fade in */
 @keyframes splash-tagline-fade {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Card fly-in from different directions */
+@keyframes splash-card-fly-left {
+  0% { transform: translateX(-200px) translateY(50px) rotate(-45deg); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: translateX(0) translateY(0) rotate(var(--card-end-rotate, -5deg)); opacity: 1; }
+}
+
+@keyframes splash-card-fly-right {
+  0% { transform: translateX(200px) translateY(50px) rotate(45deg); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: translateX(0) translateY(0) rotate(var(--card-end-rotate, 5deg)); opacity: 1; }
+}
+
+/* Card hover float after landing */
+@keyframes splash-card-hover {
+  0%, 100% { transform: translateY(0) rotate(var(--card-end-rotate, 0deg)); }
+  50% { transform: translateY(-4px) rotate(var(--card-end-rotate, 0deg)); }
+}
+
+/* Chip spin and bounce in */
+@keyframes splash-chip-spin {
+  0% { transform: translateY(-80px) rotate(0deg) scale(0); opacity: 0; }
+  40% { opacity: 1; }
+  70% { transform: translateY(5px) rotate(540deg) scale(1.1); }
+  85% { transform: translateY(-3px) rotate(690deg) scale(0.95); }
+  100% { transform: translateY(0) rotate(720deg) scale(1); opacity: 1; }
+}
+
+/* Chip continuous slow spin after landing */
+@keyframes splash-chip-idle {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
+}
+
+/* Deal cards spreading animation */
+@keyframes splash-deal {
+  0% { transform: translateX(0) translateY(0) rotate(0deg) scale(0.5); opacity: 0; }
+  30% { opacity: 1; scale: 0.8; }
+  100% { transform: translateX(var(--deal-x, 0)) translateY(var(--deal-y, 0)) rotate(var(--deal-rotate, 0deg)) scale(1); opacity: 1; }
+}
+
+/* Table glow ring */
+@keyframes splash-table-glow {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.02); }
+}
+
+/* Progress bar fill */
+@keyframes splash-progress {
+  0% { width: 0%; }
+  15% { width: 20%; }
+  40% { width: 45%; }
+  65% { width: 70%; }
+  85% { width: 90%; }
+  100% { width: 100%; }
+}
+
+/* Connection text fade */
+@keyframes splash-connect-fade {
   0% { opacity: 0; }
   100% { opacity: 1; }
 }
 
-@keyframes splash-progress {
-  0% { width: 0%; }
-  20% { width: 25%; }
-  50% { width: 55%; }
-  80% { width: 85%; }
-  100% { width: 100%; }
-}
-
+/* Dots loading */
 @keyframes splash-dots {
   0%, 20% { opacity: 0.3; }
   50% { opacity: 1; }
   80%, 100% { opacity: 0.3; }
 }
 
-@keyframes splash-card-float {
-  0%, 100% { transform: translateY(0) rotate(var(--card-rotate, 0deg)); }
-  50% { transform: translateY(-8px) rotate(var(--card-rotate, 0deg)); }
+/* Particle sparkle on cards */
+@keyframes splash-sparkle {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50% { opacity: 1; transform: scale(1); }
 }
 
+/* Classes */
 .animate-splash-logo {
-  animation: splash-logo-appear 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards,
-             splash-logo-glow 2s ease-in-out 0.8s infinite;
+  animation: splash-logo-enter 0.9s cubic-bezier(0.23, 1, 0.32, 1) forwards,
+             splash-logo-glow 2s ease-in-out 1s infinite;
+  opacity: 0;
 }
 
 .animate-splash-title {
-  animation: splash-title-slide 0.6s cubic-bezier(0.23, 1, 0.32, 1) 0.4s forwards;
+  animation: splash-title-slide 0.6s cubic-bezier(0.23, 1, 0.32, 1) 0.5s forwards;
   opacity: 0;
 }
 
 .animate-splash-tagline {
-  animation: splash-tagline-fade 0.8s ease-out 0.8s forwards;
+  animation: splash-tagline-fade 0.6s ease-out 0.9s forwards;
   opacity: 0;
 }
 
-.animate-splash-progress {
-  animation: splash-progress 2.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+.animate-splash-card-left {
+  animation: splash-card-fly-left 0.7s cubic-bezier(0.23, 1, 0.32, 1) var(--card-delay, 0.3s) forwards,
+             splash-card-hover 2.5s ease-in-out calc(var(--card-delay, 0.3s) + 0.7s) infinite;
+  opacity: 0;
 }
 
-.animate-splash-dot-1 { animation: splash-dots 1.4s ease-in-out infinite; }
-.animate-splash-dot-2 { animation: splash-dots 1.4s ease-in-out 0.2s infinite; }
-.animate-splash-dot-3 { animation: splash-dots 1.4s ease-in-out 0.4s infinite; }
+.animate-splash-card-right {
+  animation: splash-card-fly-right 0.7s cubic-bezier(0.23, 1, 0.32, 1) var(--card-delay, 0.3s) forwards,
+             splash-card-hover 2.5s ease-in-out calc(var(--card-delay, 0.3s) + 0.7s) infinite;
+  opacity: 0;
+}
 
-.animate-splash-card {
-  animation: splash-card-float 3s ease-in-out infinite;
+.animate-splash-chip {
+  animation: splash-chip-spin 0.8s cubic-bezier(0.23, 1, 0.32, 1) var(--chip-delay, 0.5s) forwards;
+  opacity: 0;
+}
+
+.animate-splash-chip-idle {
+  animation: splash-chip-idle 3s linear infinite;
+}
+
+.animate-splash-deal {
+  animation: splash-deal 0.6s cubic-bezier(0.23, 1, 0.32, 1) var(--deal-delay, 0.2s) forwards;
+  opacity: 0;
+}
+
+.animate-splash-table {
+  animation: splash-table-glow 2.5s ease-in-out infinite;
+}
+
+.animate-splash-progress {
+  animation: splash-progress 2.5s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
+  width: 0%;
+}
+
+.animate-splash-connect {
+  animation: splash-connect-fade 0.5s ease-out 1.2s forwards;
+  opacity: 0;
+}
+
+.animate-splash-sparkle {
+  animation: splash-sparkle 1.5s ease-in-out var(--sparkle-delay, 0s) infinite;
 }
 
 /* Turn timer ring - SVG circle countdown around active player avatar */

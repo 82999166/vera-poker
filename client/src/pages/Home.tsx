@@ -25,6 +25,18 @@ export default function Home() {
   const [tgLoginAttempted, setTgLoginAttempted] = useState(false);
   const [tgLoginSuccess, setTgLoginSuccess] = useState(false);
 
+  // Splash screen: show for ALL users on first load (minimum 2.5s)
+  const [showSplash, setShowSplash] = useState(true);
+  const splashTimerRef = useRef(false);
+  useEffect(() => {
+    if (splashTimerRef.current) return;
+    splashTimerRef.current = true;
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Password login state
   const [showPasswordLogin, setShowPasswordLogin] = useState(false);
   const [pwdIdentifier, setPwdIdentifier] = useState("");
@@ -180,61 +192,116 @@ export default function Home() {
     }
   }, [authenticateWithWidget, refresh]);
 
-  // Show animated splash screen during TG auto-login
-  if (isTgApp && (isAuthenticating || (tgLoginSuccess && loading))) {
+  // Show animated splash screen for ALL users on first load (minimum 2.5s)
+  // Also show during TG auth if splash timer already expired
+  const shouldShowSplash = showSplash || (isTgApp && (isAuthenticating || (tgLoginSuccess && loading)));
+  if (shouldShowSplash) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center relative overflow-hidden">
-        {/* Background ambient effects */}
-        <div className="absolute inset-0">
-          <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-gold/[0.03] blur-[80px]" />
-          <div className="absolute bottom-1/3 right-1/4 w-48 h-48 rounded-full bg-truth-blue/[0.04] blur-[60px]" />
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden" style={{ background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d1a 50%, #050510 100%)' }}>
+        {/* Poker table felt glow in background */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[180px] rounded-[50%] animate-splash-table" style={{ background: 'radial-gradient(ellipse, rgba(34,139,34,0.12) 0%, transparent 70%)', border: '1px solid rgba(34,139,34,0.08)' }} />
+
+        {/* Flying poker cards - left side */}
+        <div className="absolute top-[18%] left-[8%] animate-splash-card-left" style={{ '--card-delay': '0.3s', '--card-end-rotate': '-12deg' } as React.CSSProperties}>
+          <div className="w-10 h-14 rounded-md bg-white shadow-lg flex items-center justify-center text-lg font-bold text-red-600 border border-gray-200">
+            <span>A<span className="text-xs">♥</span></span>
+          </div>
+        </div>
+        <div className="absolute top-[30%] left-[5%] animate-splash-card-left" style={{ '--card-delay': '0.5s', '--card-end-rotate': '-18deg' } as React.CSSProperties}>
+          <div className="w-10 h-14 rounded-md bg-white shadow-lg flex items-center justify-center text-lg font-bold text-gray-900 border border-gray-200">
+            <span>K<span className="text-xs">♠</span></span>
+          </div>
         </div>
 
-        {/* Floating card decorations */}
-        <div className="absolute top-[12%] left-[10%] text-2xl opacity-[0.06] animate-splash-card" style={{ '--card-rotate': '-15deg' } as React.CSSProperties}>
-          ♠
+        {/* Flying poker cards - right side */}
+        <div className="absolute top-[18%] right-[8%] animate-splash-card-right" style={{ '--card-delay': '0.4s', '--card-end-rotate': '10deg' } as React.CSSProperties}>
+          <div className="w-10 h-14 rounded-md bg-white shadow-lg flex items-center justify-center text-lg font-bold text-red-600 border border-gray-200">
+            <span>A<span className="text-xs">♦</span></span>
+          </div>
         </div>
-        <div className="absolute top-[20%] right-[12%] text-xl opacity-[0.05] animate-splash-card" style={{ '--card-rotate': '10deg', animationDelay: '0.5s' } as React.CSSProperties}>
-          ♥
-        </div>
-        <div className="absolute bottom-[22%] left-[15%] text-lg opacity-[0.04] animate-splash-card" style={{ '--card-rotate': '8deg', animationDelay: '1s' } as React.CSSProperties}>
-          ♦
-        </div>
-        <div className="absolute bottom-[30%] right-[10%] text-2xl opacity-[0.05] animate-splash-card" style={{ '--card-rotate': '-12deg', animationDelay: '1.5s' } as React.CSSProperties}>
-          ♣
+        <div className="absolute top-[32%] right-[6%] animate-splash-card-right" style={{ '--card-delay': '0.6s', '--card-end-rotate': '15deg' } as React.CSSProperties}>
+          <div className="w-10 h-14 rounded-md bg-white shadow-lg flex items-center justify-center text-lg font-bold text-gray-900 border border-gray-200">
+            <span>Q<span className="text-xs">♣</span></span>
+          </div>
         </div>
 
-        {/* Main content */}
+        {/* Community cards dealing animation (5 cards in center) */}
+        <div className="absolute top-[60%] left-1/2 -translate-x-1/2 flex gap-1">
+          {[{ v: '10', s: '♥', c: 'text-red-600', dx: '-36px', r: '-3deg', d: '0.8s' },
+            { v: 'J', s: '♠', c: 'text-gray-900', dx: '-18px', r: '-1deg', d: '1.0s' },
+            { v: 'Q', s: '♥', c: 'text-red-600', dx: '0px', r: '0deg', d: '1.2s' },
+            { v: 'K', s: '♦', c: 'text-red-600', dx: '18px', r: '2deg', d: '1.4s' },
+            { v: 'A', s: '♣', c: 'text-gray-900', dx: '36px', r: '4deg', d: '1.6s' },
+          ].map((card, i) => (
+            <div key={i} className="animate-splash-deal" style={{ '--deal-x': card.dx, '--deal-y': '0px', '--deal-rotate': card.r, '--deal-delay': card.d } as React.CSSProperties}>
+              <div className="w-7 h-10 rounded-sm bg-white/90 shadow-md flex items-center justify-center border border-gray-300">
+                <span className={`text-[10px] font-bold ${card.c}`}>{card.v}{card.s}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Poker chips bouncing in */}
+        <div className="absolute bottom-[22%] left-[15%] animate-splash-chip" style={{ '--chip-delay': '0.7s' } as React.CSSProperties}>
+          <div className="w-8 h-8 rounded-full border-[3px] border-dashed border-red-500 bg-red-600 flex items-center justify-center shadow-lg">
+            <span className="text-[8px] font-black text-white">50</span>
+          </div>
+        </div>
+        <div className="absolute bottom-[20%] right-[18%] animate-splash-chip" style={{ '--chip-delay': '0.9s' } as React.CSSProperties}>
+          <div className="w-8 h-8 rounded-full border-[3px] border-dashed border-blue-400 bg-blue-600 flex items-center justify-center shadow-lg">
+            <span className="text-[8px] font-black text-white">100</span>
+          </div>
+        </div>
+        <div className="absolute bottom-[26%] left-[40%] animate-splash-chip" style={{ '--chip-delay': '1.1s' } as React.CSSProperties}>
+          <div className="w-7 h-7 rounded-full border-[3px] border-dashed border-gold bg-yellow-600 flex items-center justify-center shadow-lg">
+            <span className="text-[7px] font-black text-white">500</span>
+          </div>
+        </div>
+
+        {/* Sparkle effects on cards */}
+        <div className="absolute top-[16%] left-[12%] w-1.5 h-1.5 rounded-full bg-gold animate-splash-sparkle" style={{ '--sparkle-delay': '1s' } as React.CSSProperties} />
+        <div className="absolute top-[20%] right-[11%] w-1 h-1 rounded-full bg-white animate-splash-sparkle" style={{ '--sparkle-delay': '1.5s' } as React.CSSProperties} />
+        <div className="absolute bottom-[28%] right-[20%] w-1.5 h-1.5 rounded-full bg-truth-blue animate-splash-sparkle" style={{ '--sparkle-delay': '2s' } as React.CSSProperties} />
+
+        {/* Main content - Logo + Brand */}
         <div className="relative z-10 flex flex-col items-center">
           {/* Logo with glow animation */}
           <div className="animate-splash-logo rounded-2xl">
-            <div className="w-28 h-28 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #eab308 0%, #a78b00 50%, #2563eb 100%)' }}>
-              <span className="text-5xl font-black text-background tracking-tight">VP</span>
+            <div className="w-24 h-24 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #eab308 0%, #a78b00 50%, #2563eb 100%)' }}>
+              <span className="text-4xl font-black text-background tracking-tight">VP</span>
             </div>
           </div>
 
-          {/* Brand name with slide-up animation */}
-          <h1 className="mt-6 text-3xl font-black animate-splash-title">
+          {/* Brand name */}
+          <h1 className="mt-5 text-3xl font-black animate-splash-title">
             <span className="text-gold">Vera</span>{" "}
             <span className="text-foreground">Poker</span>
           </h1>
 
-          {/* Tagline with delayed fade-in */}
-          <p className="mt-2 text-sm text-muted-foreground italic animate-splash-tagline">
+          {/* Tagline */}
+          <p className="mt-1.5 text-sm text-muted-foreground italic animate-splash-tagline">
             "Where Truth Deals."
           </p>
+        </div>
 
+        {/* Bottom section - progress + connection */}
+        <div className="absolute bottom-[12%] left-1/2 -translate-x-1/2 flex flex-col items-center w-full px-12">
           {/* Progress bar */}
-          <div className="mt-10 w-48 h-1 rounded-full bg-white/[0.06] overflow-hidden">
-            <div className="h-full rounded-full bg-gradient-to-r from-gold/80 to-truth-blue/80 animate-splash-progress" />
+          <div className="w-full max-w-[200px] h-1 rounded-full bg-white/[0.06] overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-gold via-gold/80 to-truth-blue animate-splash-progress" />
           </div>
 
-          {/* Loading dots + text */}
-          <div className="mt-4 flex items-center gap-1">
-            <span className="text-xs text-muted-foreground">{t("common.loading")}</span>
-            <span className="text-xs text-muted-foreground animate-splash-dot-1">.</span>
-            <span className="text-xs text-muted-foreground animate-splash-dot-2">.</span>
-            <span className="text-xs text-muted-foreground animate-splash-dot-3">.</span>
+          {/* Encrypted connection status */}
+          <div className="mt-4 flex items-center gap-2 animate-splash-connect">
+            <svg className="w-3 h-3 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <span className="text-[11px] text-green-400/80">正在建立加密连接...</span>
+          </div>
+
+          {/* Version */}
+          <div className="mt-2">
+            <span className="text-[10px] text-muted-foreground/40">Vera Poker v2.0</span>
           </div>
         </div>
       </div>
