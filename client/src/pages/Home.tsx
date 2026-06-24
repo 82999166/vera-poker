@@ -25,7 +25,7 @@ export default function Home() {
   const [tgLoginAttempted, setTgLoginAttempted] = useState(false);
   const [tgLoginSuccess, setTgLoginSuccess] = useState(false);
 
-  // Splash screen: show for ALL users on first load (minimum 2.5s)
+  // Splash screen: show for ALL users on first load (minimum 4s)
   const [showSplash, setShowSplash] = useState(true);
   const splashTimerRef = useRef(false);
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function Home() {
     splashTimerRef.current = true;
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 2500);
+    }, 4000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -197,7 +197,7 @@ export default function Home() {
   const shouldShowSplash = showSplash || (isTgApp && (isAuthenticating || (tgLoginSuccess && loading)));
   if (shouldShowSplash) {
     return (
-      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden" style={{ background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d1a 50%, #050510 100%)' }}>
+      <div className="absolute inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden" style={{ background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d1a 50%, #050510 100%)' }}>
         {/* Poker table felt glow in background */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[180px] rounded-[50%] animate-splash-table" style={{ background: 'radial-gradient(ellipse, rgba(34,139,34,0.12) 0%, transparent 70%)', border: '1px solid rgba(34,139,34,0.08)' }} />
 
@@ -225,17 +225,18 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Community cards dealing animation (5 cards in center) */}
-        <div className="absolute top-[60%] left-1/2 -translate-x-1/2 flex gap-1">
-          {[{ v: '10', s: '♥', c: 'text-red-600', dx: '-36px', r: '-3deg', d: '0.8s' },
-            { v: 'J', s: '♠', c: 'text-gray-900', dx: '-18px', r: '-1deg', d: '1.0s' },
-            { v: 'Q', s: '♥', c: 'text-red-600', dx: '0px', r: '0deg', d: '1.2s' },
-            { v: 'K', s: '♦', c: 'text-red-600', dx: '18px', r: '2deg', d: '1.4s' },
-            { v: 'A', s: '♣', c: 'text-gray-900', dx: '36px', r: '4deg', d: '1.6s' },
+        {/* Community cards - Royal Flush A K Q J 10 all spades ♠ */}
+        <div className="absolute top-[60%] left-1/2 -translate-x-1/2 flex gap-2">
+          {[{ v: 'A', dx: '-52px', r: '-3deg', d: '0.8s' },
+            { v: 'K', dx: '-26px', r: '-1deg', d: '1.0s' },
+            { v: 'Q', dx: '0px', r: '0deg', d: '1.2s' },
+            { v: 'J', dx: '26px', r: '2deg', d: '1.4s' },
+            { v: '10', dx: '52px', r: '3deg', d: '1.6s' },
           ].map((card, i) => (
             <div key={i} className="animate-splash-deal" style={{ '--deal-x': card.dx, '--deal-y': '0px', '--deal-rotate': card.r, '--deal-delay': card.d } as React.CSSProperties}>
-              <div className="w-7 h-10 rounded-sm bg-white/90 shadow-md flex items-center justify-center border border-gray-300">
-                <span className={`text-[10px] font-bold ${card.c}`}>{card.v}{card.s}</span>
+              <div className="w-10 h-14 rounded-md bg-white shadow-lg flex flex-col items-center justify-center border border-gray-200">
+                <span className="text-sm font-black text-gray-900 leading-none">{card.v}</span>
+                <span className="text-[10px] text-gray-900 leading-none">♠</span>
               </div>
             </div>
           ))}

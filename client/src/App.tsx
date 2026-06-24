@@ -161,7 +161,7 @@ function MobileRouter() {
 
 function MobileContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-full min-h-screen bg-[#080810] flex justify-center overflow-x-hidden relative">
+    <div className="h-full min-h-screen bg-[#080810] flex justify-center items-start overflow-x-hidden relative">
       {/* Decorative desktop background - only visible on wider screens */}
       <div className="hidden md:block fixed inset-0 pointer-events-none overflow-hidden">
         {/* Subtle radial glow behind phone frame */}
@@ -174,9 +174,33 @@ function MobileContainer({ children }: { children: React.ReactNode }) {
         <div className="absolute top-[60%] left-[5%] text-white/[0.02] text-4xl select-none rotate-12">♠</div>
         <div className="absolute top-[10%] right-[15%] text-white/[0.02] text-5xl select-none -rotate-12">♦</div>
       </div>
-      {/* Phone frame container */}
-      <div className="w-full max-w-[430px] h-full min-h-screen relative overflow-y-auto overflow-x-hidden md:shadow-[0_0_60px_rgba(212,160,23,0.08)] md:border-x md:border-white/[0.04]">
-        {children}
+      {/* Phone frame with TG-style header */}
+      <div className="w-full max-w-[430px] relative flex flex-col md:my-4 md:rounded-xl md:overflow-hidden md:shadow-[0_0_60px_rgba(212,160,23,0.08)] md:border md:border-white/[0.06]" style={{ minHeight: 'calc(100vh - 2rem)' }}>
+        {/* TG Mini App style header bar - only on desktop */}
+        <div className="hidden md:flex items-center justify-between px-4 py-2.5 bg-[#1c1c2e] border-b border-white/[0.06] shrink-0">
+          <span className="text-sm text-white/90 font-medium">Vera Poker</span>
+          <div className="flex items-center gap-3">
+            {/* Three dots menu */}
+            <button className="text-white/50 hover:text-white/80 transition-colors">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="5" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="12" cy="19" r="2" />
+              </svg>
+            </button>
+            {/* Close button */}
+            <button className="text-white/50 hover:text-white/80 transition-colors">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        {/* Content area */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
+          {children}
+        </div>
       </div>
     </div>
   );
