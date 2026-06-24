@@ -453,7 +453,8 @@ export default function Table() {
       // Expand to full height in Telegram WebApp
       tg.expand?.();
       // Try fullscreen for maximum viewport (Bot API 8.0+)
-      if (typeof tg.requestFullscreen === 'function') {
+      const tgVersion = parseFloat(tg.version || '0');
+      if (tgVersion >= 8.0 && typeof tg.requestFullscreen === 'function') {
         try { tg.requestFullscreen(); } catch (_) {}
       }
       const update = () => {

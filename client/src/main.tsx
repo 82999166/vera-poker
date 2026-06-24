@@ -16,7 +16,9 @@ import "./index.css";
     tg.ready();
     tg.expand();
     // Try to request fullscreen (Bot API 8.0+) for maximum viewport
-    if (typeof tg.requestFullscreen === 'function') {
+    // Only available in version 8.0+, skip for older versions to avoid console errors
+    const version = parseFloat(tg.version || '0');
+    if (version >= 8.0 && typeof tg.requestFullscreen === 'function') {
       try { tg.requestFullscreen(); } catch (_) {}
     }
     // Disable vertical swipe to close (keeps app open)
