@@ -406,24 +406,27 @@ html, body, #root {
   100% { opacity: 1; transform: translateY(0); }
 }
 
-/* Cards float down from top irregularly then align into royal flush */
+/* Cards fly in from corners/sides with natural arc motion */
 @keyframes splash-card-fall {
   0% { 
-    transform: translateX(var(--fall-start-x, 0)) translateY(var(--fall-start-y, -300px)) rotate(var(--fall-start-r, -20deg)); 
+    transform: translateX(var(--fall-start-x, 0)) translateY(var(--fall-start-y, -300px)) rotate(var(--fall-start-r, -20deg)) scale(0.7); 
     opacity: 0; 
   }
-  15% { opacity: 1; }
-  40% { 
-    transform: translateX(calc(var(--fall-start-x, 0) * 0.5)) translateY(-20px) rotate(calc(var(--fall-start-r, -20deg) * 0.3)); 
+  10% { opacity: 1; }
+  /* Mid-arc: card passes through center area with momentum */
+  45% { 
+    transform: translateX(calc(var(--fall-end-x, 0) * 0.6)) translateY(-30px) rotate(calc(var(--fall-start-r, -20deg) * 0.2)) scale(1.05); 
+    opacity: 1;
   }
-  70% { 
-    transform: translateX(var(--fall-end-x, 0)) translateY(8px) rotate(3deg); 
+  /* Overshoot slightly then settle */
+  75% { 
+    transform: translateX(var(--fall-end-x, 0)) translateY(6px) rotate(1.5deg) scale(1.02); 
   }
-  85% { 
-    transform: translateX(var(--fall-end-x, 0)) translateY(-3px) rotate(-1deg); 
+  88% { 
+    transform: translateX(var(--fall-end-x, 0)) translateY(-2px) rotate(-0.5deg) scale(0.99); 
   }
   100% { 
-    transform: translateX(var(--fall-end-x, 0)) translateY(0) rotate(0deg); 
+    transform: translateX(var(--fall-end-x, 0)) translateY(0) rotate(0deg) scale(1); 
     opacity: 1; 
   }
 }
@@ -512,6 +515,22 @@ html, body, #root {
   50% { opacity: 1; transform: scale(1); }
 }
 
+/* Royal Flush! text flash reveal */
+@keyframes splash-royal-flush-text {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.6) translateY(10px); filter: blur(8px); }
+  20% { opacity: 1; transform: translateX(-50%) scale(1.15) translateY(0); filter: blur(0); }
+  40% { transform: translateX(-50%) scale(0.98) translateY(0); }
+  60% { opacity: 1; transform: translateX(-50%) scale(1.05) translateY(0); }
+  80% { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1) translateY(-8px); }
+}
+
+/* Card gold border shimmer after alignment */
+@keyframes splash-card-shimmer {
+  0%, 100% { box-shadow: 0 0 0px rgba(234,179,8,0); border-color: rgba(209,213,219,1); }
+  50% { box-shadow: 0 0 16px rgba(234,179,8,0.8), 0 0 32px rgba(234,179,8,0.4); border-color: rgba(234,179,8,1); }
+}
+
 /* Classes */
 .animate-splash-logo {
   animation: splash-logo-enter 0.9s cubic-bezier(0.23, 1, 0.32, 1) forwards,
@@ -576,6 +595,18 @@ html, body, #root {
 
 .animate-splash-sparkle {
   animation: splash-sparkle 1.5s ease-in-out var(--sparkle-delay, 0s) infinite;
+}
+
+.animate-splash-card-shimmer {
+  animation: splash-card-shimmer 1.2s ease-in-out var(--shimmer-delay, 2.8s) 3;
+}
+
+.animate-splash-royal-flush {
+  animation: splash-royal-flush-text 2.2s cubic-bezier(0.23, 1, 0.32, 1) var(--rf-delay, 3.0s) forwards;
+  opacity: 0;
+  position: absolute;
+  left: 50%;
+  white-space: nowrap;
 }
 
 /* Turn timer ring - SVG circle countdown around active player avatar */

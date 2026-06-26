@@ -208,7 +208,7 @@ export default function Home() {
         <audio
           autoPlay
           playsInline
-          src="/manus-storage/card-deal-sound_bfa59586.mp3"
+          src="/manus-storage/card-shuffle-7s_bc7e02c3.mp3"
           style={{ display: 'none' }}
           ref={(el) => {
             if (el) {
@@ -255,27 +255,39 @@ export default function Home() {
         </div>
 
         {/* Center: 5 cards fly in from different directions to form Royal Flush */}
-        {/* A from top-left */}
+        {/* Layout: A=top-left, K=left-middle, Q=center(appear), J=top-right, 10=right-middle */}
         <div className="absolute top-[42%] left-1/2 -translate-x-1/2 flex items-center justify-center">
-          {[{ v: 'A', suit: '♠', startX: '-180px', startY: '-250px', startR: '-30deg', delay: '0.6s', endX: -104 },
-            { v: 'K', suit: '♠', startX: '180px', startY: '-250px', startR: '25deg', delay: '1.0s', endX: -52 },
-            { v: 'Q', suit: '♠', startX: '0px', startY: '0px', startR: '0deg', delay: '0.2s', endX: 0 },
-            { v: 'J', suit: '♠', startX: '-180px', startY: '50px', startR: '-20deg', delay: '1.4s', endX: 52 },
-            { v: '10', suit: '♠', startX: '180px', startY: '50px', startR: '20deg', delay: '1.8s', endX: 104 },
+          {[
+            // A: from top-left corner, swoops down-right naturally
+            { v: 'A', suit: '♠', startX: '-220px', startY: '-320px', startR: '-45deg', delay: '0.5s', endX: -104, isCenter: false },
+            // K: from left-middle side, flies right with slight upward arc
+            { v: 'K', suit: '♠', startX: '-280px', startY: '30px', startR: '-25deg', delay: '0.9s', endX: -52, isCenter: false },
+            // Q: appears in center with scale-up (no fly-in)
+            { v: 'Q', suit: '♠', startX: '0px', startY: '0px', startR: '0deg', delay: '0.2s', endX: 0, isCenter: true },
+            // J: from top-right corner, swoops down-left naturally
+            { v: 'J', suit: '♠', startX: '220px', startY: '-320px', startR: '45deg', delay: '1.3s', endX: 52, isCenter: false },
+            // 10: from right-middle side, flies left with slight upward arc
+            { v: '10', suit: '♠', startX: '280px', startY: '30px', startR: '25deg', delay: '1.7s', endX: 104, isCenter: false },
           ].map((card, i) => (
-            <div key={i} className={i === 2 ? 'animate-splash-card-center' : 'animate-splash-card-fall'} style={{
+            <div key={i} className={card.isCenter ? 'animate-splash-card-center' : 'animate-splash-card-fall'} style={{
               '--fall-start-x': card.startX,
               '--fall-start-y': card.startY,
               '--fall-start-r': card.startR,
               '--fall-delay': card.delay,
               '--fall-end-x': `${card.endX}px`,
+              '--shimmer-delay': `${2.4 + i * 0.1}s`,
             } as React.CSSProperties}>
-              <div className="w-12 h-[68px] rounded-lg bg-white shadow-xl flex flex-col items-center justify-center border border-gray-200" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+              <div className="w-12 h-[68px] rounded-lg bg-white flex flex-col items-center justify-center border-2 border-gray-200 animate-splash-card-shimmer" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.35)' }}>
                 <span className="text-base font-black text-gray-900 leading-none">{card.v}</span>
                 <span className="text-sm text-gray-900 leading-none mt-0.5">{card.suit}</span>
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Royal Flush! gold text flash - appears after all cards land (~3s) */}
+        <div className="animate-splash-royal-flush top-[36%]" style={{ '--rf-delay': '3.0s' } as React.CSSProperties}>
+          <span className="text-xl font-black tracking-widest" style={{ background: 'linear-gradient(90deg, #eab308 0%, #fde68a 40%, #eab308 70%, #d97706 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textShadow: 'none', filter: 'drop-shadow(0 0 12px rgba(234,179,8,0.8))' }}>✦ ROYAL FLUSH ✦</span>
         </div>
 
         {/* Gold glow behind cards when they align */}
