@@ -32,14 +32,14 @@ export default function Home() {
   useEffect(() => {
     if (splashTimerRef.current) return;
     splashTimerRef.current = true;
-    // Start fade-out at 5s
+    // Start fade-out at 7s
     const fadeTimer = setTimeout(() => {
       setSplashFading(true);
-    }, 5000);
-    // Fully hide at 5.5s (after 500ms fade)
+    }, 7000);
+    // Fully hide at 7.5s (after 500ms fade)
     const hideTimer = setTimeout(() => {
       setShowSplash(false);
-    }, 5500);
+    }, 7500);
     return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
   }, []);
 
@@ -254,20 +254,21 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Center: 5 cards float down from top to form Royal Flush */}
+        {/* Center: 5 cards fly in from different directions to form Royal Flush */}
+        {/* A from top-left */}
         <div className="absolute top-[42%] left-1/2 -translate-x-1/2 flex items-center justify-center">
-          {[{ v: 'A', suit: '♠', startX: '-30px', startY: '-350px', startR: '-25deg', delay: '0.4s' },
-            { v: 'K', suit: '♠', startX: '40px', startY: '-380px', startR: '15deg', delay: '0.7s' },
-            { v: 'Q', suit: '♠', startX: '-50px', startY: '-320px', startR: '-35deg', delay: '1.0s' },
-            { v: 'J', suit: '♠', startX: '60px', startY: '-360px', startR: '30deg', delay: '1.3s' },
-            { v: '10', suit: '♠', startX: '-20px', startY: '-400px', startR: '-10deg', delay: '1.6s' },
+          {[{ v: 'A', suit: '♠', startX: '-180px', startY: '-250px', startR: '-30deg', delay: '0.6s', endX: -104 },
+            { v: 'K', suit: '♠', startX: '180px', startY: '-250px', startR: '25deg', delay: '1.0s', endX: -52 },
+            { v: 'Q', suit: '♠', startX: '0px', startY: '0px', startR: '0deg', delay: '0.2s', endX: 0 },
+            { v: 'J', suit: '♠', startX: '-180px', startY: '50px', startR: '-20deg', delay: '1.4s', endX: 52 },
+            { v: '10', suit: '♠', startX: '180px', startY: '50px', startR: '20deg', delay: '1.8s', endX: 104 },
           ].map((card, i) => (
-            <div key={i} className="animate-splash-card-fall" style={{
+            <div key={i} className={i === 2 ? 'animate-splash-card-center' : 'animate-splash-card-fall'} style={{
               '--fall-start-x': card.startX,
               '--fall-start-y': card.startY,
               '--fall-start-r': card.startR,
               '--fall-delay': card.delay,
-              '--fall-end-x': `${(i - 2) * 52}px`,
+              '--fall-end-x': `${card.endX}px`,
             } as React.CSSProperties}>
               <div className="w-12 h-[68px] rounded-lg bg-white shadow-xl flex flex-col items-center justify-center border border-gray-200" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
                 <span className="text-base font-black text-gray-900 leading-none">{card.v}</span>
