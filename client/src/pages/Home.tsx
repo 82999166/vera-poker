@@ -32,14 +32,14 @@ export default function Home() {
   useEffect(() => {
     if (splashTimerRef.current) return;
     splashTimerRef.current = true;
-    // Start fade-out at 7s
+    // Start fade-out at 9s (7s animation + 2s extra wait)
     const fadeTimer = setTimeout(() => {
       setSplashFading(true);
-    }, 7000);
-    // Fully hide at 7.5s (after 500ms fade)
+    }, 9000);
+    // Fully hide at 9.5s (after 500ms fade)
     const hideTimer = setTimeout(() => {
       setShowSplash(false);
-    }, 7500);
+    }, 9500);
     return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
   }, []);
 
@@ -234,7 +234,7 @@ export default function Home() {
         <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[180px] rounded-[50%] animate-splash-table" style={{ background: 'radial-gradient(ellipse, rgba(34,139,34,0.15) 0%, transparent 70%)', border: '1px solid rgba(34,139,34,0.08)' }} />
 
         {/* Top section: Logo + Brand (positioned in upper area) */}
-        <div className="relative z-10 flex flex-col items-center mt-[15%]">
+        <div className="relative z-10 flex flex-col items-center mt-[22%]">
           {/* Logo with glow animation */}
           <div className="animate-splash-logo rounded-2xl">
             <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #eab308 0%, #a78b00 50%, #2563eb 100%)' }}>
@@ -256,7 +256,7 @@ export default function Home() {
 
         {/* Center: 5 cards fly in from different directions to form Royal Flush */}
         {/* Layout: A=top-left, K=left-middle, Q=center(appear), J=top-right, 10=right-middle */}
-        <div className="absolute top-[42%] left-1/2 -translate-x-1/2 flex items-center justify-center">
+        <div className="absolute top-[52%] left-1/2 -translate-x-1/2 flex items-center justify-center">
           {[
             // A: from top-left corner, swoops down-right naturally
             { v: 'A', suit: '♠', startX: '-220px', startY: '-320px', startR: '-45deg', delay: '0.5s', endX: -104, isCenter: false },
@@ -286,7 +286,7 @@ export default function Home() {
         </div>
 
         {/* Royal Flush! gold text flash - appears after all cards land (~3s) */}
-        <div className="animate-splash-royal-flush top-[36%]" style={{ '--rf-delay': '3.0s' } as React.CSSProperties}>
+        <div className="animate-splash-royal-flush top-[46%]" style={{ '--rf-delay': '3.0s' } as React.CSSProperties}>
           <span className="text-xl font-black tracking-widest" style={{ background: 'linear-gradient(90deg, #eab308 0%, #fde68a 40%, #eab308 70%, #d97706 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textShadow: 'none', filter: 'drop-shadow(0 0 12px rgba(234,179,8,0.8))' }}>✦ ROYAL FLUSH ✦</span>
         </div>
 
