@@ -824,8 +824,10 @@ export default function Table() {
     const info = (tableState as any)?.lastActionInfo;
     if (!info || muted) return;
     // Only announce if it's a new action from another player
+    // Use String() comparison to avoid type mismatch (number vs string)
     const infoKey = `${info.playerId}-${info.timestamp}`;
-    if (infoKey !== lastActionInfoRef.current && info.playerId !== user?.id) {
+    const isOwnAction = String(info.playerId) === String(user?.id);
+    if (infoKey !== lastActionInfoRef.current && !isOwnAction) {
       lastActionInfoRef.current = infoKey;
       // Play coin sound for opponent bet/call/raise actions
       if (["bet", "call", "raise"].includes(info.action)) {
