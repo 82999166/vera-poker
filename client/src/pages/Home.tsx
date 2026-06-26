@@ -203,94 +203,104 @@ export default function Home() {
   const shouldShowSplash = showSplash || (isTgApp && (isAuthenticating || (tgLoginSuccess && loading)));
   if (shouldShowSplash) {
     return (
-      <div className={`absolute inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden transition-opacity duration-500 ${splashFading ? 'opacity-0' : 'opacity-100'}`} style={{ background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d1a 50%, #050510 100%)' }}>
-        {/* Card dealing sound effect */}
-        <audio autoPlay src="/manus-storage/card-deal-sound_bfa59586.mp3" style={{ display: 'none' }} />
-        {/* Poker table felt glow in background */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[180px] rounded-[50%] animate-splash-table" style={{ background: 'radial-gradient(ellipse, rgba(34,139,34,0.12) 0%, transparent 70%)', border: '1px solid rgba(34,139,34,0.08)' }} />
+      <div className={`absolute inset-0 z-[9999] flex flex-col items-center overflow-hidden transition-opacity duration-500 ${splashFading ? 'opacity-0' : 'opacity-100'}`} style={{ background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d1a 50%, #050510 100%)' }}>
+        {/* Card dealing sound effect - handles autoplay restrictions */}
+        <audio
+          autoPlay
+          playsInline
+          src="/manus-storage/card-deal-sound_bfa59586.mp3"
+          style={{ display: 'none' }}
+          ref={(el) => {
+            if (el) {
+              // Try to play immediately
+              const playPromise = el.play();
+              if (playPromise) {
+                playPromise.catch(() => {
+                  // Autoplay blocked - play on first user interaction
+                  const playOnInteraction = () => {
+                    el.play().catch(() => {});
+                    document.removeEventListener('touchstart', playOnInteraction);
+                    document.removeEventListener('click', playOnInteraction);
+                  };
+                  document.addEventListener('touchstart', playOnInteraction, { once: true });
+                  document.addEventListener('click', playOnInteraction, { once: true });
+                });
+              }
+            }
+          }}
+        />
 
-        {/* Flying poker cards - left side */}
-        <div className="absolute top-[18%] left-[8%] animate-splash-card-left" style={{ '--card-delay': '0.3s', '--card-end-rotate': '-12deg' } as React.CSSProperties}>
-          <div className="w-10 h-14 rounded-md bg-white shadow-lg flex items-center justify-center text-lg font-bold text-red-600 border border-gray-200">
-            <span>A<span className="text-xs">♥</span></span>
-          </div>
-        </div>
-        <div className="absolute top-[30%] left-[5%] animate-splash-card-left" style={{ '--card-delay': '0.5s', '--card-end-rotate': '-18deg' } as React.CSSProperties}>
-          <div className="w-10 h-14 rounded-md bg-white shadow-lg flex items-center justify-center text-lg font-bold text-gray-900 border border-gray-200">
-            <span>K<span className="text-xs">♠</span></span>
-          </div>
-        </div>
+        {/* Poker table felt glow in background center */}
+        <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[180px] rounded-[50%] animate-splash-table" style={{ background: 'radial-gradient(ellipse, rgba(34,139,34,0.15) 0%, transparent 70%)', border: '1px solid rgba(34,139,34,0.08)' }} />
 
-        {/* Flying poker cards - right side */}
-        <div className="absolute top-[18%] right-[8%] animate-splash-card-right" style={{ '--card-delay': '0.4s', '--card-end-rotate': '10deg' } as React.CSSProperties}>
-          <div className="w-10 h-14 rounded-md bg-white shadow-lg flex items-center justify-center text-lg font-bold text-red-600 border border-gray-200">
-            <span>A<span className="text-xs">♦</span></span>
-          </div>
-        </div>
-        <div className="absolute top-[32%] right-[6%] animate-splash-card-right" style={{ '--card-delay': '0.6s', '--card-end-rotate': '15deg' } as React.CSSProperties}>
-          <div className="w-10 h-14 rounded-md bg-white shadow-lg flex items-center justify-center text-lg font-bold text-gray-900 border border-gray-200">
-            <span>Q<span className="text-xs">♣</span></span>
-          </div>
-        </div>
-
-        {/* Community cards - Royal Flush A K Q J 10 all spades ♠ */}
-        <div className="absolute top-[60%] left-1/2 -translate-x-1/2 flex gap-2">
-          {[{ v: 'A', dx: '-52px', r: '-3deg', d: '0.8s' },
-            { v: 'K', dx: '-26px', r: '-1deg', d: '1.0s' },
-            { v: 'Q', dx: '0px', r: '0deg', d: '1.2s' },
-            { v: 'J', dx: '26px', r: '2deg', d: '1.4s' },
-            { v: '10', dx: '52px', r: '3deg', d: '1.6s' },
-          ].map((card, i) => (
-            <div key={i} className="animate-splash-deal" style={{ '--deal-x': card.dx, '--deal-y': '0px', '--deal-rotate': card.r, '--deal-delay': card.d } as React.CSSProperties}>
-              <div className="w-10 h-14 rounded-md bg-white shadow-lg flex flex-col items-center justify-center border border-gray-200">
-                <span className="text-sm font-black text-gray-900 leading-none">{card.v}</span>
-                <span className="text-[10px] text-gray-900 leading-none">♠</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Poker chips bouncing in */}
-        <div className="absolute bottom-[22%] left-[15%] animate-splash-chip" style={{ '--chip-delay': '0.7s' } as React.CSSProperties}>
-          <div className="w-8 h-8 rounded-full border-[3px] border-dashed border-red-500 bg-red-600 flex items-center justify-center shadow-lg">
-            <span className="text-[8px] font-black text-white">50</span>
-          </div>
-        </div>
-        <div className="absolute bottom-[20%] right-[18%] animate-splash-chip" style={{ '--chip-delay': '0.9s' } as React.CSSProperties}>
-          <div className="w-8 h-8 rounded-full border-[3px] border-dashed border-blue-400 bg-blue-600 flex items-center justify-center shadow-lg">
-            <span className="text-[8px] font-black text-white">100</span>
-          </div>
-        </div>
-        <div className="absolute bottom-[26%] left-[40%] animate-splash-chip" style={{ '--chip-delay': '1.1s' } as React.CSSProperties}>
-          <div className="w-7 h-7 rounded-full border-[3px] border-dashed border-gold bg-yellow-600 flex items-center justify-center shadow-lg">
-            <span className="text-[7px] font-black text-white">500</span>
-          </div>
-        </div>
-
-        {/* Sparkle effects on cards */}
-        <div className="absolute top-[16%] left-[12%] w-1.5 h-1.5 rounded-full bg-gold animate-splash-sparkle" style={{ '--sparkle-delay': '1s' } as React.CSSProperties} />
-        <div className="absolute top-[20%] right-[11%] w-1 h-1 rounded-full bg-white animate-splash-sparkle" style={{ '--sparkle-delay': '1.5s' } as React.CSSProperties} />
-        <div className="absolute bottom-[28%] right-[20%] w-1.5 h-1.5 rounded-full bg-truth-blue animate-splash-sparkle" style={{ '--sparkle-delay': '2s' } as React.CSSProperties} />
-
-        {/* Main content - Logo + Brand */}
-        <div className="relative z-10 flex flex-col items-center">
+        {/* Top section: Logo + Brand (positioned in upper area) */}
+        <div className="relative z-10 flex flex-col items-center mt-[15%]">
           {/* Logo with glow animation */}
           <div className="animate-splash-logo rounded-2xl">
-            <div className="w-24 h-24 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #eab308 0%, #a78b00 50%, #2563eb 100%)' }}>
-              <span className="text-4xl font-black text-background tracking-tight">VP</span>
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #eab308 0%, #a78b00 50%, #2563eb 100%)' }}>
+              <span className="text-3xl font-black text-background tracking-tight">VP</span>
             </div>
           </div>
 
           {/* Brand name */}
-          <h1 className="mt-5 text-3xl font-black animate-splash-title">
+          <h1 className="mt-4 text-2xl font-black animate-splash-title">
             <span className="text-gold">Vera</span>{" "}
             <span className="text-foreground">Poker</span>
           </h1>
 
           {/* Tagline */}
-          <p className="mt-1.5 text-sm text-muted-foreground italic animate-splash-tagline">
+          <p className="mt-1 text-xs text-muted-foreground italic animate-splash-tagline">
             "Where Truth Deals."
           </p>
+        </div>
+
+        {/* Center: 5 cards float down from top to form Royal Flush */}
+        <div className="absolute top-[42%] left-1/2 -translate-x-1/2 flex items-center justify-center">
+          {[{ v: 'A', suit: '♠', startX: '-30px', startY: '-350px', startR: '-25deg', delay: '0.4s' },
+            { v: 'K', suit: '♠', startX: '40px', startY: '-380px', startR: '15deg', delay: '0.7s' },
+            { v: 'Q', suit: '♠', startX: '-50px', startY: '-320px', startR: '-35deg', delay: '1.0s' },
+            { v: 'J', suit: '♠', startX: '60px', startY: '-360px', startR: '30deg', delay: '1.3s' },
+            { v: '10', suit: '♠', startX: '-20px', startY: '-400px', startR: '-10deg', delay: '1.6s' },
+          ].map((card, i) => (
+            <div key={i} className="animate-splash-card-fall" style={{
+              '--fall-start-x': card.startX,
+              '--fall-start-y': card.startY,
+              '--fall-start-r': card.startR,
+              '--fall-delay': card.delay,
+              '--fall-end-x': `${(i - 2) * 52}px`,
+            } as React.CSSProperties}>
+              <div className="w-12 h-[68px] rounded-lg bg-white shadow-xl flex flex-col items-center justify-center border border-gray-200" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+                <span className="text-base font-black text-gray-900 leading-none">{card.v}</span>
+                <span className="text-sm text-gray-900 leading-none mt-0.5">{card.suit}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Gold glow behind cards when they align */}
+        <div className="absolute top-[42%] left-1/2 -translate-x-1/2 w-[300px] h-[90px] animate-splash-card-glow" style={{ background: 'radial-gradient(ellipse, rgba(234,179,8,0.3) 0%, transparent 70%)', borderRadius: '50%' }} />
+
+        {/* Sparkle effects */}
+        <div className="absolute top-[35%] left-[15%] w-1.5 h-1.5 rounded-full bg-gold animate-splash-sparkle" style={{ '--sparkle-delay': '2.5s' } as React.CSSProperties} />
+        <div className="absolute top-[38%] right-[12%] w-1 h-1 rounded-full bg-white animate-splash-sparkle" style={{ '--sparkle-delay': '3s' } as React.CSSProperties} />
+        <div className="absolute top-[50%] left-[20%] w-1.5 h-1.5 rounded-full bg-truth-blue animate-splash-sparkle" style={{ '--sparkle-delay': '3.5s' } as React.CSSProperties} />
+        <div className="absolute top-[48%] right-[18%] w-1 h-1 rounded-full bg-gold animate-splash-sparkle" style={{ '--sparkle-delay': '2.8s' } as React.CSSProperties} />
+
+        {/* Poker chips floating around */}
+        <div className="absolute top-[62%] left-[12%] animate-splash-chip" style={{ '--chip-delay': '2.0s' } as React.CSSProperties}>
+          <div className="w-8 h-8 rounded-full border-[3px] border-dashed border-red-500 bg-red-600 flex items-center justify-center shadow-lg">
+            <span className="text-[8px] font-black text-white">50</span>
+          </div>
+        </div>
+        <div className="absolute top-[60%] right-[14%] animate-splash-chip" style={{ '--chip-delay': '2.3s' } as React.CSSProperties}>
+          <div className="w-8 h-8 rounded-full border-[3px] border-dashed border-blue-400 bg-blue-600 flex items-center justify-center shadow-lg">
+            <span className="text-[8px] font-black text-white">100</span>
+          </div>
+        </div>
+        <div className="absolute top-[65%] left-[42%] animate-splash-chip" style={{ '--chip-delay': '2.6s' } as React.CSSProperties}>
+          <div className="w-7 h-7 rounded-full border-[3px] border-dashed border-gold bg-yellow-600 flex items-center justify-center shadow-lg">
+            <span className="text-[7px] font-black text-white">500</span>
+          </div>
         </div>
 
         {/* Bottom section - progress + connection */}
