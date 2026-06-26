@@ -819,29 +819,34 @@ export default function Table() {
   }, [tableState, isSeated, user?.id]);
 
   // Detect other players' actions for voice announcement
-  const lastActionInfoRef = useRef<any>(null);
+  // Use a stable string key to prevent duplicate announcements across re-renders/polls
+  const lastActionKeyRef = useRef<string>("");
+  const lastActionInfoRaw = (tableState as any)?.lastActionInfo;
+  const lastActionInfoKey = lastActionInfoRaw ? `${lastActionInfoRaw.playerId}-${lastActionInfoRaw.action}-${lastActionInfoRaw.timestamp}` : "";
   useEffect(() => {
-    const info = (tableState as any)?.lastActionInfo;
-    if (!info || muted) return;
-    // Only announce if it's a new action from another player
+    if (!lastActionInfoRaw || muted) return;
+    if (!lastActionInfoKey || lastActionInfoKey === lastActionKeyRef.current) return;
     // Use String() comparison to avoid type mismatch (number vs string)
-    const infoKey = `${info.playerId}-${info.timestamp}`;
-    const isOwnAction = String(info.playerId) === String(user?.id);
-    if (infoKey !== lastActionInfoRef.current && !isOwnAction) {
-      lastActionInfoRef.current = infoKey;
-      // Play coin sound for opponent bet/call/raise actions
-      if (["bet", "call", "raise"].includes(info.action)) {
-        playSound("coinDrop");
-      } else if (info.action === "fold") {
-        playSound("fold");
-      } else if (info.action === "check") {
-        playSound("check");
-      } else if (info.action === "all_in" || info.action === "allin") {
-        playSound("allIn");
-      }
-      announceAction(info.action, info.amount, info.playerName);
+    const isOwnAction = String(lastActionInfoRaw.playerId) === String(user?.id);
+    if (isOwnAction) {
+      // Still record the key so we don't re-process it
+      lastActionKeyRef.current = lastActionInfoKey;
+      return;
     }
-  }, [(tableState as any)?.lastActionInfo, muted, user?.id, announceAction]);
+    lastActionKeyRef.current = lastActionInfoKey;
+    // Play coin sound for opponent bet/call/raise actions
+    if (["bet", "call", "raise"].includes(lastActionInfoRaw.action)) {
+      playSound("coinDrop");
+    } else if (lastActionInfoRaw.action === "fold") {
+      playSound("fold");
+    } else if (lastActionInfoRaw.action === "check") {
+      playSound("check");
+    } else if (lastActionInfoRaw.action === "all_in" || lastActionInfoRaw.action === "allin") {
+      playSound("allIn");
+    }
+    announceAction(lastActionInfoRaw.action, lastActionInfoRaw.amount, lastActionInfoRaw.playerName);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastActionInfoKey, muted]);
 
   // Mutations
   const reportLocationMutation = trpc.game.reportLocation.useMutation();
