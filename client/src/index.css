@@ -584,7 +584,7 @@ html, body, #root {
 }
 
 .animate-splash-progress {
-  animation: splash-progress 6.5s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
+  animation: splash-progress 4.2s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
   width: 0%;
 }
 
