@@ -25,10 +25,12 @@ export default function Home() {
   const [tgLoginAttempted, setTgLoginAttempted] = useState(false);
   const [tgLoginSuccess, setTgLoginSuccess] = useState(false);
 
-  // Splash screen: show for ALL users on first load (minimum 5.5s)
+  // Splash screen: show for ALL users on first load (minimum 9.5s)
   const [showSplash, setShowSplash] = useState(true);
   const [splashFading, setSplashFading] = useState(false);
   const splashTimerRef = useRef(false);
+  // Record the exact time splash started so navigation can wait for it
+  const splashStartTime = useRef(Date.now());
   useEffect(() => {
     if (splashTimerRef.current) return;
     splashTimerRef.current = true;
@@ -176,7 +178,11 @@ export default function Home() {
       navigate("/lobby");
     };
 
-    const timer = setTimeout(handleDeepLink, 2000);
+    // Wait for splash screen to finish (9.5s total) before navigating
+    const elapsed = Date.now() - splashStartTime.current;
+    const splashDuration = 9500; // must match the splash hide timer above
+    const waitMs = Math.max(300, splashDuration - elapsed);
+    const timer = setTimeout(handleDeepLink, waitMs);
     return () => clearTimeout(timer);
   }, [isAuthenticated, loading, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
