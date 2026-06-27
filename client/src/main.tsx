@@ -14,13 +14,9 @@ import "./index.css";
   const tg = (window as any).Telegram?.WebApp;
   if (tg) {
     tg.ready();
-    tg.expand();
-    // Try to request fullscreen (Bot API 8.0+) for maximum viewport
-    // Only available in version 8.0+, skip for older versions to avoid console errors
-    const version = parseFloat(tg.version || '0');
-    if (version >= 8.0 && typeof tg.requestFullscreen === 'function') {
-      try { tg.requestFullscreen(); } catch (_) {}
-    }
+    // NOTE: Do NOT call tg.expand() or tg.requestFullscreen() here.
+    // BotFather is set to Fullsize mode which controls the window size.
+    // Calling expand/requestFullscreen would override that setting and force fullscreen.
     // Disable vertical swipe to close (keeps app open)
     if (typeof tg.disableVerticalSwipes === 'function') {
       tg.disableVerticalSwipes();
