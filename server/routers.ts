@@ -2724,6 +2724,97 @@ ${faqContext}
         .where(inArray(users.role, ["admin", "cs", "finance", "tech"]));
       return { count: result?.count ?? 0 };
     }),
+    // Export all real users as CSV data
+    exportUsers: adminProcedure.input(z.object({
+      filter: z.enum(["all", "real", "bot"]).default("real"),
+    })).query(async ({ input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { users: [] };
+      const { users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      let query = dbInstance.select({
+        id: users.id,
+        name: users.name,
+        nickname: users.nickname,
+        tgId: users.tgId,
+        tgUsername: users.tgUsername,
+        language: users.language,
+        balance: users.balance,
+        bonusBalance: users.bonusBalance,
+        riskLevel: users.riskLevel,
+        agentLevel: users.agentLevel,
+        totalGamesPlayed: users.totalGamesPlayed,
+        totalDeposited: users.totalDeposited,
+        totalRakeGenerated: users.totalRakeGenerated,
+        isBot: users.isBot,
+        lastIp: users.lastIp,
+        lastLoginDevice: users.lastLoginDevice,
+        inviteCode: users.inviteCode,
+        withdrawAddress: users.withdrawAddress,
+        withdrawChain: users.withdrawChain,
+        createdAt: users.createdAt,
+        lastSignedIn: users.lastSignedIn,
+      }).from(users);
+      if (input.filter === "real") {
+        const result = await (query as any).where(eq(users.isBot, false));
+        return { users: result };
+      } else if (input.filter === "bot") {
+        const result = await (query as any).where(eq(users.isBot, true));
+        return { users: result };
+      }
+      const result = await query;
+      return { users: result };
+    }),
+    // Database backup - export all tables as JSON
+    dbBackup: adminProcedure.query(async () => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+      const { users, rooms, transactions, systemConfigs, agentRelationships, commissionRecords, gameHands, faqEntries, riskEvents, roomBotConfig } = await import("../drizzle/schema");
+      // Export all tables (excluding sensitive password hashes)
+      const [usersData, roomsData, txData, configsData, agentRelData, agentCommData, handsData, faqData, riskData, botConfigData] = await Promise.all([
+        dbInstance.select({
+          id: users.id, name: users.name, nickname: users.nickname,
+          tgId: users.tgId, tgUsername: users.tgUsername, language: users.language,
+          balance: users.balance, bonusBalance: users.bonusBalance, frozenBalance: users.frozenBalance,
+          riskLevel: users.riskLevel, agentLevel: users.agentLevel, isBot: users.isBot,
+          totalGamesPlayed: users.totalGamesPlayed, totalDeposited: users.totalDeposited,
+          totalRakeGenerated: users.totalRakeGenerated, inviteCode: users.inviteCode,
+          withdrawAddress: users.withdrawAddress, withdrawChain: users.withdrawChain,
+          createdAt: users.createdAt, lastSignedIn: users.lastSignedIn,
+        }).from(users),
+        dbInstance.select().from(rooms),
+        dbInstance.select().from(transactions),
+        dbInstance.select().from(systemConfigs),
+        dbInstance.select().from(agentRelationships),
+        dbInstance.select().from(commissionRecords),
+        dbInstance.select().from(gameHands),
+        dbInstance.select().from(faqEntries),
+        dbInstance.select().from(riskEvents),
+        dbInstance.select().from(roomBotConfig),
+      ]);
+      return {
+        exportedAt: new Date().toISOString(),
+        version: "1.0",
+        tables: {
+          users: usersData,
+          rooms: roomsData,
+          transactions: txData,
+          systemConfigs: configsData,
+          agentRelationships: agentRelData,
+          commissionRecords: agentCommData,
+          gameHands: handsData,
+          faqEntries: faqData,
+          riskEvents: riskData,
+          roomBotConfig: botConfigData,
+        },
+        counts: {
+          users: usersData.length,
+          rooms: roomsData.length,
+          transactions: txData.length,
+          gameHands: handsData.length,
+        },
+      };
+    }),
   }),
   // ==================== BOT MANAGEMENT ====================
   adminBot: router({

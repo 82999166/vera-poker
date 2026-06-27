@@ -1896,6 +1896,8 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
   const [userFilter, setUserFilter] = useState<"all" | "real" | "bot">("real");
   const { data, isLoading, refetch } = trpc.admin.users.useQuery({ page, limit: 50, filter: userFilter });
   const { data: statsData } = trpc.admin.stats.useQuery();
+  const utils = trpc.useUtils();
+  const [exporting, setExporting] = useState(false);
   const updateMutation = trpc.admin.updateUser.useMutation({
     onSuccess: () => { toast.success(at("users.updated")); refetch(); },
   });
@@ -1990,6 +1992,37 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 glass rounded-lg px-3 py-1.5 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
         />
+        <button
+          disabled={exporting}
+          onClick={async () => {
+            setExporting(true);
+            try {
+              const result = await utils.admin.exportUsers.fetch({ filter: userFilter });
+              if (!result?.users?.length) { toast.error("暂无数据可导出"); return; }
+              const headers = ["ID","用户名","昵称","TG ID","TG用户名","语言","余额","奖金余额","风控等级","代理等级","总游戏数","总充值","总抽水","是否机器人","最后IP","设备","邀请码","提现地址","提现链","注册时间","最后登录"];
+              const rows = result.users.map((u: any) => [
+                u.id, u.name||"" , u.nickname||"", u.tgId||"", u.tgUsername||"", u.language||"",
+                u.balance, u.bonusBalance, u.riskLevel, u.agentLevel,
+                u.totalGamesPlayed, u.totalDeposited, u.totalRakeGenerated,
+                u.isBot ? "是" : "否", u.lastIp||"", u.lastLoginDevice||"",
+                u.inviteCode||"", u.withdrawAddress||"", u.withdrawChain||"",
+                u.createdAt ? new Date(u.createdAt).toLocaleString() : "",
+                u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleString() : "",
+              ]);
+              const csv = [headers, ...rows].map(r => r.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+              const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url; a.download = `users_${userFilter}_${new Date().toISOString().slice(0,10)}.csv`;
+              a.click(); URL.revokeObjectURL(url);
+              toast.success(`已导出 ${result.users.length} 条用户数据`);
+            } catch (e: any) { toast.error("导出失败: " + (e.message || "未知错误")); }
+            finally { setExporting(false); }
+          }}
+          className="shrink-0 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+        >
+          {exporting ? "导出中..." : "导出CSV"}
+        </button>
       </div>
       {/* User list - two-row card layout */}
       <div className="space-y-1.5">
@@ -4520,6 +4553,9 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
         </div>
       </div>
 
+      {/* Data Export & Backup */}
+      <DataExportPanel at={at} />
+
       {/* Supported Languages */}
       <div className="glass rounded-xl p-4">
         <h3 className="text-sm font-semibold mb-3">{at("settings.supportedLangs")}</h3>
@@ -4543,6 +4579,119 @@ function SystemSettingsPanel({ at }: { at: (k: string) => string }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ==================== DATA EXPORT PANEL ====================
+function DataExportPanel({ at }: { at: (k: string) => string }) {
+  const utils = trpc.useUtils();
+  const [exportingUsers, setExportingUsers] = useState(false);
+  const [exportingBots, setExportingBots] = useState(false);
+  const [exportingBackup, setExportingBackup] = useState(false);
+
+  const downloadCsv = (rows: any[][], filename: string) => {
+    const csv = rows.map(r => r.map((v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+  };
+
+  const handleExportUsers = async (filter: "all" | "real" | "bot") => {
+    setExportingUsers(true);
+    try {
+      const result = await utils.admin.exportUsers.fetch({ filter });
+      if (!result?.users?.length) { toast.error("暂无数据可导出"); return; }
+      const headers = ["ID","用户名","昵称","TG ID","TG用户名","语言","余额","奖金余额","风控等级","代理等级","总游戏数","总充值","总抽水","是否机器人","最后IP","设备","邀请码","提现地址","提现链","注册时间","最后登录"];
+      const rows = result.users.map((u: any) => [
+        u.id, u.name||"", u.nickname||"", u.tgId||"", u.tgUsername||"", u.language||"",
+        u.balance, u.bonusBalance, u.riskLevel, u.agentLevel,
+        u.totalGamesPlayed, u.totalDeposited, u.totalRakeGenerated,
+        u.isBot ? "是" : "否", u.lastIp||"", u.lastLoginDevice||"",
+        u.inviteCode||"", u.withdrawAddress||"", u.withdrawChain||"",
+        u.createdAt ? new Date(u.createdAt).toLocaleString() : "",
+        u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleString() : "",
+      ]);
+      downloadCsv([headers, ...rows], `users_${filter}_${new Date().toISOString().slice(0,10)}.csv`);
+      toast.success(`已导出 ${result.users.length} 条${filter === "bot" ? "机器人" : "用户"}数据`);
+    } catch (e: any) { toast.error("导出失败: " + (e.message || "未知错误")); }
+    finally { setExportingUsers(false); }
+  };
+
+  const handleExportBots = async () => {
+    setExportingBots(true);
+    try {
+      const result = await utils.adminBot.exportBots.fetch();
+      if (!result?.bots?.length) { toast.error("暂无机器人数据"); return; }
+      const headers = ["ID","OpenID","名称","昵称","余额","注册时间"];
+      const rows = result.bots.map((b: any) => [
+        b.id, b.openId||"", b.name||"", b.nickname||"", b.balance,
+        b.createdAt ? new Date(b.createdAt).toLocaleString() : "",
+      ]);
+      downloadCsv([headers, ...rows], `bots_${new Date().toISOString().slice(0,10)}.csv`);
+      toast.success(`已导出 ${result.bots.length} 个机器人`);
+    } catch (e: any) { toast.error("导出失败: " + (e.message || "未知错误")); }
+    finally { setExportingBots(false); }
+  };
+
+  const handleDbBackup = async () => {
+    setExportingBackup(true);
+    try {
+      const result = await utils.admin.dbBackup.fetch();
+      if (!result) { toast.error("备份失败"); return; }
+      const json = JSON.stringify(result, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `db_backup_${new Date().toISOString().slice(0,19).replace(/:/g,"-")}.json`;
+      a.click(); URL.revokeObjectURL(url);
+      const c = (result as any).counts;
+      toast.success(`备份完成：${c?.users ?? 0} 用户 / ${c?.transactions ?? 0} 交易 / ${c?.gameHands ?? 0} 牌局`);
+    } catch (e: any) { toast.error("备份失败: " + (e.message || "未知错误")); }
+    finally { setExportingBackup(false); }
+  };
+
+  return (
+    <div className="glass rounded-xl p-4 space-y-4">
+      <h3 className="text-sm font-semibold">📦 数据导出 &amp; 数据库备份</h3>
+      <p className="text-xs text-muted-foreground">导出用户数据为 CSV 文件，或下载完整数据库备份（JSON 格式，不含密码哈希）。</p>
+
+      {/* User Export */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-foreground">用户信息导出</p>
+        <div className="flex flex-wrap gap-2">
+          <button disabled={exportingUsers} onClick={() => handleExportUsers("real")}
+            className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-500/30 transition-colors disabled:opacity-50">
+            {exportingUsers ? "导出中..." : "真实用户 CSV"}
+          </button>
+          <button disabled={exportingUsers} onClick={() => handleExportUsers("all")}
+            className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/30 transition-colors disabled:opacity-50">
+            {exportingUsers ? "导出中..." : "全部用户 CSV"}
+          </button>
+        </div>
+      </div>
+
+      {/* Bot Export */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-foreground">机器人信息导出</p>
+        <div className="flex flex-wrap gap-2">
+          <button disabled={exportingBots} onClick={handleExportBots}
+            className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-xs font-medium hover:bg-purple-500/30 transition-colors disabled:opacity-50">
+            {exportingBots ? "导出中..." : "机器人列表 CSV"}
+          </button>
+        </div>
+      </div>
+
+      {/* DB Backup */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-foreground">数据库备份下载</p>
+        <p className="text-[11px] text-muted-foreground">包含：用户、房间、交易、抽水、代理、FAQ、风控等所有表（不含密码哈希）</p>
+        <button disabled={exportingBackup} onClick={handleDbBackup}
+          className="px-3 py-1.5 bg-amber-500/20 text-amber-400 rounded-lg text-xs font-medium hover:bg-amber-500/30 transition-colors disabled:opacity-50">
+          {exportingBackup ? "备份中，请稍候..." : "⬇ 下载数据库备份 (JSON)"}
+        </button>
       </div>
     </div>
   );
@@ -6667,6 +6816,30 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
                 className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-500/30 transition-colors"
               >
                 导出Bot列表 (JSON)
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const result = await utils.adminBot.exportBots.fetch();
+                    if (!result?.bots?.length) { toast.error("暂无机器人数据"); return; }
+                    const headers = ["ID","OpenID","名称","昵称","头像","余额","是否机器人","注册时间"];
+                    const rows = result.bots.map((b: any) => [
+                      b.id, b.openId||"" , b.name||"", b.nickname||"", b.avatar||"",
+                      b.balance, b.isBot ? "是" : "否",
+                      b.createdAt ? new Date(b.createdAt).toLocaleString() : "",
+                    ]);
+                    const csv = [headers, ...rows].map(r => r.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+                    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url; a.download = `bots_export_${new Date().toISOString().slice(0,10)}.csv`;
+                    a.click(); URL.revokeObjectURL(url);
+                    toast.success(`已导出 ${result.bots.length} 个机器人 (CSV)`);
+                  } catch { toast.error("导出失败"); }
+                }}
+                className="px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-medium hover:bg-purple-500/30 transition-colors"
+              >
+                导出Bot列表 (CSV)
               </button>
               <label className="px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition-colors cursor-pointer">
                 导入Bot列表
