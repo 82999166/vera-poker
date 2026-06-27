@@ -627,15 +627,30 @@ export default function Table() {
     const currentPhase = tableState?.phase || "";
     const currentHandNum = tableState?.handNumber ?? 0;
     
-    // On first data load: if already in completed state, mark as already settled
-    // This prevents replaying settlement animation when returning to the page
+    // On first data load: if already in showdown/completed state, mark as already settled
+    // This prevents replaying settlement animation when observer joins mid-hand or re-enters page
     if (isFirstLoadRef.current && tableState) {
       isFirstLoadRef.current = false;
-      if (currentPhase === "completed" && currentHandNum > 0) {
+      if ((currentPhase === "completed" || currentPhase === "showdown") && currentHandNum > 0) {
         lastSettledHandRef.current = currentHandNum;
         prevPhaseRef.current = currentPhase;
-        return; // Skip animation on re-entry
+        return; // Skip animation on re-entry / mid-hand join
       }
+    }
+
+    // Extra guard: if we are now in preflop/waiting but settlement data is stale from previous hand,
+    // do NOT trigger settlement animation. This handles the race where server still returns
+    // settlementDetail from the previous hand during the first few polls of a new hand.
+    if ((currentPhase === "preflop" || currentPhase === "waiting") && currentHandNum > 0) {
+      // Clear any residual settlement visuals immediately
+      if (showWinner || showSettlement) {
+        if (winnerTimeoutRef.current) { clearTimeout(winnerTimeoutRef.current); winnerTimeoutRef.current = null; }
+        setShowWinner(null);
+        setShowSettlement(null);
+        setWinnerPlayerIds([]);
+      }
+      prevPhaseRef.current = currentPhase;
+      return;
     }
     
     // Primary trigger: phase is "completed" AND this hand hasn't been settled yet
