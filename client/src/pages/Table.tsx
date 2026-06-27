@@ -984,6 +984,16 @@ export default function Table() {
 
   const readyMutation = trpc.game.ready.useMutation({
     onSuccess: () => {
+      // Immediately clear all previous hand visuals so they don't flash during the transition
+      if (winnerTimeoutRef.current) { clearTimeout(winnerTimeoutRef.current); winnerTimeoutRef.current = null; }
+      setShowWinner(null);
+      setShowSettlement(null);
+      setWinnerPlayerIds([]);
+      revealTimersRef.current.forEach(t => clearTimeout(t));
+      revealTimersRef.current = [];
+      setRevealedOpponentIds(new Set());
+      setAnimateCards(false);
+      setDealingMyCards(false);
       utils.game.tableState.invalidate({ roomId });
       if (!muted) playSound("check");
     },
