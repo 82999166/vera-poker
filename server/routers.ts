@@ -570,6 +570,16 @@ export const appRouter = router({
       bigBlind: z.string(),
       buyIn: z.number().min(0),
     })).mutation(async ({ ctx, input }) => {
+      // ⚠️ Critical: Check if player is already seated at any table.
+      // If so, redirect them back to their existing table instead of allocating a new one.
+      const existingActiveRoom = await db.getPlayerActiveRoom(ctx.user.id);
+      if (existingActiveRoom) {
+        const existingRoom = await db.getRoomById(existingActiveRoom.roomId);
+        if (existingRoom && existingRoom.status !== 'closed') {
+          console.log(`[joinByStake] Player ${ctx.user.id} already seated at room ${existingActiveRoom.roomId}, redirecting back.`);
+          return { roomId: existingActiveRoom.roomId, seatIndex: existingActiveRoom.seatIndex, newBalance: null, roomName: existingRoom.name, alreadySeated: true };
+        }
+      }
       const allRooms = await db.getPublicRooms();
       const matchingRooms = allRooms.filter(r =>
         r.smallBlind === input.smallBlind &&

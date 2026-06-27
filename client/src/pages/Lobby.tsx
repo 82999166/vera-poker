@@ -126,6 +126,12 @@ export default function Lobby() {
   // 点「入座」：先找到可用桌，直接跳转到游戏桌，在游戏桌内弹出买入弹窗
   const handleSitDown = useCallback(async (group: StakeGroup) => {
     if (!user) { navigate("/"); return; }
+    // ⚠️ Client-side guard: if player is already seated, go back to their table directly
+    if (activeRoom) {
+      toast.info(t("lobby.alreadySeated") || "You are already seated at a table");
+      navigate(`/table/${activeRoom.roomId}`);
+      return;
+    }
     // No front-end full check - backend will auto-expand tables if all are full
     setJoiningStake(true);
     try {
@@ -142,7 +148,7 @@ export default function Lobby() {
     } finally {
       setJoiningStake(false);
     }
-  }, [user, joinByStakeMutation, navigate, t]);
+  }, [user, activeRoom, joinByStakeMutation, navigate, t]);
 
   // 一键开玩：优先选在线人数最多的场次（所有场次都可以点，后端会自动扩桌）
   const handleQuickJoin = () => {
