@@ -30,7 +30,8 @@ export type SoundEffect =
   | "timer"       // 倒计时警告
   | "turnAlert"   // 轮到操作
   | "chipMove"    // 筹码移动
-  | "cardFlip";   // 翻牌
+  | "cardFlip"    // 翻牌
+  | "buttonClick"; // UI 按键音（不受静音控制）
 
 // Synthesize sounds using Web Audio API (no external files needed)
 function createOscillatorSound(
@@ -189,6 +190,11 @@ const soundGenerators: Record<SoundEffect, (ctx: AudioContext) => void> = {
   cardFlip: (ctx) => {
     createNoiseSound(ctx, 0.06, 0.12);
     createOscillatorSound(ctx, 3000, 0.03, "sine", 0.03);
+  },
+  buttonClick: (ctx) => {
+    // Soft UI click: short high-pitched tick
+    createOscillatorSound(ctx, 1400, 0.04, "sine", 0.12);
+    setTimeout(() => createOscillatorSound(ctx, 1800, 0.025, "sine", 0.06), 30);
   },
 };
 
@@ -428,9 +434,19 @@ export function useSoundEffects() {
     };
   }, [ensureContext]);
 
-  // Play a sound effect
+  // Play a sound effect (respects mute)
   const play = useCallback((effect: SoundEffect) => {
     if (!enabledRef.current) return;
+    try {
+      const ctx = ensureContext();
+      soundGenerators[effect]?.(ctx);
+    } catch {
+      // Silently fail if audio context is not available
+    }
+  }, [ensureContext]);
+
+  // Play a sound effect bypassing mute (for UI feedback like mute toggle)
+  const playRaw = useCallback((effect: SoundEffect) => {
     try {
       const ctx = ensureContext();
       soundGenerators[effect]?.(ctx);
@@ -489,6 +505,7 @@ export function useSoundEffects() {
 
   return {
     play,
+    playRaw,
     speak,
     announceAction,
     toggle,

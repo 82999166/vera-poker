@@ -380,7 +380,7 @@ export default function Table() {
     }
     return msg || t("error.generic");
   }, [t]);
-  const { play: playSound, toggle: toggleSound, isEnabled: isSoundEnabled, announceAction, speak, voiceMode, setVoiceMode } = useSoundEffects();
+  const { play: playSound, playRaw: playRawSound, toggle: toggleSound, isEnabled: isSoundEnabled, announceAction, speak, voiceMode, setVoiceMode } = useSoundEffects();
   const [muted, setMuted] = useState(() => localStorage.getItem("vera-sound-enabled") === "false");
   const [raiseAmount, setRaiseAmount] = useState(4.00);
   const [isSeated, setIsSeated] = useState(false);
@@ -1472,7 +1472,7 @@ export default function Table() {
 
       {/* Floating sound toggle (top-right) */}
       <button
-        onClick={() => { setMuted(!muted); toggleSound(); }}
+        onClick={() => { playRawSound("buttonClick"); setMuted(!muted); toggleSound(); }}
         className="absolute z-30 w-9 h-9 rounded-full bg-black/60 border border-white/20 flex items-center justify-center backdrop-blur-sm active:scale-90 transition-transform right-2"
         style={{ top: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px) + 4px)' }}
       >
