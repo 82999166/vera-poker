@@ -1714,10 +1714,14 @@ export async function playerReady(roomId: number, userId: number): Promise<{ suc
   // Check if all players are ready
   const gs = table.gameState;
   const activePlayers = gs.players.filter(p => p.isActive);
+  // Only auto-start when ALL real (non-bot) players are ready, to avoid kicking real players
+  const botUserIds = await botManager.getBotUserIds();
+  const realActivePlayers = activePlayers.filter(p => !botUserIds.includes(p.id));
+  const allRealPlayersReady = realActivePlayers.length === 0 || realActivePlayers.every(p => table.readyPlayers.has(p.id));
   const allReady = activePlayers.every(p => table.readyPlayers.has(p.id));
 
-  if (allReady && activePlayers.length >= 2) {
-    // All players ready - start next hand immediately
+  if ((allReady || allRealPlayersReady) && activePlayers.length >= 2) {
+    // All real players ready - start next hand (bots may still be pending but that's ok)
     table.waitingForReady = false;
     table.readyDeadline = undefined;
     await startNewHand(roomId);
