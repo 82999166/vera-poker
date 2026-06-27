@@ -434,19 +434,16 @@ export default function Table() {
   const [containerStyle, setContainerStyle] = useState<React.CSSProperties>({
     position: 'relative',
     width: '100%', height: '100dvh',
-    maxWidth: '430px', overflow: 'hidden',
-    margin: '0 auto',
+    overflow: 'hidden',
   });
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
-    const calcStyle = (h: number): React.CSSProperties => {
+    const calcStyle = (h: number, w: number): React.CSSProperties => {
       return {
         position: 'relative',
         width: '100%',
         height: `${h}px`,
-        maxWidth: '430px',
         overflow: 'hidden',
-        margin: '0 auto',
       };
     };
     if (tg) {
@@ -460,8 +457,9 @@ export default function Table() {
       const update = () => {
         // viewportStableHeight excludes TG chrome (header/keyboard) for stable layout
         const h = tg.viewportStableHeight || tg.viewportHeight || window.innerHeight;
+        const w = tg.viewportWidth || window.innerWidth;
         if (h > 100) {
-          setContainerStyle(calcStyle(h));
+          setContainerStyle(calcStyle(h, w));
         }
       };
       update();
@@ -474,7 +472,7 @@ export default function Table() {
     } else {
       // Standard browser
       const update = () => {
-        setContainerStyle(calcStyle(window.innerHeight));
+        setContainerStyle(calcStyle(window.innerHeight, window.innerWidth));
       };
       update();
       window.addEventListener('resize', update);
