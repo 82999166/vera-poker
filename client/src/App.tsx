@@ -161,18 +161,8 @@ function MobileRouter() {
 
 function MobileContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        width: '100vw',
-        height: '100dvh',
-        overflow: 'hidden',
-        position: 'relative',
-        background: '#1a1a2e',
-      }}
-    >
-      <div style={{ width: '100%', height: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
-        {children}
-      </div>
+    <div className="w-full max-w-[430px] mx-auto min-h-screen relative overflow-y-auto overflow-x-hidden">
+      {children}
     </div>
   );
 }

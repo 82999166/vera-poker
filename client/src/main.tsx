@@ -25,13 +25,12 @@ import "./index.css";
     if (typeof tg.disableVerticalSwipes === 'function') {
       tg.disableVerticalSwipes();
     }
-    // Set header color to match app theme
+    // Set background color to match app theme, reducing visual gap
     if (typeof tg.setHeaderColor === 'function') {
       tg.setHeaderColor('#1a1a2e');
     }
-    // Set background to transparent so Telegram desktop wallpaper shows through
     if (typeof tg.setBackgroundColor === 'function') {
-      tg.setBackgroundColor('transparent');
+      tg.setBackgroundColor('#1a1a2e');
     }
   }
 })();
