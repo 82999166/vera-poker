@@ -450,7 +450,13 @@ export default function Table() {
       };
     };
     if (tg) {
-      // NOTE: Do NOT call expand() or requestFullscreen() - BotFather Fullsize mode controls window size.
+      // Expand to full height in Telegram WebApp
+      tg.expand?.();
+      // Try fullscreen for maximum viewport (Bot API 8.0+)
+      const tgVersion = parseFloat(tg.version || '0');
+      if (tgVersion >= 8.0 && typeof tg.requestFullscreen === 'function') {
+        try { tg.requestFullscreen(); } catch (_) {}
+      }
       const update = () => {
         // viewportStableHeight excludes TG chrome (header/keyboard) for stable layout
         const h = tg.viewportStableHeight || tg.viewportHeight || window.innerHeight;
