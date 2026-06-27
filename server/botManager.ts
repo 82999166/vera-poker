@@ -723,7 +723,7 @@ export async function autoReadyBots(roomId: number): Promise<void> {
   const botsInGame = table.gameState.players.filter(p => botUserIds.includes(p.id));
 
   for (const bot of botsInGame) {
-    const delay = 8000 + Math.random() * 4000; // 8-12秒
+    const delay = 12000 + Math.random() * 3000; // 12-15秒
     setTimeout(async () => {
       try {
         const currentTable = getTable(roomId);

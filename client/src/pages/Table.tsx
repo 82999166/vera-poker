@@ -985,6 +985,8 @@ export default function Table() {
   const readyMutation = trpc.game.ready.useMutation({
     onSuccess: () => {
       // Immediately clear all previous hand visuals so they don't flash during the transition
+      // NOTE: Do NOT clear dealingMyCards here - it must be triggered by the phase/myCards change
+      // so the dealing animation plays correctly for the new hand.
       if (winnerTimeoutRef.current) { clearTimeout(winnerTimeoutRef.current); winnerTimeoutRef.current = null; }
       setShowWinner(null);
       setShowSettlement(null);
@@ -992,8 +994,6 @@ export default function Table() {
       revealTimersRef.current.forEach(t => clearTimeout(t));
       revealTimersRef.current = [];
       setRevealedOpponentIds(new Set());
-      setAnimateCards(false);
-      setDealingMyCards(false);
       utils.game.tableState.invalidate({ roomId });
       if (!muted) playSound("check");
     },
@@ -1082,9 +1082,10 @@ export default function Table() {
       revealTimersRef.current.forEach(t => clearTimeout(t));
       revealTimersRef.current = [];
       setRevealedOpponentIds(new Set());
-      // Reset animation states
+      // Reset community card animation (new hand = no community cards yet)
       setAnimateCards(false);
-      setDealingMyCards(false);
+      // NOTE: Do NOT reset dealingMyCards here - it will be set by the preflop phase trigger
+      // Resetting it here would cancel the dealing animation for the new hand
     }
     prevHandNumberRef.current = handNumber;
   }, [handNumber]);
@@ -1105,7 +1106,7 @@ export default function Table() {
       revealTimersRef.current = [];
       setRevealedOpponentIds(new Set());
       setAnimateCards(false);
-      setDealingMyCards(false);
+      // NOTE: Do NOT reset dealingMyCards here - the preflop phase trigger below will set it
     }
     prevPhaseForCleanupRef.current = curr;
   }, [phase]);
