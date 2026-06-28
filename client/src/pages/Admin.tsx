@@ -3057,6 +3057,8 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
   const [approveDialog, setApproveDialog] = useState<{ txId: number; amount: string; address: string; chain: string } | null>(null);
   const [txHashInput, setTxHashInput] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [rejectDialog, setRejectDialog] = useState<{ txId: number; type: string; amount: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [voiceEnabled, setVoiceEnabled] = useState(() => {
     try { return localStorage.getItem("finance_voice_enabled") === "true"; } catch { return false; }
   });
@@ -3261,11 +3263,7 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
                     >{at("finance.confirmTransfer")}</button>
                   )}
                   <button
-                    onClick={() => {
-                      if (confirm(at("finance.rejectConfirm"))) {
-                        rejectMutation.mutate({ transactionId: tx.id, reason: at("finance.rejectReason") });
-                      }
-                    }}
+                    onClick={() => { setRejectDialog({ txId: tx.id, type: tx.type, amount: tx.amount }); setRejectReason(""); }}
                     disabled={rejectMutation.isPending}
                     className="flex-1 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
                   >{at("finance.reject")}</button>
@@ -3277,6 +3275,56 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
           <p className="text-sm text-muted-foreground text-center py-8">{financeTab === "pending" ? at("finance.noPendingReview") : at("finance.noTx")}</p>
         )}
       </div>}
+
+      {/* Reject Dialog */}
+      {rejectDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setRejectDialog(null)}>
+          <div className="bg-card border border-border rounded-2xl w-full max-w-sm p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-red-400">{at("finance.reject")} #{rejectDialog.txId}</h3>
+              <button onClick={() => setRejectDialog(null)} className="p-1 rounded-lg hover:bg-secondary"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3 mb-4">
+              <div className="glass rounded-lg p-3 flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">{rejectDialog.type === "withdraw" ? at("finance.tabWithdrawals") : at("finance.tabDeposits")}</span>
+                <span className="text-sm font-bold text-red-400">${formatBalance(rejectDialog.amount)}</span>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">拒绝理由 <span className="text-muted-foreground/50">(选填，将通知用户)</span></label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {["信息不符", "风控拦截", "地址异常", "超出限额", "账户异常", "人工审核"].map(preset => (
+                    <button key={preset} onClick={() => setRejectReason(preset)}
+                      className={`px-2 py-0.5 rounded-full text-[11px] transition-colors ${
+                        rejectReason === preset ? "bg-red-500/30 text-red-300 border border-red-500/40" : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                      }`}>{preset}</button>
+                  ))}
+                </div>
+                <textarea
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value)}
+                  placeholder="请输入拒绝理由，或选择上方预设理由..."
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-1 focus:ring-red-500/50 resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setRejectDialog(null)} className="flex-1 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80">取消</button>
+              <button
+                onClick={() => {
+                  rejectMutation.mutate({ transactionId: rejectDialog.txId, reason: rejectReason.trim() || at("finance.rejectReason") });
+                  setRejectDialog(null);
+                }}
+                disabled={rejectMutation.isPending}
+                className="flex-1 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 text-sm font-bold hover:bg-red-500/30 disabled:opacity-50"
+              >
+                {rejectMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin inline" /> : null}
+                确认拒绝
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Withdrawal Approve Dialog */}
       {approveDialog && (
