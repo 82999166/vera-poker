@@ -2178,6 +2178,14 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
     },
     onError: (err) => toast.error(err.message),
   });
+  // Reset user password
+  const [showResetPwd, setShowResetPwd] = useState(false);
+  const [newUserPwd, setNewUserPwd] = useState("");
+  const [confirmUserPwd, setConfirmUserPwd] = useState("");
+  const resetUserPwdMutation = trpc.admin.resetUserPassword.useMutation({
+    onSuccess: () => { toast.success("密码已重置成功"); setShowResetPwd(false); setNewUserPwd(""); setConfirmUserPwd(""); },
+    onError: (err) => toast.error(err.message),
+  });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
   if (userError || !user) return (
@@ -2266,7 +2274,56 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
           <DollarSign className="w-3.5 h-3.5" />
           {at("users.manualTopUp")}
         </button>
+        <button
+          onClick={() => { setShowResetPwd(true); setNewUserPwd(""); setConfirmUserPwd(""); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-colors"
+        >
+          <Shield className="w-3.5 h-3.5" />
+          重置密码
+        </button>
       </div>
+
+      {/* Reset User Password Panel */}
+      {showResetPwd && (
+        <div className="glass rounded-xl p-4 space-y-3 border border-red-500/20">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-red-400">🔒 重置玩家密码</h3>
+            <button onClick={() => setShowResetPwd(false)} className="p-1 rounded hover:bg-secondary"><X className="w-4 h-4" /></button>
+          </div>
+          <p className="text-xs text-muted-foreground">为用户 <span className="text-foreground font-medium">{(user as any).name || (user as any).nickname}</span> 设置新登录密码（将覆盖原密码）</p>
+          <div className="space-y-2">
+            <input
+              type="password"
+              placeholder="新密码（至少6位）"
+              value={newUserPwd}
+              onChange={e => setNewUserPwd(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-1 focus:ring-red-500/50"
+            />
+            <input
+              type="password"
+              placeholder="确认新密码"
+              value={confirmUserPwd}
+              onChange={e => setConfirmUserPwd(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-1 focus:ring-red-500/50"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowResetPwd(false)} className="flex-1 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80">取消</button>
+            <button
+              onClick={() => {
+                if (newUserPwd.length < 6) { toast.error("密码至少6位"); return; }
+                if (newUserPwd !== confirmUserPwd) { toast.error("两次密码不一致"); return; }
+                resetUserPwdMutation.mutate({ userId: stableUserId, newPassword: newUserPwd });
+              }}
+              disabled={resetUserPwdMutation.isPending || !newUserPwd || !confirmUserPwd}
+              className="flex-1 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 text-sm font-bold hover:bg-red-500/30 disabled:opacity-50"
+            >
+              {resetUserPwdMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin inline" /> : null}
+              确认重置
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 glass rounded-lg p-1">
@@ -4790,6 +4847,16 @@ function StaffPanel({ at }: { at: (k: string) => string }) {
   const [resetPwd, setResetPwd] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingPerms, setEditingPerms] = useState<string[]>([]);
+  // Admin change own password
+  const { data: adminMe } = trpc.auth.adminMe.useQuery();
+  const [showSelfPwd, setShowSelfPwd] = useState(false);
+  const [selfCurrentPwd, setSelfCurrentPwd] = useState("");
+  const [selfNewPwd, setSelfNewPwd] = useState("");
+  const [selfConfirmPwd, setSelfConfirmPwd] = useState("");
+  const changeOwnPwdMutation = trpc.admin.changeOwnPassword.useMutation({
+    onSuccess: () => { toast.success("密码修改成功，请下次登录时使用新密码"); setShowSelfPwd(false); setSelfCurrentPwd(""); setSelfNewPwd(""); setSelfConfirmPwd(""); },
+    onError: (e) => toast.error(e.message),
+  });
 
   // All available permission modules
   const allPermissions = [
@@ -4860,6 +4927,79 @@ function StaffPanel({ at }: { at: (k: string) => string }) {
               {migrateMutation.isPending ? "Migrating..." : "Migrate Now"}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Admin Change Own Password */}
+      {adminMe && (
+        <div className="glass rounded-xl p-4 border border-blue-500/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-blue-400" />
+              <div>
+                <p className="text-sm font-semibold">修改我的登录密码</p>
+                <p className="text-xs text-muted-foreground">当前登录：<span className="text-foreground font-medium">{adminMe.name}</span> ({adminMe.role})</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setShowSelfPwd(!showSelfPwd); setSelfCurrentPwd(""); setSelfNewPwd(""); setSelfConfirmPwd(""); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/30 transition-colors"
+            >
+              {showSelfPwd ? "收起" : "🔒 修改密码"}
+            </button>
+          </div>
+          {showSelfPwd && (
+            <div className="mt-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">当前密码</label>
+                  <input
+                    type="password"
+                    placeholder="请输入当前密码"
+                    value={selfCurrentPwd}
+                    onChange={e => setSelfCurrentPwd(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">新密码（至少6位）</label>
+                  <input
+                    type="password"
+                    placeholder="请输入新密码"
+                    value={selfNewPwd}
+                    onChange={e => setSelfNewPwd(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">确认新密码</label>
+                  <input
+                    type="password"
+                    placeholder="再次输入新密码"
+                    value={selfConfirmPwd}
+                    onChange={e => setSelfConfirmPwd(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setShowSelfPwd(false)} className="px-4 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80">取消</button>
+                <button
+                  onClick={() => {
+                    if (!selfCurrentPwd) { toast.error("请输入当前密码"); return; }
+                    if (selfNewPwd.length < 6) { toast.error("新密码至少6位"); return; }
+                    if (selfNewPwd !== selfConfirmPwd) { toast.error("两次密码不一致"); return; }
+                    changeOwnPwdMutation.mutate({ currentPassword: selfCurrentPwd, newPassword: selfNewPwd });
+                  }}
+                  disabled={changeOwnPwdMutation.isPending || !selfCurrentPwd || !selfNewPwd || !selfConfirmPwd}
+                  className="px-4 py-2 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 text-sm font-bold hover:bg-blue-500/30 disabled:opacity-50"
+                >
+                  {changeOwnPwdMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin inline" /> : null}
+                  确认修改
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

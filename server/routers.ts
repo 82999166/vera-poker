@@ -2765,6 +2765,31 @@ ${faqContext}
       const result = await query;
       return { users: result };
     }),
+    // Admin changes their own password
+    changeOwnPassword: adminProcedure.input(z.object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(6).max(128),
+    })).mutation(async ({ ctx, input }) => {
+      const { verifyStaffPassword, updateStaffPassword } = await import("./staffAuth");
+      const adminId = ctx.adminUser?.adminId;
+      if (!adminId) throw new TRPCError({ code: "UNAUTHORIZED", message: "Admin session required" });
+      const valid = await verifyStaffPassword(adminId, input.currentPassword);
+      if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password incorrect" });
+      const success = await updateStaffPassword(adminId, input.newPassword);
+      if (!success) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      return { success: true };
+    }),
+    // Admin resets a game user's password
+    resetUserPassword: adminProcedure.input(z.object({
+      userId: z.number(),
+      newPassword: z.string().min(6).max(128),
+    })).mutation(async ({ input }) => {
+      const bcrypt = await import("bcryptjs");
+      const hash = await bcrypt.hash(input.newPassword, 10);
+      const success = await db.setUserPasswordHash(input.userId, hash);
+      if (success === false) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      return { success: true };
+    }),
     // Database backup - export all tables as JSON
     dbBackup: adminProcedure.query(async () => {
       const dbInstance = await db.getDb();

@@ -220,6 +220,15 @@ export async function createStaffAccount(params: {
   return { success: true, userId: newUser?.id };
 }
 
+// Verify staff password by ID (for self-change password)
+export async function verifyStaffPassword(adminUserId: number, password: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const [staff] = await db.select({ passwordHash: adminUsers.passwordHash }).from(adminUsers).where(eq(adminUsers.id, adminUserId)).limit(1);
+  if (!staff?.passwordHash) return false;
+  return verifyPassword(password, staff.passwordHash);
+}
+
 // Update staff password
 export async function updateStaffPassword(adminUserId: number, newPassword: string): Promise<boolean> {
   const db = await getDb();
