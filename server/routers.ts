@@ -438,15 +438,20 @@ export const appRouter = router({
       return { success: true, inviteCode: room.inviteCode };
     }),
     // Admin: manage all rooms
-    adminList: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20) })).query(async ({ input }) => {
+    adminList: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), type: z.enum(["public", "private", "all"]).default("all") })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { rooms: [], total: 0 };
       const { rooms: roomsTable } = await import("../drizzle/schema");
-      const { desc, sql } = await import("drizzle-orm");
+      const { desc, sql, eq } = await import("drizzle-orm");
       const offset = (input.page - 1) * input.limit;
+      const whereClause = input.type !== "all" ? eq(roomsTable.type, input.type) : undefined;
       const [data, countResult] = await Promise.all([
-        dbInstance.select().from(roomsTable).orderBy(desc(roomsTable.createdAt)).limit(input.limit).offset(offset),
-        dbInstance.select({ count: sql<number>`count(*)` }).from(roomsTable),
+        whereClause
+          ? dbInstance.select().from(roomsTable).where(whereClause).orderBy(desc(roomsTable.createdAt)).limit(input.limit).offset(offset)
+          : dbInstance.select().from(roomsTable).orderBy(desc(roomsTable.createdAt)).limit(input.limit).offset(offset),
+        whereClause
+          ? dbInstance.select({ count: sql<number>`count(*)` }).from(roomsTable).where(whereClause)
+          : dbInstance.select({ count: sql<number>`count(*)` }).from(roomsTable),
       ]);
       return { rooms: data, total: countResult[0]?.count ?? 0 };
     }),

@@ -150,9 +150,9 @@ export async function getPlayerView(roomId: number, playerId: number) {
         })
     );
     waitingPlayers.push(...sittingOutWaiting);
-    // Check if room is closed (e.g. totalRounds reached after settlement)
+    // Check if room is closed or deleted (private rooms are hard-deleted after dissolve)
     const roomInfo = await db.getRoomById(roomId);
-    const roomClosed = roomInfo?.status === "closed";
+    const roomClosed = !roomInfo || roomInfo.status === "closed";
     return { phase: "waiting", players: waitingPlayers, communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [], roomClosed };
   }
 
@@ -1196,12 +1196,9 @@ async function settleHand(roomId: number) {
       await db.clearRoomPlayers(roomId);
       // Clean up bot tracking for this room
       botManager.onBotLeftTable(roomId, -1); // -1 signals full room cleanup
-      // Invalidate the invite code and close the room
-      await db.updateRoom(roomId, {
-        status: "closed",
-        inviteCode: null as any,
-        currentPlayers: 0,
-      });
+      // Hard-delete private room so it doesn't appear in room management
+      await db.deleteRoomBotConfig(roomId);
+      await db.deleteRoom(roomId);
       // Remove from active tables
       activeTables.delete(roomId);
       return; // Don't set up ready phase, room is dissolved

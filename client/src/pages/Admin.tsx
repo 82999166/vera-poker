@@ -2918,12 +2918,12 @@ function RoomFormModal({ at, open, onClose, editRoom, onSuccess }: {
 }
 
 function RoomsPanel({ at }: { at: (k: string) => string }) {
-  const { data, isLoading, refetch } = trpc.rooms.adminList.useQuery({ page: 1, limit: 200 });
+  const [roomTab, setRoomTab] = useState<"public" | "private">("public");
+  const { data, isLoading, refetch } = trpc.rooms.adminList.useQuery({ page: 1, limit: 200, type: roomTab });
   const [showModal, setShowModal] = useState(false);
   const [editRoom, setEditRoom] = useState<any>(null);
   const [filterStake, setFilterStake] = useState<"all" | "beginner" | "intermediate" | "advanced" | "vip">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "waiting" | "playing" | "paused" | "closed">("all");
-  const [filterType, setFilterType] = useState<"all" | "public" | "private">("all");
 
   const updateMutation = trpc.rooms.adminUpdate.useMutation({
     onSuccess: () => { toast.success(at("rooms.updated")); refetch(); },
@@ -2964,12 +2964,11 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
     return "bg-purple-500/20 text-purple-400";
   };
 
-  // Filter
+  // Filter (type is now handled server-side via roomTab)
   const filteredRooms = allRooms.filter((r: any) => {
     const stakeOk = filterStake === "all" || getStakeLevel(r.bigBlind) === filterStake;
     const statusOk = filterStatus === "all" || r.status === filterStatus;
-    const typeOk = filterType === "all" || r.type === filterType;
-    return stakeOk && statusOk && typeOk;
+    return stakeOk && statusOk;
   });
 
   // Stats
@@ -2985,6 +2984,26 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
         <h2 className="text-lg font-bold">{at("rooms.title")}</h2>
         <button onClick={() => { setEditRoom(null); setShowModal(true); }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gold text-black text-sm font-bold hover:bg-gold/90">
           <Plus className="w-4 h-4" /> {at("rooms.create")}
+        </button>
+      </div>
+
+      {/* Public / Private Tab */}
+      <div className="flex gap-1 glass rounded-xl p-1">
+        <button
+          onClick={() => { setRoomTab("public"); setFilterStake("all"); setFilterStatus("all"); }}
+          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            roomTab === "public" ? "bg-truth-blue/20 text-truth-blue" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          🌐 {at("rooms.public")}
+        </button>
+        <button
+          onClick={() => { setRoomTab("private"); setFilterStake("all"); setFilterStatus("all"); }}
+          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            roomTab === "private" ? "bg-purple-500/20 text-purple-400" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          🔒 {at("rooms.private")}
         </button>
       </div>
 
@@ -3012,16 +3031,6 @@ function RoomsPanel({ at }: { at: (k: string) => string }) {
                 filterStake === k ? "bg-gold text-black" : "text-muted-foreground hover:text-foreground"
               }`}>
               {k === "all" ? at("rooms.filterAll") : at(`rooms.filter${k.charAt(0).toUpperCase() + k.slice(1)}`)}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1 glass rounded-lg p-1">
-          {(["all", "public", "private"] as const).map((k) => (
-            <button key={k} onClick={() => setFilterType(k)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                filterType === k ? "bg-gold text-black" : "text-muted-foreground hover:text-foreground"
-              }`}>
-              {k === "all" ? at("rooms.filterAll") : k === "public" ? at("rooms.public") : at("rooms.private")}
             </button>
           ))}
         </div>
