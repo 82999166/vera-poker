@@ -3056,6 +3056,7 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
   const [financeTab, setFinanceTab] = useState<"pending" | "deposits" | "withdrawals" | "all" | "rake">("pending");
   const [approveDialog, setApproveDialog] = useState<{ txId: number; amount: string; address: string; chain: string } | null>(null);
   const [txHashInput, setTxHashInput] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(() => {
     try { return localStorage.getItem("finance_voice_enabled") === "true"; } catch { return false; }
   });
@@ -3137,6 +3138,10 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
   });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gold" /></div>;
+
+  if (selectedUserId) {
+    return <UserDetailPanel userId={selectedUserId} onBack={() => setSelectedUserId(null)} at={at} />;
+  }
 
   const allTx = (txData as any)?.transactions ?? [];
   const pendingTx = allTx.filter((tx: any) => tx.status === "pending");
@@ -3223,7 +3228,11 @@ function FinancePanel({ at }: { at: (k: string) => string }) {
                     tx.type === "withdraw" ? "bg-red-500/20 text-red-400" :
                     "bg-secondary text-muted-foreground"
                   }`}>{tx.type === "deposit" ? at("finance.tabDeposits") : tx.type === "withdraw" ? at("finance.tabWithdrawals") : tx.type}</span>
-                  <span className="text-xs text-muted-foreground">{at("finance.userLabel")} #{tx.userId}</span>
+                  <button
+                    onClick={() => setSelectedUserId(tx.userId)}
+                    className="text-xs text-gold/80 hover:text-gold hover:underline transition-colors cursor-pointer"
+                    title="查看用户详情"
+                  >{at("finance.userLabel")} #{tx.userId} ↗</button>
                   <span className="text-xs text-muted-foreground">#{tx.id}</span>
                 </div>
                 <span className="text-sm font-mono font-medium">${formatBalance(tx.amount)}</span>
