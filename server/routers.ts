@@ -106,6 +106,33 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+    // 前端上报设备详细信息（屏幕、语言、时区、指纹等）
+    reportDeviceInfo: protectedProcedure.input(z.object({
+      screenWidth: z.number().optional(),
+      screenHeight: z.number().optional(),
+      language: z.string().optional(),
+      timezone: z.string().optional(),
+      fingerprint: z.string().optional(),
+      platform: z.string().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const ua = ctx.req.headers["user-agent"] || "";
+      const { parseDeviceInfo } = await import("./deviceInfo");
+      const { parseDeviceInfoFull } = await import("./deviceInfo");
+      const deviceInfo = parseDeviceInfo(ua);
+      const fullInfo = parseDeviceInfoFull(ua);
+      const loginIp = (ctx.req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || ctx.req.ip || "";
+      await db.updateUserDeviceInfo(ctx.user.openId, deviceInfo, loginIp, {
+        ...fullInfo,
+        userAgent: ua,
+        screenWidth: input.screenWidth,
+        screenHeight: input.screenHeight,
+        language: input.language,
+        timezone: input.timezone,
+        fingerprint: input.fingerprint,
+        platform: input.platform || "web",
+      });
+      return { success: true };
+    }),
     bindTelegram: protectedProcedure
       .input(z.object({ tgId: z.string(), tgUsername: z.string().nullable() }))
       .mutation(async ({ ctx, input }) => {
@@ -2249,6 +2276,10 @@ ${faqContext}
     userDetail: staffProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       return db.getUserDetail(input.id);
     }),
+    // 获取用户设备详细信息
+    userDevices: staffProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
+      return db.getUserDevices(input.userId);
+    }),
     userTransactions: staffProcedure.input(z.object({ userId: z.number(), page: z.number().default(1), limit: z.number().default(20), type: z.string().optional() })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { transactions: [], total: 0 };
@@ -2979,32 +3010,91 @@ ${faqContext}
     }),
     // Import bots (batch create bot accounts)
     importBots: adminProcedure.input(z.object({
+      count: z.number().min(1).max(200).optional(), // 如果提供count，自动生成多语言名字
       bots: z.array(z.object({
         name: z.string().min(1),
         nickname: z.string().optional(),
         avatar: z.string().optional(),
         balance: z.number().default(10000),
-      }))
+      })).optional(),
+      balance: z.number().default(10000).optional(), // 批量创建时的默认余额
     })).mutation(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { success: false, count: 0 };
       const { users } = await import("../drizzle/schema");
+      const { generateBotNames } = await import("./botNameGenerator");
       let count = 0;
-      for (const bot of input.bots) {
-        const openId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        await dbInstance.insert(users).values({
-          openId,
-          name: bot.name,
-          nickname: bot.nickname || bot.name,
-          avatar: bot.avatar || null,
-          balance: String(bot.balance),
-          isBot: true,
-          role: "user",
-        });
-        count++;
+      
+      if (input.count && !input.bots?.length) {
+        // 自动生成多语言名字
+        const names = generateBotNames(input.count);
+        for (const { name, nickname, language } of names) {
+          const openId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          await dbInstance.insert(users).values({
+            openId,
+            name,
+            nickname,
+            avatar: null,
+            balance: String(input.balance || 10000),
+            isBot: true,
+            role: "user",
+            language,
+          });
+          count++;
+        }
+      } else if (input.bots) {
+        // 手动指定名字
+        for (const bot of input.bots) {
+          const openId = `bot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          await dbInstance.insert(users).values({
+            openId,
+            name: bot.name,
+            nickname: bot.nickname || bot.name,
+            avatar: bot.avatar || null,
+            balance: String(bot.balance),
+            isBot: true,
+            role: "user",
+          });
+          count++;
+        }
       }
       botManager.invalidateConfigCache();
       return { success: true, count };
+    }),
+    // Regenerate all bot names with multi-language names
+    regenerateNames: adminProcedure.mutation(async () => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) return { success: false, count: 0 };
+      const { users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const { generateBotNames } = await import("./botNameGenerator");
+      
+      // Get all bot users
+      const bots = await dbInstance.select({ id: users.id }).from(users).where(eq(users.isBot, true));
+      if (bots.length === 0) return { success: true, count: 0 };
+      
+      // Generate new names for all bots
+      const newNames = generateBotNames(bots.length);
+      
+      // Update each bot
+      let count = 0;
+      for (let i = 0; i < bots.length; i++) {
+        const { name, nickname, language } = newNames[i];
+        await dbInstance.update(users).set({
+          name,
+          nickname,
+          language,
+        }).where(eq(users.id, bots[i].id));
+        count++;
+      }
+      
+      botManager.invalidateConfigCache();
+      return { success: true, count };
+    }),
+    // Get language weights for bot name generation
+    languageWeights: staffProcedure.query(async () => {
+      const { getLanguageWeights } = await import("./botNameGenerator");
+      return getLanguageWeights();
     }),
     // Get VPIP/PFR behavior metrics for bots
     behaviorMetrics: staffProcedure.query(async () => {

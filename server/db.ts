@@ -1754,7 +1754,12 @@ export async function updateUserDeviceFingerprint(openId: string, newFingerprint
 /**
  * 更新用户设备信息和IP（每次登录时调用）
  */
-export async function updateUserDeviceInfo(openId: string, deviceInfo: string, ip: string): Promise<void> {
+export async function updateUserDeviceInfo(openId: string, deviceInfo: string, ip: string, fullDeviceInfo?: {
+  os?: string; osVersion?: string; browser?: string; browserVersion?: string;
+  deviceModel?: string; deviceType?: string; userAgent?: string;
+  screenWidth?: number; screenHeight?: number; language?: string;
+  timezone?: string; fingerprint?: string; platform?: string;
+}): Promise<void> {
   const db = await getDb();
   if (!db) return;
   await db.update(users)
@@ -1764,6 +1769,86 @@ export async function updateUserDeviceInfo(openId: string, deviceInfo: string, i
       lastSignedIn: new Date(),
     } as any)
     .where(eq(users.openId, openId));
+  
+  // 同时记录详细设备信息到 user_devices 表
+  if (fullDeviceInfo) {
+    try {
+      const { userDevices } = await import("../drizzle/schema");
+      // 获取用户ID
+      const [user] = await db.select({ id: users.id }).from(users).where(eq(users.openId, openId)).limit(1);
+      if (!user) return;
+      
+      // 检查是否已有该设备记录（按fingerprint或UA+IP匹配）
+      const { and, eq: eqOp } = await import("drizzle-orm");
+      let existingDevice = null;
+      if (fullDeviceInfo.fingerprint) {
+        const [found] = await db.select({ id: userDevices.id, loginCount: userDevices.loginCount })
+          .from(userDevices)
+          .where(and(eqOp(userDevices.userId, user.id), eqOp(userDevices.fingerprint, fullDeviceInfo.fingerprint)))
+          .limit(1);
+        existingDevice = found;
+      }
+      
+      if (existingDevice) {
+        // 更新现有记录
+        await db.update(userDevices).set({
+          ip,
+          os: fullDeviceInfo.os,
+          osVersion: fullDeviceInfo.osVersion,
+          browser: fullDeviceInfo.browser,
+          browserVersion: fullDeviceInfo.browserVersion,
+          deviceModel: fullDeviceInfo.deviceModel,
+          deviceType: fullDeviceInfo.deviceType,
+          userAgent: fullDeviceInfo.userAgent,
+          screenWidth: fullDeviceInfo.screenWidth,
+          screenHeight: fullDeviceInfo.screenHeight,
+          language: fullDeviceInfo.language,
+          timezone: fullDeviceInfo.timezone,
+          platform: fullDeviceInfo.platform,
+          isOnline: true,
+          lastActiveAt: new Date(),
+          loginCount: (existingDevice.loginCount || 0) + 1,
+        } as any).where(eqOp(userDevices.id, existingDevice.id));
+      } else {
+        // 插入新设备记录
+        await db.insert(userDevices).values({
+          userId: user.id,
+          ip,
+          os: fullDeviceInfo.os || null,
+          osVersion: fullDeviceInfo.osVersion || null,
+          browser: fullDeviceInfo.browser || null,
+          browserVersion: fullDeviceInfo.browserVersion || null,
+          deviceModel: fullDeviceInfo.deviceModel || null,
+          deviceType: fullDeviceInfo.deviceType || null,
+          userAgent: fullDeviceInfo.userAgent || null,
+          screenWidth: fullDeviceInfo.screenWidth || null,
+          screenHeight: fullDeviceInfo.screenHeight || null,
+          language: fullDeviceInfo.language || null,
+          timezone: fullDeviceInfo.timezone || null,
+          fingerprint: fullDeviceInfo.fingerprint || null,
+          platform: fullDeviceInfo.platform || null,
+          isOnline: true,
+          lastActiveAt: new Date(),
+          firstSeenAt: new Date(),
+          loginCount: 1,
+        } as any);
+      }
+    } catch (e) {
+      // 不影响主流程
+      console.error("[DeviceInfo] Failed to record device:", e);
+    }
+  }
+}
+
+/**
+ * 获取用户的所有设备记录
+ */
+export async function getUserDevices(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { userDevices } = await import("../drizzle/schema");
+  const { eq: eqOp, desc } = await import("drizzle-orm");
+  return db.select().from(userDevices).where(eqOp(userDevices.userId, userId)).orderBy(desc(userDevices.lastActiveAt));
 }
 
 // ==================== ROOM BOT CONFIG ====================

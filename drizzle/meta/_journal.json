@@ -225,6 +225,13 @@
       "when": 1782825461189,
       "tag": "0031_concerned_shocker",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "5",
+      "when": 1782827916364,
+      "tag": "0032_lowly_puff_adder",
+      "breakpoints": true
     }
   ]
 }

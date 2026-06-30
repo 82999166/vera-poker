@@ -2138,7 +2138,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
 
 // ==================== USER DETAIL PANEL ====================
 function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () => void; at: (k: string) => string }) {
-  const [activeTab, setActiveTab] = useState<"info" | "deposits" | "withdrawals" | "gameflow" | "games" | "downlines">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "deposits" | "withdrawals" | "gameflow" | "games" | "downlines" | "devices">("info");
   // Fix: stabilize query inputs to prevent infinite re-fetch loop
   const [stableUserId] = useState(userId);
   const { data: user, isLoading, error: userError, refetch: refetchUser } = trpc.admin.userDetail.useQuery(
@@ -2160,6 +2160,10 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
   const { data: downlinesData, isLoading: downlinesLoading } = trpc.admin.userDownlines.useQuery(
     { userId: stableUserId },
     { enabled: activeTab === "downlines", staleTime: 30_000 }
+  );
+  const { data: devicesData, isLoading: devicesLoading } = trpc.admin.userDevices.useQuery(
+    { userId: stableUserId },
+    { enabled: activeTab === "devices", staleTime: 30_000 }
   );
   const updateMutation = trpc.admin.updateUser.useMutation({
     onSuccess: () => { toast.success(at("users.updated")); refetchUser(); },
@@ -2202,6 +2206,7 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
     { key: "gameflow" as const, label: at("users.gameFlowTab") },
     { key: "games" as const, label: at("users.gamesTab") },
     { key: "downlines" as const, label: "下线" },
+    { key: "devices" as const, label: "设备信息" },
   ];
 
   return (
@@ -2649,6 +2654,87 @@ function UserDetailPanel({ userId, onBack, at }: { userId: number; onBack: () =>
                 </div>
               )}
             </>
+          )}
+        </div>
+      )}
+
+      {/* Devices Tab */}
+      {activeTab === "devices" && (
+        <div className="space-y-4">
+          {devicesLoading ? (
+            <div className="flex items-center justify-center h-32"><RefreshCw className="w-5 h-5 animate-spin text-gold" /></div>
+          ) : !devicesData || (devicesData as any[]).length === 0 ? (
+            <div className="text-center text-muted-foreground text-sm py-8">暂无设备记录</div>
+          ) : (
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground mb-2">共 {(devicesData as any[]).length} 个设备记录</div>
+              {(devicesData as any[]).map((device: any) => (
+                <div key={device.id} className="glass rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{device.deviceType === "mobile" ? "📱" : device.deviceType === "tablet" ? "📱" : "💻"}</span>
+                      <div>
+                        <div className="text-sm font-medium">{device.os} {device.osVersion}</div>
+                        <div className="text-xs text-muted-foreground">{device.browser} {device.browserVersion}</div>
+                      </div>
+                    </div>
+                    <div className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${device.isOnline ? "bg-emerald-500/20 text-emerald-400" : "bg-gray-500/20 text-gray-400"}`}>
+                      {device.isOnline ? "在线" : "离线"}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">IP地址: </span>
+                      <span className="font-mono">{device.ip || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">地区: </span>
+                      <span>{device.ipRegion || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">屏幕: </span>
+                      <span className="font-mono">{device.screenWidth && device.screenHeight ? `${device.screenWidth}×${device.screenHeight}` : "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">语言: </span>
+                      <span>{device.language || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">时区: </span>
+                      <span>{device.timezone || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">平台: </span>
+                      <span className="capitalize">{device.platform || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">设备型号: </span>
+                      <span>{device.deviceModel || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">登录次数: </span>
+                      <span className="font-mono text-gold">{device.loginCount}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-muted-foreground pt-2 border-t border-border/30">
+                    <span>首次登录: {device.firstSeenAt ? new Date(device.firstSeenAt).toLocaleString() : "-"}</span>
+                    <span>最近活跃: {device.lastActiveAt ? new Date(device.lastActiveAt).toLocaleString() : "-"}</span>
+                  </div>
+                  {device.fingerprint && (
+                    <div className="text-[10px] text-muted-foreground">
+                      <span>指纹: </span>
+                      <span className="font-mono">{device.fingerprint}</span>
+                    </div>
+                  )}
+                  {device.userAgent && (
+                    <details className="text-[10px]">
+                      <summary className="text-muted-foreground cursor-pointer hover:text-foreground">查看User-Agent</summary>
+                      <div className="mt-1 p-2 bg-black/20 rounded text-[9px] font-mono break-all text-muted-foreground">{device.userAgent}</div>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -6858,6 +6944,10 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
     onSuccess: (data: any) => { toast.success(`成功导入 ${data.count} 个机器人`); refetch(); },
     onError: (err: any) => toast.error("导入失败: " + err.message),
   });
+  const regenerateNames = trpc.adminBot.regenerateNames.useMutation({
+    onSuccess: (data: any) => { toast.success(`已重新生成 ${data.count} 个机器人的多语言名字`); refetch(); },
+    onError: (err: any) => toast.error("生成失败: " + err.message),
+  });
 
   const [formState, setFormState] = useState<{
     enabled?: boolean;
@@ -7072,6 +7162,37 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
               </label>
             </div>
             <p className="text-xs text-muted-foreground">导出格式为JSON，可编辑后重新导入。导入时需包含 name 字段，balance 默认10000。</p>
+          </div>
+
+          {/* Multi-language Bot Names */}
+          <div className="glass rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">多语言用户名管理</h3>
+            <p className="text-xs text-muted-foreground">支持14种语言（英/中/日/韩/俄/阿拉伯/泰/越/印尼/葡/西/法/德/土耳其），按比例随机分配，让机器人看起来像全球真实玩家。</p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => {
+                  if (!confirm("确定要重新生成所有机器人的用户名吗？\n这将替换所有现有bot的名字为多语言名字。")) return;
+                  regenerateNames.mutate();
+                }}
+                disabled={regenerateNames.isPending}
+                className="px-4 py-2 bg-amber-500/20 text-amber-400 rounded-lg text-sm font-medium hover:bg-amber-500/30 transition-colors disabled:opacity-50"
+              >
+                {regenerateNames.isPending ? "生成中..." : "🌐 一键重新生成多语言名字"}
+              </button>
+              <button
+                onClick={() => {
+                  const countStr = prompt("要批量创建多少个多语言Bot？（最多200）", "20");
+                  if (!countStr) return;
+                  const count = parseInt(countStr);
+                  if (isNaN(count) || count < 1 || count > 200) { toast.error("数量必须在1-200之间"); return; }
+                  importBots.mutate({ count, balance: 10000 });
+                }}
+                disabled={importBots.isPending}
+                className="px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-lg text-sm font-medium hover:bg-cyan-500/30 transition-colors disabled:opacity-50"
+              >
+                {importBots.isPending ? "创建中..." : "➕ 批量创建多语言Bot"}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -47,9 +47,16 @@ export function registerOAuthRoutes(app: Express) {
       const cookieOptions = getSessionCookieOptions(req);
 
       // Save device info on login
-      const deviceInfo = parseDeviceInfo(req.headers["user-agent"] || "");
+      const ua = req.headers["user-agent"] || "";
+      const deviceInfo = parseDeviceInfo(ua);
       const loginIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "";
-      await db.updateUserDeviceInfo(userInfo.openId, deviceInfo, loginIp);
+      const { parseDeviceInfoFull } = await import("../deviceInfo");
+      const fullInfo = parseDeviceInfoFull(ua);
+      await db.updateUserDeviceInfo(userInfo.openId, deviceInfo, loginIp, {
+        ...fullInfo,
+        userAgent: ua,
+        platform: "web",
+      });
 
       // Device exclusivity: every login increments sessionVersion to invalidate old sessions
       // This ensures only ONE device can be active at a time

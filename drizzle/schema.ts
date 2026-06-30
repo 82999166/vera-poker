@@ -71,6 +71,39 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+// ==================== 用户设备信息表 ====================
+export const userDevices = mysqlTable("user_devices", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  // 设备基本信息
+  os: varchar("os", { length: 64 }),
+  osVersion: varchar("osVersion", { length: 32 }),
+  browser: varchar("browser", { length: 64 }),
+  browserVersion: varchar("browserVersion", { length: 32 }),
+  deviceModel: varchar("deviceModel", { length: 128 }),
+  deviceType: varchar("deviceType", { length: 32 }), // mobile, tablet, desktop
+  // 网络信息
+  ip: varchar("ip", { length: 64 }),
+  ipRegion: varchar("ipRegion", { length: 128 }),
+  // 屏幕信息
+  screenWidth: int("screenWidth"),
+  screenHeight: int("screenHeight"),
+  // 语言和时区
+  language: varchar("language", { length: 16 }),
+  timezone: varchar("timezone", { length: 64 }),
+  // 指纹和原始UA
+  fingerprint: varchar("fingerprint", { length: 256 }),
+  userAgent: text("userAgent"),
+  // 登录信息
+  platform: varchar("platform", { length: 32 }), // telegram, web, app
+  isOnline: boolean("isOnline").default(false).notNull(),
+  lastActiveAt: timestamp("lastActiveAt").defaultNow().notNull(),
+  firstSeenAt: timestamp("firstSeenAt").defaultNow().notNull(),
+  loginCount: int("loginCount").default(1).notNull(),
+});
+
+export type UserDevice = typeof userDevices.$inferSelect;
+
 // ==================== 系统配置表 ====================
 export const systemConfigs = mysqlTable("system_configs", {
   id: int("id").autoincrement().primaryKey(),

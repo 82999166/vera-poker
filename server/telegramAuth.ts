@@ -14,12 +14,26 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import { parseDeviceInfo } from "./deviceInfo";
 
 /** Helper: save device info + IP after successful Telegram login */
-async function saveDeviceInfoOnLogin(req: Request, openId: string) {
+async function saveDeviceInfoOnLogin(req: Request, openId: string, extraDeviceInfo?: {
+  screenWidth?: number; screenHeight?: number; language?: string;
+  timezone?: string; fingerprint?: string; platform?: string;
+}) {
   try {
     const ua = req.headers["user-agent"] || "";
     const deviceInfo = parseDeviceInfo(ua);
     const loginIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "";
-    await db.updateUserDeviceInfo(openId, deviceInfo, loginIp);
+    const { parseDeviceInfoFull } = await import("./deviceInfo");
+    const fullInfo = parseDeviceInfoFull(ua);
+    await db.updateUserDeviceInfo(openId, deviceInfo, loginIp, {
+      ...fullInfo,
+      userAgent: ua,
+      screenWidth: extraDeviceInfo?.screenWidth,
+      screenHeight: extraDeviceInfo?.screenHeight,
+      language: extraDeviceInfo?.language,
+      timezone: extraDeviceInfo?.timezone,
+      fingerprint: extraDeviceInfo?.fingerprint,
+      platform: extraDeviceInfo?.platform || "telegram",
+    });
   } catch (e) {
     console.error("[TelegramAuth] Failed to save device info:", e);
   }

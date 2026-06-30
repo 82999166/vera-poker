@@ -25,6 +25,7 @@ import ReplayList from "./pages/ReplayList";
 import ReplayPlayer from "./pages/ReplayPlayer";
 import RedPacket from "./pages/RedPacket";
 import { useClickSound } from "./hooks/useClickSound";
+import { useDeviceReport } from "./hooks/useDeviceReport";
 import { trpc } from "./lib/trpc";
 
 /** Old device receives new device login confirmation request */
@@ -169,6 +170,9 @@ function MobileContainer({ children }: { children: React.ReactNode }) {
 
 function AppContent() {
   const { locale } = useI18n();
+
+  // Report device info once after login
+  useDeviceReport();
 
   // Global TG language sync: ensure TG Mini App users always see their language.
   // In TG Mini App context, TG language_code always takes priority over localStorage.
