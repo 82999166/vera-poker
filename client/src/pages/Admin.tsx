@@ -2025,8 +2025,8 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
         </button>
       </div>
       {/* User list - two-row card layout */}
-      <div className="space-y-1.5">
-        {(filtered as any[])?.map((u: any) => (
+      {(() => {
+        const renderUserCard = (u: any) => (
           <div
             key={u.id}
             className="glass rounded-xl px-3 py-2 cursor-pointer hover:bg-secondary/50 transition-colors"
@@ -2036,8 +2036,13 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
             <div className="grid grid-cols-[1fr_130px_140px_70px_70px] gap-2 items-center">
               {/* User info */}
               <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center" style={{ background: u.isBot ? "linear-gradient(to bottom right, rgba(100,100,100,0.3), rgba(100,100,100,0.1))" : "linear-gradient(to bottom right, rgba(234,179,8,0.3), rgba(234,179,8,0.1))" }}>
-                  <span className={`text-[10px] font-bold ${u.isBot ? "text-muted-foreground" : "text-gold"}`}>{u.isBot ? "🤖" : (u.name || u.nickname || "?").charAt(0).toUpperCase()}</span>
+                <div className="relative">
+                  <div className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center" style={{ background: u.isBot ? "linear-gradient(to bottom right, rgba(100,100,100,0.3), rgba(100,100,100,0.1))" : "linear-gradient(to bottom right, rgba(234,179,8,0.3), rgba(234,179,8,0.1))" }}>
+                    <span className={`text-[10px] font-bold ${u.isBot ? "text-muted-foreground" : "text-gold"}`}>{u.isBot ? "🤖" : (u.name || u.nickname || "?").charAt(0).toUpperCase()}</span>
+                  </div>
+                  {u.onlineStatus?.online && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-background" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -2120,11 +2125,51 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
               </div>
             </div>
           </div>
-        ))}
-        {((filtered as any[])?.length ?? 0) === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-8">{at("users.noUsers")}</p>
-        )}
-      </div>
+        );
+
+        if (userFilter === "online") {
+          const realOnline = (filtered as any[] || []).filter((u: any) => !u.isBot);
+          const botOnline = (filtered as any[] || []).filter((u: any) => u.isBot);
+          if (realOnline.length === 0 && botOnline.length === 0) {
+            return <p className="text-sm text-muted-foreground text-center py-8">当前没有在线玩家</p>;
+          }
+          return (
+            <div className="space-y-3">
+              {realOnline.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    <span className="text-xs font-bold text-emerald-400">真人在线 ({realOnline.length})</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {realOnline.map((u: any) => renderUserCard(u))}
+                  </div>
+                </div>
+              )}
+              {botOnline.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full" />
+                    <span className="text-xs font-bold text-muted-foreground">机器人在线 ({botOnline.length})</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {botOnline.map((u: any) => renderUserCard(u))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-1.5">
+            {(filtered as any[])?.map((u: any) => renderUserCard(u))}
+            {((filtered as any[])?.length ?? 0) === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">{at("users.noUsers")}</p>
+            )}
+          </div>
+        );
+      })()}
       {total > 50 && (
         <div className="flex items-center justify-center gap-2 pt-2">
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs glass rounded disabled:opacity-50">{at("users.prevPage")}</button>
