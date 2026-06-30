@@ -218,6 +218,13 @@
       "when": 1782140374726,
       "tag": "0030_tough_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1782825461189,
+      "tag": "0031_concerned_shocker",
+      "breakpoints": true
     }
   ]
 }

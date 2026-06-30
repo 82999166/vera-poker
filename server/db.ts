@@ -1783,7 +1783,7 @@ export async function getAllRoomBotConfigs() {
   return db.select().from(roomBotConfig);
 }
 
-export async function upsertRoomBotConfig(roomId: number, data: { botCount?: number; enabled?: boolean; foldRate?: number | null; minActionDelay?: number | null; maxActionDelay?: number | null }) {
+export async function upsertRoomBotConfig(roomId: number, data: { botCount?: number; enabled?: boolean; foldRate?: number | null; aiLevel?: number | null; minActionDelay?: number | null; maxActionDelay?: number | null }) {
   const db = await getDb();
   if (!db) return;
   const { roomBotConfig } = await import("../drizzle/schema");
@@ -1794,6 +1794,7 @@ export async function upsertRoomBotConfig(roomId: number, data: { botCount?: num
     if (data.botCount !== undefined) updateData.botCount = data.botCount;
     if (data.enabled !== undefined) updateData.enabled = data.enabled;
     if (data.foldRate !== undefined) updateData.foldRate = data.foldRate;
+    if (data.aiLevel !== undefined) updateData.aiLevel = data.aiLevel;
     if (data.minActionDelay !== undefined) updateData.minActionDelay = data.minActionDelay;
     if (data.maxActionDelay !== undefined) updateData.maxActionDelay = data.maxActionDelay;
     await db.update(roomBotConfig).set(updateData).where(eq(roomBotConfig.roomId, roomId));
@@ -1803,6 +1804,7 @@ export async function upsertRoomBotConfig(roomId: number, data: { botCount?: num
       botCount: data.botCount ?? 3,
       enabled: data.enabled ?? true,
       foldRate: data.foldRate ?? null,
+      aiLevel: data.aiLevel ?? null,
       minActionDelay: data.minActionDelay ?? null,
       maxActionDelay: data.maxActionDelay ?? null,
     });

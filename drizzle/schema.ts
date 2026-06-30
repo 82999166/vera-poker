@@ -813,6 +813,7 @@ export const roomBotConfig = mysqlTable("room_bot_config", {
   botCount: int("botCount").notNull().default(3), // 该场次分配的bot数量
   enabled: boolean("enabled").notNull().default(true), // 该场次是否启用bot
   foldRate: int("foldRate"), // 该场次bot弃牌率(null=使用全局)
+  aiLevel: int("aiLevel"), // 智能等级: 1=基础 2=进阶 3=高级(null=使用全局)
   minActionDelay: int("minActionDelay"), // 最小操作延迟ms(null=使用全局)
   maxActionDelay: int("maxActionDelay"), // 最大操作延迟ms(null=使用全局)
   createdAt: timestamp("createdAt").defaultNow().notNull(),

@@ -6865,6 +6865,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
     minPerTable?: number;
     dailyLossLimit?: number;
     foldRate?: number;
+    aiLevel?: number;
     minActionDelay?: number;
     maxActionDelay?: number;
     balanceAlertThreshold?: number;
@@ -6889,6 +6890,7 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
         minPerTable: (stats.config as any).minPerTable ?? 3,
         dailyLossLimit: stats.config.dailyLossLimit,
         foldRate: stats.config.foldRate,
+        aiLevel: (stats.config as any).aiLevel ?? 3,
         minActionDelay: stats.config.minActionDelay,
         maxActionDelay: stats.config.maxActionDelay,
         balanceAlertThreshold: (stats.config as any).balanceAlertThreshold ?? 500,
@@ -7151,6 +7153,20 @@ function BotManagementPanel({ at }: { at: (k: string) => string }) {
                   className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold"
                 />
                 <p className="text-xs text-muted-foreground mt-1">越高越保守（推荐60-75）</p>
+              </div>
+              {/* AI Level */}
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <label className="text-sm font-medium">🧠 智能等级（全局默认）</label>
+                <select
+                  value={formState.aiLevel ?? 3}
+                  onChange={e => setFormState(s => ({ ...s, aiLevel: parseInt(e.target.value) }))}
+                  className="mt-1 w-full glass rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-gold bg-background"
+                >
+                  <option value={1}>Level 1 - 基础（仅equity计算，不分析对手）</option>
+                  <option value={2}>Level 2 - 进阶（位置+个性化+基础对手分析）</option>
+                  <option value={3}>Level 3 - 高级（完整对手行为分析+偷鸡检测）</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">等级越高决策越智能，低级场建议1-2，高级场建议3</p>
               </div>
             </div>
 
@@ -7517,9 +7533,10 @@ function RoomBotConfigPanel() {
     botCount: number;
     enabled: boolean;
     foldRate: number | null;
+    aiLevel: number | null;
     minActionDelay: number | null;
     maxActionDelay: number | null;
-  }>({ botCount: 3, enabled: true, foldRate: null, minActionDelay: null, maxActionDelay: null });
+  }>({ botCount: 3, enabled: true, foldRate: null, aiLevel: null, minActionDelay: null, maxActionDelay: null });
 
   if (isLoading) return <div className="glass rounded-xl p-5"><p className="text-sm text-muted-foreground">加载场次配置中...</p></div>;
 
@@ -7534,11 +7551,12 @@ function RoomBotConfigPanel() {
         botCount: existing.botCount,
         enabled: existing.enabled,
         foldRate: existing.foldRate,
+        aiLevel: existing.aiLevel ?? null,
         minActionDelay: existing.minActionDelay,
         maxActionDelay: existing.maxActionDelay,
       });
     } else {
-      setEditForm({ botCount: 3, enabled: true, foldRate: null, minActionDelay: null, maxActionDelay: null });
+      setEditForm({ botCount: 3, enabled: true, foldRate: null, aiLevel: null, minActionDelay: null, maxActionDelay: null });
     }
     setEditingRoom(roomId);
   };
@@ -7550,6 +7568,7 @@ function RoomBotConfigPanel() {
       botCount: editForm.botCount,
       enabled: editForm.enabled,
       foldRate: editForm.foldRate,
+      aiLevel: editForm.aiLevel,
       minActionDelay: editForm.minActionDelay,
       maxActionDelay: editForm.maxActionDelay,
     });
@@ -7572,6 +7591,7 @@ function RoomBotConfigPanel() {
               <th className="text-center py-2 px-2 text-muted-foreground font-medium">Bot数量</th>
               <th className="text-center py-2 px-2 text-muted-foreground font-medium">启用</th>
               <th className="text-center py-2 px-2 text-muted-foreground font-medium">弃牌率</th>
+              <th className="text-center py-2 px-2 text-muted-foreground font-medium">智能等级</th>
               <th className="text-center py-2 px-2 text-muted-foreground font-medium">延迟(ms)</th>
               <th className="text-center py-2 px-2 text-muted-foreground font-medium">操作</th>
             </tr>
@@ -7602,6 +7622,16 @@ function RoomBotConfigPanel() {
                           placeholder="全局"
                           onChange={e => setEditForm(s => ({ ...s, foldRate: e.target.value ? parseInt(e.target.value) : null }))}
                           className="w-14 glass rounded px-2 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-gold" />
+                      </td>
+                      <td className="text-center py-2 px-2">
+                        <select value={editForm.aiLevel ?? ""}
+                          onChange={e => setEditForm(s => ({ ...s, aiLevel: e.target.value ? parseInt(e.target.value) : null }))}
+                          className="w-16 glass rounded px-1 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-gold bg-background">
+                          <option value="">全局</option>
+                          <option value="1">L1</option>
+                          <option value="2">L2</option>
+                          <option value="3">L3</option>
+                        </select>
                       </td>
                       <td className="text-center py-2 px-2">
                         <div className="flex items-center gap-1 justify-center">
@@ -7643,6 +7673,9 @@ function RoomBotConfigPanel() {
                       </td>
                       <td className="text-center py-2 px-2 text-muted-foreground">
                         {cfg?.foldRate !== null && cfg?.foldRate !== undefined ? `${cfg.foldRate}%` : "全局"}
+                      </td>
+                      <td className="text-center py-2 px-2 text-muted-foreground">
+                        {cfg?.aiLevel ? `L${cfg.aiLevel}` : "全局"}
                       </td>
                       <td className="text-center py-2 px-2 text-muted-foreground">
                         {cfg?.minActionDelay ? `${cfg.minActionDelay}-${cfg.maxActionDelay}` : "全局"}

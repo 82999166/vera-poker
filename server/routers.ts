@@ -2889,6 +2889,7 @@ ${faqContext}
       minPerTable: z.number().min(0).optional(),
       dailyLossLimit: z.number().min(0).optional(),
       foldRate: z.number().min(0).max(100).optional(),
+      aiLevel: z.number().min(1).max(3).optional(),
       minActionDelay: z.number().min(500).max(10000).optional(),
       maxActionDelay: z.number().min(1000).max(20000).optional(),
       balanceAlertThreshold: z.number().min(0).optional(),
@@ -2907,6 +2908,7 @@ ${faqContext}
       if (input.minPerTable !== undefined) await db.upsertConfig("bot_min_per_table", String(input.minPerTable), "bot", "每桌最少Bot数(无真人时)", "number");
       if (input.dailyLossLimit !== undefined) await db.upsertConfig("bot_daily_loss_limit", String(input.dailyLossLimit), "bot", "每日亏损上限", "number");
       if (input.foldRate !== undefined) await db.upsertConfig("bot_fold_rate", String(input.foldRate), "bot", "弃牌率(%)", "number");
+      if (input.aiLevel !== undefined) await db.upsertConfig("bot_ai_level", String(input.aiLevel), "bot", "Bot智能等级(1基础/2进阶/3高级)", "number");
       if (input.minActionDelay !== undefined) await db.upsertConfig("bot_min_action_delay", String(input.minActionDelay), "bot", "最小操作延迟(ms)", "number");
       if (input.maxActionDelay !== undefined) await db.upsertConfig("bot_max_action_delay", String(input.maxActionDelay), "bot", "最大操作延迟(ms)", "number");
       if (input.balanceAlertThreshold !== undefined) await db.upsertConfig("bot_balance_alert_threshold", String(input.balanceAlertThreshold), "bot", "余额告警阈值($)", "number");
@@ -2936,6 +2938,7 @@ ${faqContext}
       botCount: z.number().min(0).optional(),
       enabled: z.boolean().optional(),
       foldRate: z.number().min(0).max(100).nullable().optional(),
+      aiLevel: z.number().min(1).max(3).nullable().optional(),
       minActionDelay: z.number().min(500).max(10000).nullable().optional(),
       maxActionDelay: z.number().min(1000).max(20000).nullable().optional(),
     })).mutation(async ({ input }) => {

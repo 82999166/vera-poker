@@ -17,6 +17,7 @@ interface BotConfig {
   minPerTable: number;       // 每桌最少bot数（无真人时）
   dailyLossLimit: number;    // 每日最大亏损（美元）
   foldRate: number;          // 弃牌率 (0-100)
+  aiLevel: number;           // 智能等级: 1=基础 2=进阶 3=高级
   minActionDelay: number;    // 最小操作延迟(ms)
   maxActionDelay: number;    // 最大操作延迟(ms)
   balanceAlertThreshold: number; // 余额告警阈值（美元）
@@ -28,8 +29,8 @@ interface BotConfig {
   displayOnlineBoost: number; // 大厅显示虚拟在线人数
   // 盈亏控制
   profitControlEnabled: boolean; // 是否启用盈亏控制
-  targetEdge: number;        // 目标庄家优势 (0-100, 如5表示bot目标赢5%)
-  maxWinStreak: number;      // 玩家最大连赢手数后收紧（0=不限）
+  targetEdge: number;        // 目标庄家优势 (0-100, 如5表示bot目标财5%)
+  maxWinStreak: number;      // 玩家最大连财手数后收紧（0=不限）
 }
 
 // 房间级别Bot配置
@@ -38,6 +39,7 @@ interface RoomBotConfig {
   botCount: number;
   enabled: boolean;
   foldRate: number | null;
+  aiLevel: number | null;
   minActionDelay: number | null;
   maxActionDelay: number | null;
 }
@@ -49,6 +51,7 @@ const DEFAULT_CONFIG: BotConfig = {
   minPerTable: 3,
   dailyLossLimit: 500,
   foldRate: 55,
+  aiLevel: 3,
   minActionDelay: 500,
   maxActionDelay: 1500,
   balanceAlertThreshold: 100,
@@ -225,6 +228,7 @@ export async function getBotConfig(): Promise<BotConfig> {
   const profitControlEnabled = await db.getConfigValue("bot_profit_control_enabled", "true");
   const targetEdge = await db.getConfigValue("bot_target_edge", "5");
   const maxWinStreak = await db.getConfigValue("bot_max_win_streak", "0");
+  const aiLevel = await db.getConfigValue("bot_ai_level", "3");
 
   cachedConfig = {
     enabled: enabled === "true",
@@ -232,6 +236,7 @@ export async function getBotConfig(): Promise<BotConfig> {
     minPerTable: parseInt(minPerTable) || DEFAULT_CONFIG.minPerTable,
     dailyLossLimit: dailyLossLimit !== "" && !isNaN(parseFloat(dailyLossLimit)) ? parseFloat(dailyLossLimit) : DEFAULT_CONFIG.dailyLossLimit,
     foldRate: parseInt(foldRate) || DEFAULT_CONFIG.foldRate,
+    aiLevel: parseInt(aiLevel) || DEFAULT_CONFIG.aiLevel,
     minActionDelay: parseInt(minDelay) || DEFAULT_CONFIG.minActionDelay,
     maxActionDelay: parseInt(maxDelay) || DEFAULT_CONFIG.maxActionDelay,
     balanceAlertThreshold: parseFloat(balanceAlertThreshold) || DEFAULT_CONFIG.balanceAlertThreshold,
@@ -271,6 +276,7 @@ async function refreshRoomBotConfigs() {
       botCount: c.botCount,
       enabled: c.enabled,
       foldRate: c.foldRate,
+      aiLevel: (c as any).aiLevel ?? null,
       minActionDelay: c.minActionDelay,
       maxActionDelay: c.maxActionDelay,
     });
@@ -779,10 +785,13 @@ export async function triggerBotAction(roomId: number): Promise<void> {
       const player = currentGs.players[currentGs.currentPlayerIndex];
       if (!player || player.id !== currentPlayer.id) return;
 
-      // AI决策（使用房间级别foldRate或全局foldRate）
+      // AI决策（使用房间级别配置覆盖全局配置）
       const effectiveConfig = { ...config };
       if (roomConfig?.foldRate !== null && roomConfig?.foldRate !== undefined) {
         effectiveConfig.foldRate = roomConfig.foldRate;
+      }
+      if (roomConfig?.aiLevel !== null && roomConfig?.aiLevel !== undefined) {
+        effectiveConfig.aiLevel = roomConfig.aiLevel;
       }
       // 盈亏控制：找到对手真人玩家ID（用于连赢追踪）
       const botIds = await getBotUserIds();
@@ -1236,56 +1245,59 @@ function decideBotAction(
   const profitAdj = getProfitControlAdjustment(config, opponentId);
   equity -= profitAdj; // 正调整 = 降低equity = bot更容易fold = 减少亏损
 
-  // === v4核心：对手行为分析 ===
+  // === v4核心：对手行为分析（受aiLevel控制） ===
+  // Level 1(基础): 不做对手分析，纯equity+potOdds决策
+  // Level 2(进阶): 基础对手分析（仅调整equity，不影响all-in/postflop细节）
+  // Level 3(高级): 完整v4对手行为分析+偷鸡检测+各街独立策略
+  const aiLevel = config.aiLevel || 3;
   let opponentAnalysis = { opponentStrength: 0.50, aggressionLevel: 0.50, isLikelyBluff: false };
-  if (actionTimeline && actionTimeline.length > 0) {
+  
+  if (aiLevel >= 2 && actionTimeline && actionTimeline.length > 0) {
     opponentAnalysis = analyzeOpponentBehavior(actionTimeline, player.id, gs.phase, pot, bigBlind);
     
-    // 根据对手推断强度调整有效equity
-    // 对手越强 → 我们的有效equity越低（需要更好的牌才能继续）
-    // 对手越弱/可能偷鸡 → 我们的有效equity越高（可以更宽松地跟注）
+    // Level 2+: 根据对手推断强度调整有效equity
     if (opponentAnalysis.opponentStrength > 0.75) {
-      // 对手行为表明很强牌 → 降低我们的有效equity
-      equity -= (opponentAnalysis.opponentStrength - 0.50) * 0.15; // 最多降低 ~0.067
+      equity -= (opponentAnalysis.opponentStrength - 0.50) * 0.15;
     } else if (opponentAnalysis.opponentStrength < 0.40) {
-      // 对手行为表明弱牌 → 提高我们的有效equity
-      equity += (0.50 - opponentAnalysis.opponentStrength) * 0.12; // 最多提高 ~0.036
+      equity += (0.50 - opponentAnalysis.opponentStrength) * 0.12;
     }
     
-    // 如果检测到可能是偷鸡 → 大幅提高有效equity（更愿意跟注）
-    if (opponentAnalysis.isLikelyBluff) {
+    // Level 3才启用偷鸡检测的equity调整
+    if (aiLevel >= 3 && opponentAnalysis.isLikelyBluff) {
       equity += 0.10;
+    }
+    
+    // Level 2时不使用偷鸡检测结果（降级处理）
+    if (aiLevel < 3) {
+      opponentAnalysis.isLikelyBluff = false;
     }
   }
 
   // === 决策逻辑 ===
 
-  // 特殊情况：面对All-in（v4优化：结合对手行为分析，不再盲目弃牌）
+  // 特殊情况：面对All-in
   const anyAllIn = gs.players.some(p => p.isAllIn && p.id !== player.id);
   if (anyAllIn) {
-    // v4: 面对All-in时，结合对手行为推断做出更智能的决策
     const allInPotOdds = toCall / (pot + toCall);
     
-    // 如果对手可能是偷鸡（之前一直check突然all-in），大幅降低弃牌倾向
-    if (opponentAnalysis.isLikelyBluff) {
-      // 偷鸡检测：只要有中等以上牌力就跟注
-      if (equity >= 0.38) return { action: "call" };
-      // 即使弱牌，也有较高概率跟注抓偷鸡
-      if (equity >= 0.30) return Math.random() < 0.55 ? { action: "call" } : { action: "fold" };
+    // Level 3: 智能分析对手行为，不盲目弃牌
+    if (aiLevel >= 3) {
+      // 如果对手可能是偷鸡（之前一直check突然all-in）
+      if (opponentAnalysis.isLikelyBluff) {
+        if (equity >= 0.38) return { action: "call" };
+        if (equity >= 0.30) return Math.random() < 0.55 ? { action: "call" } : { action: "fold" };
+      }
+      // 对手行为一直很强，需要更好的牌才跟
+      if (opponentAnalysis.opponentStrength > 0.75) {
+        if (equity < 0.52) return { action: "fold" };
+        if (equity >= 0.60) return { action: "call" };
+        return Math.random() < 0.40 ? { action: "call" } : { action: "fold" };
+      }
     }
     
-    // 对手行为一直很强（多街连续加注），需要更好的牌才跟
-    if (opponentAnalysis.opponentStrength > 0.75) {
-      if (equity < 0.52) return { action: "fold" };
-      if (equity >= 0.60) return { action: "call" };
-      // 0.52-0.60: 谨慎决定
-      return Math.random() < 0.40 ? { action: "call" } : { action: "fold" };
-    }
-    
-    // 默认all-in决策（对手行为中性）
+    // Level 1-2 或 Level 3 对手中性时：基础all-in决策
     if (equity < 0.42) return { action: "fold" };
     if (equity >= 0.55) return { action: "call" };
-    // equity 0.42-0.55: 根据底池赔率决定
     if (equity > allInPotOdds + 0.03) return { action: "call" };
     return Math.random() < 0.40 ? { action: "call" } : { action: "fold" };
   }
@@ -1295,8 +1307,11 @@ function decideBotAction(
     return decidePreflopAction(equity, toCall, canCheck, pot, bigBlind, minRaise, player, isLatePosition);
   }
 
-  // Postflop策略（v4: 传入对手行为分析结果）
-  return decidePostflopAction(equity, potOdds, toCall, canCheck, pot, bigBlind, minRaise, player, gs, opponentAnalysis);
+  // Postflop策略
+  // Level 3: 传入对手行为分析结果，各街独立策略
+  // Level 1-2: 传入默认中性分析（不影响postflop细节决策）
+  const postflopAnalysis = aiLevel >= 3 ? opponentAnalysis : { opponentStrength: 0.50, aggressionLevel: 0.50, isLikelyBluff: false };
+  return decidePostflopAction(equity, potOdds, toCall, canCheck, pot, bigBlind, minRaise, player, gs, postflopAnalysis);
 }
 
 /**

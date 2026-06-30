@@ -1208,3 +1208,10 @@
 - [x] 实现每条街细化决策（flop/turn/river各自独立分析逻辑）
 - [x] 不能简单"对手全押就弃牌"，要分析对手是真强还是偷鸡
 - [x] 数据库bot_fold_rate默认值从75更新为55
+
+## Bot智能等级配置
+- [x] 全局配置项：bot_ai_level（1=基础/2=进阶/3=高级）
+- [x] room_bot_config表增加aiLevel字段（房间级覆盖）
+- [x] botManager根据aiLevel控制对手分析深度（Level1无分析/Level2基础/Level3完整v4）
+- [x] 管理后台：全局智能等级设置
+- [x] 管理后台：房间级别智能等级覆盖配置
