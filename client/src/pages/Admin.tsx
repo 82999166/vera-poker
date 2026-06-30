@@ -1893,7 +1893,7 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [userFilter, setUserFilter] = useState<"all" | "real" | "bot">("real");
+  const [userFilter, setUserFilter] = useState<"all" | "real" | "bot" | "online">("real");
   const { data, isLoading, refetch } = trpc.admin.users.useQuery({ page, limit: 50, filter: userFilter });
   const { data: statsData } = trpc.admin.stats.useQuery();
   const utils = trpc.useUtils();
@@ -1973,15 +1973,15 @@ function UsersPanel({ at }: { at: (k: string) => string }) {
       {/* Filter tabs + Search */}
       <div className="flex items-center gap-2">
         <div className="flex gap-1">
-          {(["all", "real", "bot"] as const).map(f => (
+          {(["all", "real", "bot", "online"] as const).map(f => (
             <button
               key={f}
               onClick={() => { setUserFilter(f); setPage(1); }}
               className={`px-2.5 py-1 text-[11px] rounded-lg font-medium transition-colors ${
-                userFilter === f ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-foreground"
+                userFilter === f ? (f === "online" ? "bg-emerald-500/20 text-emerald-400" : "bg-gold/20 text-gold") : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {at(`users.filter${f.charAt(0).toUpperCase() + f.slice(1)}`)}
+              {f === "online" ? "在线玩家" : at(`users.filter${f.charAt(0).toUpperCase() + f.slice(1)}`)}
             </button>
           ))}
         </div>

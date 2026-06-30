@@ -2222,7 +2222,7 @@ ${faqContext}
 
   // ==================== ADMIN ====================
   admin: router({
-    users: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), filter: z.enum(["all", "real", "bot"]).default("all") })).query(async ({ input }) => {
+    users: staffProcedure.input(z.object({ page: z.number().default(1), limit: z.number().default(20), filter: z.enum(["all", "real", "bot", "online"]).default("all") })).query(async ({ input }) => {
       return db.getAllUsers(input.page, input.limit, input.filter);
     }),
     updateUser: adminProcedure.input(z.object({
@@ -2793,12 +2793,12 @@ ${faqContext}
     }),
     // Export all real users as CSV data
     exportUsers: adminProcedure.input(z.object({
-      filter: z.enum(["all", "real", "bot"]).default("real"),
+      filter: z.enum(["all", "real", "bot", "online"]).default("real"),
     })).query(async ({ input }) => {
       const dbInstance = await db.getDb();
       if (!dbInstance) return { users: [] };
-      const { users } = await import("../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
+      const { users, roomPlayers } = await import("../drizzle/schema");
+      const { eq, sql } = await import("drizzle-orm");
       let query = dbInstance.select({
         id: users.id,
         name: users.name,
@@ -2827,6 +2827,13 @@ ${faqContext}
         return { users: result };
       } else if (input.filter === "bot") {
         const result = await (query as any).where(eq(users.isBot, true));
+        return { users: result };
+      } else if (input.filter === "online") {
+        const activeRows = await dbInstance.select({ userId: roomPlayers.userId })
+          .from(roomPlayers).where(eq(roomPlayers.status, "active"));
+        const onlineIds = [...new Set(activeRows.map(r => r.userId))];
+        if (onlineIds.length === 0) return { users: [] };
+        const result = await (query as any).where(sql`${users.id} IN (${sql.raw(onlineIds.join(","))})`);
         return { users: result };
       }
       const result = await query;

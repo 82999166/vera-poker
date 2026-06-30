@@ -130,14 +130,25 @@ export async function getUserById(id: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function getAllUsers(page = 1, limit = 20, filter: "all" | "real" | "bot" = "all") {
+export async function getAllUsers(page = 1, limit = 20, filter: "all" | "real" | "bot" | "online" = "all") {
   const db = await getDb();
   if (!db) return { users: [], total: 0 };
   const offset = (page - 1) * limit;
   
+  // For "online" filter, get active player user IDs first
+  let onlineUserIds: number[] = [];
+  if (filter === "online") {
+    const activeRows = await db.select({ userId: roomPlayers.userId })
+      .from(roomPlayers)
+      .where(eq(roomPlayers.status, "active"));
+    onlineUserIds = [...new Set(activeRows.map(r => r.userId))];
+    if (onlineUserIds.length === 0) return { users: [], total: 0 };
+  }
+  
   // Build where condition based on filter
   const whereCondition = filter === "real" ? eq(users.isBot, false) 
-    : filter === "bot" ? eq(users.isBot, true) 
+    : filter === "bot" ? eq(users.isBot, true)
+    : filter === "online" ? sql`${users.id} IN (${sql.raw(onlineUserIds.join(","))})`
     : undefined;
   
   const [data, countResult] = await Promise.all([
