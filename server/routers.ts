@@ -18,6 +18,38 @@ import * as botManager from "./botManager";
 import { depositAddresses, chainDeposits, consolidations } from "../drizzle/schema";
 import { eq, and, sql } from "drizzle-orm";
 
+/**
+ * Generate a memorable 6-digit room code using repeating patterns
+ * Patterns: aabbcc, aaabbb, abcabc, aabcbc, abccba etc.
+ * Examples: 112233, 556677, 998877, 123123, 778899
+ */
+function generateMemorableRoomCode(): string {
+  const patterns = [
+    // aabbcc - e.g. 112233, 556677
+    () => { const a = Math.floor(Math.random() * 9) + 1; const b = Math.floor(Math.random() * 10); const c = Math.floor(Math.random() * 10); return `${a}${a}${b}${b}${c}${c}`; },
+    // aaabbb - e.g. 111222, 333444
+    () => { const a = Math.floor(Math.random() * 9) + 1; const b = Math.floor(Math.random() * 10); if (b === a) return null; return `${a}${a}${a}${b}${b}${b}`; },
+    // abcabc - e.g. 123123, 456456
+    () => { const a = Math.floor(Math.random() * 9) + 1; const b = Math.floor(Math.random() * 10); const c = Math.floor(Math.random() * 10); return `${a}${b}${c}${a}${b}${c}`; },
+    // abccba (palindrome) - e.g. 123321, 456654
+    () => { const a = Math.floor(Math.random() * 9) + 1; const b = Math.floor(Math.random() * 10); const c = Math.floor(Math.random() * 10); return `${a}${b}${c}${c}${b}${a}`; },
+    // aabcdd - e.g. 112344, 556788
+    () => { const a = Math.floor(Math.random() * 9) + 1; const b = Math.floor(Math.random() * 10); const c = Math.floor(Math.random() * 10); const d = Math.floor(Math.random() * 10); return `${a}${a}${b}${c}${d}${d}`; },
+    // abcdef sequential - e.g. 123456, 234567, 876543
+    () => { const start = Math.floor(Math.random() * 4) + 1; const asc = Math.random() > 0.5; return asc ? Array.from({length: 6}, (_, i) => start + i).join('') : Array.from({length: 6}, (_, i) => 9 - start + 1 - i).join(''); },
+  ];
+  const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+  const code = pattern();
+  if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
+    // Fallback: simple aabbcc pattern
+    const a = Math.floor(Math.random() * 9) + 1;
+    const b = Math.floor(Math.random() * 10);
+    const c = Math.floor(Math.random() * 10);
+    return `${a}${a}${b}${b}${c}${c}`;
+  }
+  return code;
+}
+
 // Staff guard - supports both admin_users session and legacy game user roles
 const staffProcedure = publicProcedure.use(({ ctx, next }) => {
   // New: admin_users table session
@@ -384,7 +416,7 @@ export const appRouter = router({
       billingMode: z.enum(["standard_rake", "per_round_fee"]).default("standard_rake"),
       roundFee: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
-      const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
+      const inviteCode = generateMemorableRoomCode();
       const roomId = await db.createRoom({
         ...input,
         ownerId: ctx.user.id,
@@ -485,7 +517,7 @@ export const appRouter = router({
       rakeCap: z.string().nullable().optional(),
       fairnessLevel: z.enum(["basic", "medium", "high"]).default("basic"),
     })).mutation(async ({ ctx, input }) => {
-      const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
+      const inviteCode = generateMemorableRoomCode();
       const ownerId = ctx.adminUser?.adminId ?? ctx.user?.id ?? 0;
       const roomId = await db.createRoom({
         ...input,
@@ -532,7 +564,7 @@ export const appRouter = router({
     duplicate: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const source = await db.getRoomById(input.id);
       if (!source) throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
-      const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
+      const inviteCode = generateMemorableRoomCode();
       const ownerId = ctx.adminUser?.adminId ?? ctx.user?.id ?? 0;
       const newRoomId = await db.createRoom({
         name: `${source.name} (Copy)`,
@@ -1337,13 +1369,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const room = await db.getRoomById(input.roomId);
       if (!room) throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
-      // Private room restriction: must have deposited at least once
-      if (room.type === "private") {
-        const user0 = await db.getUserById(ctx.user.id);
-        if (!user0 || parseFloat(user0.totalDeposited) <= 0) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "PRIVATE_ROOM_DEPOSIT_REQUIRED" });
-        }
-      }
+      // Private rooms: no deposit restriction (friends playing together)
       const minBuyIn = parseFloat(room.minBuyIn);
       const maxBuyIn = parseFloat(room.maxBuyIn);
       if (input.buyIn < minBuyIn || input.buyIn > maxBuyIn) {
