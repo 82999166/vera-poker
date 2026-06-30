@@ -1188,3 +1188,10 @@
 - [x] 游戏桌面页面去掉左右两侧多余背景，改为relative+max-w-430px居中
 - [x] 启动动画重新设计：5张牌从上方不规则飘落组成同花顺，Logo和文字上移避免重叠
 - [x] 音效播放优化：添加用户交互触发备选方案应对自动播放限制
+
+## 重大Bug修复：所有玩家弃牌后游戏仍在进行
+- [x] 根因分析：checkTimeouts 是同步函数，调用 async checkAndAdvanceGame 时没有 await，导致 settleHand 在 DB 操作期间被重复触发
+- [x] 修复1：settleHand 开头立即将 phase 设为 completed（在任何 await 之前），防止 checkTimeouts 在结算期间继续触发 bot 或超时
+- [x] 修复2：添加 settlingRooms Set 锁，防止 settleHand 被并发调用
+- [x] 修复3：checkAndAdvanceGame 开头检查 settlingRooms，正在结算的房间直接跳过
+- [x] 修复4：checkTimeouts 循环中增加 settlingRooms 检查，跳过正在结算的房间

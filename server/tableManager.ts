@@ -697,10 +697,16 @@ export async function processPlayerAction(
 // Tracks pending showdown settle timers (to avoid double-settling)
 const showdownTimers = new Map<number, NodeJS.Timeout>();
 
+// Tracks rooms currently being settled (to prevent race conditions from concurrent checkAndAdvanceGame calls)
+const settlingRooms = new Set<number>();
+
 /**
  * Check if betting round is complete and advance game phases
  */
 async function checkAndAdvanceGame(roomId: number) {
+  // If this room is currently being settled, skip (prevents race conditions)
+  if (settlingRooms.has(roomId)) return;
+
   const table = activeTables.get(roomId);
   if (!table) return;
 
@@ -879,10 +885,23 @@ function calculateSidePots(players: gameEngine.Player[]): { amount: number; elig
  * Settle the hand - determine winner, distribute pot with side pots, record to DB
  */
 async function settleHand(roomId: number) {
+  // Prevent concurrent settlement (race condition from non-awaited checkAndAdvanceGame calls)
+  if (settlingRooms.has(roomId)) return;
+  settlingRooms.add(roomId);
+
   const table = activeTables.get(roomId);
-  if (!table) return;
+  if (!table) {
+    settlingRooms.delete(roomId);
+    return;
+  }
 
   const gs = table.gameState;
+  
+  // CRITICAL: Immediately mark phase as completed BEFORE any await
+  // This prevents checkTimeouts from triggering bot actions or further timeout folds
+  // while settleHand is processing async DB operations
+  gs.phase = "completed" as any;
+  
   const activePlayers = gameEngine.getActivePlayers(gs);
 
   // Fetch all player names
@@ -1262,6 +1281,9 @@ async function settleHand(roomId: number) {
       }
     }, 4000);
   }
+
+  // Release settling lock
+  settlingRooms.delete(roomId);
 }
 
 /**
@@ -1468,6 +1490,7 @@ export function checkTimeouts() {
     if (table.gameState.phase === "waiting" || table.gameState.phase === "completed") continue;
     if (table.waitingForReady) continue; // Don't auto-fold during ready phase
     if (table.gameState.phase === "showdown") continue; // Don't auto-fold during showdown (settle timer is running)
+    if (settlingRooms.has(roomId)) continue; // Don't process rooms that are being settled
     
     // Bot system: if current player is a bot, trigger bot action (with delay)
     const currentPlayerForBot = table.gameState.players[table.gameState.currentPlayerIndex];
