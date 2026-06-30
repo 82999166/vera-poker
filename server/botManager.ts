@@ -212,7 +212,7 @@ export async function getBotConfig(): Promise<BotConfig> {
   const maxPerTable = await db.getConfigValue("bot_max_per_table", "5");
   const minPerTable = await db.getConfigValue("bot_min_per_table", "3");
   const dailyLossLimit = await db.getConfigValue("bot_daily_loss_limit", "500");
-  const foldRate = await db.getConfigValue("bot_fold_rate", "75");
+  const foldRate = await db.getConfigValue("bot_fold_rate", "55");
   const minDelay = await db.getConfigValue("bot_min_action_delay", "2000");
   const maxDelay = await db.getConfigValue("bot_max_action_delay", "5000");
   const balanceAlertThreshold = await db.getConfigValue("bot_balance_alert_threshold", "100");
@@ -788,7 +788,7 @@ export async function triggerBotAction(roomId: number): Promise<void> {
       const botIds = await getBotUserIds();
       const realOpponent = currentGs.players.find(p => p.isActive && !p.isFolded && !botIds.includes(p.id));
       const opponentId = realOpponent?.id;
-      const decision = decideBotAction(currentGs, player, currentTable.bigBlind, effectiveConfig, opponentId);
+      const decision = decideBotAction(currentGs, player, currentTable.bigBlind, effectiveConfig, opponentId, currentTable.actionTimeline);
       
       await processPlayerAction(roomId, player.id, decision.action, decision.amount);
     } catch (e) {
@@ -1007,12 +1007,179 @@ function countOuts(holeCards: Card[], communityCards: Card[]): number {
  * 基于手牌胜率(equity) vs 底池赔率(pot odds) 做出数学正确的决策
  * 同时加入位置、随机性、个性化因素让行为更像真人
  */
+// Action timeline entry type (from tableManager)
+type ActionTimelineEntry = {
+  seq: number;
+  phase: string;
+  playerId: number;
+  playerName: string;
+  action: string;
+  amount: number;
+  potAfter: number;
+  timestamp: number;
+};
+
+/**
+ * 分析对手行为模式（v4核心新增）
+ * 根据对手在当前手牌各街的下注行为推断其牌力范围
+ * 返回 opponentStrength: 0-1（推断的对手牌力）
+ */
+function analyzeOpponentBehavior(
+  timeline: ActionTimelineEntry[],
+  botPlayerId: number,
+  currentPhase: string,
+  pot: number,
+  bigBlind: number
+): { opponentStrength: number; aggressionLevel: number; isLikelyBluff: boolean } {
+  // 获取非bot玩家在各街的行为
+  const opponentActions = timeline.filter(a => a.playerId !== botPlayerId);
+  
+  if (opponentActions.length === 0) {
+    return { opponentStrength: 0.50, aggressionLevel: 0.50, isLikelyBluff: false };
+  }
+
+  // 按街分组
+  const preflopActions = opponentActions.filter(a => a.phase === "preflop");
+  const flopActions = opponentActions.filter(a => a.phase === "flop");
+  const turnActions = opponentActions.filter(a => a.phase === "turn");
+  const riverActions = opponentActions.filter(a => a.phase === "river");
+
+  let estimatedStrength = 0.50; // 基础推断
+  let aggressionScore = 0;
+  let totalBets = 0;
+  let totalRaises = 0;
+  let totalCalls = 0;
+  let totalChecks = 0;
+  let bigBetCount = 0; // 大注次数
+
+  for (const action of opponentActions) {
+    if (action.action === "raise" || action.action === "bet") {
+      totalRaises++;
+      totalBets++;
+      // 分析下注金额相对于底池的比例
+      const betRatio = action.amount / Math.max(action.potAfter - action.amount, bigBlind);
+      if (betRatio >= 0.75) bigBetCount++; // 大注（>=75%底池）
+      aggressionScore += betRatio;
+    } else if (action.action === "call") {
+      totalCalls++;
+    } else if (action.action === "check") {
+      totalChecks++;
+    }
+  }
+
+  const totalActions = totalRaises + totalCalls + totalChecks;
+  const aggressionLevel = totalActions > 0 ? (totalRaises / totalActions) : 0.50;
+
+  // === Preflop 行为推断 ===
+  const preflopRaises = preflopActions.filter(a => a.action === "raise");
+  if (preflopRaises.length >= 2) {
+    // preflop 多次加注 → 很可能是强牌 (AA/KK/AK)
+    estimatedStrength += 0.15;
+  } else if (preflopRaises.length === 1) {
+    const raiseAmount = preflopRaises[0].amount;
+    if (raiseAmount > bigBlind * 5) {
+      estimatedStrength += 0.10; // 大额加注 → 可能强牌
+    } else {
+      estimatedStrength += 0.03; // 标准加注 → 范围较宽
+    }
+  }
+
+  // === Flop 行为推断 ===
+  const flopRaises = flopActions.filter(a => a.action === "raise" || a.action === "bet");
+  const flopChecks = flopActions.filter(a => a.action === "check");
+  if (flopRaises.length > 0) {
+    const maxFlopBet = Math.max(...flopRaises.map(a => a.amount));
+    const flopBetRatio = maxFlopBet / Math.max(pot * 0.5, bigBlind);
+    if (flopBetRatio >= 1.0) {
+      estimatedStrength += 0.12; // flop大注 → 可能中了牌
+    } else {
+      estimatedStrength += 0.05; // flop小注 → 可能试探或中等牌
+    }
+  } else if (flopChecks.length > 0 && flopRaises.length === 0) {
+    estimatedStrength -= 0.08; // flop过牌 → 可能弱牌或慢打
+  }
+
+  // === Turn 行为推断 ===
+  const turnRaises = turnActions.filter(a => a.action === "raise" || a.action === "bet");
+  if (turnRaises.length > 0) {
+    const maxTurnBet = Math.max(...turnRaises.map(a => a.amount));
+    const turnBetRatio = maxTurnBet / Math.max(pot * 0.5, bigBlind);
+    if (turnBetRatio >= 1.0) {
+      estimatedStrength += 0.15; // turn大注 → 很可能强牌
+    } else {
+      estimatedStrength += 0.07;
+    }
+  }
+  // turn check after flop bet → 可能是弱牌放弃
+  if (turnActions.some(a => a.action === "check") && flopRaises.length > 0) {
+    estimatedStrength -= 0.10;
+  }
+
+  // === River 行为推断 ===
+  const riverRaises = riverActions.filter(a => a.action === "raise" || a.action === "bet");
+  if (riverRaises.length > 0) {
+    const maxRiverBet = Math.max(...riverRaises.map(a => a.amount));
+    const riverBetRatio = maxRiverBet / Math.max(pot * 0.5, bigBlind);
+    if (riverBetRatio >= 1.5) {
+      // river 超池大注 → 极化范围（坚果或偷鸡）
+      // 偷鸡概率约 25-35%
+      estimatedStrength += 0.12;
+    } else if (riverBetRatio >= 0.75) {
+      estimatedStrength += 0.15; // river大注 → 大概率强牌
+    } else {
+      estimatedStrength += 0.05; // river小注 → 可能是薄价值
+    }
+  }
+
+  // === 多街连续下注模式分析 ===
+  const streetsWithBets = [
+    flopRaises.length > 0,
+    turnRaises.length > 0,
+    riverRaises.length > 0,
+  ].filter(Boolean).length;
+
+  if (streetsWithBets >= 3) {
+    // 三街连续下注 → 很强或很弱（极化）
+    estimatedStrength += 0.10;
+  } else if (streetsWithBets === 2) {
+    estimatedStrength += 0.05;
+  }
+
+  // === 偷鸡检测 ===
+  let isLikelyBluff = false;
+  // 特征1：之前一直check，突然在river大注
+  if (riverRaises.length > 0 && flopChecks.length > 0 && turnActions.some(a => a.action === "check")) {
+    isLikelyBluff = true;
+    estimatedStrength -= 0.15; // 很可能是偷鸡
+  }
+  // 特征2：下注金额不合常理（超池2倍以上）→ 偷鸡概率高
+  if (riverRaises.length > 0) {
+    const riverBetRatio = Math.max(...riverRaises.map(a => a.amount)) / Math.max(pot * 0.5, bigBlind);
+    if (riverBetRatio >= 3.0) {
+      isLikelyBluff = true;
+      estimatedStrength -= 0.10;
+    }
+  }
+  // 特征3：对手全押但之前行为不一致（先check后突然all-in）
+  const hasAllIn = opponentActions.some(a => a.action === "raise" && a.amount > pot * 2);
+  if (hasAllIn && totalChecks >= 2) {
+    isLikelyBluff = true;
+    estimatedStrength -= 0.08;
+  }
+
+  // 限制范围
+  estimatedStrength = Math.min(Math.max(estimatedStrength, 0.20), 0.95);
+
+  return { opponentStrength: estimatedStrength, aggressionLevel, isLikelyBluff };
+}
+
 function decideBotAction(
   gs: GameState,
   player: typeof gs.players[0],
   bigBlind: number,
   config: BotConfig,
-  opponentId?: number
+  opponentId?: number,
+  actionTimeline?: ActionTimelineEntry[]
 ): { action: PlayerAction; amount?: number } {
   const { currentBet, communityCards, pot, minRaise } = gs;
   const toCall = currentBet - player.currentBet;
@@ -1069,18 +1236,58 @@ function decideBotAction(
   const profitAdj = getProfitControlAdjustment(config, opponentId);
   equity -= profitAdj; // 正调整 = 降低equity = bot更容易fold = 减少亏损
 
+  // === v4核心：对手行为分析 ===
+  let opponentAnalysis = { opponentStrength: 0.50, aggressionLevel: 0.50, isLikelyBluff: false };
+  if (actionTimeline && actionTimeline.length > 0) {
+    opponentAnalysis = analyzeOpponentBehavior(actionTimeline, player.id, gs.phase, pot, bigBlind);
+    
+    // 根据对手推断强度调整有效equity
+    // 对手越强 → 我们的有效equity越低（需要更好的牌才能继续）
+    // 对手越弱/可能偷鸡 → 我们的有效equity越高（可以更宽松地跟注）
+    if (opponentAnalysis.opponentStrength > 0.75) {
+      // 对手行为表明很强牌 → 降低我们的有效equity
+      equity -= (opponentAnalysis.opponentStrength - 0.50) * 0.15; // 最多降低 ~0.067
+    } else if (opponentAnalysis.opponentStrength < 0.40) {
+      // 对手行为表明弱牌 → 提高我们的有效equity
+      equity += (0.50 - opponentAnalysis.opponentStrength) * 0.12; // 最多提高 ~0.036
+    }
+    
+    // 如果检测到可能是偷鸡 → 大幅提高有效equity（更愿意跟注）
+    if (opponentAnalysis.isLikelyBluff) {
+      equity += 0.10;
+    }
+  }
+
   // === 决策逻辑 ===
 
-  // 特殊情况：面对All-in（v3优化：降低阈值，让bot更敢跟注）
+  // 特殊情况：面对All-in（v4优化：结合对手行为分析，不再盲目弃牌）
   const anyAllIn = gs.players.some(p => p.isAllIn && p.id !== player.id);
   if (anyAllIn) {
-    // 面对All-in：根据底池赔率和equity综合判断
+    // v4: 面对All-in时，结合对手行为推断做出更智能的决策
     const allInPotOdds = toCall / (pot + toCall);
-    if (equity < 0.45) return { action: "fold" };
+    
+    // 如果对手可能是偷鸡（之前一直check突然all-in），大幅降低弃牌倾向
+    if (opponentAnalysis.isLikelyBluff) {
+      // 偷鸡检测：只要有中等以上牌力就跟注
+      if (equity >= 0.38) return { action: "call" };
+      // 即使弱牌，也有较高概率跟注抓偷鸡
+      if (equity >= 0.30) return Math.random() < 0.55 ? { action: "call" } : { action: "fold" };
+    }
+    
+    // 对手行为一直很强（多街连续加注），需要更好的牌才跟
+    if (opponentAnalysis.opponentStrength > 0.75) {
+      if (equity < 0.52) return { action: "fold" };
+      if (equity >= 0.60) return { action: "call" };
+      // 0.52-0.60: 谨慎决定
+      return Math.random() < 0.40 ? { action: "call" } : { action: "fold" };
+    }
+    
+    // 默认all-in决策（对手行为中性）
+    if (equity < 0.42) return { action: "fold" };
     if (equity >= 0.55) return { action: "call" };
-    // equity 0.45-0.55: 根据底池赔率决定
-    if (equity > allInPotOdds + 0.05) return { action: "call" };
-    return Math.random() < 0.35 ? { action: "call" } : { action: "fold" };
+    // equity 0.42-0.55: 根据底池赔率决定
+    if (equity > allInPotOdds + 0.03) return { action: "call" };
+    return Math.random() < 0.40 ? { action: "call" } : { action: "fold" };
   }
 
   // Preflop策略
@@ -1088,8 +1295,8 @@ function decideBotAction(
     return decidePreflopAction(equity, toCall, canCheck, pot, bigBlind, minRaise, player, isLatePosition);
   }
 
-  // Postflop策略
-  return decidePostflopAction(equity, potOdds, toCall, canCheck, pot, bigBlind, minRaise, player, gs);
+  // Postflop策略（v4: 传入对手行为分析结果）
+  return decidePostflopAction(equity, potOdds, toCall, canCheck, pot, bigBlind, minRaise, player, gs, opponentAnalysis);
 }
 
 /**
@@ -1205,31 +1412,39 @@ function decidePostflopAction(
   bigBlind: number,
   minRaise: number,
   player: { chips: number; currentBet: number },
-  gs: GameState
+  gs: GameState,
+  opponentAnalysis: { opponentStrength: number; aggressionLevel: number; isLikelyBluff: boolean } = { opponentStrength: 0.50, aggressionLevel: 0.50, isLikelyBluff: false }
 ): { action: PlayerAction; amount?: number } {
 
   // 街面阶段影响决策（真人在不同街面策略不同）
   const street = gs.communityCards.length; // 3=flop, 4=turn, 5=river
   const isRiver = street === 5;
   const isTurn = street === 4;
+  // v4: 根据对手行为分析调整各街策略
+  const oppStr = opponentAnalysis.opponentStrength;
+  const isBluff = opponentAnalysis.isLikelyBluff;
 
   // === 可以check的情况 ===
   if (canCheck) {
     // 强牌（equity >= 0.65）：积极下注获取价值
     if (equity >= 0.65) {
-      // 大幅提高下注概率，强牌必须获取价值
-      const betProb = isRiver ? 0.80 : (isTurn ? 0.70 : 0.55);
+      // v4: 如果对手很强，可以下更大的注获取价值
+      const betProb = isRiver ? 0.85 : (isTurn ? 0.75 : 0.60);
       if (Math.random() < betProb) {
-        const sizeFactor = 0.40 + Math.random() * 0.35; // 40-75% pot
+        let sizeFactor = 0.40 + Math.random() * 0.35; // 40-75% pot
+        // 对手强时下更大的注（他们更可能跟）
+        if (oppStr > 0.65) sizeFactor += 0.15;
         const betSize = pot * sizeFactor;
         return makeRaise(betSize + player.currentBet, minRaise, player);
       }
       return { action: "check" }; // 偶尔慢打
     }
 
-    // 中等牌 (equity 0.42-0.65): 提高下注频率
+    // 中等牌 (equity 0.42-0.65)
     if (equity >= 0.42) {
-      const betProb = isRiver ? 0.35 : (isTurn ? 0.30 : 0.22);
+      // v4: 如果对手弱，提高下注频率获取价值
+      let betProb = isRiver ? 0.35 : (isTurn ? 0.30 : 0.22);
+      if (oppStr < 0.40) betProb += 0.15; // 对手弱时更积极下注
       if (Math.random() < betProb) {
         const sizeFactor = 0.30 + Math.random() * 0.25; // 30-55% pot
         const betSize = pot * sizeFactor;
@@ -1238,8 +1453,11 @@ function decidePostflopAction(
       return { action: "check" };
     }
 
-    // 弱牌：提高bluff概率（让bot更像真人，也能通过bluff赢钱）
-    const bluffProb = isRiver ? 0.12 : (isTurn ? 0.08 : 0.05);
+    // 弱牌：bluff策略
+    // v4: 如果对手强，减少bluff（他们更可能跟注）
+    let bluffProb = isRiver ? 0.12 : (isTurn ? 0.08 : 0.05);
+    if (oppStr > 0.70) bluffProb *= 0.4; // 对手强时减少bluff
+    if (oppStr < 0.35) bluffProb += 0.05; // 对手弱时增加bluff
     if (Math.random() < bluffProb) {
       const sizeFactor = 0.50 + Math.random() * 0.35; // 50-85% pot
       const betSize = pot * sizeFactor;
@@ -1252,13 +1470,14 @@ function decidePostflopAction(
 
   // 核心决策：equity > potOdds 则跟注有正EV
   const hasPositiveEV = equity > potOdds;
-  // 跟注占底池比例（真人会考虑这个）
+  // 跟注占底池比例
   const callToPotRatio = toCall / Math.max(pot, 1);
 
-  // 强牌 (equity >= 0.62): 跟注或加注（降低阈值，更多加注）
+  // 强牌 (equity >= 0.62): 跟注或加注
   if (equity >= 0.62) {
-    // 提高加注概率，强牌必须获取价值
-    const raiseProb = isRiver ? 0.40 : (isTurn ? 0.32 : 0.25);
+    // v4: 对手强时更多加注（他们更可能跟）
+    let raiseProb = isRiver ? 0.40 : (isTurn ? 0.32 : 0.25);
+    if (oppStr > 0.60) raiseProb += 0.12; // 对手强时提高加注概率
     if (Math.random() < raiseProb) {
       const raiseMulti = 2.0 + Math.random() * 1.2; // 2-3.2x
       const raiseSize = toCall * raiseMulti + pot * (0.1 + Math.random() * 0.20);
@@ -1269,12 +1488,26 @@ function decidePostflopAction(
 
   // 中等牌 (equity 0.38-0.62)
   if (equity >= 0.38) {
+    // v4: 如果对手可能是偷鸡，更愿意跟注
+    if (isBluff) {
+      // 对手可能偷鸡：放宽跟注条件
+      if (callToPotRatio <= 1.2) return { action: "call" };
+      return Math.random() < 0.60 ? { action: "call" } : { action: "fold" };
+    }
+    
+    // v4: 对手很强时，中等牌更容易弃牌
+    if (oppStr > 0.70) {
+      if (equity < 0.50) {
+        // 对手强+我们中等偏弱 → 谨慎
+        if (callToPotRatio <= 0.35 && Math.random() < 0.40) return { action: "call" };
+        return { action: "fold" };
+      }
+    }
+    
     if (hasPositiveEV && callToPotRatio <= 0.6) {
-      // 正EV且跟注不超过60%底池：跟注
       return { action: "call" };
     }
     if (hasPositiveEV && callToPotRatio <= 1.0) {
-      // 正EV但跟注较大：根据街面和equity决定
       const callProb = equity > 0.50 ? 0.65 : 0.40;
       if (Math.random() < callProb) return { action: "call" };
       return { action: "fold" };
@@ -1283,7 +1516,7 @@ function decidePostflopAction(
     if (callToPotRatio <= 0.30 && Math.random() < 0.45) {
       return { action: "call" };
     }
-    // 偶尔bluff加注（真人会在中等牌力时反打）
+    // 偶尔bluff加注
     if (callToPotRatio <= 0.5 && Math.random() < 0.08) {
       const raiseSize = toCall * (2.2 + Math.random() * 0.8);
       return makeRaise(raiseSize + player.currentBet, minRaise, player);
@@ -1293,11 +1526,14 @@ function decidePostflopAction(
 
   // 听牌手 (equity 0.22-0.38)
   if (equity >= 0.22) {
+    // v4: 如果对手可能偷鸡，更愿意跟注看牌
+    if (isBluff && callToPotRatio <= 0.50) {
+      return Math.random() < 0.55 ? { action: "call" } : { action: "fold" };
+    }
+    
     if (hasPositiveEV && callToPotRatio <= 0.35) {
-      // 底池赔率足够且跟注小：跟注看牌
       return { action: "call" };
     }
-    // 偶尔半赌性跟注（真人有时会“感觉”跟一下）
     if (callToPotRatio <= 0.25 && Math.random() < 0.20) {
       return { action: "call" };
     }
@@ -1310,11 +1546,17 @@ function decidePostflopAction(
   }
 
   // 空气牌 (equity < 0.22)
-  // 偶尔跟注（真人会在绝望时偷鸡）
+  // v4: 如果对手可能偷鸡，即使空气牌也有较高概率跟注抓偷鸡
+  if (isBluff) {
+    if (callToPotRatio <= 0.40 && Math.random() < 0.35) {
+      return { action: "call" };
+    }
+  }
+  
   if (callToPotRatio <= 0.18 && Math.random() < 0.06) {
     return { action: "call" };
   }
-  // river上的bluff（提高概率，让bot能通过bluff赢钱）
+  // river上的bluff
   if (isRiver && Math.random() < 0.07) {
     const bluffSize = pot * (0.55 + Math.random() * 0.40); // 55-95% pot
     return makeRaise(bluffSize + player.currentBet, minRaise, player);
