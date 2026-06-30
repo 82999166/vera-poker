@@ -5,7 +5,7 @@ import { t, getLocale } from "@/lib/i18n";
 import { formatAmount, formatBalance } from "@/lib/utils";
 import { useLocation } from "wouter";
 import React, { useState, useCallback } from "react";
-import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine, BookOpen, Crown } from "lucide-react";
+import { Users, Zap, Plus, DollarSign, Trophy, Lock, ChevronRight, Hash, ArrowRight, ArrowDownToLine, ArrowUpFromLine, BookOpen, Crown, Share2 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 
@@ -371,6 +371,12 @@ export default function Lobby() {
               onChange={(e) => setPrivateRoomCode(e.target.value.replace(/\D/g, ""))}
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               onKeyDown={(e) => { if (e.key === "Enter") handleJoinPrivateRoom(); }}
+              onFocus={(e) => {
+                // 延迟滚动，等待键盘弹出后再滚动到输入框可见位置
+                setTimeout(() => {
+                  e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 300);
+              }}
             />
             <button
               onClick={handleJoinPrivateRoom}
@@ -468,8 +474,8 @@ export default function Lobby() {
         {activeTab === "private" && !isLoading && privateRooms.length > 0 && privateRooms.map(room => {
           const isFull = room.currentPlayers >= room.maxPlayers;
           return (
-            <div key={room.id} className="glass rounded-xl p-4 card-hover cursor-pointer" onClick={() => navigate(`/table/${room.id}`)}>
-              <div className="flex items-center justify-between">
+            <div key={room.id} className="glass rounded-xl p-4 card-hover">
+              <div className="flex items-center justify-between cursor-pointer" onClick={() => navigate(`/table/${room.id}`)}>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <Lock className="w-3 h-3 text-gold" />
@@ -493,6 +499,13 @@ export default function Lobby() {
                   </button>
                 </div>
               </div>
+              {/* Share private room button */}
+              {room.inviteCode && (
+                <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{t("agent.inviteCode") || "\u623F\u95F4\u53F7"}: <code className="text-gold font-mono">{room.inviteCode}</code></span>
+                  <PrivateRoomShareBtn room={room} />
+                </div>
+              )}
             </div>
           );
         })}
@@ -512,6 +525,61 @@ export default function Lobby() {
 
 
     </div>
+  );
+}
+
+// ==================== Private Room Share Button ====================
+function PrivateRoomShareBtn({ room }: { room: any }) {
+  const { user } = useAuth();
+  const [isSharing, setIsSharing] = useState(false);
+  const prepareShareMutation = trpc.agent.prepareShareMessage.useMutation();
+  const { data: agentDashboard } = trpc.agent.dashboard.useQuery(undefined, { enabled: !!user });
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || !room.inviteCode) return;
+    setIsSharing(true);
+    try {
+      // 链接带用户邀请码，新用户点击注册成为下线
+      const inviteLink = `https://t.me/VeraPokerBot?start=room_${room.inviteCode}_ref_${user.id}`;
+      const shareText = `\u{1F3B0} ${room.name}\n\u{1F4B0} ${t("lobby.blinds")}: $${formatAmount(room.smallBlind)}/$${formatAmount(room.bigBlind)}\n\u{1F465} ${room.currentPlayers}/${room.maxPlayers}\n\u{1F510} ${t("agent.inviteCode") || "\u623F\u95F4\u53F7"}: ${room.inviteCode}\n\n\u{1F449} ${t("agent.shareText") || "\u52A0\u5165\u6E38\u620F\uFF0C\u4E00\u8D77\u73A9\uFF01"}`;
+      const { preparedMessageId } = await prepareShareMutation.mutateAsync({
+        shareText,
+        inviteLink,
+        startButtonText: t("lobby.joinRoom") || "\u52A0\u5165\u623F\u95F4 \u{1F3B0}",
+      });
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.shareMessage) {
+        tg.shareMessage(preparedMessageId, (sent: boolean) => {
+          if (sent) toast.success(t("agent.shareSuccess") || "\u2705 \u5206\u4EAB\u6210\u529F\uFF01");
+        });
+      } else {
+        const text = encodeURIComponent(shareText);
+        const url = encodeURIComponent(inviteLink);
+        window.open(`https://t.me/share/url?url=${url}&text=${text}`, "_blank");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "\u5206\u4EAB\u5931\u8D25");
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  if (!user) return null;
+
+  return (
+    <button
+      onClick={handleShare}
+      disabled={isSharing}
+      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-colors active:scale-[0.97] disabled:opacity-60"
+    >
+      {isSharing ? (
+        <div className="w-3 h-3 border-2 border-blue-400/60 border-t-transparent rounded-full animate-spin" />
+      ) : (
+        <Share2 className="w-3 h-3" />
+      )}
+      {t("agent.shareButton") || "\u5206\u4EAB"}
+    </button>
   );
 }
 
@@ -746,6 +814,40 @@ function TournamentDetail({ id, onBack }: { id: number; onBack: () => void }) {
     onError: (err) => toast.error(err.message),
   });
 
+  // Share tournament to TG
+  const [isSharing, setIsSharing] = useState(false);
+  const prepareShareMutation = trpc.agent.prepareShareMessage.useMutation();
+  const { data: publicConfigs } = trpc.config.getPublic.useQuery(undefined, { staleTime: 300_000 });
+  const { data: agentDashboard } = trpc.agent.dashboard.useQuery(undefined, { enabled: !!user });
+
+  const handleShareTournament = async () => {
+    if (!user) return;
+    setIsSharing(true);
+    try {
+      const inviteLink = agentDashboard?.inviteLink || `https://t.me/VeraPokerBot?start=ref_${user.id}`;
+      const shareText = `\u{1F3C6} ${tourney.name}\n\u{1F4B0} ${t("tourney.entryFee")}: ${tourney.entryFee} USDT\n\u{1F3C5} ${t("tourney.prizePool")}: ${formatBalance(prizePool)} USDT\n\u{1F465} ${tourney.registeredCount || 0}/${tourney.maxPlayers} ${t("tourney.players")}\n\u23F0 ${new Date(tourney.startTime).toLocaleString()}\n\n\u{1F449} ${t("agent.shareText") || "\u52A0\u5165\u6E38\u620F\uFF0C\u8D62\u53D6\u5927\u5956\uFF01"}`;
+      const { preparedMessageId } = await prepareShareMutation.mutateAsync({
+        shareText,
+        inviteLink,
+        startButtonText: t("tourney.register") || "\u7ACB\u5373\u62A5\u540D \u{1F3C6}",
+      });
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.shareMessage) {
+        tg.shareMessage(preparedMessageId, (sent: boolean) => {
+          if (sent) toast.success(t("agent.shareSuccess") || "\u2705 \u5206\u4EAB\u6210\u529F\uFF01");
+        });
+      } else {
+        const text = encodeURIComponent(shareText);
+        const url = encodeURIComponent(inviteLink);
+        window.open(`https://t.me/share/url?url=${url}&text=${text}`, "_blank");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "\u5206\u4EAB\u5931\u8D25");
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -864,6 +966,19 @@ function TournamentDetail({ id, onBack }: { id: number; onBack: () => void }) {
               {t("tourney.youAreRegistered")}
             </div>
           )}
+          {/* Share Tournament Button */}
+          <button
+            onClick={handleShareTournament}
+            disabled={isSharing}
+            className="w-full mt-2 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-colors active:scale-[0.97] disabled:opacity-60"
+          >
+            {isSharing ? (
+              <div className="w-4 h-4 border-2 border-blue-400/60 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Share2 className="w-4 h-4" />
+            )}
+            {isSharing ? "..." : (t("agent.shareButton") || "\u5206\u4EAB\u5230 Telegram")}
+          </button>
         </div>
       )}
 

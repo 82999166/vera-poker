@@ -151,7 +151,16 @@ export default function Home() {
       const startParam = getTelegramStartParam();
 
       if (startParam && startParam.startsWith("room_")) {
-        const inviteCode = startParam.replace("room_", "");
+        // Support format: room_CODE or room_CODE_ref_USERID
+        const roomParam = startParam.replace("room_", "");
+        const roomParts = roomParam.split("_ref_");
+        const inviteCode = roomParts[0];
+        const refUserId = roomParts[1] || "";
+        // Save ref code for registration if present
+        if (refUserId) {
+          localStorage.setItem(PENDING_REF_KEY, refUserId);
+          console.log("[DeepLink] Room share with ref:", refUserId);
+        }
         fetch(`/api/trpc/rooms.resolveInviteCode?input=${encodeURIComponent(JSON.stringify({ inviteCode }))}`)
           .then(r => r.json())
           .then(data => {

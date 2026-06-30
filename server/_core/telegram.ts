@@ -617,8 +617,14 @@ export function registerTelegramRoutes(app: Express) {
         const miniAppUrl = await db.getConfigValue("tg_mini_app_url") || "";
         
         if (param.startsWith("room_")) {
-          const inviteCode = param.replace("room_", "");
+          // Support format: room_CODE or room_CODE_ref_USERID
+          const roomParts = param.replace("room_", "").split("_ref_");
+          const inviteCode = roomParts[0];
+          const refUserId = roomParts[1] || "";
           replyText = botTexts.room;
+          // Build start param with both room code and ref
+          let startParam = `room_${inviteCode}`;
+          if (refUserId) startParam += `_ref_${refUserId}`;
           // Send with inline keyboard to open Mini App with room param
           const telegramApiUrl2 = `https://api.telegram.org/bot${botToken}/sendMessage`;
           await fetch(telegramApiUrl2, {
@@ -629,7 +635,7 @@ export function registerTelegramRoutes(app: Express) {
               text: replyText,
               reply_markup: {
                 inline_keyboard: [[
-                  { text: botTexts.button, web_app: { url: miniAppUrl ? `${miniAppUrl}#tgWebAppStartParam=room_${inviteCode}` : "" } }
+                  { text: botTexts.button, web_app: { url: miniAppUrl ? `${miniAppUrl}#tgWebAppStartParam=${startParam}` : "" } }
                 ]]
               }
             }),
