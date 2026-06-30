@@ -878,7 +878,117 @@ function getPreflopEquity(holeCards: Card[]): number {
 }
 
 /**
- * Postflop牌力评估：结合成牌强度 + 听牌潜力
+ * 公牌面纹理分析 (Board Texture Analysis)
+ * 分析公牌对对手可能组成的牌型威胁，返回各维度危险度
+ */
+function analyzeBoardTexture(communityCards: Card[]): {
+  flushDanger: number;      // 同花危险度 0-1
+  straightDanger: number;   // 顺子危险度 0-1
+  pairDanger: number;       // 配对危险度(对手可能有三条/葫芦) 0-1
+  highCardDanger: number;   // 高牌危险度(公牌很大，对手可能有更大对子) 0-1
+  isWet: boolean;           // 湿润牌面(很多听牌可能)
+  isDry: boolean;           // 干燥牌面(很少听牌可能)
+  completedFlush: boolean;  // 公牌已完成同花(≥3张同花)
+  completedStraight: boolean; // 公牌已完成顺子(≥3张连牌)
+} {
+  const RANK_VAL: Record<string, number> = {
+    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8,
+    "9": 9, "T": 10, "J": 11, "Q": 12, "K": 13, "A": 14,
+  };
+  const suits = communityCards.map(c => c[1]);
+  const ranks = communityCards.map(c => RANK_VAL[c[0]] || 2);
+  const uniqueRanks = [...new Set(ranks)].sort((a, b) => a - b);
+
+  // === 同花危险度 ===
+  const suitCounts: Record<string, number> = {};
+  for (const s of suits) suitCounts[s] = (suitCounts[s] || 0) + 1;
+  const maxSuitCount = Math.max(...Object.values(suitCounts));
+  let flushDanger = 0;
+  let completedFlush = false;
+  if (maxSuitCount >= 4) {
+    flushDanger = 0.95; // 4张同花，对手只需一1张就成同花
+    completedFlush = true;
+  } else if (maxSuitCount === 3) {
+    flushDanger = 0.65; // 3张同花，对手需要2张同花才能成
+    completedFlush = true;
+  } else if (maxSuitCount === 2) {
+    flushDanger = 0.20; // 2张同花，威胁较小
+  }
+
+  // === 顺子危险度 ===
+  let straightDanger = 0;
+  let completedStraight = false;
+  // 检查连牌长度
+  let maxConsec = 1, curConsec = 1;
+  for (let i = 1; i < uniqueRanks.length; i++) {
+    if (uniqueRanks[i] - uniqueRanks[i - 1] <= 2) { // gap≤2算连接(包含单头听顺)
+      curConsec++;
+      maxConsec = Math.max(maxConsec, curConsec);
+    } else {
+      curConsec = 1;
+    }
+  }
+  // A也可以作为1
+  if (ranks.includes(14)) {
+    const withAceLow = [1, ...uniqueRanks.filter(v => v !== 14)];
+    let tempConsec = 1;
+    for (let i = 1; i < withAceLow.length; i++) {
+      if (withAceLow[i] - withAceLow[i - 1] <= 2) {
+        tempConsec++;
+        maxConsec = Math.max(maxConsec, tempConsec);
+      } else {
+        tempConsec = 1;
+      }
+    }
+  }
+  if (maxConsec >= 4) {
+    straightDanger = 0.85; // 4张连牌，对手很可能有顺子
+    completedStraight = true;
+  } else if (maxConsec === 3) {
+    straightDanger = 0.50; // 3张连牌，对手可能有顺子或听顺
+    completedStraight = true;
+  } else if (maxConsec === 2) {
+    straightDanger = 0.25;
+  }
+  // 补充：检查紧密连牌(gap=1)
+  let tightConsec = 1;
+  for (let i = 1; i < uniqueRanks.length; i++) {
+    if (uniqueRanks[i] - uniqueRanks[i - 1] === 1) {
+      tightConsec++;
+    } else {
+      tightConsec = 1;
+    }
+  }
+  if (tightConsec >= 3) {
+    straightDanger = Math.max(straightDanger, 0.70); // 3张紧密连牌
+  }
+
+  // === 配对危险度 ===
+  let pairDanger = 0;
+  const rankCounts: Record<number, number> = {};
+  for (const r of ranks) rankCounts[r] = (rankCounts[r] || 0) + 1;
+  const maxRankCount = Math.max(...Object.values(rankCounts));
+  if (maxRankCount >= 3) {
+    pairDanger = 0.90; // 公牌三条，对手可能有葫芦/四条
+  } else if (maxRankCount === 2) {
+    // 公牌有对子，对手可能有三条/葫芦
+    const pairCount = Object.values(rankCounts).filter(c => c >= 2).length;
+    pairDanger = pairCount >= 2 ? 0.75 : 0.50; // 两对公牌 vs 一对公牌
+  }
+
+  // === 高牌危险度 ===
+  const highCards = ranks.filter(r => r >= 10).length;
+  const highCardDanger = Math.min(highCards * 0.20, 0.80); // 公牌越大，对手越可能有大对子
+
+  // === 牌面湿润度 ===
+  const isWet = flushDanger >= 0.50 || straightDanger >= 0.50 || (flushDanger >= 0.20 && straightDanger >= 0.25);
+  const isDry = flushDanger <= 0.20 && straightDanger <= 0.25 && pairDanger <= 0.10;
+
+  return { flushDanger, straightDanger, pairDanger, highCardDanger, isWet, isDry, completedFlush, completedStraight };
+}
+
+/**
+ * Postflop牌力评估：结合成牌强度 + 听牌潜力 + 公牌面纹理分析
  * 返回 equity 估计值 0-1
  */
 function getPostflopEquity(holeCards: Card[], communityCards: Card[], gs: GameState): number {
@@ -930,6 +1040,72 @@ function getPostflopEquity(holeCards: Card[], communityCards: Card[], gs: GameSt
     // 每个out约增加2%胜率（flop到river约4%，turn到river约2%）
     const outMultiplier = communityCards.length === 3 ? 0.04 : 0.02;
     equity += outs * outMultiplier;
+  }
+
+  // === 公牌面纹理分析：分析对手可能组成的牌型，动态降低我方equity ===
+  const boardTexture = analyzeBoardTexture(communityCards);
+  const RANK_VAL_BT: Record<string, number> = {
+    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8,
+    "9": 9, "T": 10, "J": 11, "Q": 12, "K": 13, "A": 14,
+  };
+  const holeSuits = holeCards.map(c => c[1]);
+  const holeRanksForTexture = holeCards.map(c => RANK_VAL_BT[c[0]] || 2);
+
+  // 同花危险：如果公牌有同花威胁，而我没有同花，降低equity
+  if (boardTexture.flushDanger > 0 && rankValue < 6) { // 我没有同花
+    const commSuits = communityCards.map(c => c[1]);
+    const suitCounts: Record<string, number> = {};
+    for (const s of commSuits) suitCounts[s] = (suitCounts[s] || 0) + 1;
+    const dominantSuit = Object.entries(suitCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const myFlushCards = dominantSuit ? holeSuits.filter(s => s === dominantSuit).length : 0;
+    
+    if (myFlushCards === 0) {
+      // 我手上没有主花色，对手可能有同花，降低equity
+      equity -= boardTexture.flushDanger * 0.12; // 最多降0.114
+    } else if (myFlushCards === 1 && boardTexture.completedFlush) {
+      // 我只有1张主花色，公牌已有3+张同花，对手可能有更大同花
+      equity -= boardTexture.flushDanger * 0.06;
+    }
+  }
+
+  // 顺子危险：如果公牌有连牌结构，而我没有顺子，降低equity
+  if (boardTexture.straightDanger > 0 && rankValue < 5) { // 我没有顺子
+    // 检查我的手牌是否能融入连牌结构
+    const commRanks = communityCards.map(c => RANK_VAL_BT[c[0]] || 2);
+    const allRanks = [...commRanks, ...holeRanksForTexture];
+    const uniqueAll = [...new Set(allRanks)].sort((a, b) => a - b);
+    let myMaxConsec = 1, myCurConsec = 1;
+    for (let i = 1; i < uniqueAll.length; i++) {
+      if (uniqueAll[i] - uniqueAll[i - 1] === 1) {
+        myCurConsec++;
+        myMaxConsec = Math.max(myMaxConsec, myCurConsec);
+      } else {
+        myCurConsec = 1;
+      }
+    }
+    if (myMaxConsec < 5) {
+      // 我也没有顺子，对手可能有
+      equity -= boardTexture.straightDanger * 0.10; // 最多降0.085
+    }
+  }
+
+  // 配对危险：如果公牌有对子，而我没有三条+，对手可能有三条/葫芦
+  if (boardTexture.pairDanger > 0 && rankValue < 4) { // 我没有三条以上
+    equity -= boardTexture.pairDanger * 0.08; // 最多降0.072
+  }
+
+  // 高牌危险：如果公牌很大且我只有中小对子，对手可能有更大对子
+  if (boardTexture.highCardDanger > 0.40 && rankValue <= 2) {
+    const myMaxRank = Math.max(...holeRanksForTexture);
+    if (myMaxRank < 10) {
+      // 我的牌很小，公牌很大，对手可能有更大对子
+      equity -= (boardTexture.highCardDanger - 0.40) * 0.15;
+    }
+  }
+
+  // 湿润牌面总体惩罚：很多听牌可能，中等牌力下降
+  if (boardTexture.isWet && rankValue <= 3) {
+    equity -= 0.04; // 湿润牌面中等牌力更危险
   }
 
   // 根据对手数量调整（多人底池胜率降低）
@@ -1029,8 +1205,8 @@ type ActionTimelineEntry = {
 };
 
 /**
- * 分析对手行为模式（v4核心新增）
- * 根据对手在当前手牌各街的下注行为推断其牌力范围
+ * 分析对手行为模式（v4核心新增 + v4.1公牌纹理增强）
+ * 根据对手在当前手牌各街的下注行为 + 公牌面纹理推断其牌力范围
  * 返回 opponentStrength: 0-1（推断的对手牌力）
  */
 function analyzeOpponentBehavior(
@@ -1038,7 +1214,8 @@ function analyzeOpponentBehavior(
   botPlayerId: number,
   currentPhase: string,
   pot: number,
-  bigBlind: number
+  bigBlind: number,
+  communityCards?: Card[]
 ): { opponentStrength: number; aggressionLevel: number; isLikelyBluff: boolean } {
   // 获取非bot玩家在各街的行为
   const opponentActions = timeline.filter(a => a.playerId !== botPlayerId);
@@ -1176,6 +1353,57 @@ function analyzeOpponentBehavior(
     estimatedStrength -= 0.08;
   }
 
+  // === v4.1新增：结合公牌纹理推断对手可能的牌型 ===
+  if (communityCards && communityCards.length >= 3) {
+    const boardTex = analyzeBoardTexture(communityCards);
+    
+    // 如果公牌有同花威胁 + 对手在该街下注，更可能有同花
+    if (boardTex.completedFlush && totalRaises > 0) {
+      // 对手在同花面下注 → 很可能有同花
+      estimatedStrength += 0.08;
+    }
+    
+    // 如果公牌有顺子威胁 + 对手在该街下注，更可能有顺子
+    if (boardTex.completedStraight && totalRaises > 0) {
+      estimatedStrength += 0.06;
+    }
+    
+    // 如果公牌有对子 + 对手大注，可能有三条/葫芦
+    if (boardTex.pairDanger >= 0.50 && bigBetCount >= 2) {
+      estimatedStrength += 0.10;
+    }
+    
+    // 湿润牌面 + 对手持续下注 → 很可能中了牌或有强听牌
+    if (boardTex.isWet && streetsWithBets >= 2) {
+      estimatedStrength += 0.05;
+    }
+    
+    // 干燥牌面 + 对手大注 → 更可能是偷鸡（因为干燥牌面很难中牌）
+    if (boardTex.isDry && bigBetCount >= 2 && totalChecks >= 1) {
+      isLikelyBluff = true;
+      estimatedStrength -= 0.08;
+    }
+    
+    // Turn/River新公牌“完成牌”分析：
+    // 如果当前是turn/river，且公牌刚好完成了同花/顺子，
+    // 对手之前一直跟注（call）现在突然加注 → 很可能等到了完成牌
+    if ((currentPhase === "turn" || currentPhase === "river") && communityCards.length >= 4) {
+      const prevStreetCalls = (currentPhase === "turn" ? flopActions : turnActions)
+        .filter(a => a.action === "call").length;
+      const currentStreetRaises = (currentPhase === "turn" ? turnActions : riverActions)
+        .filter(a => a.action === "raise" || a.action === "bet").length;
+      
+      if (prevStreetCalls > 0 && currentStreetRaises > 0) {
+        // 对手上一街跟注，这一街突然加注
+        if (boardTex.completedFlush || boardTex.completedStraight) {
+          // 公牌刚好完成了同花/顺子 → 对手很可能等到了完成牌
+          estimatedStrength += 0.12;
+          isLikelyBluff = false; // 这种情况不是偷鸡
+        }
+      }
+    }
+  }
+
   // 限制范围
   estimatedStrength = Math.min(Math.max(estimatedStrength, 0.20), 0.95);
 
@@ -1253,7 +1481,7 @@ function decideBotAction(
   let opponentAnalysis = { opponentStrength: 0.50, aggressionLevel: 0.50, isLikelyBluff: false };
   
   if (aiLevel >= 2 && actionTimeline && actionTimeline.length > 0) {
-    opponentAnalysis = analyzeOpponentBehavior(actionTimeline, player.id, gs.phase, pot, bigBlind);
+    opponentAnalysis = analyzeOpponentBehavior(actionTimeline, player.id, gs.phase, pot, bigBlind, communityCards.length > 0 ? communityCards : undefined);
     
     // Level 2+: 根据对手推断强度调整有效equity
     if (opponentAnalysis.opponentStrength > 0.75) {

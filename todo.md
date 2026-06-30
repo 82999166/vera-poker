@@ -1212,6 +1212,10 @@
 ## Bot智能等级配置
 - [x] 全局配置项：bot_ai_level（1=基础/2=进阶/3=高级）
 - [x] room_bot_config表增加aiLevel字段（房间级覆盖）
-- [x] botManager根据aiLevel控制对手分析深度（Level1无分析/Level2基础/Level3完整v4）
 - [x] 管理后台：全局智能等级设置
 - [x] 管理后台：房间级别智能等级覆盖配置
+- [x] 管理后台：全局智能等级设�## 公牌面纹理分析 (Board Texture Analysis)
+- [x] 实现boardTextureAnalysis函数：分析公牌面危险度（同花/顺子/配对）
+- [x] 集成到getPostflopEquity：根据公牌纹理降低非相关牌型的equity
+- [x] Turn/River新公牌出现时，分析"完成牌"对对手范围的影响
+- [x] Turn/River新公牌出现时，分析“完成牌”对对手范围的影响�公牌出现时，分析"完成牌"对对手范围的影响
