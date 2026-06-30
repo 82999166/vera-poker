@@ -1226,8 +1226,16 @@
 - [x] 提供管理后台一键重新生成bot用户名功能
 - [x] 新创建的bot自动使用多语言用户名
 
+
 ## 用户设备信息管理
 - [x] 前端采集设备信息（浏览器/OS/设备类型/IP/屏幕分辨率/语言等）
 - [x] 数据库增加user_devices表存储设备信息
 - [x] 后端API接收和存储设备信息
 - [x] 管理后台用户详情页展示设备信息
+
+## Bug Fix: TG Mini App重复登录触发"已下线"
+- [x] 修复createExclusiveSessionToken：同设备（指纹/UA匹配）重新登录不递增sessionVersion
+- [x] 只有真正的新设备（指纹不同）才踢旧设备
+- [x] TG Mini App每次打开不再无脑递增sessionVersion
+- [x] OAuth回调同样应用设备匹配逻辑
+- [x] 密码登录同样应用设备匹配逻辑

@@ -275,13 +275,18 @@ export const appRouter = router({
         const loginIp = (ctx.req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || ctx.req.ip || "";
         await db.updateUserDeviceInfo(user.openId, deviceInfo, loginIp);
 
-        // Device exclusivity: always increment sessionVersion to invalidate old sessions
+        // Device exclusivity: only kick old device if login from a DIFFERENT device
         const { sdk } = await import("./_core/sdk");
         const { ONE_YEAR_MS } = await import("@shared/const");
         
-        // Increment sessionVersion in DB to kick old device
+        // Check if same device
+        let isSameDevice = false;
+        if (user.lastLoginDevice === deviceInfo && user.lastIp === loginIp) {
+          isSameDevice = true;
+        }
+        
         const dbInstance = await db.getDb();
-        if (dbInstance) {
+        if (dbInstance && !isSameDevice) {
           const { users } = await import("../drizzle/schema");
           const { eq, sql } = await import("drizzle-orm");
           await dbInstance.update(users)
@@ -289,8 +294,8 @@ export const appRouter = router({
             .where(eq(users.id, user.id));
         }
         
-        // Create token with the NEW sessionVersion
-        const newSv = user.sessionVersion + 1;
+        // Create token with the correct sessionVersion
+        const newSv = isSameDevice ? user.sessionVersion : user.sessionVersion + 1;
         const sessionToken = await sdk.createSessionToken(user.openId, {
           name: user.name || user.nickname || "",
           expiresInMs: ONE_YEAR_MS,

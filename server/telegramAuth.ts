@@ -41,8 +41,8 @@ async function saveDeviceInfoOnLogin(req: Request, openId: string, extraDeviceIn
 
 /**
  * Helper: Create session token with device exclusivity.
- * Increments sessionVersion in DB to invalidate all old sessions,
- * then creates a JWT with the new sv value.
+ * Only increments sessionVersion (kicks old device) when a DIFFERENT device logs in.
+ * Same device re-login (matched by UA + IP) just refreshes the cookie without kicking.
  */
 async function createExclusiveSessionToken(
   req: Request,
@@ -54,16 +54,59 @@ async function createExclusiveSessionToken(
   const cookieOptions = getSessionCookieOptions(req);
 
   if (!isNew) {
-    // Existing user: increment sessionVersion to kick old devices
+    // Check if this is the same device as last login (by UA + IP)
+    const currentUA = req.headers["user-agent"] || "";
+    const currentIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "";
+    
+    // Get user's last known device info from DB
     const dbInstance = await db.getDb();
+    let isSameDevice = false;
+    
     if (dbInstance) {
       const { users } = await import("../drizzle/schema");
       const { eq, sql } = await import("drizzle-orm");
-      await dbInstance.update(users)
-        .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
-        .where(eq(users.id, user.id));
+      
+      // Fetch last login device + IP
+      const [dbUser] = await dbInstance.select({
+        lastLoginDevice: users.lastLoginDevice,
+        lastIp: users.lastIp,
+        deviceFingerprint: users.deviceFingerprint,
+      }).from(users).where(eq(users.id, user.id)).limit(1);
+      
+      if (dbUser) {
+        const lastDevice = parseDeviceInfo(currentUA);
+        // Same device if: same parsed device string AND (same IP OR same fingerprint)
+        if (dbUser.lastLoginDevice === lastDevice && 
+            (dbUser.lastIp === currentIp || (dbUser.deviceFingerprint && dbUser.deviceFingerprint === (req as any).__fingerprint))) {
+          isSameDevice = true;
+        }
+        // Also check user_devices table by fingerprint if available
+        if (!isSameDevice && (req as any).__fingerprint) {
+          try {
+            const { userDevices } = await import("../drizzle/schema");
+            const { and } = await import("drizzle-orm");
+            const [existingDevice] = await dbInstance.select({ id: userDevices.id })
+              .from(userDevices)
+              .where(and(eq(userDevices.userId, user.id), eq(userDevices.fingerprint, (req as any).__fingerprint)))
+              .limit(1);
+            if (existingDevice) isSameDevice = true;
+          } catch (_) { /* ignore */ }
+        }
+        // Fallback: if same UA and same IP, treat as same device
+        if (!isSameDevice && dbUser.lastLoginDevice === lastDevice && dbUser.lastIp === currentIp) {
+          isSameDevice = true;
+        }
+      }
+      
+      if (!isSameDevice) {
+        // Different device: increment sessionVersion to kick old device
+        await dbInstance.update(users)
+          .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
+          .where(eq(users.id, user.id));
+      }
     }
-    const newSv = user.sessionVersion + 1;
+    
+    const newSv = isSameDevice ? user.sessionVersion : user.sessionVersion + 1;
     const sessionToken = await sdk.createSessionToken(user.openId, {
       name: displayName,
       expiresInMs: ONE_YEAR_MS,

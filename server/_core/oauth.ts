@@ -58,21 +58,37 @@ export function registerOAuthRoutes(app: Express) {
         platform: "web",
       });
 
-      // Device exclusivity: every login increments sessionVersion to invalidate old sessions
-      // This ensures only ONE device can be active at a time
+      // Device exclusivity: only kick old device if login comes from a DIFFERENT device
       const existingUser = await db.getUserByOpenId(userInfo.openId);
       if (existingUser && !isNew) {
-        // Increment sessionVersion in DB
         const dbInstance = await db.getDb();
+        let isSameDevice = false;
+        
         if (dbInstance) {
           const { users } = await import("../../drizzle/schema");
           const { eq, sql } = await import("drizzle-orm");
-          await dbInstance.update(users)
-            .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
-            .where(eq(users.id, existingUser.id));
+          
+          // Check if same device by comparing parsed device string + IP
+          const currentDevice = deviceInfo; // already parsed above
+          const currentIp = loginIp; // already extracted above
+          if (existingUser.lastLoginDevice === currentDevice && existingUser.lastIp === currentIp) {
+            isSameDevice = true;
+          }
+          // Also check by fingerprint in user_devices table
+          if (!isSameDevice && existingUser.deviceFingerprint) {
+            // If user has a known fingerprint and it matches, same device
+            // (fingerprint not available at OAuth callback, so rely on UA+IP)
+          }
+          
+          if (!isSameDevice) {
+            // Different device: increment sessionVersion to kick old device
+            await dbInstance.update(users)
+              .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
+              .where(eq(users.id, existingUser.id));
+          }
         }
-        // Create token with the NEW sessionVersion
-        const newSv = existingUser.sessionVersion + 1;
+        
+        const newSv = isSameDevice ? existingUser.sessionVersion : existingUser.sessionVersion + 1;
         const sessionToken = await sdk.createSessionToken(userInfo.openId, {
           name: userInfo.name || "",
           expiresInMs: ONE_YEAR_MS,
