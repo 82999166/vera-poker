@@ -1181,11 +1181,15 @@ async function settleHand(roomId: number) {
     await db.updateRoom(roomId, { playedRounds: newPlayedRounds });
 
     // Determine if this private room should auto-dissolve
+    // Only dissolve when totalRounds is explicitly set and reached
+    // If totalRounds is null (unlimited), the room stays alive until 24h expiry or manual close
+    const roomAgeMs = Date.now() - new Date(currentRoom.createdAt).getTime();
+    const PRIVATE_ROOM_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
     const shouldDissolve =
       // Case 1: totalRounds is set and reached
       (currentRoom.totalRounds != null && newPlayedRounds >= currentRoom.totalRounds) ||
-      // Case 2: no totalRounds limit (unlimited) — dissolve after every hand
-      (currentRoom.totalRounds == null);
+      // Case 2: room has exceeded 24-hour lifetime
+      (roomAgeMs >= PRIVATE_ROOM_MAX_AGE_MS);
 
     if (shouldDissolve) {
       // Return remaining chips to each player's balance

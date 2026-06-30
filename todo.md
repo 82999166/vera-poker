@@ -1195,3 +1195,8 @@
 - [x] 修复2：添加 settlingRooms Set 锁，防止 settleHand 被并发调用
 - [x] 修复3：checkAndAdvanceGame 开头检查 settlingRooms，正在结算的房间直接跳过
 - [x] 修复4：checkTimeouts 循环中增加 settlingRooms 检查，跳过正在结算的房间
+
+## 私人房三项修复
+- [x] 问题1：私人房不再每局结束后自动删除（仅在设定局数达到或超过24小时后解散）
+- [x] 问题2：邀请链接深度链接修复（hash fragment方式传递参数，确保TG inline keyboard正确传递startParam）
+- [x] 问题3：私人房免买入弹窗，直接从用户余额扣（全部余额，不超过maxBuyIn，余额不足提示并返回大厅）

@@ -1244,6 +1244,12 @@ export default function Table() {
           setShowBuyIn(false);
           return;
         }
+        // Private rooms: skip buy-in dialog, auto-join with full balance (clamped to min/max)
+        if (room && room.type === "private" && room.status !== "closed") {
+          setShowBuyIn(false);
+          // Auto-join will be handled by a separate effect once walletData is available
+          return;
+        }
         // Normal entry - show buy-in dialog (only if room is valid and not closed)
         if (room && room.status !== "closed") {
           setShowBuyIn(true);
@@ -1253,6 +1259,29 @@ export default function Table() {
       }
     }
   }, [roomPlayers, user, isValidRoom, room]);
+
+  // Private room auto-join: skip buy-in dialog, use full balance (clamped to min/max)
+  const privateAutoJoinRef = useRef(false);
+  // Enable wallet query for private room auto-join
+  const isPrivateRoomPendingJoin = !!room && room.type === "private" && !isSeated && !showBuyIn && isValidRoom && !isLeavingRef.current;
+  const { data: privateWalletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user && isPrivateRoomPendingJoin });
+  useEffect(() => {
+    if (!room || room.type !== "private" || isSeated || privateAutoJoinRef.current || !user) return;
+    if (!privateWalletData) return; // Wait for wallet data
+    if (isLeavingRef.current) return;
+    const balance = parseFloat(privateWalletData.balance);
+    const minBuyIn = parseFloat(room.minBuyIn);
+    const maxBuyIn = parseFloat(room.maxBuyIn);
+    if (balance < minBuyIn) {
+      toast.error(t("table.insufficientBalance"));
+      setTimeout(() => navigate("/lobby"), 2000);
+      return;
+    }
+    // Use full balance, clamped to maxBuyIn
+    const autoBuyIn = Math.min(balance, maxBuyIn);
+    privateAutoJoinRef.current = true;
+    joinMutation.mutate({ roomId, buyIn: autoBuyIn });
+  }, [room, isSeated, privateWalletData, user]);
 
   // Demo mode for test room
   const isDemoMode = !isValidRoom || id === "test";

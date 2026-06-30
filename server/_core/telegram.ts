@@ -629,7 +629,7 @@ export function registerTelegramRoutes(app: Express) {
               text: replyText,
               reply_markup: {
                 inline_keyboard: [[
-                  { text: botTexts.button, web_app: { url: miniAppUrl ? `${miniAppUrl}?startapp=room_${inviteCode}` : "" } }
+                  { text: botTexts.button, web_app: { url: miniAppUrl ? `${miniAppUrl}#tgWebAppStartParam=room_${inviteCode}` : "" } }
                 ]]
               }
             }),
