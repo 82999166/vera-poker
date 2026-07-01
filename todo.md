@@ -1273,3 +1273,6 @@
 - [x] 公共牌高亮同样只匹配最强牌型组的bestCards
 - [x] 对手手牌高亮也用topHandPlayerIds替代winnerPlayerIds
 - [x] TypeScript零错误
+
+## UI Fix: 顶部玩家与奖池重叠
+- [x] Seat 3 (Top center) 位置从 top:10% 上移到 top:5%，避免个人下注金额与中间总奖池重叠

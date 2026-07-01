@@ -322,7 +322,7 @@ const SEAT_POSITIONS = [
   { top: "86%", left: "50%", transform: "translate(-50%, -50%)" },   // Seat 0: Bottom center
   { top: "67%", left: "6%",  transform: "translate(0, -50%)" },      // Seat 1: Left bottom
   { top: "36%", left: "6%",  transform: "translate(0, -50%)" },      // Seat 2: Left top
-  { top: "10%", left: "50%", transform: "translate(-50%, 0)" },      // Seat 3: Top center
+  { top: "5%", left: "50%", transform: "translate(-50%, 0)" },       // Seat 3: Top center
   { top: "36%", left: "94%", transform: "translate(-100%, -50%)" }, // Seat 4: Right top
   { top: "67%", left: "94%", transform: "translate(-100%, -50%)" }, // Seat 5: Right bottom
 ];
