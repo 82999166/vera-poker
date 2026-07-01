@@ -1558,7 +1558,7 @@ export default function Table() {
 
       {/* Slide-out Menu Panel */}
       {showTableMenu && (
-        <div className="fixed inset-0 z-[60]" onClick={() => setShowTableMenu(false)}>
+        <div className="absolute inset-0 z-[60]" onClick={() => setShowTableMenu(false)}>
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div className="absolute top-0 left-0 h-full w-[220px] border-r border-white/10 shadow-2xl p-4 flex flex-col gap-1" style={{ background: 'linear-gradient(to bottom, #1a2744, #0d1a2e)', paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px) + 16px)' }} onClick={e => e.stopPropagation()}>
             {/* Close */}

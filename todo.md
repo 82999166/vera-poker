@@ -1284,3 +1284,6 @@
 
 ## UI Fix: PC端牌桌宽度不够
 - [x] PC端maxWidth从430px增加到520px，防止两侧玩家被截断
+
+## UI Fix: PC端下拉菜单全屏
+- [x] 菜单从fixed改为absolute定位，限制在牌桌容器内，不再撑满全屏
