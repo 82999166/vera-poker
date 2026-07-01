@@ -397,16 +397,56 @@ export default function Table() {
   const [showWinner, setShowWinner] = useState<{ name: string; amount: number; handDescription?: string } | null>(null);
   const [showSettlement, setShowSettlement] = useState<any>(null);
   const [winnerPlayerIds, setWinnerPlayerIds] = useState<number[]>([]);
-  // Compute the set of cards that form the winner's best hand (for highlight)
+  // Compute the set of cards that form the STRONGEST winner's best hand (for highlight)
+  // Only highlight the top hand group (highest handRank), not all pot winners
   const winnerBestCards = useMemo(() => {
     if (!showSettlement?.showdownPlayers || winnerPlayerIds.length === 0) return new Set<string>();
+    const HAND_RANK_ORDER: Record<string, number> = {
+      "Royal Flush": 10, "Straight Flush": 9, "Four of a Kind": 8,
+      "Full House": 7, "Flush": 6, "Straight": 5, "Three of a Kind": 4,
+      "Two Pair": 3, "One Pair": 2, "High Card": 1, "Last Standing": 0,
+    };
+    // Find the highest handRank among all winners
+    let topRank = -1;
+    const winnerShowdownPlayers = showSettlement.showdownPlayers.filter(
+      (sp: any) => winnerPlayerIds.includes(sp.playerId)
+    );
+    for (const sp of winnerShowdownPlayers) {
+      const rank = HAND_RANK_ORDER[sp.handDescription] ?? 0;
+      if (rank > topRank) topRank = rank;
+    }
+    // Only collect bestCards from winners with the top hand rank
     const cards = new Set<string>();
-    for (const sp of showSettlement.showdownPlayers) {
-      if (winnerPlayerIds.includes(sp.playerId) && sp.bestCards) {
+    for (const sp of winnerShowdownPlayers) {
+      const rank = HAND_RANK_ORDER[sp.handDescription] ?? 0;
+      if (rank === topRank && sp.bestCards) {
         for (const c of sp.bestCards) cards.add(c);
       }
     }
     return cards;
+  }, [showSettlement, winnerPlayerIds]);
+  // Track which player IDs belong to the top hand group (for per-player highlight gating)
+  const topHandPlayerIds = useMemo(() => {
+    if (!showSettlement?.showdownPlayers || winnerPlayerIds.length === 0) return new Set<number>();
+    const HAND_RANK_ORDER: Record<string, number> = {
+      "Royal Flush": 10, "Straight Flush": 9, "Four of a Kind": 8,
+      "Full House": 7, "Flush": 6, "Straight": 5, "Three of a Kind": 4,
+      "Two Pair": 3, "One Pair": 2, "High Card": 1, "Last Standing": 0,
+    };
+    let topRank = -1;
+    const winnerShowdownPlayers = showSettlement.showdownPlayers.filter(
+      (sp: any) => winnerPlayerIds.includes(sp.playerId)
+    );
+    for (const sp of winnerShowdownPlayers) {
+      const rank = HAND_RANK_ORDER[sp.handDescription] ?? 0;
+      if (rank > topRank) topRank = rank;
+    }
+    const ids = new Set<number>();
+    for (const sp of winnerShowdownPlayers) {
+      const rank = HAND_RANK_ORDER[sp.handDescription] ?? 0;
+      if (rank === topRank) ids.add(sp.playerId);
+    }
+    return ids;
   }, [showSettlement, winnerPlayerIds]);
   // Refs for cancellable timers (prevent previous-hand callbacks firing into new hand)
   const winnerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1820,7 +1860,7 @@ export default function Table() {
                     <div className="flex flex-col items-center gap-0.5 mb-0.5" style={isTopPlayer ? { order: 10 } : undefined}>
                       <div className="flex gap-1" style={{ '--deal-from-x': '100px', '--deal-from-y': '-250px' } as React.CSSProperties}>
                         {displayMyCards.map((card, i) => {
-                          const isHighlighted = (displayPhase === "showdown" || displayPhase === "completed") && winnerPlayerIds.includes(user?.id || 0) && winnerBestCards.has(card);
+                          const isHighlighted = (displayPhase === "showdown" || displayPhase === "completed") && topHandPlayerIds.has(user?.id || 0) && winnerBestCards.has(card);
                           return <CardView key={`h${handNumber}-m${i}`} card={card} className={`!w-12 !h-[64px]${dealingMyCards ? (i === 0 ? ' animate-deal' : ' animate-deal-2') : ''}`} animate delay={i * 200} highlight={isHighlighted} />;
                         })}
                       </div>
@@ -1857,7 +1897,7 @@ export default function Table() {
                     <div className="flex flex-col items-center gap-0.5 mb-0.5" style={isTopPlayer ? { order: 10 } : undefined}>
                       <div className="flex gap-0.5">
                         {player.holeCards.map((card, i) => {
-                          const isHighlighted = winnerPlayerIds.includes(player.id) && winnerBestCards.has(card) && revealedOpponentIds.has(player.id);
+                          const isHighlighted = topHandPlayerIds.has(player.id) && winnerBestCards.has(card) && revealedOpponentIds.has(player.id);
                           return (
                             <CardView
                               key={`h${handNumber}-o${player.id}-${i}`}

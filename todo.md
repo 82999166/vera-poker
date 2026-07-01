@@ -1266,3 +1266,10 @@
 - [x] 修复restart后timer回调残留导致step从-1跳到0的时序问题（isRestartingRef）
 - [x] 加强visibleCardCount：currentStep<0时强制返回0（不显示任何公牌）
 - [x] restart时主动清除pending timer并设置restarting标志跳过下一次useEffect
+
+## Feature: 摊牌只高亮最强牌型
+- [x] winnerBestCards改为只收集最高handRank组的bestCards（不再高亮所有pot赢家）
+- [x] 新增topHandPlayerIds集合，只有最强牌型组的玩家手牌才显示金色高亮动画
+- [x] 公共牌高亮同样只匹配最强牌型组的bestCards
+- [x] 对手手牌高亮也用topHandPlayerIds替代winnerPlayerIds
+- [x] TypeScript零错误
