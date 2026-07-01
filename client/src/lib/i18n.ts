@@ -683,6 +683,7 @@ const en: Record<string, string> = {
   "replay.result": "Result",
   "replay.won": "Won",
   "replay.lost": "Lost",
+  "splash.connectingEncrypted": "Establishing encrypted connection...",
 };
 
 // Simplified Chinese
@@ -1332,6 +1333,7 @@ const zhCN: Record<string, string> = {
   "replay.result": "结果",
   "replay.won": "赢",
   "replay.lost": "输",
+  "splash.connectingEncrypted": "正在建立加密连接...",
 };
 // Traditional Chinese
 const zhTW: Record<string, string> = {
@@ -1979,6 +1981,7 @@ const zhTW: Record<string, string> = {
   "replay.result": "結果",
   "replay.won": "贏",
   "replay.lost": "輸",
+  "splash.connectingEncrypted": "正在建立加密連線...",
 };
 // Japanese
 const ja: Record<string, string> = {
@@ -2553,6 +2556,7 @@ const ja: Record<string, string> = {
   "device.sessionExpiredTitle": "ログアウトされました",
   "device.sessionExpiredDesc": "お使いのアカウントが別のデバイスでログインしたため、このデバイスからログアウトされました。",
   "device.sessionExpiredBtn": "OK",
+  "splash.connectingEncrypted": "暗号化接続を確立中...",
 };
 // Korean
 const ko: Record<string, string> = {
@@ -3127,6 +3131,7 @@ const ko: Record<string, string> = {
   "device.sessionExpiredTitle": "로그아웃됨",
   "device.sessionExpiredDesc": "계정이 다른 기기에서 로그인되어 현재 기기에서 로그아웃되었습니다.",
   "device.sessionExpiredBtn": "확인",
+  "splash.connectingEncrypted": "암호화 연결 설정 중...",
 };
 // Other languages (key translations only, fallback to English for missing)
 const es: Record<string, string> = {
@@ -3506,6 +3511,7 @@ const es: Record<string, string> = {
   "device.sessionExpiredTitle": "Sesión cerrada",
   "device.sessionExpiredDesc": "Tu cuenta ha iniciado sesión en otro dispositivo. Has sido desconectado.",
   "device.sessionExpiredBtn": "Aceptar",
+  "splash.connectingEncrypted": "Estableciendo conexión cifrada...",
 };
 
 const pt: Record<string, string> = {
@@ -4078,6 +4084,7 @@ const pt: Record<string, string> = {
   "device.sessionExpiredTitle": "Desconectado",
   "device.sessionExpiredDesc": "Sua conta foi conectada em outro dispositivo. Você foi desconectado deste.",
   "device.sessionExpiredBtn": "OK",
+  "splash.connectingEncrypted": "Estabelecendo conexão criptografada...",
 };
 
 const ru: Record<string, string> = {
@@ -4650,6 +4657,7 @@ const ru: Record<string, string> = {
   "device.sessionExpiredTitle": "Отключено",
   "device.sessionExpiredDesc": "Ваш аккаунт вошёл на другом устройстве. Вы были отключены.",
   "device.sessionExpiredBtn": "ОК",
+  "splash.connectingEncrypted": "Установка зашифрованного соединения...",
 };
 
 const ar: Record<string, string> = {
@@ -5222,6 +5230,7 @@ const ar: Record<string, string> = {
   "device.sessionExpiredTitle": "تم تسجيل الخروج",
   "device.sessionExpiredDesc": "تم تسجيل الدخول لحسابك من جهاز آخر. تم تسجيل خروجك.",
   "device.sessionExpiredBtn": "حسناً",
+  "splash.connectingEncrypted": "جارٍ إنشاء اتصال مشفر...",
 };
 
 const vi: Record<string, string> = {
@@ -5794,6 +5803,7 @@ const vi: Record<string, string> = {
   "device.sessionExpiredTitle": "Đã đăng xuất",
   "device.sessionExpiredDesc": "Tài khoản đã đăng nhập trên thiết bị khác. Bạn đã bị đăng xuất.",
   "device.sessionExpiredBtn": "OK",
+  "splash.connectingEncrypted": "Đang thiết lập kết nối mã hóa...",
 };
 
 const th: Record<string, string> = {
@@ -6366,6 +6376,7 @@ const th: Record<string, string> = {
   "device.sessionExpiredTitle": "ออกจากระบบแล้ว",
   "device.sessionExpiredDesc": "บัญชีของคุณเข้าสู่ระบบบนอุปกรณ์อื่น คุณถูกออกจากระบบ",
   "device.sessionExpiredBtn": "ตกลง",
+  "splash.connectingEncrypted": "กำลังสร้างการเชื่อมต่อที่เข้ารหัส...",
 };
 
 const id: Record<string, string> = {
@@ -6938,6 +6949,7 @@ const id: Record<string, string> = {
   "device.sessionExpiredTitle": "Terputus",
   "device.sessionExpiredDesc": "Akun Anda telah login di perangkat lain. Anda telah dikeluarkan.",
   "device.sessionExpiredBtn": "OK",
+  "splash.connectingEncrypted": "Membangun koneksi terenkripsi...",
 };
 
 const translations: Record<Locale, Record<string, string>> = {
