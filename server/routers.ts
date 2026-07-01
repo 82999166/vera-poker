@@ -1421,7 +1421,14 @@ export const appRouter = router({
           // Player is sitting_out (waiting for next hand) - allow rejoin without deducting balance
           return { success: true, seatIndex: alreadySeated.seatIndex, message: "WAITING_FOR_NEXT_HAND", redirectedRoomId: null, redirectedRoomName: null };
         }
-        // Active player on another device - reject
+        // Tournament tables: allow reconnection (player can't leave mid-tournament)
+        const tournamentMod = await import("./tournamentEngine");
+        const isTournamentRoom = tournamentMod.getTournamentForRoom(input.roomId) !== null;
+        if (isTournamentRoom) {
+          // Player is reconnecting to their tournament table - allow without error
+          return { success: true, seatIndex: alreadySeated.seatIndex, message: "RECONNECTED", redirectedRoomId: null, redirectedRoomName: null };
+        }
+        // Regular table: Active player on another device - reject
         throw new TRPCError({ 
           code: "CONFLICT", 
           message: "ALREADY_SEATED_THIS_TABLE" 

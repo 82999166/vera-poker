@@ -1306,12 +1306,14 @@ export default function Table() {
   // Private room auto-join: skip buy-in dialog, use full balance (clamped to min/max)
   const privateAutoJoinRef = useRef(false);
   // Enable wallet query for private room auto-join
-  const isPrivateRoomPendingJoin = !!room && room.type === "private" && !isSeated && !showBuyIn && isValidRoom && !isLeavingRef.current;
+  const isPrivateRoomPendingJoin = !!room && room.type === "private" && !room.inviteCode?.startsWith("T") && !isSeated && !showBuyIn && isValidRoom && !isLeavingRef.current;
   const { data: privateWalletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user && isPrivateRoomPendingJoin });
   useEffect(() => {
     if (!room || room.type !== "private" || isSeated || privateAutoJoinRef.current || !user) return;
     if (!privateWalletData) return; // Wait for wallet data
     if (isLeavingRef.current) return;
+    // Tournament tables: players join via tournament system, not private room auto-join
+    if (room.inviteCode?.startsWith("T")) return;
     const balance = parseFloat(privateWalletData.balance);
     const minBuyIn = parseFloat(room.minBuyIn);
     const maxBuyIn = parseFloat(room.maxBuyIn);
