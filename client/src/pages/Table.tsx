@@ -1713,10 +1713,15 @@ export default function Table() {
               <div className="absolute top-[58%] left-1/2 -translate-x-1/2 z-20 animate-banner pointer-events-none">
                 <div className="bg-black/80 backdrop-blur-md rounded-xl px-4 py-2.5 text-center border border-gold/50 shadow-[0_0_20px_rgba(234,179,8,0.3)]">
                   {(() => {
+                    const HR: Record<string, number> = {
+                      "royal_flush": 10, "straight_flush": 9, "four_of_a_kind": 8,
+                      "full_house": 7, "flush": 6, "straight": 5, "three_of_a_kind": 4,
+                      "two_pair": 3, "one_pair": 2, "high_card": 1, "last_standing": 0, "Last Standing": 0,
+                    };
                     const primaryWinner = showSettlement?.winners?.length > 0
                       ? [...showSettlement.winners].sort((a: any, b: any) => {
-                          const rankA = HAND_RANK_ORDER[a.handRank] || HAND_RANK_ORDER[a.handDescription] || 0;
-                          const rankB = HAND_RANK_ORDER[b.handRank] || HAND_RANK_ORDER[b.handDescription] || 0;
+                          const rankA = HR[a.handRank] || HR[a.handDescription] || 0;
+                          const rankB = HR[b.handRank] || HR[b.handDescription] || 0;
                           if (rankB !== rankA) return rankB - rankA;
                           return b.amount - a.amount;
                         })[0]
