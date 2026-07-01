@@ -312,9 +312,9 @@ export async function getPlayerView(roomId: number, playerId: number) {
     if (tState) {
       // Look up prize if player is eliminated or tournament finished
       let myPrize: string | null = null;
-      if (tState.myRank && tState.myEliminated) {
+      if (tState.myRank && (tState.myEliminated || tState.status === "finished")) {
         // Prize will be calculated and stored in DB by finishTournament
-        // For now just show rank; actual prize amount comes from tournament results
+        // Fetch for both eliminated players and the winner when tournament is finished
         const results = await db.getTournamentResults(tournamentIdForRoom);
         const myResult = results?.find((r) => r.result.userId === playerId);
         if (myResult && parseFloat(myResult.result.prizeAmount) > 0) {

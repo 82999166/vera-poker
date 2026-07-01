@@ -1289,6 +1289,25 @@ export default function Table() {
   const tournamentEliminated = tournamentInfo?.myEliminated ?? false;
   const tournamentFinished = tournamentInfo?.isFinished ?? false;
 
+  // === Tournament Finished Detection (for the WINNER who stays on the table) ===
+  const tournamentFinishedShownRef = useRef(false);
+  useEffect(() => {
+    if (tournamentFinished && !tournamentFinishedShownRef.current && !tournamentEndInfo) {
+      tournamentFinishedShownRef.current = true;
+      // Small delay to allow final settlement animation to play
+      const timer = setTimeout(() => {
+        setTournamentEndInfo({
+          rank: tournamentInfo?.myRank || 1,
+          prize: parseFloat(tournamentInfo?.myPrize || "0") || 0,
+          totalPlayers: tournamentInfo?.totalPlayers || 0,
+          tournamentName: tournamentInfo?.tournamentName,
+          tournamentId: tournamentInfo?.tournamentId,
+        });
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [tournamentFinished, tournamentEndInfo, tournamentInfo]);
+
   // === Showdown sequential reveal ===
   // Track which opponent IDs have been "flipped" face-up during showdown
   const [revealedOpponentIds, setRevealedOpponentIds] = useState<Set<number>>(new Set());

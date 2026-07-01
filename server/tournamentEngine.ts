@@ -264,8 +264,9 @@ export function getTournamentState(tournamentId: number, userId?: number) {
       myRoomId = player.isEliminated ? null : player.roomId;
       myChips = player.chips;
       myEliminated = player.isEliminated;
-      if (player.isEliminated) {
-        myRank = player.finishRank || null;
+      // Return finishRank for both eliminated players AND the winner (who has finishRank=1 but isEliminated=false)
+      if (player.finishRank) {
+        myRank = player.finishRank;
       }
     }
   }

@@ -1310,3 +1310,8 @@
 ## UI Fix: 比赛场名称条遮挡玩家手牌
 - [x] 将浮动信息条从 top:48% 移到 top:44%，z-index 从 20 降到 10
 - [x] 缩小字体和 padding，限制最大宽度为 70%，避免遮挡两侧玩家
+
+## Bug Fix: 锦标赛冠军（赢家）看不到结算界面
+- [x] 修复 getTournamentState 中冠军的 myRank 不返回的问题（之前只有 isEliminated=true 才返回 finishRank）
+- [x] 修复 myPrize 只在 myEliminated 时查询的问题（现在 tournament finished 也查询）
+- [x] 前端新增独立 useEffect 监听 tournamentFinished 状态，4秒后显示结算界面（给最后一手结算动画留时间）
