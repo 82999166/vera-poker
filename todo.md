@@ -1306,3 +1306,7 @@
 - [x] 前三名显示奖杯/奖牌图标
 - [x] 当前用户高亮标记
 - [x] 后端 tournamentInfo 增加 tournamentName 和 tournamentId 字段
+
+## UI Fix: 比赛场名称条遮挡玩家手牌
+- [x] 将浮动信息条从 top:48% 移到 top:44%，z-index 从 20 降到 10
+- [x] 缩小字体和 padding，限制最大宽度为 70%，避免遮挡两侧玩家

@@ -1622,22 +1622,22 @@ export default function Table() {
         <Menu className="w-4.5 h-4.5 text-white/80" />
       </button>
 
-      {/* Floating room name + phase (top-center) */}
+      {/* Floating room name + phase (center, below community cards) */}
       <div
-        className="absolute z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 border border-white/10 backdrop-blur-sm"
-        style={{ top: '48%', left: '50%', transform: 'translateX(-50%)' }}
+        className="absolute z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 border border-white/10 backdrop-blur-sm max-w-[70%]"
+        style={{ top: '44%', left: '50%', transform: 'translateX(-50%)' }}
       >
-        {isTournamentTable && <Trophy className="w-3 h-3 text-gold" />}
-        <span className="text-[11px] text-white/70 font-medium truncate max-w-[100px]">
+        {isTournamentTable && <Trophy className="w-3 h-3 text-gold flex-shrink-0" />}
+        <span className="text-[10px] text-white/60 font-medium truncate max-w-[80px]">
           {room ? room.name : isDemoMode ? t("table.demo") : `#${id}`}
         </span>
         {room?.type === "private" && room.inviteCode && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gold/20 text-gold font-mono font-medium">
+          <span className="text-[9px] px-1 py-0.5 rounded bg-gold/20 text-gold font-mono font-medium flex-shrink-0">
             #{room.inviteCode}
           </span>
         )}
         {displayPhase !== "waiting" && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-truth-blue/30 text-truth-blue font-medium">
+          <span className="text-[9px] px-1 py-0.5 rounded bg-truth-blue/30 text-truth-blue font-medium flex-shrink-0">
             {phaseNames[displayPhase] || displayPhase}
           </span>
         )}
