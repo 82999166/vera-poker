@@ -221,6 +221,20 @@ export async function startTournament(tournamentId: number): Promise<{
     await db.updateRoom(roomId, { currentPlayers: table.playerCount, status: "waiting" });
   }
 
+  // Auto-start first hand on all tournament tables after a short delay
+  // This eliminates the need for players to click "Start Next Hand"
+  setTimeout(async () => {
+    const { startNewHand } = await import("./tableManager");
+    for (const roomId of createdRoomIds) {
+      try {
+        await startNewHand(roomId);
+        console.log(`[Tournament ${tournamentId}] Auto-started first hand on table ${roomId}`);
+      } catch (err: any) {
+        console.error(`[Tournament ${tournamentId}] Failed to auto-start table ${roomId}:`, err.message);
+      }
+    }
+  }, 3000); // 3 second delay to let players load the table UI
+
   return { success: true, tables: createdRoomIds.length, players: playerCount };
 }
 

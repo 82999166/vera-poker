@@ -153,7 +153,29 @@ export async function getPlayerView(roomId: number, playerId: number) {
     // Check if room is closed or deleted (private rooms are hard-deleted after dissolve)
     const roomInfo = await db.getRoomById(roomId);
     const roomClosed = !roomInfo || roomInfo.status === "closed";
-    return { phase: "waiting", players: waitingPlayers, communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [], roomClosed };
+    
+    // Check tournament context even when no active table exists (e.g. before first hand starts)
+    const tournamentModule = await import("./tournamentEngine");
+    const tournamentIdForWaiting = tournamentModule.getTournamentForRoom(roomId);
+    let tournamentInfoWaiting: any = undefined;
+    if (tournamentIdForWaiting !== null) {
+      const tState = tournamentModule.getTournamentState(tournamentIdForWaiting, playerId);
+      if (tState) {
+        tournamentInfoWaiting = {
+          isTournament: true,
+          tournamentId: tournamentIdForWaiting,
+          blindLevel: tState.currentBlindLevel,
+          currentBlinds: tState.currentBlinds,
+          nextBlinds: tState.nextBlinds,
+          timeUntilNextLevel: tState.timeUntilNextLevel,
+          playersRemaining: tState.activePlayers,
+          totalPlayers: tState.totalPlayers,
+          myEliminated: tState.myEliminated ?? false,
+          isFinished: tState.status === "finished",
+        };
+      }
+    }
+    return { phase: "waiting", players: waitingPlayers, communityCards: [], pot: 0, currentBet: 0, currentPlayerIndex: -1, myCards: [], roomClosed, tournamentInfo: tournamentInfoWaiting };
   }
 
   const gs = table.gameState;
@@ -1236,22 +1258,26 @@ async function settleHand(roomId: number) {
     table.readyPlayers = new Set();
     table.settlementStartedAt = Date.now();
     
-    // Auto-start next hand after 5 seconds (enough time to see settlement)
+        // Auto-start next hand after 5 seconds (enough time to see settlement)
+    const settlementToken = table.settlementStartedAt;
     setTimeout(async () => {
       const currentTable = activeTables.get(roomId);
       if (!currentTable) return;
-      // Only proceed if this is still the same settlement cycle
-      if (currentTable.settlementStartedAt !== table.settlementStartedAt) return;
-      
+      // Only proceed if this is still the same settlement cycle (prevents stale timers)
+      if (currentTable.settlementStartedAt !== settlementToken) return;
+      // Guard: if a hand is already in progress, skip (prevents infinite dealing loop)
+      const phase = currentTable.gameState?.phase;
+      if (phase && phase !== 'completed' && phase !== 'showdown' && phase !== 'waiting') {
+        console.log(`[Tournament] Room ${roomId}: SKIP auto-start, hand already in progress (phase=${phase})`);
+        return;
+      }
       // Check if tournament is still active and not paused
       const te = await import("./tournamentEngine");
       const tournament = te.getActiveTournament(tId);
       if (!tournament || tournament.isFinished || tournament.isPaused) return;
-      
       // Check if enough players remain at this table
       const remainingPlayers = await db.getRoomPlayers(roomId);
       const playablePlayers = remainingPlayers.filter((rp: any) => parseFloat(rp.chipCount) > 0);
-      
       if (playablePlayers.length >= 2) {
         // Update blinds from tournament engine (may have increased)
         const tState = te.getTournamentState(tId);
@@ -1290,12 +1316,22 @@ async function settleHand(roomId: number) {
   settlingRooms.delete(roomId);
 }
 
+// Guard against concurrent startNewHand calls for the same room
+const startingRooms = new Set<number>();
+
 /**
  * Start a new hand at a table
  */
 export async function startNewHand(roomId: number) {
+  // Prevent duplicate concurrent calls (e.g. tournament auto-start race)
+  if (startingRooms.has(roomId)) {
+    console.log(`[startNewHand] Room ${roomId}: SKIPPED - already starting`);
+    return;
+  }
+  startingRooms.add(roomId);
+  
   const room = await db.getRoomById(roomId);
-  if (!room) return;
+  if (!room) { startingRooms.delete(roomId); return; }
 
   console.log(`[startNewHand] Called for room ${roomId}, activeTables.has=${activeTables.has(roomId)}`);
 
@@ -1476,6 +1512,8 @@ export async function startNewHand(roomId: number) {
   });
   } catch (err: any) {
     console.error(`[startNewHand] Room ${roomId}: ERROR - ${err.message}`, err.stack);
+  } finally {
+    startingRooms.delete(roomId);
   }
 }
 
