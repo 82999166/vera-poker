@@ -1276,3 +1276,8 @@
 
 ## UI Fix: 顶部玩家与奖池重叠
 - [x] Seat 3 (Top center) 位置从 top:10% 上移到 top:5%，避免个人下注金额与中间总奖池重叠
+
+## Bug/Feature: 私人房三个问题
+- [x] 房号输入框被键盘遮挡 - 改用更强的键盘避让方案（visualViewport API + 固定定位）
+- [x] 私人房列表持久化 - 使用rooms.myRooms查询显示用户创建的未解散私人房
+- [x] 私人房牌桌显示房间号 - 在牌桌顶部浮动信息条中显示inviteCode

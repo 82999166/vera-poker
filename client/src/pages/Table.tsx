@@ -1532,6 +1532,11 @@ export default function Table() {
         <span className="text-[11px] text-white/70 font-medium truncate max-w-[100px]">
           {room ? room.name : isDemoMode ? t("table.demo") : `#${id}`}
         </span>
+        {room?.type === "private" && room.inviteCode && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gold/20 text-gold font-mono font-medium">
+            #{room.inviteCode}
+          </span>
+        )}
         {displayPhase !== "waiting" && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-truth-blue/30 text-truth-blue font-medium">
             {phaseNames[displayPhase] || displayPhase}

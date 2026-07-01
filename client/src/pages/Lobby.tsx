@@ -41,6 +41,8 @@ export default function Lobby() {
   const { data: walletData } = trpc.wallet.balance.useQuery(undefined, { enabled: !!user });
   const { data: activeRoom } = trpc.rooms.myActiveRoom.useQuery(undefined, { enabled: !!user });
   const { data: myTournamentTable } = trpc.tournaments.myTable.useQuery(undefined, { enabled: !!user, refetchInterval: 3000 });
+  // Fetch user's own created rooms (persisted private rooms)
+  const { data: myOwnedRooms } = trpc.rooms.myRooms.useQuery(undefined, { enabled: !!user, refetchInterval: 5000 });
   const joinByStakeMutation = trpc.rooms.joinByStake.useMutation();
 
   // New user welcome popup - show once when bonusBalance > 0 and not yet dismissed
@@ -61,7 +63,20 @@ export default function Lobby() {
   }, [myTournamentTable, navigate]);
 
   const cashRooms = (rooms ?? []).filter(r => r.type !== "private" && r.status !== "closed");
-  const privateRooms = (rooms ?? []).filter(r => r.type === "private" && r.status !== "closed");
+  // Merge: show user's own private rooms (from myRooms) + any public-listed private rooms, deduplicated
+  const privateRooms = React.useMemo(() => {
+    const fromList = (rooms ?? []).filter(r => r.type === "private" && r.status !== "closed");
+    const fromOwned = (myOwnedRooms ?? []).filter(r => r.type === "private" && r.status !== "closed");
+    const seen = new Set<number>();
+    const merged: typeof fromList = [];
+    for (const r of fromOwned) {
+      if (!seen.has(r.id)) { seen.add(r.id); merged.push(r); }
+    }
+    for (const r of fromList) {
+      if (!seen.has(r.id)) { seen.add(r.id); merged.push(r); }
+    }
+    return merged;
+  }, [rooms, myOwnedRooms]);
 
   // 根据盲注级别返回多语言房间名称（简洁格式）
   const getRoomLevelName = (bigBlind: string) => {
@@ -357,9 +372,9 @@ export default function Lobby() {
         </div>
       )}
 
-      {/* Private Room Join Input */}
+      {/* Private Room Join Input - fixed at top to avoid keyboard blocking */}
       {activeTab === "private" && (
-        <div className="px-4 pt-3">
+        <div className="sticky top-0 z-40 px-4 pt-3 bg-background/95 backdrop-blur-sm">
           <div className="glass rounded-xl p-3 flex items-center gap-2">
             <Hash className="w-4 h-4 text-gold shrink-0" />
             <input
@@ -371,12 +386,6 @@ export default function Lobby() {
               onChange={(e) => setPrivateRoomCode(e.target.value.replace(/\D/g, ""))}
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               onKeyDown={(e) => { if (e.key === "Enter") handleJoinPrivateRoom(); }}
-              onFocus={(e) => {
-                // 延迟滚动，等待键盘弹出后再滚动到输入框可见位置
-                setTimeout(() => {
-                  e.target.scrollIntoView({ behavior: "smooth", block: "center" });
-                }, 300);
-              }}
             />
             <button
               onClick={handleJoinPrivateRoom}
@@ -480,6 +489,9 @@ export default function Lobby() {
                   <div className="flex items-center gap-2 mb-1">
                     <Lock className="w-3 h-3 text-gold" />
                     <span className="text-base font-bold text-foreground">{room.name}</span>
+                    {(room as any).ownerId === user?.id && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gold/20 text-gold">{t("lobby.myRoom") || "我的"}</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-4 text-[13px] text-foreground font-bold mt-4">
                     <span className="whitespace-nowrap">{t("lobby.blinds")}: ${formatAmount(room.smallBlind)}/${formatAmount(room.bigBlind)}</span>
