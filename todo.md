@@ -1281,3 +1281,6 @@
 - [x] 房号输入框被键盘遮挡 - 改用更强的键盘避让方案（visualViewport API + 固定定位）
 - [x] 私人房列表持久化 - 使用rooms.myRooms查询显示用户创建的未解散私人房
 - [x] 私人房牌桌显示房间号 - 在牌桌顶部浮动信息条中显示inviteCode
+
+## UI Fix: PC端牌桌宽度不够
+- [x] PC端maxWidth从430px增加到520px，防止两侧玩家被截断

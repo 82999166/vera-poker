@@ -471,10 +471,13 @@ export default function Table() {
   const tableAreaRef = useRef<HTMLDivElement>(null);
 
   // Full-screen layout: use 100% of available viewport, accounting for TG WebApp chrome
+  // Use wider maxWidth on PC/tablet to prevent side players from being clipped
+  const isMobileUA = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const tableMaxWidth = isMobileUA ? '430px' : '520px';
   const [containerStyle, setContainerStyle] = useState<React.CSSProperties>({
     position: 'relative',
     width: '100%', height: '100dvh',
-    maxWidth: '430px', overflow: 'hidden',
+    maxWidth: tableMaxWidth, overflow: 'hidden',
     margin: '0 auto',
   });
   useEffect(() => {
@@ -484,7 +487,7 @@ export default function Table() {
         position: 'relative',
         width: '100%',
         height: `${h}px`,
-        maxWidth: '430px',
+        maxWidth: tableMaxWidth,
         overflow: 'hidden',
         margin: '0 auto',
       };
