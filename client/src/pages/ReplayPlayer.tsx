@@ -44,6 +44,7 @@ export default function ReplayPlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1); // 1x, 2x, 3x
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isRestartingRef = useRef(false); // 防止restart后timer回调残留
 
   const timeline = replay?.actionTimeline || [];
   const players = replay?.playerSnapshot || [];
@@ -55,8 +56,8 @@ export default function ReplayPlayer() {
     ? timeline[currentStep].phase
     : "preflop";
 
-  /** 当前应显示的公共牌数量 */
-  const visibleCardCount = PHASE_CARD_COUNT[currentPhase] || 0;
+  /** 当前应显示的公共牌数量 - 严格按照阶段显示，确保restart后不会闪现公牌 */
+  const visibleCardCount = currentStep < 0 ? 0 : (PHASE_CARD_COUNT[currentPhase] || 0);
 
   /** 当前底池 */
   const currentPot = currentStep >= 0 && currentStep < totalSteps
@@ -65,6 +66,10 @@ export default function ReplayPlayer() {
 
   /** 自动播放逻辑 */
   useEffect(() => {
+    if (isRestartingRef.current) {
+      isRestartingRef.current = false;
+      return;
+    }
     if (isPlaying && currentStep < totalSteps - 1) {
       const delay = Math.max(400, 1200 / speed);
       timerRef.current = setTimeout(() => {
@@ -74,7 +79,10 @@ export default function ReplayPlayer() {
       setIsPlaying(false);
     }
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
     };
   }, [isPlaying, currentStep, speed, totalSteps]);
 
@@ -98,6 +106,12 @@ export default function ReplayPlayer() {
 
   /** 重新开始 */
   const restart = useCallback(() => {
+    // 先清除任何pending的timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    isRestartingRef.current = true;
     setIsPlaying(false);
     setCurrentStep(-1);
   }, []);

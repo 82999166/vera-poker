@@ -1261,3 +1261,8 @@
 - [x] 实现私人房分享按钮，生成TG富文本消息（图片+文字+按钮）
 - [x] 其他TG用户可通过房间号链接直接进入游戏
 - [x] TG Bot支持room_CODE_ref_USERID格式的深度链接（房间号+邀请码同时传递）
+
+## Bug Fix: 回放重新开始闪现已开公牌
+- [x] 修复restart后timer回调残留导致step从-1跳到0的时序问题（isRestartingRef）
+- [x] 加强visibleCardCount：currentStep<0时强制返回0（不显示任何公牌）
+- [x] restart时主动清除pending timer并设置restarting标志跳过下一次useEffect
