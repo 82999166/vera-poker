@@ -1714,7 +1714,12 @@ export default function Table() {
                 <div className="bg-black/80 backdrop-blur-md rounded-xl px-4 py-2.5 text-center border border-gold/50 shadow-[0_0_20px_rgba(234,179,8,0.3)]">
                   {(() => {
                     const primaryWinner = showSettlement?.winners?.length > 0
-                      ? [...showSettlement.winners].sort((a: any, b: any) => b.amount - a.amount)[0]
+                      ? [...showSettlement.winners].sort((a: any, b: any) => {
+                          const rankA = HAND_RANK_ORDER[a.handRank] || HAND_RANK_ORDER[a.handDescription] || 0;
+                          const rankB = HAND_RANK_ORDER[b.handRank] || HAND_RANK_ORDER[b.handDescription] || 0;
+                          if (rankB !== rankA) return rankB - rankA;
+                          return b.amount - a.amount;
+                        })[0]
                       : { name: showWinner.name, amount: showWinner.amount, handDescription: showWinner.handDescription };
                     const handKey = primaryWinner.handDescription && HAND_RANK_MAP[primaryWinner.handDescription];
                     const handName = handKey ? t(handKey) : primaryWinner.handDescription;
