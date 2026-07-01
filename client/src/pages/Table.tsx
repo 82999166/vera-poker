@@ -342,6 +342,131 @@ const HAND_RANK_MAP: Record<string, string> = {
   "Last Standing": "hand.lastStanding",
 };
 
+/** Tournament Final Results Overlay - shows full rankings when tournament ends */
+function TournamentResultsOverlay({ tournamentEndInfo, onBackToLobby, t }: {
+  tournamentEndInfo: { rank: number; prize: number; totalPlayers: number; tournamentName?: string; tournamentId?: number };
+  onBackToLobby: () => void;
+  t: (key: string) => string;
+}) {
+  const { data: results, isLoading } = trpc.tournaments.results.useQuery(
+    { tournamentId: tournamentEndInfo.tournamentId! },
+    { enabled: !!tournamentEndInfo.tournamentId }
+  );
+
+  const rankIcon = (rank: number) => {
+    if (rank === 1) return "\u{1F3C6}";
+    if (rank === 2) return "\u{1F948}";
+    if (rank === 3) return "\u{1F949}";
+    return `#${rank}`;
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-sm">
+      <div className="w-[92%] max-w-md max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ background: 'linear-gradient(to bottom, #1a2744, #0d1a2e)', border: '1px solid rgba(234,179,8,0.3)' }}>
+        {/* Header - My Result */}
+        <div className="p-5 text-center border-b border-white/10 flex-shrink-0">
+          <div className="mx-auto w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ background: 'linear-gradient(to bottom right, rgba(234,179,8,0.3), rgba(234,179,8,0.1))' }}>
+            <span className="text-2xl">{rankIcon(tournamentEndInfo.rank)}</span>
+          </div>
+          <h2 className="text-lg font-bold text-gold mb-0.5">{t("tourney.statusFinished")}</h2>
+          {tournamentEndInfo.tournamentName && (
+            <p className="text-xs text-muted-foreground">{tournamentEndInfo.tournamentName}</p>
+          )}
+          {/* My rank & prize row */}
+          <div className="flex items-center justify-center gap-4 mt-3">
+            {tournamentEndInfo.rank > 0 && (
+              <div className="bg-black/30 rounded-lg px-4 py-2">
+                <p className="text-[10px] text-muted-foreground">{t("tourney.yourRank")}</p>
+                <p className="text-xl font-black text-foreground">#{tournamentEndInfo.rank}<span className="text-xs text-muted-foreground font-normal">/{tournamentEndInfo.totalPlayers}</span></p>
+              </div>
+            )}
+            {tournamentEndInfo.prize > 0 && (
+              <div className="bg-gold/10 border border-gold/20 rounded-lg px-4 py-2">
+                <p className="text-[10px] text-muted-foreground">{t("tourney.prize")}</p>
+                <p className="text-xl font-bold text-gold">+${Number(tournamentEndInfo.prize).toFixed(2)}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Rankings List */}
+        <div className="flex-1 overflow-y-auto px-4 py-3" style={{ minHeight: 0 }}>
+          <p className="text-xs text-muted-foreground mb-2 font-medium">{t("tourney.prizeDistribution")}</p>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-5 h-5 border-2 border-gold/40 border-t-gold rounded-full animate-spin" />
+            </div>
+          ) : results && results.length > 0 ? (
+            <div className="space-y-1.5">
+              {results.map((r: any) => {
+                const isMe = r.result?.rank === tournamentEndInfo.rank && tournamentEndInfo.rank > 0;
+                const prize = parseFloat(r.result?.prizeAmount || "0");
+                return (
+                  <div
+                    key={r.result?.userId || r.result?.rank}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
+                      isMe ? "bg-gold/15 border border-gold/30" : "bg-white/5"
+                    }`}
+                  >
+                    {/* Rank */}
+                    <div className="w-8 text-center flex-shrink-0">
+                      {r.result?.rank <= 3 ? (
+                        <span className="text-lg">{rankIcon(r.result?.rank)}</span>
+                      ) : (
+                        <span className="text-sm font-bold text-muted-foreground">#{r.result?.rank}</span>
+                      )}
+                    </div>
+                    {/* Avatar + Name */}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {r.user?.avatar ? (
+                        <img src={r.user.avatar} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-white/10 flex-shrink-0" />
+                      )}
+                      <span className={`text-sm truncate ${isMe ? "text-gold font-bold" : "text-foreground"}`}>
+                        {r.user?.nickname || r.user?.tgUsername || `Player`}
+                        {isMe && " (" + t("table.you") + ")"}
+                      </span>
+                    </div>
+                    {/* Prize */}
+                    <div className="text-right flex-shrink-0">
+                      {prize > 0 ? (
+                        <span className="text-sm font-bold text-gold">${prize.toFixed(2)}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* Fallback when no results available yet */
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              {tournamentEndInfo.rank > 0 ? (
+                <p>#{tournamentEndInfo.rank} / {tournamentEndInfo.totalPlayers}</p>
+              ) : (
+                <p>{t("tourney.statusFinished")}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer - Back button */}
+        <div className="p-4 border-t border-white/10 flex-shrink-0">
+          <button
+            onClick={onBackToLobby}
+            className="w-full py-3 rounded-xl text-black font-bold text-base active:scale-[0.97] transition-transform duration-150"
+            style={{ background: 'linear-gradient(to right, #eab308, #f59e0b)' }}
+          >
+            {t("tourney.backToLobby")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Table() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
@@ -463,6 +588,7 @@ export default function Table() {
     prize: number;
     totalPlayers: number;
     tournamentName?: string;
+    tournamentId?: number;
   } | null>(null);
   // Prevent roomPlayers re-query from triggering showBuyIn after leave/navigate
   const isLeavingRef = useRef(false);
@@ -827,8 +953,9 @@ export default function Table() {
         setTournamentEndInfo({
           rank: tInfo.myRank || 0,
           prize: tInfo.myPrize || 0,
-          totalPlayers: tInfo.playersRemaining || 0,
+          totalPlayers: tInfo.totalPlayers || tInfo.playersRemaining || 0,
           tournamentName: tInfo.tournamentName,
+          tournamentId: tInfo.tournamentId,
         });
         setIsSeated(false);
         isLeavingRef.current = true;
@@ -1469,46 +1596,13 @@ export default function Table() {
       className="flex flex-col"
       style={{ ...containerStyle, background: 'linear-gradient(to bottom, #0a1628, #0d1f3c, #060e1a)' }}
     >
-      {/* Tournament End Overlay */}
+      {/* Tournament End Overlay - Full Results Screen */}
       {tournamentEndInfo && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-500">
-          <div className="w-[90%] max-w-sm rounded-2xl p-6 text-center shadow-2xl" style={{ background: 'linear-gradient(to bottom, #1a2744, #0d1a2e)', border: '1px solid rgba(234,179,8,0.3)' }}>
-            {/* Trophy icon */}
-            <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: 'linear-gradient(to bottom right, rgba(234,179,8,0.3), rgba(234,179,8,0.1))' }}>
-              <span className="text-3xl">{tournamentEndInfo.rank === 1 ? "🏆" : tournamentEndInfo.rank === 2 ? "🥈" : tournamentEndInfo.rank === 3 ? "🥉" : "🎮"}</span>
-            </div>
-            {/* Title */}
-            <h2 className="text-xl font-bold text-gold mb-1">{t("tourney.statusFinished")}</h2>
-            {tournamentEndInfo.tournamentName && (
-              <p className="text-sm text-muted-foreground mb-4">{tournamentEndInfo.tournamentName}</p>
-            )}
-            {/* Rank */}
-            {tournamentEndInfo.rank > 0 && (
-              <div className="bg-black/30 rounded-xl p-4 mb-4">
-                <p className="text-sm text-muted-foreground mb-1">{t("tourney.yourRank")}</p>
-                <p className="text-4xl font-black text-foreground">#{tournamentEndInfo.rank}</p>
-                {tournamentEndInfo.totalPlayers > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">/ {tournamentEndInfo.totalPlayers} {t("tourney.players")}</p>
-                )}
-              </div>
-            )}
-            {/* Prize */}
-            {tournamentEndInfo.prize > 0 && (
-              <div className="bg-gold/10 border border-gold/20 rounded-xl p-3 mb-4">
-                <p className="text-sm text-muted-foreground mb-1">{t("tourney.prize")}</p>
-                <p className="text-2xl font-bold text-gold">+${tournamentEndInfo.prize.toLocaleString()}</p>
-              </div>
-            )}
-            {/* Back to lobby button */}
-            <button
-              onClick={() => navigate("/lobby")}
-              className="w-full py-3 rounded-xl text-black font-bold text-base hover:brightness-110 active:scale-[0.97] transition-all duration-150"
-              style={{ background: 'linear-gradient(to right, #eab308, #f59e0b)' }}
-            >
-              {t("tourney.backToLobby")}
-            </button>
-          </div>
-        </div>
+        <TournamentResultsOverlay
+          tournamentEndInfo={tournamentEndInfo}
+          onBackToLobby={() => navigate("/lobby")}
+          t={t}
+        />
       )}
 
       {/* Room Invite Poster Overlay */}

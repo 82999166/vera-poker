@@ -293,6 +293,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
   let tournamentInfo: {
     isTournament: boolean;
     tournamentId: number | null;
+    tournamentName: string;
     blindLevel: number;
     currentBlinds: { smallBlind: number; bigBlind: number };
     nextBlinds: { smallBlind: number; bigBlind: number } | null;
@@ -323,6 +324,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
       tournamentInfo = {
         isTournament: true,
         tournamentId: tournamentIdForRoom,
+        tournamentName: tState.name,
         blindLevel: tState.currentBlindLevel,
         currentBlinds: tState.currentBlinds || { smallBlind: 0, bigBlind: 0 },
         nextBlinds: tState.nextBlinds ? { smallBlind: tState.nextBlinds.smallBlind, bigBlind: tState.nextBlinds.bigBlind } : null,
