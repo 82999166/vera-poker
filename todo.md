@@ -1315,3 +1315,12 @@
 - [x] 修复 getTournamentState 中冠军的 myRank 不返回的问题（之前只有 isEliminated=true 才返回 finishRank）
 - [x] 修复 myPrize 只在 myEliminated 时查询的问题（现在 tournament finished 也查询）
 - [x] 前端新增独立 useEffect 监听 tournamentFinished 状态，4秒后显示结算界面（给最后一手结算动画留时间）
+
+## Bug Fix: 锦标赛结束结算界面不显示（根本原因修复）
+- [x] 根因：useEffect cleanup 在 tournamentInfo 依赖变化时取消了4秒定时器（每1.2s poll返回新对象引用→cleanup→clearTimeout）
+- [x] 修复：将定时器存入 ref，依赖数组改为只依赖 tournamentFinished 布尔值，组件卸载时才清理
+- [x] 增加 roomClosed 防护：锦标赛桌房间关闭时不导航回大厅，而是显示结算界面
+- [x] 增加 wasTournamentRef 兜底：即使 tournamentInfo 丢失也能显示结算界面
+
+## Bug Fix: 锦标赛桌不应收取 Rake
+- [x] 增加 DB fallback 检测 isTournamentRoom（inviteCode.startsWith("T")），防止服务器重启后内存锦标赛数据丢失导致收取 rake

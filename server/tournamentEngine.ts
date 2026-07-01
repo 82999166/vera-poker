@@ -980,21 +980,28 @@ async function finishTournament(tournamentId: number, winner: TournamentPlayer):
     totalPrizePool: totalPrizePool.toFixed(2),
   });
 
-  // Close all tournament tables and clean up in-memory state
-  const tableManagerModule = await import("./tableManager");
-  for (const [roomId] of t.tables) {
-    tableManagerModule.removeActiveTable(roomId);
-    // Remove remaining players from room
-    const roomPlayers = await db.getRoomPlayers(roomId);
-    for (const rp of roomPlayers) {
-      await db.removeRoomPlayer(roomId, rp.userId);
-    }
-    await db.updateRoom(roomId, { status: "closed", currentPlayers: 0 });
-  }
-
   console.log(`[Tournament ${tournamentId}] Finished! Winner: ${winner.name}. Prize pool: $${totalPrizePool.toFixed(2)}`);
 
-  // Clean up after a delay (keep state for API queries for 5 minutes)
+  // Delay table cleanup to give frontend time to detect isFinished and show results screen
+  setTimeout(async () => {
+    try {
+      const tableManagerModule = await import("./tableManager");
+      for (const [roomId] of t.tables) {
+        tableManagerModule.removeActiveTable(roomId);
+        // Remove remaining players from room
+        const roomPlayers = await db.getRoomPlayers(roomId);
+        for (const rp of roomPlayers) {
+          await db.removeRoomPlayer(roomId, rp.userId);
+        }
+        await db.updateRoom(roomId, { status: "closed", currentPlayers: 0 });
+      }
+      console.log(`[Tournament ${tournamentId}] Tables cleaned up after delay.`);
+    } catch (err) {
+      console.error(`[Tournament ${tournamentId}] Error during delayed cleanup:`, err);
+    }
+  }, 15_000); // 15 seconds delay for frontend to show results
+
+  // Clean up activeTournaments after 5 minutes (keep state for API queries)
   setTimeout(() => {
     activeTournaments.delete(tournamentId);
   }, 5 * 60 * 1000);

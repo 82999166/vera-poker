@@ -936,8 +936,16 @@ async function settleHand(roomId: number) {
   }
 
   // Check if this is a tournament table - tournaments have NO rake
+  // Use both in-memory check AND room inviteCode as fallback (survives server restart)
   const tournamentEngineForRake = await import("./tournamentEngine");
-  const isTournamentRoom = tournamentEngineForRake.getTournamentForRoom(roomId) !== null;
+  let isTournamentRoom = tournamentEngineForRake.getTournamentForRoom(roomId) !== null;
+  if (!isTournamentRoom) {
+    // Fallback: check room's inviteCode prefix or rakePercent field from DB
+    const roomData = await db.getRoomById(roomId);
+    if (roomData && roomData.inviteCode?.startsWith("T")) {
+      isTournamentRoom = true;
+    }
+  }
 
   // Get system config for rake (0 for tournaments)
   let rakePercent = 0;

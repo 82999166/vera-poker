@@ -922,7 +922,27 @@ export default function Table() {
 
     // If room is closed (e.g. totalRounds reached), navigate to lobby directly without calling leave
     if ((tableState as any).roomClosed) {
+      // Don't navigate away if tournament results overlay is showing or pending
+      if (tournamentEndInfo || tournamentFinishedShownRef.current) return;
       if (!kickDetectedRef.current) {
+        // If this was a tournament table, show results overlay instead of navigating away
+        const tInfo = (tableState as any)?.tournamentInfo;
+        if (tInfo?.isTournament && tInfo?.isFinished) {
+          kickDetectedRef.current = true;
+          setTournamentEndInfo({
+            rank: tInfo.myRank || 0,
+            prize: parseFloat(tInfo.myPrize || "0") || 0,
+            totalPlayers: tInfo.totalPlayers || 0,
+            tournamentName: tInfo.tournamentName,
+            tournamentId: tInfo.tournamentId,
+          });
+          return;
+        }
+        if (wasTournamentRef.current) {
+          kickDetectedRef.current = true;
+          setTournamentEndInfo({ rank: 0, prize: 0, totalPlayers: 0 });
+          return;
+        }
         kickDetectedRef.current = true;
         isLeavingRef.current = true;
         setIsLeaving(true);
@@ -1291,22 +1311,37 @@ export default function Table() {
 
   // === Tournament Finished Detection (for the WINNER who stays on the table) ===
   const tournamentFinishedShownRef = useRef(false);
+  // Store tournamentInfo in a ref so the timer callback always reads the latest values
+  const tournamentInfoRef = useRef(tournamentInfo);
+  tournamentInfoRef.current = tournamentInfo;
+  const tournamentFinishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (tournamentFinished && !tournamentFinishedShownRef.current && !tournamentEndInfo) {
+      console.log('[Tournament] Detected isFinished=true, starting 4s timer for results overlay');
       tournamentFinishedShownRef.current = true;
       // Small delay to allow final settlement animation to play
-      const timer = setTimeout(() => {
+      tournamentFinishTimerRef.current = setTimeout(() => {
+        console.log('[Tournament] 4s timer fired, showing results overlay');
+        const tInfo = tournamentInfoRef.current;
         setTournamentEndInfo({
-          rank: tournamentInfo?.myRank || 1,
-          prize: parseFloat(tournamentInfo?.myPrize || "0") || 0,
-          totalPlayers: tournamentInfo?.totalPlayers || 0,
-          tournamentName: tournamentInfo?.tournamentName,
-          tournamentId: tournamentInfo?.tournamentId,
+          rank: tInfo?.myRank || 1,
+          prize: parseFloat(tInfo?.myPrize || "0") || 0,
+          totalPlayers: tInfo?.totalPlayers || 0,
+          tournamentName: tInfo?.tournamentName,
+          tournamentId: tInfo?.tournamentId,
         });
+        tournamentFinishTimerRef.current = null;
       }, 4000);
-      return () => clearTimeout(timer);
     }
-  }, [tournamentFinished, tournamentEndInfo, tournamentInfo]);
+    // Cleanup only on unmount, NOT on re-renders (to prevent canceling the 4s timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournamentFinished]);
+  // Cleanup timer on unmount only
+  useEffect(() => {
+    return () => {
+      if (tournamentFinishTimerRef.current) clearTimeout(tournamentFinishTimerRef.current);
+    };
+  }, []);
 
   // === Showdown sequential reveal ===
   // Track which opponent IDs have been "flipped" face-up during showdown
@@ -2187,7 +2222,7 @@ export default function Table() {
 
 
       {/* ===== Buy-in Dialog (3/4 size bottom sheet) ===== */}
-      {showBuyIn && !isSeated && !isDemoMode && !isTournamentTable && !wasTournamentRef.current && (
+      {showBuyIn && !isSeated && !isDemoMode && !isTournamentTable && !wasTournamentRef.current && !room?.inviteCode?.startsWith("T") && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" style={{ height: '100dvh' }}>
           {/* Tap outside to cancel */}
           <div className="absolute inset-0" onClick={() => { setShowBuyIn(false); navigate("/lobby"); }} />
