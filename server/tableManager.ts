@@ -65,6 +65,7 @@ interface ActiveTable {
   readyPlayers: Set<number>; // player IDs who clicked ready
   readyDeadline?: number; // timestamp when unready players get kicked
   waitingForReady: boolean; // true when in between hands waiting for ready clicks
+  isStartingNewHand?: boolean; // true during the async gap between waitingForReady=false and new hand starting
   settlementStartedAt?: number; // timestamp when settlement started (for delayed ready)
   afkFoldCount: Map<number, number>; // playerId -> consecutive auto-fold count (zombie detection)
   lastAggressorId?: number; // playerId of the last player who raised/bet (for showdown reveal order)
@@ -347,7 +348,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
   //    failed to start (not enough players), yet the old activeTables entry wasn't cleaned up.
   const settlementAge = table.settlementStartedAt ? (Date.now() - table.settlementStartedAt) : 0;
   const isStaleCompleted = (gs.phase === "completed" || gs.phase === "showdown") && !table.waitingForReady && settlementAge > 10000;
-  const shouldClearCards = table.waitingForReady || isStaleCompleted;
+  const shouldClearCards = table.waitingForReady || isStaleCompleted || !!table.isStartingNewHand;
 
   // When hand is over or stale - clear cards so frontend doesn't show stale data
   return {
@@ -1365,6 +1366,7 @@ export async function startNewHand(roomId: number) {
     const existingTbl = activeTables.get(roomId);
     if (existingTbl) {
       existingTbl.waitingForReady = true;
+      existingTbl.isStartingNewHand = false;
       existingTbl.settlementStartedAt = undefined;
     }
     await db.updateRoom(roomId, { currentPlayers: roomPlayersList.length, status: "waiting" });
@@ -1398,6 +1400,7 @@ export async function startNewHand(roomId: number) {
     const existingTbl = activeTables.get(roomId);
     if (existingTbl) {
       existingTbl.waitingForReady = true;
+      existingTbl.isStartingNewHand = false;
       existingTbl.settlementStartedAt = undefined;
     }
     // Update room player count and status
@@ -1513,6 +1516,7 @@ export async function startNewHand(roomId: number) {
     // Reset ready system
     readyPlayers: new Set(),
     waitingForReady: false,
+    isStartingNewHand: false, // New hand started successfully, clear the flag
     readyDeadline: undefined,
     // Preserve afkFoldCount across hands (reset only on manual action)
     afkFoldCount: activeTables.get(roomId)?.afkFoldCount ?? new Map(),
@@ -1796,6 +1800,7 @@ export async function playerReady(roomId: number, userId: number): Promise<{ suc
     // All real players ready - start next hand (bots may still be pending but that's ok)
     table.waitingForReady = false;
     table.readyDeadline = undefined;
+    table.isStartingNewHand = true; // Prevent stale cards showing during async startNewHand
     await startNewHand(roomId);
   }
 
