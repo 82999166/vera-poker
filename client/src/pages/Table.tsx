@@ -1563,6 +1563,20 @@ export default function Table() {
         if (isStartingHandRef.current) {
           return;
         }
+        // GUARD: If player was previously seated (joinSettledRef=true) and is now not seated,
+        // they were kicked (AFK/ready timeout). Navigate to lobby instead of showing buy-in dialog.
+        // The kick detection useEffect will also navigate, but roomPlayers fires first and must not
+        // show the buy-in dialog in the meantime.
+        if (joinSettledRef.current && !kickDetectedRef.current) {
+          // Player was kicked - navigate to lobby directly
+          kickDetectedRef.current = true;
+          isLeavingRef.current = true;
+          setIsLeaving(true);
+          setShowBuyIn(false);
+          utils.wallet.balance.invalidate();
+          setTimeout(() => navigate("/lobby"), 1500);
+          return;
+        }
         // Normal entry - show buy-in dialog (only if room is valid and not closed)
         if (room && room.status !== "closed") {
           setShowBuyIn(true);
