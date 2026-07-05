@@ -1242,23 +1242,69 @@ export default function Table() {
     rebuyMutation.mutate({ roomId, amount });
   };
 
-  // Derived state from table state
-  const phase = tableState?.phase ?? "waiting";
-  const pot = tableState?.pot ?? 0;
-  const communityCards = tableState?.communityCards ?? [];
-  const myCards = tableState?.myCards ?? [];
-  const currentBet = tableState?.currentBet ?? (room ? parseFloat(room.bigBlind) : 2);
-  const isMyTurn = tableState?.currentPlayerId === user?.id;
-  const players = tableState?.players ?? [];
-  const turnTimeout = tableState?.turnTimeout ?? 30;
-  const lastActionAt = tableState?.lastActionAt ?? Date.now();
-  const waitingForReady = tableState?.waitingForReady ?? false;
-  const readyPlayers = tableState?.readyPlayers ?? [];
-  const readyCountdown = tableState?.readyCountdown ?? null;
+  // === Stable game state: prevent card flicker on network hiccups ===
+  // When network is unstable, the server might briefly return a "waiting" state
+  // (e.g. if activeTables was lost due to server restart, or a stale response arrives).
+  // We cache the last known good state and reject suspicious regressions.
+  const stableStateRef = useRef<typeof tableState>(null);
+  const stableState = useMemo(() => {
+    if (!tableState) return stableStateRef.current;
+    const prev = stableStateRef.current;
+    // Always accept if no previous state
+    if (!prev) { stableStateRef.current = tableState; return tableState; }
+    const prevHandNum = (prev as any)?.handNumber ?? 0;
+    const newHandNum = (tableState as any)?.handNumber ?? 0;
+    // Always accept if handNumber advanced (new hand started)
+    if (newHandNum > prevHandNum) {
+      stableStateRef.current = tableState; return tableState;
+    }
+    // Reject regression: active phase -> "waiting" with same handNumber
+    // This indicates server lost activeTables (restart) or stale response
+    const activeBettingPhases = ["preflop", "flop", "turn", "river", "showdown", "completed"];
+    const prevPhaseVal = (prev as any)?.phase ?? "waiting";
+    const newPhaseVal = (tableState as any)?.phase ?? "waiting";
+    if (activeBettingPhases.includes(prevPhaseVal) && newPhaseVal === "waiting" && newHandNum === prevHandNum) {
+      // Suspicious regression - keep previous state, don't flicker
+      return prev;
+    }
+    // Reject if same hand but community cards disappeared during active play
+    if (newHandNum === prevHandNum &&
+        ((prev as any)?.communityCards?.length ?? 0) > 0 &&
+        ((tableState as any)?.communityCards?.length ?? 0) === 0 &&
+        activeBettingPhases.includes(prevPhaseVal) &&
+        newPhaseVal !== "waiting" && !(tableState as any)?.waitingForReady) {
+      return prev;
+    }
+    // Reject if same hand but myCards disappeared during active play
+    if (newHandNum === prevHandNum &&
+        ((prev as any)?.myCards?.length ?? 0) > 0 &&
+        ((tableState as any)?.myCards?.length ?? 0) === 0 &&
+        activeBettingPhases.includes(prevPhaseVal) &&
+        newPhaseVal !== "waiting" && !(tableState as any)?.waitingForReady) {
+      return prev;
+    }
+    // Accept all other transitions
+    stableStateRef.current = tableState;
+    return tableState;
+  }, [tableState]);
+
+  // Derived state from STABLE table state (prevents flicker)
+  const phase = (stableState as any)?.phase ?? "waiting";
+  const pot = (stableState as any)?.pot ?? 0;
+  const communityCards: string[] = (stableState as any)?.communityCards ?? [];
+  const myCards: string[] = (stableState as any)?.myCards ?? [];
+  const currentBet = (stableState as any)?.currentBet ?? (room ? parseFloat(room.bigBlind) : 2);
+  const isMyTurn = (stableState as any)?.currentPlayerId === user?.id;
+  const players: any[] = (stableState as any)?.players ?? [];
+  const turnTimeout = (stableState as any)?.turnTimeout ?? 30;
+  const lastActionAt = (stableState as any)?.lastActionAt ?? Date.now();
+  const waitingForReady = (stableState as any)?.waitingForReady ?? false;
+  const readyPlayers: any[] = (stableState as any)?.readyPlayers ?? [];
+  const readyCountdown = (stableState as any)?.readyCountdown ?? null;
   const amIReady = user ? readyPlayers.includes(user.id) : false;
-  const handNumber = tableState?.handNumber ?? 0;
-  const showdownRevealOrder: number[] = (tableState as any)?.showdownRevealOrder ?? [];
-  const amISittingOut = (tableState as any)?.amISittingOut ?? false;
+  const handNumber = (stableState as any)?.handNumber ?? 0;
+  const showdownRevealOrder: number[] = (stableState as any)?.showdownRevealOrder ?? [];
+  const amISittingOut = (stableState as any)?.amISittingOut ?? false;
 
   // === Hand number change: reset all visual state from previous hand ===
   useEffect(() => {
@@ -2064,7 +2110,7 @@ export default function Table() {
                   {!isHero && (displayPhase === "showdown" || displayPhase === "completed") && player.holeCards && player.holeCards.length > 0 && !waitingForReady && (
                     <div className="flex flex-col items-center gap-0.5 mb-0.5" style={isTopPlayer ? { order: 10 } : undefined}>
                       <div className="flex gap-0.5">
-                        {player.holeCards.map((card, i) => {
+                        {player.holeCards.map((card: string, i: number) => {
                           const isHighlighted = topHandPlayerIds.has(player.id) && winnerBestCards.has(card) && revealedOpponentIds.has(player.id);
                           return (
                             <CardView

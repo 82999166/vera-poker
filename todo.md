@@ -1324,3 +1324,10 @@
 
 ## Bug Fix: 锦标赛桌不应收取 Rake
 - [x] 增加 DB fallback 检测 isTournamentRoom（inviteCode.startsWith("T")），防止服务器重启后内存锦标赛数据丢失导致收取 rake
+
+## Bug Fix: 网络不好时牌面闪烁
+
+- [x] 添加 stableState 缓存层，防止网络不稳定时牌面闪烁
+  - 当同一手牌中 phase 从活跃状态退化为 "waiting" 时，拒绝更新（保持旧状态）
+  - 当同一手牌中 communityCards 或 myCards 突然清空时，拒绝更新
+  - handNumber 增加时正常接受新状态（新手牌开始）
