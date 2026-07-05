@@ -592,6 +592,8 @@ export default function Table() {
   } | null>(null);
   // Prevent roomPlayers re-query from triggering showBuyIn after leave/navigate
   const isLeavingRef = useRef(false);
+  // Prevent showBuyIn from firing during the async window between clicking "start" and new hand beginning
+  const isStartingHandRef = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false); // mirrors isLeavingRef for JSX re-render
 
   const tableAreaRef = useRef<HTMLDivElement>(null);
@@ -1199,6 +1201,8 @@ export default function Table() {
       // NOTE: Do NOT clear dealingMyCards here - it must be triggered by the phase/myCards change
       // so the dealing animation plays correctly for the new hand.
       if (winnerTimeoutRef.current) { clearTimeout(winnerTimeoutRef.current); winnerTimeoutRef.current = null; }
+      // Guard: prevent showBuyIn from firing during async startNewHand window
+      isStartingHandRef.current = true;
       setShowWinner(null);
       setShowSettlement(null);
       setWinnerPlayerIds([]);
@@ -1330,6 +1334,8 @@ export default function Table() {
   // === Hand number change: reset all visual state from previous hand ===
   useEffect(() => {
     if (handNumber > 0 && handNumber !== prevHandNumberRef.current && prevHandNumberRef.current > 0) {
+      // New hand confirmed - clear the starting guard
+      isStartingHandRef.current = false;
       // Clear winner banner & settlement
       if (winnerTimeoutRef.current) { clearTimeout(winnerTimeoutRef.current); winnerTimeoutRef.current = null; }
       setShowWinner(null);
@@ -1550,6 +1556,11 @@ export default function Table() {
         // winnerTimeoutRef being set means settlement is still in progress (3s banner)
         if (winnerTimeoutRef.current) {
           // Settlement animation in progress - defer buy-in dialog
+          return;
+        }
+        // GUARD: Do NOT show buy-in dialog during the async window between clicking "start" and new hand beginning
+        // readyMutation.onSuccess sets this flag; it clears when handNumber increases
+        if (isStartingHandRef.current) {
           return;
         }
         // Normal entry - show buy-in dialog (only if room is valid and not closed)
