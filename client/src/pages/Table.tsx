@@ -852,13 +852,38 @@ export default function Table() {
           "full_house": 7, "flush": 6, "straight": 5, "three_of_a_kind": 4,
           "two_pair": 3, "one_pair": 2, "high_card": 1, "last_standing": 0, "Last Standing": 0,
         };
-        const primaryWinner = [...(tableState.settlementDetail?.winners || [])].sort((a: any, b: any) => {
+        const allWinners = tableState.settlementDetail?.winners || [];
+        const sortedWinners = [...allWinners].sort((a: any, b: any) => {
           const rankA = HAND_RANK_ORDER[a.handRank] || HAND_RANK_ORDER[a.handDescription] || 0;
           const rankB = HAND_RANK_ORDER[b.handRank] || HAND_RANK_ORDER[b.handDescription] || 0;
           if (rankB !== rankA) return rankB - rankA;
           return b.amount - a.amount;
-        })?.[0];
-        if (primaryWinner && primaryWinner.handDescription && primaryWinner.handDescription !== "Last Standing") {
+        });
+        const primaryWinner = sortedWinners[0];
+        // Detect tie: multiple winners with the same hand rank (split pot)
+        const topRank = primaryWinner ? (HAND_RANK_ORDER[primaryWinner.handRank] || HAND_RANK_ORDER[primaryWinner.handDescription] || 0) : 0;
+        const tiedWinners = sortedWinners.filter((w: any) => {
+          const r = HAND_RANK_ORDER[w.handRank] || HAND_RANK_ORDER[w.handDescription] || 0;
+          return r === topRank && w.handDescription !== "Last Standing";
+        });
+        const isTie = tiedWinners.length > 1;
+        if (isTie) {
+          // Split pot announcement
+          const currentLang = getLocale();
+          const handKey = HAND_RANK_MAP[primaryWinner.handDescription];
+          const handName = handKey ? t(handKey) : primaryWinner.handDescription;
+          const names = tiedWinners.map((w: any) => w.name).join(currentLang.startsWith("zh") ? "和" : " & ");
+          const splitText = currentLang.startsWith("zh") ? `${names}，${handName}平局，平分底池`
+            : currentLang === "ja" ? `${names}、${handName}で引き分け、ポット分割`
+            : currentLang === "ko" ? `${names}, ${handName} 무승부, 팟 분배`
+            : currentLang === "es" ? `${names} empatan con ${handName}, bote dividido`
+            : currentLang === "pt" ? `${names} empatam com ${handName}, pote dividido`
+            : currentLang === "ru" ? `${names} ничья, ${handName}, раздел банка`
+            : currentLang === "vi" ? `${names} hòa với ${handName}, chia nồi`
+            : currentLang === "th" ? `${names} เสมอด้วย ${handName} แบ่งหม้อ`
+            : `${names} split the pot with ${handName}`;
+          setTimeout(() => { speak(splitText); }, 800);
+        } else if (primaryWinner && primaryWinner.handDescription && primaryWinner.handDescription !== "Last Standing") {
           const handKey = HAND_RANK_MAP[primaryWinner.handDescription];
           const handName = handKey ? t(handKey) : primaryWinner.handDescription;
           const currentLang = getLocale();
@@ -871,18 +896,14 @@ export default function Table() {
             : currentLang === "vi" ? `${primaryWinner.name} thắng với ${handName}`
             : currentLang === "th" ? `${primaryWinner.name} ชนะด้วย ${handName}`
             : `${primaryWinner.name} wins with ${handName}`;
-          setTimeout(() => {
-            speak(winText);
-          }, 800);
+          setTimeout(() => { speak(winText); }, 800);
         } else if (primaryWinner && primaryWinner.handDescription === "Last Standing") {
           const currentLang = getLocale();
           const foldWinText = currentLang.startsWith("zh") ? `${primaryWinner.name}赢，其他玩家弃牌`
             : currentLang === "ja" ? `${primaryWinner.name}の勝ち、他のプレイヤーがフォールド`
             : currentLang === "ko" ? `${primaryWinner.name} 승리, 다른 플레이어 폴드`
             : `${primaryWinner.name} wins, others folded`;
-          setTimeout(() => {
-            speak(foldWinText);
-          }, 800);
+          setTimeout(() => { speak(foldWinText); }, 800);
         }
       }
       if (winnerTimeoutRef.current) clearTimeout(winnerTimeoutRef.current);
@@ -1522,6 +1543,13 @@ export default function Table() {
         if (room && room.type === "private" && room.status !== "closed") {
           setShowBuyIn(false);
           // Auto-join will be handled by a separate effect once walletData is available
+          return;
+        }
+        // GUARD: Do NOT show buy-in dialog during settlement animation
+        // roomPlayers 5s refetch can briefly return stale data during showdown/winner display
+        // winnerTimeoutRef being set means settlement is still in progress (3s banner)
+        if (winnerTimeoutRef.current) {
+          // Settlement animation in progress - defer buy-in dialog
           return;
         }
         // Normal entry - show buy-in dialog (only if room is valid and not closed)
