@@ -360,6 +360,7 @@ export async function getPlayerView(roomId: number, playerId: number) {
     currentPlayerIndex: gs.currentPlayerIndex,
     currentPlayerId: gs.currentPlayerIndex >= 0 ? gs.players[gs.currentPlayerIndex]?.id : null,
     dealerIndex: gs.dealerIndex,
+    dealerPlayerId: gs.players[gs.dealerIndex]?.id ?? null,
     myCards: shouldClearCards ? [] : myCards,
     handNumber: table.handNumber,
     serverSeedHash: gs.serverSeedHash,

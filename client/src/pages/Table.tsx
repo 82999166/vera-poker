@@ -2094,6 +2094,7 @@ export default function Table() {
             const isWinner = winnerPlayerIds.includes(player.id);
             const isLoser = winnerPlayerIds.length > 0 && !winnerPlayerIds.includes(player.id) && !player.isFolded;
             const isTopPlayer = visualSeatIndex === 3; // Top-center visual position
+            const isDealer = !!(tableState as any)?.dealerPlayerId && (tableState as any).dealerPlayerId === player.id && displayPhase !== 'waiting';
             return (
               <div
                 key={player.id}
@@ -2257,6 +2258,12 @@ export default function Table() {
                         onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_AVATAR; }}
                       />
                     </div>
+                    {/* Dealer chip badge */}
+                    {isDealer && (
+                      <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black z-20" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #cccccc 100%)', border: '1.5px solid #999', color: '#111', boxShadow: '0 0 6px rgba(255,255,255,0.4)' }}>
+                        D
+                      </div>
+                    )}
                     {/* Countdown number badge */}
                     {isCurrentTurn && (
                       <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold z-20 ${
