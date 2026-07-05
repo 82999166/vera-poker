@@ -1455,7 +1455,11 @@ export default function Table() {
   // Check if already seated
   const { data: roomPlayers } = trpc.rooms.getPlayers.useQuery(
     { roomId },
-    { enabled: isValidRoom && !!user }
+    {
+      enabled: isValidRoom && !!user,
+      // Refresh seat list every 5s so join/leave/AFK-kick changes are reflected promptly
+      refetchInterval: isValidRoom && !!user ? 5000 : false,
+    }
   );
 
   // Check URL for autoJoin flag (direct entry from lobby quick-join)

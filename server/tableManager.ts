@@ -553,8 +553,15 @@ export async function leaveTable(roomId: number, userId: number): Promise<{ succ
     const gs = table.gameState;
     const playerIndex = gs.players.findIndex(p => p.id === userId);
     if (playerIndex !== -1) {
-      // If player hasn't folded yet, fold them and advance game
-      if (!gs.players[playerIndex].isFolded) {
+      // If player hasn't folded yet AND game is in an active betting phase, fold them
+      // IMPORTANT: Do NOT call processAction during showdown/completed/waiting/dealing phases
+      // as it would corrupt the game state (processPlayerAction also blocks these phases)
+      const canFold = !gs.players[playerIndex].isFolded
+        && gs.phase !== "showdown"
+        && gs.phase !== "completed"
+        && gs.phase !== "waiting"
+        && gs.phase !== "dealing";
+      if (canFold) {
         table.gameState = gameEngine.processAction(gs, userId, "fold");
         await checkAndAdvanceGame(roomId);
       }

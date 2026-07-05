@@ -1331,3 +1331,9 @@
   - 当同一手牌中 phase 从活跃状态退化为 "waiting" 时，拒绝更新（保持旧状态）
   - 当同一手牌中 communityCards 或 myCards 突然清空时，拒绝更新
   - handNumber 增加时正常接受新状态（新手牌开始）
+
+## 进桌/离桌/游戏中逻辑全面审查与修复
+
+- [x] 修复 leaveTable 在 showdown/completed/waiting/dealing 阶段调用 processAction(fold) 导致游戏状态损坏的 bug
+  - 增加 canFold 条件检查，只在活跃下注阶段才执行 fold 操作
+- [x] 为 roomPlayers 查询添加 5 秒 refetchInterval，确保其他玩家加入/离开/AFK踢出后座位列表及时更新
