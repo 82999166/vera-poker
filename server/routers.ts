@@ -1434,6 +1434,15 @@ export const appRouter = router({
           message: "ALREADY_SEATED_THIS_TABLE" 
         });
       }
+      // Pre-check: if already seated at a DIFFERENT table - one account, one active game at a time
+      // This check is BEFORE balance deduction to avoid unnecessary deduct+refund cycles
+      const activeRoomCheck = await db.getPlayerActiveRoom(ctx.user.id);
+      if (activeRoomCheck && activeRoomCheck.roomId !== input.roomId) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "ALREADY_IN_ANOTHER_TABLE",
+        });
+      }
       // Atomically deduct balance (prevents race condition / negative balance)
       const balanceBefore = user.balance;
       const newBalance = await db.deductUserBalanceAtomic(ctx.user.id, input.buyIn);

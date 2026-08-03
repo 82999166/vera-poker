@@ -92,6 +92,29 @@ interface ActiveTable {
 // In-memory store of active tables
 const activeTables = new Map<number, ActiveTable>();
 
+// Per-player join lock: prevents race condition where same player joins two tables simultaneously
+// Key: userId, Value: Promise of the in-flight join operation
+const playerJoinLocks = new Map<number, Promise<any>>();
+
+/**
+ * Execute fn exclusively per player - prevents concurrent joinTable calls for same user
+ */
+async function withPlayerJoinLock<T>(userId: number, fn: () => Promise<T>): Promise<T> {
+  const prev = playerJoinLocks.get(userId);
+  let resolveLock!: () => void;
+  const lock = new Promise<void>(resolve => { resolveLock = resolve; });
+  playerJoinLocks.set(userId, lock);
+  try {
+    if (prev) { try { await prev; } catch {} }
+    return await fn();
+  } finally {
+    resolveLock();
+    if (playerJoinLocks.get(userId) === lock) {
+      playerJoinLocks.delete(userId);
+    }
+  }
+}
+
 /**
  * Get or create a table state for a room
  */
@@ -396,6 +419,10 @@ export async function getPlayerView(roomId: number, playerId: number) {
  * Join a table - add player to room_players and potentially start a game
  */
 export async function joinTable(roomId: number, userId: number, buyIn: number): Promise<{ success: boolean; seatIndex: number; message?: string }> {
+  // Wrap entire join logic in per-player lock to prevent race condition:
+  // two concurrent requests (e.g., double-tap or two devices) could both pass
+  // the "already seated" check before either has written to DB.
+  return withPlayerJoinLock(userId, async () => {
   const room = await db.getRoomById(roomId);
   if (!room) return { success: false, seatIndex: -1, message: "Room not found" };
   if (room.status === "closed" || room.status === "paused") {
@@ -512,6 +539,7 @@ export async function joinTable(roomId: number, userId: number, buyIn: number): 
   }
 
   return { success: true, seatIndex };
+  }); // end withPlayerJoinLock
 }
 
 /**

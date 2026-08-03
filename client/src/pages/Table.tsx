@@ -1117,7 +1117,7 @@ export default function Table() {
     },
     onError: (err) => {
       // If already in another game, show localized message and redirect to lobby
-      if (err.message?.includes("Already in another game")) {
+      if (err.message?.includes("Already in another game") || err.message?.includes("ALREADY_IN_ANOTHER_TABLE")) {
         toast.error(t("table.alreadyInGame"));
         setTimeout(() => navigate("/lobby"), 1500);
       } else if (err.message?.includes("ALREADY_SEATED_THIS_TABLE")) {
